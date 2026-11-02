@@ -72,4 +72,6 @@ For each completion record: task ID, actual branch/commit, changed scope, tests 
 
 ## Immediate next action
 
-Repair the canonical contract and reviewed foundation defects, then apply that commit to dependent worktrees before resuming engines and the main oracle. Network and background-bot recovery can proceed independently with ownership limits. The next integration must keep design intent separate from verified implementation status.
+Networking and background-bot continuations were launched in their original child threads using GPT-6.1 Sol/high. Their returned task IDs are in delegation-registry.json. The redundant nested oracle is configured for GPT but deliberately not resumed.
+
+Repair the canonical contract and reviewed foundation defects, then apply that commit to dependent worktrees before resuming engines and the main oracle. The next integration must keep design intent separate from verified implementation status. On each child completion, read the concise report, verify the commit/scope, and record the next dependent action. Do not poll running tasks.

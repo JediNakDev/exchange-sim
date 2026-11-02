@@ -5,7 +5,7 @@
     {
       "threadId": "thread:delegated-task:command%3Amcp%3Aa3cfcbf8-77f5-42db-85b2-f422e93526a8%3Adelegate-task%3A02725a54-6cc7-4068-a8a4-cd56fbe1584c",
       "title": "simulated liquidity bots (market maker, noise taker)",
-      "status": "failed",
+      "status": "starting",
       "provider": "codex",
       "model": "gpt-6.1-sol",
       "parentThreadId": "a4344aba-ffd8-4132-bf6d-ea93d8fe68e8",
@@ -13,7 +13,9 @@
       "previousProvider": "claudeAgent",
       "previousModel": "claude-opus-5-5",
       "reasoningEffort": "high",
-      "recoveryState": "configured for GPT; pending dependency/launch"
+      "recoveryState": "GPT continuation started",
+      "taskId": "node:delegated-task:command%3Amcp%3A380da04e-687f-40ce-9b9b-b7476358d01a%3Athread-send%3A7d278e44-75bf-4965-a6a3-8db5e93aa5c4",
+      "runId": "run:thread:thread%3Adelegated-task%3Acommand%253Amcp%253Aa3cfcbf8-77f5-42db-85b2-f422e93526a8%253Adelegate-task%253A02725a54-6cc7-4068-a8a4-cd56fbe1584c:ordinal:2"
     },
     {
       "threadId": "thread:delegated-task:command%3Amcp%3Aa3cfcbf8-77f5-42db-85b2-f422e93526a8%3Adelegate-task%3Aba379d75-3e4b-4fb1-8855-24c136df37bd",
@@ -101,7 +103,7 @@
     {
       "threadId": "thread:delegated-task:command%3Amcp%3Aa3cfcbf8-77f5-42db-85b2-f422e93526a8%3Adelegate-task%3A0f16961f-49e0-4ac1-a68e-e4c4a16e1325",
       "title": "net layer: reactor, TCP/UDP, zero-alloc buffers",
-      "status": "failed",
+      "status": "starting",
       "provider": "codex",
       "model": "gpt-6.1-sol",
       "parentThreadId": "a4344aba-ffd8-4132-bf6d-ea93d8fe68e8",
@@ -109,7 +111,9 @@
       "previousProvider": "claudeAgent",
       "previousModel": "claude-opus-5-5",
       "reasoningEffort": "high",
-      "recoveryState": "configured for GPT; pending dependency/launch"
+      "recoveryState": "GPT continuation started",
+      "taskId": "node:delegated-task:command%3Amcp%3A380da04e-687f-40ce-9b9b-b7476358d01a%3Athread-send%3A274350ac-1f06-4ae5-9ffc-984f8b05c2f9",
+      "runId": "run:thread:thread%3Adelegated-task%3Acommand%253Amcp%253Aa3cfcbf8-77f5-42db-85b2-f422e93526a8%253Adelegate-task%253A0f16961f-49e0-4ac1-a68e-e4c4a16e1325:ordinal:2"
     }
   ]
 }
