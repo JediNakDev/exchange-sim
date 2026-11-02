@@ -1,6 +1,6 @@
 # Working state and implementation plan
 
-Updated 2026-11-02. This is a recovery checkpoint, not live delegate status. Keep it concise; put detailed evidence in the relevant report or log.
+Updated 2026-11-03. This is a recovery checkpoint, not live delegate status. Keep it concise; put detailed evidence in the relevant report or log.
 
 ## User decisions and constraints
 
@@ -11,48 +11,43 @@ Updated 2026-11-02. This is a recovery checkpoint, not live delegate status. Kee
 - Resumed/new delegates use GPT and high reasoning. No Ollama while the user works here. Do not add co-author attribution to commits.
 - Full product rationale, causal simulation requirements, realism assumptions, accounting, and UI workflow: [PRODUCT.md](PRODUCT.md).
 
-## Verified repository state at recovery
+## Verified repository state (2026-11-03)
 
-- Branch: `exchange-simulator`; last code/CI commit `83b17c7` before this design work.
-- `35da879`: foundation/spec/types/test framework; `120523e`: config/token tables/sequenced store/packet faults; `5fe0add`: server contract; `83b17c7`: CI matrix.
-- Earlier parent report: 45/45 release and ASan/UBSan tests, plus Linux compiler checks. These are historical results, not freshly repeated checks for the complete platform.
-- The production MatchingEngine is declared but no implementation is merged into this checkout. Protocol sessions, integrated server, deterministic research runner, research API, accounting, and frontend remain unfinished.
-- Root untracked `include/exsim/server/admin.hpp`, `src/exsim/server/admin.cpp`, and `tests/exsim/server/admin_tests.cpp` are interrupted parent work. Preserve and verify them before committing. Preserve unrelated `.claude/` and `output/`.
-- Codec task completed: branch `t3/exchange-protocol-codecs`, commit `3a8bd64657a35404a80995e3b2307f8595a60fb4`, checkout `/Users/jedi/.t3/worktrees/lob/t3-f657635f`. Agent reports 117/117 tests in release/debug, 93 new protocol tests; not yet integrated.
-- Independent foundation review completed with 38 findings. Full report: [FOUNDATION_REVIEW.md](FOUNDATION_REVIEW.md). Do not equate passing existing tests with resolving this review.
+- Branch `exchange-simulator`. Integrated and verified on this branch:
+  - foundation + repaired contracts `9a2eaa5`; codecs `57bfe2e`; networking `2ee9b5a`; admin parser `5bd83ca`; position ledger `bacb58c`; bots `3125553`, `52b750f`;
+  - oracle, differential fuzzer, scenario DSL, canonical journal/replay `52a241f` (from `5abebec`);
+  - engine variant B (sorted level vectors) `d9cffc9` (from `66fe553`) as the current production engine.
+- Checks on `d9cffc9`: `make test EXTRA_CXXFLAGS=-DEXSIM_TEST_PRODUCTION` 271/271 release, 269/269 ASan/UBSan, warning-free; `make tools`; `exsim_fuzz` 200 seeds x 10000 steps, mixed and tiny profiles, no divergence. Logs: `/tmp/exsim-int-release.log`, `/tmp/exsim-int-debug.log`. Long campaign (1000 seeds x 20000 steps per profile) logs in `/tmp/exsim-fuzz-long/`.
+- Not built yet: protocol sessions (OUCH/SoupBinTCP, FIX), market-data publisher/retransmission/feed handler, server binary and end-to-end tests, deterministic research runner, manifests/artifacts, HTTP/OpenAPI API, frontend.
+- Delegates: all on Claude Opus 5.5 since 2026-11-03 (user decision). Do not add co-author lines to commits.
 
 ## Milestones
 
 - [x] Recover original requirements, interrupted work, completed codec result, and independent review.
-- [x] Explore T3 harness tools before selecting a workflow.
-- [x] Confirm trader focus and find global frontend conventions.
-- [x] Record product/UI/backend boundary and first useful vertical slice.
-- [x] Switch six interrupted direct delegates and the nested vector-oracle child to GPT-6.1 Sol at high reasoning. Partial files stay in their original worktrees. Launch status is recorded separately from configuration.
-- [ ] Repair reviewed public contracts and foundation defects before resuming dependent engines/oracle.
-- [ ] Finish independent networking and background-bot components.
-- [ ] Resume three existing engine alternatives and the oracle/fuzzer against the corrected shared contract.
-- [ ] Validate alternatives with the independent oracle, allocation guard, and fair benchmarks; keep the fastest correct design and record results.
-- [ ] Integrate codecs, selected engine, networking, bots, admin, journal and fault support.
-- [ ] Build protocol sessions, server/client, publisher/recovery, and end-to-end checks.
-- [ ] Add deterministic event runner and compiled baseline strategy host, separate from real-time network mode.
-- [ ] Add versioned run manifest/artifacts and reconciled fixed-point accounting/metrics.
-- [ ] Define C++ HTTP/OpenAPI research interface and generated TypeScript types.
-- [ ] Build the Next.js experiment/compare/inspect vertical slice on real artifacts.
-- [ ] Independently review correctness, causality, accounting, protocol recovery, and UI behavior; resolve findings and run appropriate checks.
+- [x] Confirm trader focus and frontend conventions; record product/UI/backend boundary.
+- [x] Repair reviewed public contracts and foundation defects (`9a2eaa5`).
+- [x] Integrate codecs, networking, admin parser, ledger, bots.
+- [x] Integrate oracle/fuzzer/scenarios/journal; validate and integrate engine B.
+- [ ] Finish engines A and C (resumed on Claude), validate with the oracle, benchmark all three on one machine/run, keep the fastest correct one.
+- [ ] Protocol sessions: OUCH 4.2/SoupBinTCP and FIX 4.4 (server and client).
+- [ ] Market data: ITCH/MoldUDP64 publisher, retransmission server, client receiver and book builder, feed-correctness test under packet faults.
+- [ ] Server binary (reactor, gateways, MD, admin, faults, bots, journal) and end-to-end loopback tests; client tool; wire-to-wire latency benchmark.
+- [ ] Deterministic event runner with latency model and compiled baseline strategies (fixed-spread MM, inventory-aware MM, TWAP), accounting, manifests/artifacts, CLI.
+- [ ] C++ HTTP/OpenAPI research interface and generated TypeScript types.
+- [ ] Next.js experiment/compare/inspect vertical slice on real artifacts.
+- [ ] Independent review (correctness, causality, accounting, protocol recovery, UI); resolve findings; README/docs with measured numbers.
 
 ## Existing worktrees and continuation ownership
 
-| Task | Checkout | Recovery state |
+| Task | Checkout | State |
 | --- | --- | --- |
-| Ladder engine | `/Users/jedi/.t3/worktrees/lob/t3-eaaf2612` | Failed at Claude usage limit; partial untracked implementation/tests. Wait for shared contract repair. |
-| Sorted-vector engine | `/Users/jedi/.t3/worktrees/lob/t3-3500e31b` | Failed at Claude usage limit; partial untracked implementation/tests. Wait for shared contract repair. |
-| Arena engine | `/Users/jedi/.t3/worktrees/lob/t3-2d9b3f09` | Failed at Claude usage limit; partial untracked implementation/tests. Wait for shared contract repair. |
-| Main reference/fuzzer/journal/scenarios | `/Users/jedi/.t3/worktrees/lob/t3-0fb59d8d` | Failed at usage limit. Contains `reference_shim_DO_NOT_MERGE.cpp`; never merge that as a production engine. Wait for corrected canonical contract. |
-| Networking | `/Users/jedi/.t3/worktrees/lob/t3-bbf9dbf6` | Failed at usage limit; partial net headers. Independent of engine internals. |
-| Background bots | `/Users/jedi/.t3/worktrees/lob/t3-b900e409` | Failed at usage limit; partial common/context/order-table headers. These generate market conditions; they are distinct from the trader's evaluated strategy. |
-| Protocol codecs | `/Users/jedi/.t3/worktrees/lob/t3-f657635f` | Completed GPT/Astra work; commit above. |
+| Ladder engine A | `/Users/jedi/.t3/worktrees/lob/t3-eaaf2612` | Resumed on Claude 2026-11-03 (gate: merge `5abebec`, production tests, fuzz, bench). |
+| Arena engine C | `/Users/jedi/.t3/worktrees/lob/t3-2d9b3f09` | Resumed on Claude 2026-11-03 (same gate). |
+| Vector engine B | `/Users/jedi/.t3/worktrees/lob/t3-3500e31b` | Done, integrated. Untracked `tests/exsim/engine/vector_reference_model.hpp` is the redundant second oracle; not merged. |
+| Oracle/fuzzer/journal/scenarios | `/Users/jedi/.t3/worktrees/lob/t3-0fb59d8d` | Done, integrated. Disabled shim stays untracked there. |
+| Networking, codecs, bots | see registry | Done, integrated. |
 
-Exact child thread IDs/links are in [delegation-registry.json](delegation-registry.json). Read the relevant child before acting. The vector task also spawned a failed reference-model child; do not resume a second competing oracle by accident. Preserve its work and record whether it adds useful coverage after the main oracle returns.
+Wave-2 task IDs and branches are recorded in [delegation-registry.json](delegation-registry.json) when launched.
 
 ## T3 features evaluated and selected
 
@@ -72,6 +67,4 @@ For each completion record: task ID, actual branch/commit, changed scope, tests 
 
 ## Immediate next action
 
-Networking and background-bot continuations were launched in their original child threads using GPT-6.1 Sol/high. Their returned task IDs are in delegation-registry.json. The redundant nested oracle is configured for GPT but deliberately not resumed.
-
-Repair the canonical contract and reviewed foundation defects, then apply that commit to dependent worktrees before resuming engines and the main oracle. The next integration must keep design intent separate from verified implementation status. On each child completion, read the concise report, verify the commit/scope, and record the next dependent action. Do not poll running tasks.
+Engines A and C are running on Claude. Launch wave 2 in parallel against `exchange-simulator`: OUCH gateway, FIX gateway, market-data publisher/feed, deterministic research runner. When the gateways and publisher land, launch the server binary and end-to-end tests; when the runner lands, launch the HTTP/OpenAPI API and then the UI. Do not poll running tasks.
