@@ -77,8 +77,8 @@ public:
         for (const auto side : {Side::BUY, Side::SELL}) {
             for (std::size_t level = 0; level < levels; ++level) {
                 const auto offset = std::max<std::uint64_t>(1, settings_.spread_ticks) + level;
-                const auto room = side == Side::BUY ? center - low : high - center;
-                if (offset > static_cast<std::uint64_t>(room)) continue;
+                const auto side_room = side == Side::BUY ? center - low : high - center;
+                if (offset > static_cast<std::uint64_t>(side_room)) continue;
                 const auto target_ticks = side == Side::BUY ? center - static_cast<Price>(offset) : center + static_cast<Price>(offset);
                 targets[count++] = Target{side, target_ticks * instrument->tick_size, false};
             }

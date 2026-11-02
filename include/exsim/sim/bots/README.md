@@ -44,8 +44,9 @@ order generation. Do not re-enter `on_timer` while it is already executing.
 Pending orders reserve capacity before submission. Rejected new requests release
 it; rejected cancel/replace requests preserve the confirmed state unless the order
 is unknown. Replaces retain the token (`cl_ord_id = 0`). Fill legs update cumulative
-quantity and signed inventory, including partial fills. All cancellation reasons
-release orders. Both old and requested prices constrain quoting until a replace
+quantity and signed inventory, including partial fills. Cancellation events
+release orders only when post-cancel leaves is zero; reductions retain order
+identity and update confirmed leaves/cumulative quantity. Both old and requested prices constrain quoting until a replace
 is acknowledged, because a processed replace may have been rejected.
 
 The maker retains desired prices, replenishes partial leaves via total-quantity
@@ -136,3 +137,8 @@ Every batch must reach every agent, including events for other sessions and
 instrument phase changes. The future server must wire these calls and parser
 hooks; this branch does not modify server configuration or claim integrated
 research-runner, latency, or accounting behavior.
+
+The integrated canonical contract supports partial cancellation reductions.
+`sh tests/exsim/sim/bots/check_allocations.sh` runs the isolated bot allocation
+test. Its allocator replacements are excluded from the shared test binary so
+other subsystems can have their own standalone allocation guards.

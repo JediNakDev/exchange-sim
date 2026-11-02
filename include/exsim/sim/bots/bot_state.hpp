@@ -65,7 +65,13 @@ public:
                 case EventType::Canceled:
                     if (event.canceled.session == config_.session_id)
                         if (auto* order = orders_.find(event.canceled.cl_ord_id)) {
-                            orders_.erase(*order); ++stats_.orders_canceled; dirty_ = true;
+                            if (event.canceled.leaves_qty == 0) orders_.erase(*order);
+                            else {
+                                order->leaves_qty = event.canceled.leaves_qty;
+                                order->cum_qty = event.canceled.cum_qty;
+                                order->in_flight = InFlightRequest::None;
+                            }
+                            ++stats_.orders_canceled; dirty_ = true;
                         }
                     break;
                 case EventType::Fill:

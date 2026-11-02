@@ -2,6 +2,41 @@
 #include "tests/framework/test.hpp"
 using namespace bot_tests;
 
+TEST_CASE(sim_bots_maker, partial_cancel_retains_confirmed_order) {
+    MarketMaker bot(maker_config());
+    FakeExchange exchange;
+    exchange.bind(bot);
+    tick(bot, exchange, 0);
+    const auto original = exchange.commands.front().new_order;
+    const auto before = bot.orders().size();
+    const auto* initial_order = bot.orders().find(original.cl_ord_id);
+    REQUIRE(initial_order);
+    const auto original_order_id = initial_order->order_id;
+    Event reduced{};
+    reduced.type = EventType::Canceled;
+    reduced.instrument = original.instrument;
+    reduced.canceled.cl_ord_id = original.cl_ord_id;
+    reduced.canceled.order_id = original_order_id;
+    reduced.canceled.session = original.session;
+    reduced.canceled.leaves_qty = 40;
+    reduced.canceled.cum_qty = 10;
+    reduced.canceled.canceled_qty = 50;
+    reduced.canceled.was_resting = true;
+    bot.on_events(std::span<const Event>(&reduced, 1));
+    CHECK_EQ(bot.orders().size(), before);
+    const auto* retained_order = bot.orders().find(original.cl_ord_id);
+    REQUIRE(retained_order);
+    CHECK_EQ(retained_order->order_id, original_order_id);
+    CHECK_EQ(retained_order->leaves_qty, 40u);
+    CHECK_EQ(retained_order->cum_qty, 10u);
+    CHECK(retained_order->in_flight == InFlightRequest::None);
+    CHECK_EQ(bot.inventory(), 0);
+    reduced.canceled.leaves_qty = 0;
+    bot.on_events(std::span<const Event>(&reduced, 1));
+    CHECK(!bot.orders().find(original.cl_ord_id));
+    CHECK_EQ(bot.orders().size(), before - 1);
+}
+
 TEST_CASE(sim_bots_maker, ladder_and_idle) {
     auto config = maker_config(); config.size = 107;
     MarketMaker bot(config); FakeExchange exchange; exchange.bind(bot);
