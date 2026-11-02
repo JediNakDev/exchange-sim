@@ -31,6 +31,7 @@ Updated 2026-11-03. This is a recovery checkpoint, not live delegate status. Kee
 - [x] Integrate oracle/fuzzer/scenarios/journal; validate and integrate engine B.
 - [ ] Finish engines A and C (resumed on Claude), validate with the oracle, benchmark all three on one machine/run, keep the fastest correct one.
 - [ ] Protocol sessions: OUCH 4.2/SoupBinTCP and FIX 4.4 (server and client).
+- [ ] Third order-entry protocol: SBE over FIXP (FIX Trading Community open standards, exsim-owned schema), codec, session, gateway per SERVER.md section 2, client.
 - [ ] Market data: ITCH/MoldUDP64 publisher, retransmission server, client receiver and book builder, feed-correctness test under packet faults.
 - [ ] Server binary (reactor, gateways, MD, admin, faults, bots, journal) and end-to-end loopback tests; client tool; wire-to-wire latency benchmark.
 - [ ] Deterministic event runner with latency model and compiled baseline strategies (fixed-spread MM, inventory-aware MM, TWAP), accounting, manifests/artifacts, CLI.
