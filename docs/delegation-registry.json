@@ -133,6 +133,54 @@
       "runId": "run:thread:thread%3Adelegated-task%3Acommand%253Amcp%253Aa3cfcbf8-77f5-42db-85b2-f422e93526a8%253Adelegate-task%253A0f16961f-49e0-4ac1-a68e-e4c4a16e1325:ordinal:2",
       "sourceCommit": "6d3e4c5f400da7de7724e913d7f03b9b01a8d0f2",
       "integratedCommit": "2ee9b5a"
+    },
+    {
+      "threadId": "thread:delegated-task:command%3Amcp%3Ac7e221c4-df52-4581-ac42-4cf5b1dacf1a%3Adelegate-task%3Acc12441a-2f3a-45e0-ac87-79d18ff764d1",
+      "title": "OUCH 4.2 / SoupBinTCP gateway (server + client)",
+      "status": "running",
+      "provider": "claudeAgent",
+      "model": "claude-opus-5-5",
+      "reasoningEffort": "xhigh",
+      "parentThreadId": "a4344aba-ffd8-4132-bf6d-ea93d8fe68e8",
+      "taskId": "node:delegated-task:command%3Amcp%3Ac7e221c4-df52-4581-ac42-4cf5b1dacf1a%3Adelegate-task%3Acc12441a-2f3a-45e0-ac87-79d18ff764d1",
+      "baseCommit": "67e771b",
+      "recoveryState": "wave 2, launched 2026-11-03"
+    },
+    {
+      "threadId": "thread:delegated-task:command%3Amcp%3Ac7e221c4-df52-4581-ac42-4cf5b1dacf1a%3Adelegate-task%3A3a447464-fcef-4596-8f36-181a1cbdebb3",
+      "title": "FIX 4.4 gateway (session layer + application, server + client)",
+      "status": "running",
+      "provider": "claudeAgent",
+      "model": "claude-opus-5-5",
+      "reasoningEffort": "xhigh",
+      "parentThreadId": "a4344aba-ffd8-4132-bf6d-ea93d8fe68e8",
+      "taskId": "node:delegated-task:command%3Amcp%3Ac7e221c4-df52-4581-ac42-4cf5b1dacf1a%3Adelegate-task%3A3a447464-fcef-4596-8f36-181a1cbdebb3",
+      "baseCommit": "67e771b",
+      "recoveryState": "wave 2, launched 2026-11-03"
+    },
+    {
+      "threadId": "thread:delegated-task:command%3Amcp%3Ac7e221c4-df52-4581-ac42-4cf5b1dacf1a%3Adelegate-task%3A0fd6780f-e0a1-4ae3-b7fd-b126b839ea13",
+      "title": "ITCH 5.0 / MoldUDP64 publisher, retransmission, feed handler, book builder",
+      "status": "running",
+      "provider": "claudeAgent",
+      "model": "claude-opus-5-5",
+      "reasoningEffort": "xhigh",
+      "parentThreadId": "a4344aba-ffd8-4132-bf6d-ea93d8fe68e8",
+      "taskId": "node:delegated-task:command%3Amcp%3Ac7e221c4-df52-4581-ac42-4cf5b1dacf1a%3Adelegate-task%3A0fd6780f-e0a1-4ae3-b7fd-b126b839ea13",
+      "baseCommit": "67e771b",
+      "recoveryState": "wave 2, launched 2026-11-03"
+    },
+    {
+      "threadId": "thread:delegated-task:command%3Amcp%3Ac7e221c4-df52-4581-ac42-4cf5b1dacf1a%3Adelegate-task%3A0986273d-4c42-4f8b-83ea-6650009a16cf",
+      "title": "deterministic research runner, strategies, accounting, manifests, CLI",
+      "status": "running",
+      "provider": "claudeAgent",
+      "model": "claude-opus-5-5",
+      "reasoningEffort": "xhigh",
+      "parentThreadId": "a4344aba-ffd8-4132-bf6d-ea93d8fe68e8",
+      "taskId": "node:delegated-task:command%3Amcp%3Ac7e221c4-df52-4581-ac42-4cf5b1dacf1a%3Adelegate-task%3A0986273d-4c42-4f8b-83ea-6650009a16cf",
+      "baseCommit": "67e771b",
+      "recoveryState": "wave 2, launched 2026-11-03"
     }
   ]
 }
