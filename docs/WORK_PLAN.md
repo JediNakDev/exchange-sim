@@ -27,7 +27,7 @@ Updated 2026-11-02. This is a recovery checkpoint, not live delegate status. Kee
 - [x] Explore T3 harness tools before selecting a workflow.
 - [x] Confirm trader focus and find global frontend conventions.
 - [x] Record product/UI/backend boundary and first useful vertical slice.
-- [ ] Switch interrupted delegates to GPT at high reasoning; record actual launch/status changes below.
+- [x] Switch six interrupted direct delegates and the nested vector-oracle child to GPT-6.1 Sol at high reasoning. Partial files stay in their original worktrees. Launch status is recorded separately from configuration.
 - [ ] Repair reviewed public contracts and foundation defects before resuming dependent engines/oracle.
 - [ ] Finish independent networking and background-bot components.
 - [ ] Resume three existing engine alternatives and the oracle/fuzzer against the corrected shared contract.
@@ -63,7 +63,7 @@ Exact child thread IDs/links are in [delegation-registry.json](delegation-regist
 | App-owned delegate tasks and isolated worktrees | Independent scopes and concise completion reports; new worktrees only via the harness. |
 | Completion notifications | Resume dependent work on completion; no polling loops or scheduled status checks. |
 | Native plan/checklist plus repository checkpoint | Short live milestones in the plan; durable decisions/dependencies/task pointers in these files survive context and provider changes. No separate T3 todo tool was exposed in the inventory. |
-| Saved project scripts | Inspected the saved project configuration. Add only stable, useful commands after checking existing entries. |
+| Saved project scripts | The project had no scripts. Added named C++ release and ASan/UBSan test actions; neither runs on worktree creation. |
 | Context fork/merge transfers | Available, but not needed for ordinary continuation. Do not create top-level threads without a user request. |
 | Scheduled tasks and PR watches | Useful for unattended schedules/PR monitoring when required; not a context-management substitute for current development. |
 | Inline HTML preview/render | Available for design review when a visual clarifies a decision; do not start a dev server just to show a diagram. |
