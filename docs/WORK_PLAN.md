@@ -17,7 +17,7 @@ Updated 2026-11-03. This is a recovery checkpoint, not live delegate status. Kee
   - foundation + repaired contracts `9a2eaa5`; codecs `57bfe2e`; networking `2ee9b5a`; admin parser `5bd83ca`; position ledger `bacb58c`; bots `3125553`, `52b750f`;
   - oracle, differential fuzzer, scenario DSL, canonical journal/replay `52a241f` (from `5abebec`);
   - engine variant B (sorted level vectors) `d9cffc9` (from `66fe553`) as the current production engine.
-- Checks on `d9cffc9`: `make test EXTRA_CXXFLAGS=-DEXSIM_TEST_PRODUCTION` 271/271 release, 269/269 ASan/UBSan, warning-free; `make tools`; `exsim_fuzz` 200 seeds x 10000 steps, mixed and tiny profiles, no divergence. Logs: `/tmp/exsim-int-release.log`, `/tmp/exsim-int-debug.log`. Long campaign (1000 seeds x 20000 steps per profile) logs in `/tmp/exsim-fuzz-long/`.
+- Checks on `d9cffc9`: `make test EXTRA_CXXFLAGS=-DEXSIM_TEST_PRODUCTION` 271/271 release, 269/269 ASan/UBSan, warning-free; `make tools`; `exsim_fuzz` 200 seeds x 10000 steps, mixed and tiny profiles, no divergence. Logs: `/tmp/exsim-int-release.log`, `/tmp/exsim-int-debug.log`. Long campaign 1000 seeds x 20000 steps per profile (40M commands) passed with no divergence: `/tmp/exsim-fuzz-long/`.
 - Not built yet: protocol sessions (OUCH/SoupBinTCP, FIX), market-data publisher/retransmission/feed handler, server binary and end-to-end tests, deterministic research runner, manifests/artifacts, HTTP/OpenAPI API, frontend.
 - Delegates: all on Claude Opus 5.5 since 2026-11-03 (user decision). Do not add co-author lines to commits.
 
