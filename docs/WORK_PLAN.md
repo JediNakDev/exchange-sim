@@ -18,6 +18,7 @@ Updated 2026-11-03. This is a recovery checkpoint, not live delegate status. Kee
   - oracle, differential fuzzer, scenario DSL, canonical journal/replay `52a241f` (from `5abebec`);
   - engine variant B (sorted level vectors) `d9cffc9` (from `66fe553`) as the current production engine.
 - Checks on `d9cffc9`: `make test EXTRA_CXXFLAGS=-DEXSIM_TEST_PRODUCTION` 271/271 release, 269/269 ASan/UBSan, warning-free; `make tools`; `exsim_fuzz` 200 seeds x 10000 steps, mixed and tiny profiles, no divergence. Logs: `/tmp/exsim-int-release.log`, `/tmp/exsim-int-debug.log`. Long campaign 1000 seeds x 20000 steps per profile (40M commands) passed with no divergence: `/tmp/exsim-fuzz-long/`.
+- `0e76769` and the following bots commit: GCC `-Werror` (CI configuration) was broken from `52a241f` by test-infra warnings; fixed and verified on Linux g++/clang++ release/debug/tsan and macOS release/debug with `-Werror` (274 release, 272 ASan/UBSan). Networking and bot zero-allocation checks now run inside `run_tests` through `testfw::AllocationScope`; only the ledger check (owned by the research runner) is still standalone. Delegates branched before `0e76769` may hit the same GCC warnings; merging resolves them.
 - Not built yet: protocol sessions (OUCH/SoupBinTCP, FIX), market-data publisher/retransmission/feed handler, server binary and end-to-end tests, deterministic research runner, manifests/artifacts, HTTP/OpenAPI API, frontend.
 - Delegates: all on Claude Opus 5.5 since 2026-11-03 (user decision). Do not add co-author lines to commits.
 

@@ -139,6 +139,7 @@ hooks; this branch does not modify server configuration or claim integrated
 research-runner, latency, or accounting behavior.
 
 The integrated canonical contract supports partial cancellation reductions.
-`sh tests/exsim/sim/bots/check_allocations.sh` runs the isolated bot allocation
-test. Its allocator replacements are excluded from the shared test binary so
-other subsystems can have their own standalone allocation guards.
+`sim_bots_allocations.active_hot_paths_allocate_zero` in
+`tests/exsim/sim/bots/bots_allocation_tests.cpp` runs inside the shared test
+binary and counts allocations with `testfw::AllocationScope`; it is skipped
+under ASan/TSan, where the counter is unavailable.
