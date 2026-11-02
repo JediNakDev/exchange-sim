@@ -1,0 +1,87 @@
+{
+  "updated": "2026-11-02",
+  "purpose": "Recovery inventory. This snapshot is not live status. Query/read the relevant thread before acting.",
+  "threads": [
+    {
+      "threadId": "thread:delegated-task:command%3Amcp%3Aa3cfcbf8-77f5-42db-85b2-f422e93526a8%3Adelegate-task%3A02725a54-6cc7-4068-a8a4-cd56fbe1584c",
+      "title": "simulated liquidity bots (market maker, noise taker)",
+      "status": "failed",
+      "provider": "claudeAgent",
+      "model": "claude-opus-5-5",
+      "parentThreadId": "a4344aba-ffd8-4132-bf6d-ea93d8fe68e8",
+      "link": "<t3-thread://v2/28299d02-72aa-499f-95da-f2289df17826/thread:delegated-task:command%3Amcp%3Aa3cfcbf8-77f5-42db-85b2-f422e93526a8%3Adelegate-task%3A02725a54-6cc7-4068-a8a4-cd56fbe1584c>"
+    },
+    {
+      "threadId": "thread:delegated-task:command%3Amcp%3Aa3cfcbf8-77f5-42db-85b2-f422e93526a8%3Adelegate-task%3Aba379d75-3e4b-4fb1-8855-24c136df37bd",
+      "title": "protocol codecs: OUCH/SoupBinTCP, FIX 4.4, ITCH 5.0/MoldUDP64",
+      "status": "completed",
+      "provider": "codex",
+      "model": "gpt-6-astra",
+      "parentThreadId": "a4344aba-ffd8-4132-bf6d-ea93d8fe68e8",
+      "link": "<t3-thread://v2/28299d02-72aa-499f-95da-f2289df17826/thread:delegated-task:command%3Amcp%3Aa3cfcbf8-77f5-42db-85b2-f422e93526a8%3Adelegate-task%3Aba379d75-3e4b-4fb1-8855-24c136df37bd>"
+    },
+    {
+      "threadId": "thread:delegated-task:command%3Amcp%3Aa3cfcbf8-77f5-42db-85b2-f422e93526a8%3Adelegate-task%3A707fdd04-e30e-4bc6-99d0-58cad76e87a2",
+      "title": "Sol mega review: spec + foundation",
+      "status": "completed",
+      "provider": "codex",
+      "model": "gpt-6.1-sol",
+      "parentThreadId": "a4344aba-ffd8-4132-bf6d-ea93d8fe68e8",
+      "link": "<t3-thread://v2/28299d02-72aa-499f-95da-f2289df17826/thread:delegated-task:command%3Amcp%3Aa3cfcbf8-77f5-42db-85b2-f422e93526a8%3Adelegate-task%3A707fdd04-e30e-4bc6-99d0-58cad76e87a2>"
+    },
+    {
+      "threadId": "thread:delegated-task:command%3Amcp%3Aa3cfcbf8-77f5-42db-85b2-f422e93526a8%3Adelegate-task%3A26b2eb02-9bba-4394-8caf-a18f277ab73f",
+      "title": "engine variant B: sorted level vectors",
+      "status": "failed",
+      "provider": "claudeAgent",
+      "model": "claude-opus-5-5",
+      "parentThreadId": "a4344aba-ffd8-4132-bf6d-ea93d8fe68e8",
+      "link": "<t3-thread://v2/28299d02-72aa-499f-95da-f2289df17826/thread:delegated-task:command%3Amcp%3Aa3cfcbf8-77f5-42db-85b2-f422e93526a8%3Adelegate-task%3A26b2eb02-9bba-4394-8caf-a18f277ab73f>"
+    },
+    {
+      "threadId": "thread:delegated-task:command%3Amcp%3A33dd36af-5026-4e9f-b243-f04bce32dc41%3Adelegate-task%3Af812e453-50d5-4fd9-9d69-26acd852e20d",
+      "title": "Vector engine: independent reference model + differential fuzzer",
+      "status": "failed",
+      "provider": "claudeAgent",
+      "model": "claude-opus-5-5",
+      "parentThreadId": "thread:delegated-task:command%3Amcp%3Aa3cfcbf8-77f5-42db-85b2-f422e93526a8%3Adelegate-task%3A26b2eb02-9bba-4394-8caf-a18f277ab73f",
+      "link": "<t3-thread://v2/28299d02-72aa-499f-95da-f2289df17826/thread:delegated-task:command%3Amcp%3A33dd36af-5026-4e9f-b243-f04bce32dc41%3Adelegate-task%3Af812e453-50d5-4fd9-9d69-26acd852e20d>"
+    },
+    {
+      "threadId": "thread:delegated-task:command%3Amcp%3Aa3cfcbf8-77f5-42db-85b2-f422e93526a8%3Adelegate-task%3A2e28d4b3-7657-46c8-bfed-95d518c694d2",
+      "title": "engine variant A: ladder + hierarchical bitmap",
+      "status": "failed",
+      "provider": "claudeAgent",
+      "model": "claude-opus-5-5",
+      "parentThreadId": "a4344aba-ffd8-4132-bf6d-ea93d8fe68e8",
+      "link": "<t3-thread://v2/28299d02-72aa-499f-95da-f2289df17826/thread:delegated-task:command%3Amcp%3Aa3cfcbf8-77f5-42db-85b2-f422e93526a8%3Adelegate-task%3A2e28d4b3-7657-46c8-bfed-95d518c694d2>"
+    },
+    {
+      "threadId": "thread:delegated-task:command%3Amcp%3Aa3cfcbf8-77f5-42db-85b2-f422e93526a8%3Adelegate-task%3A9bddc223-562b-4ffb-9b34-40d9a4b31ac4",
+      "title": "engine variant C: index arena, hot/cold split",
+      "status": "failed",
+      "provider": "claudeAgent",
+      "model": "claude-opus-5-5",
+      "parentThreadId": "a4344aba-ffd8-4132-bf6d-ea93d8fe68e8",
+      "link": "<t3-thread://v2/28299d02-72aa-499f-95da-f2289df17826/thread:delegated-task:command%3Amcp%3Aa3cfcbf8-77f5-42db-85b2-f422e93526a8%3Adelegate-task%3A9bddc223-562b-4ffb-9b34-40d9a4b31ac4>"
+    },
+    {
+      "threadId": "thread:delegated-task:command%3Amcp%3Aa3cfcbf8-77f5-42db-85b2-f422e93526a8%3Adelegate-task%3A375af3c9-3a0a-45df-a3e5-8798c60a0e73",
+      "title": "test infra: reference model, diff fuzzer, scenarios, journal",
+      "status": "failed",
+      "provider": "claudeAgent",
+      "model": "claude-opus-5-5",
+      "parentThreadId": "a4344aba-ffd8-4132-bf6d-ea93d8fe68e8",
+      "link": "<t3-thread://v2/28299d02-72aa-499f-95da-f2289df17826/thread:delegated-task:command%3Amcp%3Aa3cfcbf8-77f5-42db-85b2-f422e93526a8%3Adelegate-task%3A375af3c9-3a0a-45df-a3e5-8798c60a0e73>"
+    },
+    {
+      "threadId": "thread:delegated-task:command%3Amcp%3Aa3cfcbf8-77f5-42db-85b2-f422e93526a8%3Adelegate-task%3A0f16961f-49e0-4ac1-a68e-e4c4a16e1325",
+      "title": "net layer: reactor, TCP/UDP, zero-alloc buffers",
+      "status": "failed",
+      "provider": "claudeAgent",
+      "model": "claude-opus-5-5",
+      "parentThreadId": "a4344aba-ffd8-4132-bf6d-ea93d8fe68e8",
+      "link": "<t3-thread://v2/28299d02-72aa-499f-95da-f2289df17826/thread:delegated-task:command%3Amcp%3Aa3cfcbf8-77f5-42db-85b2-f422e93526a8%3Adelegate-task%3A0f16961f-49e0-4ac1-a68e-e4c4a16e1325>"
+    }
+  ]
+}
