@@ -87,6 +87,7 @@ struct CanceledEvent {
     Quantity cum_qty;
     CancelReason reason;
     bool was_resting;           // true if the order was on the book
+    Quantity leaves_qty = 0;   // nonzero only for a partial CancelOrder reduction
 };
 
 struct ReplacedEvent {
@@ -120,6 +121,7 @@ struct PhaseChangedEvent {
 struct AuctionSummaryEvent {
     Price price;
     std::uint64_t matched_qty;
+    MatchId match_id = 0;  // allocated after constituent fills, same global counter
 };
 
 struct Event {
@@ -142,20 +144,27 @@ struct Event {
 static_assert(std::is_trivially_copyable_v<Event>);
 
 // Reusable output buffer. The engine appends; the caller drains and clears.
-// Capacity is retained across clear() so steady-state use never allocates.
+// Fixed capacity after construction. Engine must preflight the whole command
+// against remaining() before mutation. push failure must never be ignored.
 class EventBuffer {
 public:
     explicit EventBuffer(std::size_t initial_capacity = 4096) { events_.reserve(initial_capacity); }
 
     void clear() noexcept { events_.clear(); }
-    void push(const Event& e) { events_.push_back(e); }
+    [[nodiscard]] bool push(const Event& e) noexcept {
+        if (remaining() == 0) return false;
+        events_.push_back(e);
+        return true;
+    }
+    [[nodiscard]] std::size_t remaining() const noexcept { return capacity() - size(); }
+    [[nodiscard]] bool can_append(std::size_t n) const noexcept { return n <= remaining(); }
 
     [[nodiscard]] std::size_t size() const noexcept { return events_.size(); }
     [[nodiscard]] bool empty() const noexcept { return events_.empty(); }
     [[nodiscard]] std::size_t capacity() const noexcept { return events_.capacity(); }
     [[nodiscard]] const Event& operator[](std::size_t i) const noexcept { return events_[i]; }
     [[nodiscard]] const Event* begin() const noexcept { return events_.data(); }
-    [[nodiscard]] const Event* end() const noexcept { return events_.data() + events_.size(); }
+    [[nodiscard]] const Event* end() const noexcept { return events_.empty() ? events_.data() : events_.data() + events_.size(); }
 
 private:
     std::vector<Event> events_;

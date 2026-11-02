@@ -26,7 +26,7 @@ using ClOrdId = std::uint64_t;        // client token, unique per session among 
 using SessionId = std::uint16_t;      // 0 = system / invalid
 using InstrumentId = std::uint16_t;   // 1..N, doubles as ITCH stock locate; 0 = all/none
 using OwnerId = std::uint32_t;        // self-trade-prevention group; 0 = none
-using MatchId = std::uint64_t;        // starts at 1, one per Fill
+using MatchId = std::uint64_t;        // starts at 1, one per Fill and AuctionSummary
 
 // Client tokens are packed with the session into one 64-bit map key.
 inline constexpr ClOrdId kMaxClOrdId = (ClOrdId{1} << 48) - 1;

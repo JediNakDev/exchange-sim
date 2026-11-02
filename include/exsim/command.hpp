@@ -3,8 +3,8 @@
 
 // Inbound commands: the protocol-neutral representation every order-entry
 // gateway (OUCH, FIX, ...) decodes into. All structs are trivially copyable
-// so they can be passed through SPSC queues and written verbatim to the
-// journal.
+// for SPSC queues. Journals require explicit versioned field encoding, never
+// raw object storage (padding, ABI and endianness are not canonical).
 
 #include "types.hpp"
 #include <type_traits>
@@ -31,6 +31,7 @@ struct CancelOrder {
     SessionId session = 0;
     ClOrdId orig_cl_ord_id = 0;  // token of the live order to cancel
     ClOrdId cl_ord_id = 0;       // token of this request (echoed back; may be 0)
+    Quantity reduce_to_total_qty = 0; // 0 full cancel; else clamp leaves to max(total-cum,0)
 };
 
 struct ReplaceOrder {
@@ -40,6 +41,7 @@ struct ReplaceOrder {
     ClOrdId cl_ord_id = 0;       // new token for the order; 0 = keep orig
     Price price = 0;             // new limit price
     Quantity qty = 0;            // new TOTAL quantity (incl. already filled)
+    bool force_priority_loss = false;  // OUCH U always sets true
 };
 
 struct MassCancel {
