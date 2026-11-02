@@ -72,3 +72,12 @@ gateway decode/encode, market-data publishing, the network loop.
 
 `release` (default, -O2 -g, asserts on), `debug` (ASan+UBSan), `tsan`,
 `perf` (-O3 -march=native -flto -DNDEBUG), `bench` (perf + Google Benchmark).
+
+## Foundation integration gates
+
+The legacy OrderBook and ShardedEngine are not production simulator
+infrastructure. Review findings 16, 36 and 37 remain open: symbol isolation,
+bounded fill storage, and cleanup of completed client mappings require a
+separate focused implementation and sanitizer/allocation regressions.
+The canonical engine contract is SPEC.md, including bounded EventBuffer
+preflight and field-based replay. Headers alone do not implement an engine.

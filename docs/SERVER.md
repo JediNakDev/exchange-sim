@@ -27,9 +27,9 @@ loop:
   has been encoded to every affected session and to market data. This is
   what makes the server deterministic and replayable from the journal.
 * `exchange.submit(cmd)`:
-  1. stamps `cmd.ts` (ns since local midnight, strictly increasing),
-  2. appends the command to the journal (if enabled),
-  3. `engine.handle(cmd, events)`,
+  1. stamps `cmd.ts` from a monotonic day-relative clock, checks the configured trading-day range,
+  2. ensures sufficient EventBuffer remaining capacity before submission,
+  3. `engine.handle(cmd, events)`; InsufficientOutput leaves state/output unchanged and must be retried before further commands; append applied commands to the canonical journal (if enabled),
   4. dispatches the batch (§2.3),
   5. flushes the current MoldUDP64 packet (never held across commands).
 * `--busy-poll` spins with a zero timeout; `--cpu N` pins the thread
@@ -142,7 +142,7 @@ Client side: `MoldUdp64Receiver` (gap detection, duplicate suppression,
 out-of-order buffering, retransmission requests with timeout) feeding
 `ItchBookBuilder`, a client-side order book rebuilt purely from ITCH
 (`A/F/E/C/X/D/U/Q/H/I`). It must reproduce `engine.depth()` exactly after
-every packet; this is the feed-correctness test, run with and without
+all packets for each command batch; this is the feed-correctness test, run with and without
 injected packet faults.
 
 ## 4. Admin interface and fault injection

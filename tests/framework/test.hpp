@@ -88,14 +88,14 @@ std::string show(const T& v) {
 
 #define TESTFW_CMP_(kind, a, b, op, fatal)                                                    \
     do {                                                                                      \
-        const auto& testfw_a_ = (a);                                                          \
-        const auto& testfw_b_ = (b);                                                          \
+        [&](const auto& testfw_a_, const auto& testfw_b_) {                                  \
         if (!(testfw_a_ op testfw_b_)) {                                                      \
             ::testfw::report_failure(__FILE__, __LINE__,                                      \
                 std::string(kind "(" #a ", " #b ")  lhs=") + ::testfw::show(testfw_a_) +       \
                     "  rhs=" + ::testfw::show(testfw_b_));                                    \
             if (fatal) throw ::testfw::AbortTest{};                                           \
         }                                                                                     \
+        }((a), (b));                                                                          \
     } while (0)
 
 #define CHECK_EQ(a, b) TESTFW_CMP_("CHECK_EQ", a, b, ==, false)

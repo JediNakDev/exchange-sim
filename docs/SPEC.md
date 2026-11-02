@@ -19,7 +19,7 @@ Types referenced below live in `include/exsim/{types,command,event}.hpp`.
 | Quantity | `uint32` shares |
 | Timestamp | `uint64` ns, opaque; every event copies `ts` from the command that produced it |
 | `OrderId` | assigned by the engine, starts at 1, +1 per assignment, engine-global |
-| `MatchId` | starts at 1, +1 per `Fill` event, engine-global |
+| `MatchId` | starts at 1, +1 per `Fill` and `AuctionSummary` event, engine-global |
 | `InstrumentId` | 1, 2, ... in `add_instrument` order (also the ITCH stock locate) |
 | `SessionId` | 1..65535; 0 is invalid for order commands |
 | `ClOrdId` | client token, 1..2^48-1; unique per session **among live orders** |
@@ -169,6 +169,14 @@ while A.leaves > 0 and the opposite side is non-empty
    cmd.cl_ord_id, canceled_qty = leaves, was_resting = true}` and remove the
    order. Allowed in every phase.
 
+If CancelOrder.reduce_to_total_qty is nonzero, compute target leaves as
+max(total - cum, 0), using a comparison before unsigned subtraction. If target
+>= old leaves, do nothing and emit nothing. Otherwise remove old leaves minus
+target and emit Canceled with leaves_qty=target. If target is positive, retain
+the order ID, token and FIFO position; update stored qty=cum+target. No lot or
+price validation applies to a cancellation reduction. If target is zero, remove
+the order. This path is allowed in every phase, unlike ReplaceOrder.
+
 ## 6. ReplaceOrder
 
 Let `O` be the live order for `(session, orig_cl_ord_id)`; `new_token =
@@ -192,7 +200,7 @@ Then:
   `Canceled{reason = UserRequested, request_cl_ord_id = cmd.cl_ord_id,
   canceled_qty = O.leaves, was_resting = true}` (with the order's *old* token)
   and remove it.
-* **Priority kept** iff `cmd.price == O.price` and
+* **Priority kept** iff `!cmd.force_priority_loss`, `cmd.price == O.price` and
   `cmd.qty - O.cum_qty <= O.leaves`. Update in place (token, qty, leaves; FIFO
   position unchanged) and emit `Replaced{new_order_id = old_order_id,
   priority_kept = true}`.
@@ -251,11 +259,12 @@ price, then FIFO) with the highest-priority remaining sell (lowest price, then
 FIFO) while the buy's price `>= p*` and the sell's price `<= p*`; execute
 `q = min(leaves)` at `p*`, emitting `Fill{aggressor = None, price = p*}` and
 removing exhausted orders. **STP is not applied** in the uncross. Afterwards
-emit `AuctionSummary{price = p*, matched_qty = V(p*)}` and set
+emit `AuctionSummary{price = p*, matched_qty = V(p*), match_id = next}` and set
 `last_trade_price = p*`. The resulting book is never crossed.
 
 `auction_indicative()` reports the same computation without executing (and
-`crossed = false`, zeros when the book is not crossed). `imbalance_side` is
+`crossed = false`, price/paired=0 when not crossed; imbalance is the
+unsigned difference between total buy and sell leaves, with its surplus side). `imbalance_side` is
 `Buy` if `I(p*) > 0`, `Sell` if `I(p*) < 0`, else `None`.
 
 ## 10. Event ordering summary
@@ -269,14 +278,75 @@ emit `AuctionSummary{price = p*, matched_qty = V(p*)}` and set
 | MassCancel | `Canceled`* (ascending OrderId), `MassCancelDone` |
 | SetPhase | per instrument: [`Fill`*, `AuctionSummary`] [`Canceled(EndOfDay)`*] `PhaseChanged` |
 
-Every event's `instrument` is the instrument of the order involved
-(`MassCancelDone`: `cmd.instrument`; rejections: as stated above).
+Every event's `instrument` is the processed instrument, including PhaseChanged
+and AuctionSummary (`MassCancelDone`: cmd.instrument; rejections: as specified).
 
 ## 11. Invariants (checked by tests)
 
-* In `Continuous`, `Closed` and `Halted` (after any command), the book is
+* In `Continuous` and `Closed` (after any command), the book is
   never crossed: `best_bid < best_ask` whenever both exist.
 * Every level holds ≥ 1 order; level qty = Σ leaves; `leaves + cum == qty`.
-* Quantity conservation: for every order, `qty == cum + leaves + Σ canceled`.
+* Live current total = cumulative fills + leaves. Across an amendment chain,
+  executed + current leaves + Canceled quantities = initial total + sum of
+  (actual replacement total minus previous total). A replace that cancels
+  because qty <= cum contributes no amendment delta, only its Canceled event.
 * `live_order_count()` equals the number of resting orders.
 * Engine output is a pure function of the command stream (determinism).
+
+## 12. Foundation boundaries (normative)
+
+Halted preserves crossed books inherited from call phases without matching.
+Entering Continuous or Closed uncrosses regardless of previous phase.
+All phase/auction events identify the processed instrument, even with no orders.
+
+EngineConfig construction rejects zero limits, max_instruments > 65535 and
+max_orders > UINT32_MAX. `required_event_capacity(config)` validates these
+bounds and computes checked `2*max_orders + 2*max_instruments + 4` slots.
+Each match or STP step removes at least one live order or terminates the
+aggressor; phase batches additionally have at most one summary and one phase
+change per instrument plus one expiration per live order. This bound therefore
+covers every command, including empty all-instrument phase transitions.
+Instrument setup also rejects invalid Phase values, reference prices outside
+the valid price grid, and unrepresentable ladder/allocation sizes. Each engine
+must check its own layout's byte sizes before allocation. Max order quantity
+must be at least lot size. Side-volume/FOK/auction/level sums use uint64, never
+Quantity; these config bounds ensure max_orders*UINT32_MAX fits uint64.
+Imbalance uses unsigned subtraction of smaller from larger. Price distances
+subtract smaller positive valid price from larger, never signed abs overflow.
+
+EventBuffer allocates only during construction. Its fixed capacity includes
+already-appended events; clear retains capacity. Before any command mutation,
+including ID counters, engine checks remaining capacity against the conservative
+bound above or a proven tighter read-only bound. Insufficient room returns
+HandleResult::InsufficientOutput and leaves engine AND output unchanged; no
+rejection event is emitted. Caller drains/retries with a startup-sized buffer.
+Otherwise handle returns Applied, including semantic rejections. push returns
+false when full and never grows: every engine must honor preflight and treat
+an unexpected push failure as an implementation defect, never silently drop it.
+The server must not dispatch or journal an unapplied command as completed.
+No exception or vector growth after mutation is an exhaustion strategy.
+
+Active event payload fields are all mandatory, with these defaults:
+Accepted echoes all NewOrder fields plus assigned order ID; Rested echoes the
+stored order and its remaining quantity. Fill has positive qty, next match ID,
+trade price, correct aggressor, and both complete post-fill legs (including
+owner/session). Replaced uses pre-amend old fields and post-amend new fields,
+with cum preserved. Canceled echoes stored side/price/token/session/ID and cum; leaves_qty is
+post-cancel leaves (zero except partial CancelOrder reductions),
+including the verbatim ignored market price; request token is zero except for
+Cancel/Replace/MassCancel, whose request token is echoed. Rejected always
+echoes request session, request token and target token for Cancel/Replace;
+NewOrder target/ID are zero. Unknown Cancel/Replace instrument/ID are zero;
+known Replace rejection uses target instrument/ID. SetPhase rejection echoes
+requested instrument, command type and reason, with session, tokens and ID zero.
+MassCancelDone echoes request fields, count and selected reason. PhaseChanged
+uses actual old/new phases. AuctionSummary uses uncross price, aggregate volume
+and a fresh global match ID allocated AFTER all constituent fills. No summary
+or match ID is emitted for a noncrossed transition. Unmentioned request-token
+fields are zero. Every event copies command ts; inactive union storage and
+padding have no meaning. Rejections consume no order/match IDs.
+
+Replay equality means ordered active field equality. Journals require a
+versioned serializer with fixed widths, byte order, tag and active fields;
+raw Command/Event memory and memcmp/hashing padding are prohibited. The
+journal/oracle owner must implement and test that encoding before replay claims.
