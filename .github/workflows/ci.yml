@@ -1,0 +1,38 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    name: ${{ matrix.os }} ${{ matrix.cxx }} ${{ matrix.mode }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-24.04, cxx: g++,     mode: release }
+          - { os: ubuntu-24.04, cxx: g++,     mode: debug }
+          - { os: ubuntu-24.04, cxx: clang++, mode: release }
+          - { os: ubuntu-24.04, cxx: clang++, mode: debug }
+          - { os: ubuntu-24.04, cxx: clang++, mode: tsan }
+          - { os: macos-15,     cxx: clang++, mode: release }
+          - { os: macos-15,     cxx: clang++, mode: debug }
+    steps:
+      - uses: actions/checkout@v4
+      - name: build and test
+        run: make -j4 test MODE=${{ matrix.mode }} CXX=${{ matrix.cxx }} EXTRA_CXXFLAGS=-Werror
+      - name: tools and examples
+        if: matrix.mode == 'release'
+        run: make -j4 tools examples MODE=release CXX=${{ matrix.cxx }} EXTRA_CXXFLAGS=-Werror
+
+  perf-smoke:
+    name: perf build + zero-allocation bench smoke
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: build optimised tools
+        run: make -j4 tools MODE=perf CXX=clang++
+      - name: engine benchmark (fails on any hot-path allocation)
+        run: ./build/perf/exsim_bench --ops 200000
