@@ -9,7 +9,7 @@ namespace {
 constexpr std::size_t kInitialOrderCapacity = 1u << 16;
 constexpr std::size_t kInitialOrderPoolObjects = 1u << 16;
 constexpr std::size_t kInitialLevelPoolObjects = 1u << 14;
-constexpr float kMaxLoadFactor = 0.70f;
+constexpr std::size_t kInitialFillCapacity = 1024;
 
 constexpr Price kDefaultMinPrice = -100000;
 constexpr Price kDefaultMaxPrice = 100000;
@@ -27,15 +27,16 @@ OrderBook::OrderBook()
     , lowest_sell_(nullptr)
     , next_order_id_(1) {
     orders_.reserve(kInitialOrderCapacity);
-    orders_.max_load_factor(kMaxLoadFactor);
 
     order_pool_.reserve(kInitialOrderPoolObjects);
     level_pool_.reserve(kInitialLevelPoolObjects);
-    fill_buffer_.reserve(16);
+    fill_buffer_.reserve(kInitialFillCapacity);
 
 #ifdef LOB_DETERMINISTIC_POOL
     order_pool_.set_allow_growth(false);
     level_pool_.set_allow_growth(false);
+#else
+    orders_.set_allow_growth(true);
 #endif
 
     initialize_ladders(kDefaultMinPrice, kDefaultMaxPrice);
@@ -305,7 +306,7 @@ void OrderBook::match_order_impl(Order* incoming) {
             if (LOB_LIKELY(resting->is_filled())) {
                 const OrderId resting_id = resting->id;
                 contra_level->pop_front();
-                orders_.erase(resting_id);
+                (void)orders_.erase(resting_id);
                 order_pool_.destroy(resting);
             }
         }
@@ -343,6 +344,7 @@ template void OrderBook::remove_order_from_book_impl<Side::BUY>(Order*);
 template void OrderBook::remove_order_from_book_impl<Side::SELL>(Order*);
 
 OrderBook::AddResult OrderBook::add_order(Price price, Quantity quantity, Side side) {
+    fill_buffer_.clear();
     ensure_price_range(price);
     if (LOB_UNLIKELY(price < min_price_ || price > max_price_)) {
         return AddResult{0, {}, 0};
@@ -354,7 +356,6 @@ OrderBook::AddResult OrderBook::add_order(Price price, Quantity quantity, Side s
         return AddResult{0, {}, 0};
     }
 
-    fill_buffer_.clear();
     if (side == Side::BUY) {
         match_order_impl<Side::BUY>(order_ptr);
     } else {
@@ -362,7 +363,11 @@ OrderBook::AddResult OrderBook::add_order(Price price, Quantity quantity, Side s
     }
     const Quantity remaining = order_ptr->remaining_quantity;
     if (!order_ptr->is_filled()) {
-        orders_[order_ptr->id] = order_ptr;
+        if (LOB_UNLIKELY(!orders_.insert(order_ptr->id, order_ptr))) {
+            // Id map full (deterministic mode): drop the remainder.
+            order_pool_.destroy(order_ptr);
+            return AddResult{order_id, fill_buffer_, 0};
+        }
         if (side == Side::BUY) {
             add_order_to_book_impl<Side::BUY>(order_ptr);
         } else {
@@ -372,33 +377,33 @@ OrderBook::AddResult OrderBook::add_order(Price price, Quantity quantity, Side s
         order_pool_.destroy(order_ptr);
     }
 
-    return AddResult{order_id, std::move(fill_buffer_), remaining};
+    return AddResult{order_id, fill_buffer_, remaining};
 }
 
 bool OrderBook::cancel_order(OrderId order_id) {
-    auto it = orders_.find(order_id);
-    if (LOB_UNLIKELY(it == orders_.end())) {
+    Order** slot = orders_.find(order_id);
+    if (LOB_UNLIKELY(!slot)) {
         return false;
     }
 
-    Order* order = it->second;
+    Order* order = *slot;
     if (order->side == Side::BUY) {
         remove_order_from_book_impl<Side::BUY>(order);
     } else {
         remove_order_from_book_impl<Side::SELL>(order);
     }
-    orders_.erase(it);
+    (void)orders_.erase(order_id);
     order_pool_.destroy(order);
     return true;
 }
 
 bool OrderBook::modify_order(OrderId order_id, Quantity new_quantity) {
-    auto it = orders_.find(order_id);
-    if (LOB_UNLIKELY(it == orders_.end())) {
+    Order** slot = orders_.find(order_id);
+    if (LOB_UNLIKELY(!slot)) {
         return false;
     }
 
-    Order* order = it->second;
+    Order* order = *slot;
     const Quantity filled_qty = order->quantity - order->remaining_quantity;
     const Quantity new_remaining = (new_quantity > filled_qty) ? (new_quantity - filled_qty) : 0;
 
@@ -508,9 +513,7 @@ OrderBook::BookSnapshot OrderBook::get_snapshot(size_t depth) const {
 }
 
 void OrderBook::clear() {
-    for (auto& kv : orders_) {
-        order_pool_.destroy(kv.second);
-    }
+    orders_.for_each([this](std::uint64_t, Order* order) { order_pool_.destroy(order); });
     orders_.clear();
 
     for (PriceLevel*& level : bid_ladder_) {

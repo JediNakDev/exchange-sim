@@ -2,11 +2,12 @@
 #define LOB_ORDER_BOOK_HPP
 
 #include "price_level.hpp"
+#include "flat_hash_map.hpp"
 #include "object_pool.hpp"
 #include <cstdint>
-#include <unordered_map>
-#include <vector>
 #include <optional>
+#include <span>
+#include <vector>
 
 namespace lob {
 
@@ -15,7 +16,7 @@ namespace lob {
  * 
  * Structure:
  * - Tick-indexed ladders for buy and sell levels
- * - Hash map for O(1) order lookup by order ID
+ * - Open-addressing hash map for O(1) order lookup by order ID
  * - Cached pointers to best bid (highest_buy_) and best ask (lowest_sell_)
  * 
  * Performance:
@@ -28,15 +29,18 @@ namespace lob {
  */
 class OrderBook {
 public:
+    // `fills` is a view into the book's reusable fill buffer: it stays valid
+    // until the next mutating call on this book. Copy it if you need it
+    // longer. (Returning a vector would allocate on every aggressive order.)
     struct AddResult {
         OrderId order_id;
-        std::vector<Fill> fills;
+        std::span<const Fill> fills;
         Quantity remaining_quantity;
     };
 
 private:
     // Order storage - keyed by order ID for O(1) lookup.
-    std::unordered_map<OrderId, Order*> orders_;
+    FlatHashMap<Order*> orders_;
 
     // Tick-indexed ladders (cache-friendly contiguous structures).
     std::vector<PriceLevel*> bid_ladder_;

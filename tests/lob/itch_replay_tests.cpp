@@ -12,8 +12,7 @@
 // dropped through tools/itch_replay (same dispatch) with the same
 // invariant checks toggled on.
 
-#include "itch_replay_tests.hpp"
-#include "test_framework.hpp"
+#include "../framework/test.hpp"
 #include "tools/itch_replay/diff.hpp"
 #include "tools/itch_replay/itch_replayer.hpp"
 #include "tools/itch_replay/reference_book.hpp"
@@ -22,12 +21,9 @@
 #include <lob/order_book.hpp>
 #include <lob/protocol/itch.hpp>
 
-#include <cassert>
 #include <iostream>
 
-namespace {
-
-void replay_matches_reference() {
+TEST_CASE(itch_replay, replay_matches_reference) {
     constexpr std::size_t kMessages = 100'000;
     constexpr std::size_t kDiffEvery = 1;  // diff after every message
 
@@ -42,12 +38,11 @@ void replay_matches_reference() {
     std::size_t parsed = 0;
     while (offset < wire.size()) {
         int sz = lob::itch::message_size(wire[offset]);
-        assert(sz > 0 && "unknown message type in synthetic stream");
-        assert(offset + static_cast<std::size_t>(sz) <= wire.size());
+        REQUIRE(sz > 0);
+        REQUIRE(offset + static_cast<std::size_t>(sz) <= wire.size());
 
         lob::itch::Message m;
-        bool ok = lob::itch::parse(&wire[offset], m);
-        assert(ok);
+        REQUIRE(lob::itch::parse(&wire[offset], m));
         replayer.apply(m);
         offset += sz;
         ++parsed;
@@ -55,28 +50,25 @@ void replay_matches_reference() {
         if (parsed % kDiffEvery == 0) {
             auto d = lob::tools::diff_books(book, ref, /*depth=*/10);
             if (!d.ok) {
-                std::cerr << "DIVERGENCE after " << parsed << " msgs (type='"
-                          << static_cast<char>(m.type) << "'): "
-                          << d.detail << "\n";
-                std::exit(1);
+                FAIL("divergence after " + std::to_string(parsed) + " msgs (type='" +
+                     static_cast<char>(m.type) + "'): " + d.detail);
             }
         }
     }
 
     auto final_diff = lob::tools::diff_books(book, ref, /*depth=*/20);
     if (!final_diff.ok) {
-        std::cerr << "FINAL DIVERGENCE: " << final_diff.detail << "\n";
-        std::exit(1);
+        FAIL("final divergence: " + final_diff.detail);
     }
 
     auto const& s = replayer.stats();
-    assert(s.total() == parsed && "every parsed message must be dispatched");
-    assert(s.dropped_cross == 0 && "synthetic stream is non-marketable by construction");
+    CHECK_EQ(s.total(), parsed);      // every parsed message must be dispatched
+    CHECK_EQ(s.dropped_cross, 0u);    // synthetic stream is non-marketable by construction
 
     auto bid = book.get_best_bid();
     auto ask = book.get_best_ask();
     if (bid && ask) {
-        assert(*bid < *ask && "engine reports crossed book");
+        CHECK_LT(*bid, *ask);  // engine must never report a crossed book
     }
 
     std::cout << "[itch] parsed=" << parsed
@@ -85,12 +77,5 @@ void replay_matches_reference() {
               << " cancels=" << s.cancels
               << " deletes=" << s.deletes
               << " replaces=" << s.replaces
-              << " unknown_ref=" << s.unknown_ref << " ";
-}
-
-}  // namespace
-
-void itch_replay_tests() {
-    std::cout << "\nITCH replay tests:\n";
-    RUN_TEST(replay_matches_reference);
+              << " unknown_ref=" << s.unknown_ref << "\n    ";
 }

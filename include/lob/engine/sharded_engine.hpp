@@ -1,6 +1,7 @@
 #ifndef LOB_ENGINE_SHARDED_ENGINE_HPP
 #define LOB_ENGINE_SHARDED_ENGINE_HPP
 
+#include "../flat_hash_map.hpp"
 #include "../order_book.hpp"
 #include "spsc_queue.hpp"
 #include <atomic>
@@ -9,7 +10,6 @@
 #include <memory>
 #include <optional>
 #include <thread>
-#include <unordered_map>
 #include <vector>
 
 namespace lob::engine {
@@ -62,7 +62,7 @@ private:
     struct alignas(128) Shard {
         SPSCQueue<Command, kQueueCapacity> queue;
         OrderBook book;
-        std::unordered_map<std::uint64_t, OrderId> client_to_book_order;
+        FlatHashMap<OrderId> client_to_book_order{kQueueCapacity};
         std::thread worker;
         std::atomic<bool> running{true};
     };

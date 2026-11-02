@@ -18,45 +18,52 @@ enum class MessageType : char {
     OrderReplace    = 'U',  // Order Replace
 };
 
-// Parsed message — variant-style tagged union.
-// Zero-copy: fields are extracted directly from the wire buffer.
+// Parsed message bodies. Zero-copy: fields are extracted directly from the
+// wire buffer.
+struct AddOrderBody {
+    uint64_t order_ref;
+    uint64_t timestamp_ns;
+    Side     side;
+    uint32_t shares;
+    int64_t  price;     // price in fixed-point (price * 10000)
+};
+
+struct OrderExecutedBody {
+    uint64_t order_ref;
+    uint64_t timestamp_ns;
+    uint32_t executed_shares;
+    uint64_t match_number;
+};
+
+struct OrderCancelBody {
+    uint64_t order_ref;
+    uint64_t timestamp_ns;
+    uint32_t cancelled_shares;
+};
+
+struct OrderDeleteBody {
+    uint64_t order_ref;
+    uint64_t timestamp_ns;
+};
+
+struct OrderReplaceBody {
+    uint64_t original_order_ref;
+    uint64_t new_order_ref;
+    uint64_t timestamp_ns;
+    uint32_t shares;
+    int64_t  price;
+};
+
+// Parsed message — tagged union over the bodies above.
 struct Message {
     MessageType type;
 
     union {
-        struct {
-            uint64_t order_ref;
-            uint64_t timestamp_ns;
-            Side     side;
-            uint32_t shares;
-            int64_t  price;     // price in fixed-point (price * 10000)
-        } add_order;
-
-        struct {
-            uint64_t order_ref;
-            uint64_t timestamp_ns;
-            uint32_t executed_shares;
-            uint64_t match_number;
-        } order_executed;
-
-        struct {
-            uint64_t order_ref;
-            uint64_t timestamp_ns;
-            uint32_t cancelled_shares;
-        } order_cancel;
-
-        struct {
-            uint64_t order_ref;
-            uint64_t timestamp_ns;
-        } order_delete;
-
-        struct {
-            uint64_t original_order_ref;
-            uint64_t new_order_ref;
-            uint64_t timestamp_ns;
-            uint32_t shares;
-            int64_t  price;
-        } order_replace;
+        AddOrderBody      add_order;
+        OrderExecutedBody order_executed;
+        OrderCancelBody   order_cancel;
+        OrderDeleteBody   order_delete;
+        OrderReplaceBody  order_replace;
     };
 };
 

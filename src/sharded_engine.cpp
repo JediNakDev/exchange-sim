@@ -26,6 +26,7 @@ ShardedEngine::ShardedEngine(std::size_t shard_count, std::size_t batch_size, bo
     shards_.reserve(shard_count);
     for (std::size_t i = 0; i < shard_count; ++i) {
         shards_.emplace_back(std::make_unique<Shard>());
+        shards_.back()->client_to_book_order.set_allow_growth(true);
     }
     producer_owner_thread_ = std::make_unique<std::atomic<std::uint64_t>[]>(shard_count);
     for (std::size_t i = 0; i < shard_count; ++i) {
@@ -157,25 +158,23 @@ void ShardedEngine::worker_loop(std::size_t shard_idx) {
                 case CommandType::Add: {
                     const auto result = shard.book.add_order(op.price, op.quantity, op.side);
                     if (result.order_id != 0 && result.remaining_quantity > 0) {
-                        shard.client_to_book_order[op.client_order_id] = result.order_id;
+                        (void)shard.client_to_book_order.insert(op.client_order_id, result.order_id);
                     }
                     inflight_.fetch_sub(1, std::memory_order_release);
                     break;
                 }
                 case CommandType::Cancel: {
-                    auto it = shard.client_to_book_order.find(op.client_order_id);
-                    if (it != shard.client_to_book_order.end()) {
-                        if (shard.book.cancel_order(it->second)) {
-                            shard.client_to_book_order.erase(it);
+                    if (const OrderId* book_id = shard.client_to_book_order.find(op.client_order_id)) {
+                        if (shard.book.cancel_order(*book_id)) {
+                            (void)shard.client_to_book_order.erase(op.client_order_id);
                         }
                     }
                     inflight_.fetch_sub(1, std::memory_order_release);
                     break;
                 }
                 case CommandType::Modify: {
-                    auto it = shard.client_to_book_order.find(op.client_order_id);
-                    if (it != shard.client_to_book_order.end()) {
-                        static_cast<void>(shard.book.modify_order(it->second, op.quantity));
+                    if (const OrderId* book_id = shard.client_to_book_order.find(op.client_order_id)) {
+                        static_cast<void>(shard.book.modify_order(*book_id, op.quantity));
                     }
                     inflight_.fetch_sub(1, std::memory_order_release);
                     break;
