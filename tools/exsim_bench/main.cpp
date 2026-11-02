@@ -45,6 +45,13 @@ std::atomic<bool> g_count_allocs{false};
 std::atomic<std::uint64_t> g_allocs{0};
 }  // namespace
 
+// GCC inlines these replacements into this file's own new/delete pairs and then
+// reports free() on an operator-new pointer. Every form here allocates with
+// malloc or posix_memalign, so free() is the matching release.
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmismatched-new-delete"
+#endif
 void* operator new(std::size_t n) {
     if (g_count_allocs.load(std::memory_order_relaxed)) {
         g_allocs.fetch_add(1, std::memory_order_relaxed);
@@ -72,6 +79,9 @@ void operator delete(void* p, std::align_val_t) noexcept { std::free(p); }
 void operator delete[](void* p, std::align_val_t) noexcept { std::free(p); }
 void operator delete(void* p, std::size_t, std::align_val_t) noexcept { std::free(p); }
 void operator delete[](void* p, std::size_t, std::align_val_t) noexcept { std::free(p); }
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
 
 namespace {
 

@@ -112,7 +112,7 @@ TEST_CASE(Journal, roundtrip_hash_and_corruption) {
 }
 TEST_CASE(Journal, active_fields_ignore_padding) {
     for(auto type:sim::kAllEventTypes) {
-        Event a{},b{};std::memset(&a,0x55,sizeof(a));std::memset(&b,0xaa,sizeof(b));
+        Event a{},b{};std::memset(static_cast<void*>(&a),0x55,sizeof(a));std::memset(static_cast<void*>(&b),0xaa,sizeof(b));
         a.type=type;b.type=type;a.instrument=b.instrument=1;a.ts=b.ts=7;
         // Initialize every active payload from the same value while preserving distinct inactive bytes.
         switch(type) {

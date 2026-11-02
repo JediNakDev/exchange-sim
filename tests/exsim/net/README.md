@@ -75,8 +75,10 @@ socket resources. No shared contract or build files were changed.
 - `make test FILTER=net_`: 16 networking cases.
 - `make test`: 40 total cases in this checkout.
 - `make test MODE=debug`: 40 cases with ASan and UBSan.
-- `tests/exsim/net/check_allocations.sh`: standalone counter, 64 runtime cycles,
-  zero C++ allocations after setup; isolated from the shared test binary.
+- `Network.connect_echo_close_and_udp_cycles_allocate_nothing_after_setup` in
+  `network_allocation_tests.cpp`: 64 connect/echo/close/slot-reuse/UDP cycles with
+  zero C++ heap allocations after setup, counted by the shared per-thread counter
+  (`tests/framework/alloc_counter.hpp`); skipped under ASan/TSan.
 - Same full suites under Linux GCC release/debug; Linux Clang release also run.
 - macOS uses kqueue; Linux container uses epoll. Both exercise multicast loopback.
 - No test threads, so TSan is not needed. Optional RTT benchmark was not built.
@@ -113,7 +115,6 @@ src/exsim/net/tcp_server.cpp
 src/exsim/net/udp.cpp
 tests/exsim/net/.gitignore
 tests/exsim/net/README.md
-tests/exsim/net/allocation_check.cc
-tests/exsim/net/check_allocations.sh
+tests/exsim/net/network_allocation_tests.cpp
 tests/exsim/net/network_tests.cpp
 ```

@@ -12,12 +12,12 @@ class ScenarioNames {
 public:
     std::map<std::string,std::uint64_t> instruments, sessions, owners, tokens;
     std::uint64_t value(const std::string& text,FieldKind kind) {
-        if(kind==FieldKind::Price) { auto p=parse_price(text);if(!p) throw std::runtime_error("invalid price");return to_raw(*p); }
+        if(kind==FieldKind::Price) { auto p=parse_price(text);if(!p) { throw std::runtime_error("invalid price"); }return to_raw(*p); }
         if(text=="true") return 1;
         if(text=="false") return 0;
         for(unsigned n=0;n<256;++n) if(enum_value_name(kind,n)==text) return n;
         if(!text.empty() && (text[0]=='-' || (text[0]>='0'&&text[0]<='9'))) {
-            std::size_t used=0;auto n=std::stoull(text,&used,0);if(used!=text.size()) throw std::runtime_error("invalid integer");return n;
+            std::size_t used=0;auto n=std::stoull(text,&used,0);if(used!=text.size()) { throw std::runtime_error("invalid integer"); }return n;
         }
         auto* table=kind==FieldKind::Instrument?&instruments:kind==FieldKind::Session?&sessions:
                     kind==FieldKind::Owner?&owners:kind==FieldKind::Token?&tokens:nullptr;
@@ -43,14 +43,14 @@ if(auto it=fields.find("stp");it!=fields.end()) { x.stp=static_cast<decltype(x.s
 if(auto it=fields.find("post_only");it!=fields.end()) { x.post_only=static_cast<decltype(x.post_only)>(value(it->second,FieldKind::Bool)); fields.erase(it); }
 if(auto it=fields.find("price");it!=fields.end()) { x.price=static_cast<decltype(x.price)>(value(it->second,FieldKind::Price)); fields.erase(it); }
 if(auto it=fields.find("qty");it!=fields.end()) { x.qty=static_cast<decltype(x.qty)>(value(it->second,FieldKind::Quantity)); fields.erase(it); }
-if(!fields.empty()) throw std::runtime_error("unknown command field: "+fields.begin()->first); return Command{x}; }
+if(!fields.empty()) { throw std::runtime_error("unknown command field: "+fields.begin()->first); } return Command{x}; }
 case CommandType::Cancel: { CancelOrder x;
 if(auto it=fields.find("ts");it!=fields.end()) { x.ts=static_cast<decltype(x.ts)>(value(it->second,FieldKind::Timestamp)); fields.erase(it); }
 if(auto it=fields.find("session");it!=fields.end()) { x.session=static_cast<decltype(x.session)>(value(it->second,FieldKind::Session)); fields.erase(it); }
 if(auto it=fields.find("orig_cl_ord_id");it!=fields.end()) { x.orig_cl_ord_id=static_cast<decltype(x.orig_cl_ord_id)>(value(it->second,FieldKind::Token)); fields.erase(it); }
 if(auto it=fields.find("cl_ord_id");it!=fields.end()) { x.cl_ord_id=static_cast<decltype(x.cl_ord_id)>(value(it->second,FieldKind::Token)); fields.erase(it); }
 if(auto it=fields.find("reduce_to_total_qty");it!=fields.end()) { x.reduce_to_total_qty=static_cast<decltype(x.reduce_to_total_qty)>(value(it->second,FieldKind::Quantity)); fields.erase(it); }
-if(!fields.empty()) throw std::runtime_error("unknown command field: "+fields.begin()->first); return Command{x}; }
+if(!fields.empty()) { throw std::runtime_error("unknown command field: "+fields.begin()->first); } return Command{x}; }
 case CommandType::Replace: { ReplaceOrder x;
 if(auto it=fields.find("ts");it!=fields.end()) { x.ts=static_cast<decltype(x.ts)>(value(it->second,FieldKind::Timestamp)); fields.erase(it); }
 if(auto it=fields.find("session");it!=fields.end()) { x.session=static_cast<decltype(x.session)>(value(it->second,FieldKind::Session)); fields.erase(it); }
@@ -59,19 +59,19 @@ if(auto it=fields.find("cl_ord_id");it!=fields.end()) { x.cl_ord_id=static_cast<
 if(auto it=fields.find("price");it!=fields.end()) { x.price=static_cast<decltype(x.price)>(value(it->second,FieldKind::Price)); fields.erase(it); }
 if(auto it=fields.find("qty");it!=fields.end()) { x.qty=static_cast<decltype(x.qty)>(value(it->second,FieldKind::Quantity)); fields.erase(it); }
 if(auto it=fields.find("force_priority_loss");it!=fields.end()) { x.force_priority_loss=static_cast<decltype(x.force_priority_loss)>(value(it->second,FieldKind::Bool)); fields.erase(it); }
-if(!fields.empty()) throw std::runtime_error("unknown command field: "+fields.begin()->first); return Command{x}; }
+if(!fields.empty()) { throw std::runtime_error("unknown command field: "+fields.begin()->first); } return Command{x}; }
 case CommandType::MassCancel: { MassCancel x;
 if(auto it=fields.find("ts");it!=fields.end()) { x.ts=static_cast<decltype(x.ts)>(value(it->second,FieldKind::Timestamp)); fields.erase(it); }
 if(auto it=fields.find("session");it!=fields.end()) { x.session=static_cast<decltype(x.session)>(value(it->second,FieldKind::Session)); fields.erase(it); }
 if(auto it=fields.find("instrument");it!=fields.end()) { x.instrument=static_cast<decltype(x.instrument)>(value(it->second,FieldKind::Instrument)); fields.erase(it); }
 if(auto it=fields.find("cl_ord_id");it!=fields.end()) { x.cl_ord_id=static_cast<decltype(x.cl_ord_id)>(value(it->second,FieldKind::Token)); fields.erase(it); }
 if(auto it=fields.find("cancel_on_disconnect");it!=fields.end()) { x.cancel_on_disconnect=static_cast<decltype(x.cancel_on_disconnect)>(value(it->second,FieldKind::Bool)); fields.erase(it); }
-if(!fields.empty()) throw std::runtime_error("unknown command field: "+fields.begin()->first); return Command{x}; }
+if(!fields.empty()) { throw std::runtime_error("unknown command field: "+fields.begin()->first); } return Command{x}; }
 case CommandType::SetPhase: { SetPhase x;
 if(auto it=fields.find("ts");it!=fields.end()) { x.ts=static_cast<decltype(x.ts)>(value(it->second,FieldKind::Timestamp)); fields.erase(it); }
 if(auto it=fields.find("instrument");it!=fields.end()) { x.instrument=static_cast<decltype(x.instrument)>(value(it->second,FieldKind::Instrument)); fields.erase(it); }
 if(auto it=fields.find("phase");it!=fields.end()) { x.phase=static_cast<decltype(x.phase)>(value(it->second,FieldKind::Phase)); fields.erase(it); }
-if(!fields.empty()) throw std::runtime_error("unknown command field: "+fields.begin()->first); return Command{x}; }
+if(!fields.empty()) { throw std::runtime_error("unknown command field: "+fields.begin()->first); } return Command{x}; }
 default: throw std::runtime_error("unknown command");
     }
 }
@@ -126,10 +126,10 @@ template<class Engine> void run_scenario(std::istream& input) {
             start();
             if(op=="expect") {
                 std::string what;line>>what;
-                if(what=="no") { std::string events;line>>events;if(events!="events" || !out->empty()) throw std::runtime_error("expected no events");continue; }
-                if(what=="count") {std::size_t n;line>>n;if(n!=out->size()) throw std::runtime_error("event count");continue;}
+                if(what=="no") { std::string events;line>>events;if(events!="events" || !out->empty()) { throw std::runtime_error("expected no events"); }continue; }
+                if(what=="count") {std::size_t n;line>>n;if(n!=out->size()) { throw std::runtime_error("event count"); }continue;}
                 if(what=="phase") {std::string symbol,p;line>>symbol>>p;
-                    if(engine->phase(static_cast<InstrumentId>(names.value(symbol,FieldKind::Instrument)))!=static_cast<Phase>(names.value(p,FieldKind::Phase))) throw std::runtime_error("phase mismatch");continue;}
+                    if(engine->phase(static_cast<InstrumentId>(names.value(symbol,FieldKind::Instrument)))!=static_cast<Phase>(names.value(p,FieldKind::Phase))) { throw std::runtime_error("phase mismatch"); }continue;}
                 if(what=="depth") {
                     std::string symbol,side,level;line>>symbol>>side;
                     std::vector<LevelInfo> expected;
@@ -152,23 +152,23 @@ template<class Engine> void run_scenario(std::istream& input) {
                     line>>symbol>>side>>price>>qty>>count;LevelInfo levels[4096];
                     auto n=engine->depth(static_cast<InstrumentId>(names.value(symbol,FieldKind::Instrument)),side=="bid"?Side::BUY:Side::SELL,levels,4096);
                     bool found=false;for(std::size_t j=0;j<n;++j) if(levels[j].price==static_cast<Price>(names.value(price,FieldKind::Price))) found=levels[j].qty==qty && levels[j].order_count==count;
-                    if(!found) throw std::runtime_error("book mismatch");continue;}
+                    if(!found) { throw std::runtime_error("book mismatch"); }continue;}
                 auto fields=key_values(line);
                 if(what=="order") {
                     auto session=static_cast<SessionId>(names.value(fields.at("session"),FieldKind::Session));
                     auto token=names.value(fields.at("cl_ord_id"),FieldKind::Token);auto order=engine->find_order(session,token);
                     if(!order) throw std::runtime_error("missing order");
                     visit_fields(*order,[&](const Field& f){auto it=fields.find(std::string(f.name));if(it!=fields.end()) {
-                        if(f.raw!=names.value(it->second,f.kind)) throw std::runtime_error("order field mismatch");fields.erase(it);}});
+                        if(f.raw!=names.value(it->second,f.kind)) { throw std::runtime_error("order field mismatch"); }fields.erase(it);}});
                 } else {
                     if(event_index>=out->size()) throw std::runtime_error("missing event");
                     const auto& e=(*out)[event_index++];
                     std::string type(event_type_name(e.type));for(char& c:what) if(c>='A'&&c<='Z') c=static_cast<char>(c-'A'+'a');
                     if(what!=type) throw std::runtime_error("event type: "+testsupport::format_event(e));
                     visit_fields(e,[&](const Field& f){auto it=fields.find(std::string(f.name));if(it!=fields.end()) {
-                        if(f.raw!=names.value(it->second,f.kind)) throw std::runtime_error("event field "+std::string(f.name)+": "+testsupport::format_event(e));fields.erase(it);}});
+                        if(f.raw!=names.value(it->second,f.kind)) { throw std::runtime_error("event field "+std::string(f.name)+": "+testsupport::format_event(e)); }fields.erase(it);}});
                 }
-                if(!fields.empty()) throw std::runtime_error("unknown assertion field");continue;
+                if(!fields.empty()) { throw std::runtime_error("unknown assertion field"); }continue;
             }
             CommandType type=CommandType::NewOrder;bool found=false;
             for(unsigned n=0;n<=4;++n) if(to_string(static_cast<CommandType>(n))==op) {type=static_cast<CommandType>(n);found=true;}

@@ -3,7 +3,7 @@
 #include <random>
 using namespace exsim::protocol::fix44;
 TEST_CASE(proto_fix, decimal_boundaries) {
-  exsim::Price p;
+  exsim::Price p{};
   CHECK(parse_price("0.0001", p));
   CHECK_EQ(p, 1);
   CHECK(parse_price("-1.5", p));

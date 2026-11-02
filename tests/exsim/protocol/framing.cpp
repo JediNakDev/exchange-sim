@@ -22,7 +22,7 @@ TEST_CASE(proto_wire, extremes) {
   CHECK_EQ(wire::alpha(b, 8), "ABC");
   CHECK(!wire::alpha(b, 2, "ABC"));
   CHECK(wire::numeric(b, 20, UINT64_MAX));
-  std::uint64_t v;
+  std::uint64_t v{};
   CHECK(wire::numeric({b, 20}, v));
   CHECK_EQ(v, UINT64_MAX);
   CHECK(!wire::numeric("18446744073709551616", v));
