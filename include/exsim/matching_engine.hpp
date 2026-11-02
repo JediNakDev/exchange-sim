@@ -4,7 +4,7 @@
 // Multi-instrument matching engine. Pure and single-threaded: no I/O, no
 // clocks, no threads. Every input is a Command, every output is an Event
 // appended to a caller-owned EventBuffer, so a journaled command stream
-// replays to a bit-identical event stream.
+// replays to identical ordered active field values (never compare padding).
 //
 // Hot-path guarantee: after construction, handle() performs no heap
 // allocation (orders, price levels and id maps are all pre-sized from
@@ -21,6 +21,8 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <limits>
+#include <stdexcept>
 #include <type_traits>
 
 namespace exsim {
@@ -29,6 +31,23 @@ struct EngineConfig {
     std::size_t max_instruments = 64;
     std::size_t max_orders = 1u << 20;  // live (resting) orders across all instruments
 };
+
+// Conservative bound for ANY command, including all-instrument phase changes.
+// Setup-time validation also bounds aggregate quantities and count fields.
+[[nodiscard]] inline std::size_t required_event_capacity(const EngineConfig& c) {
+    if (c.max_instruments == 0 || c.max_instruments > std::numeric_limits<InstrumentId>::max() ||
+        c.max_orders == 0 || c.max_orders > std::numeric_limits<std::uint32_t>::max())
+        throw std::invalid_argument("EngineConfig bounds");
+    const auto limit = std::numeric_limits<std::size_t>::max();
+    if (c.max_orders > (limit - 4) / 2 ||
+        c.max_instruments > (limit - 4 - 2 * c.max_orders) / 2)
+        throw std::length_error("event capacity");
+    const auto count = 2 * c.max_orders + 2 * c.max_instruments + 4;
+    if (count > limit / sizeof(Event)) throw std::length_error("event storage");
+    return count;
+}
+
+enum class HandleResult { Applied, InsufficientOutput };
 
 struct LevelInfo {
     Price price;
@@ -57,7 +76,7 @@ struct AuctionIndicative {
     bool crossed = false;           // false => no executable volume
     Price price = 0;                // indicative uncross price
     std::uint64_t paired_qty = 0;   // V(p*)
-    std::uint64_t imbalance_qty = 0;
+    std::uint64_t imbalance_qty = 0; // at price if crossed; total side difference otherwise
     Aggressor imbalance_side = Aggressor::None;  // Buy/Sell surplus, None if balanced
 };
 
@@ -76,13 +95,17 @@ public:
     // or max_instruments is reached.
     [[nodiscard]] InstrumentId add_instrument(const InstrumentConfig& config);
 
+    // Before ANY mutation (including counters), require remaining output >=
+    // required_event_capacity(config). Otherwise return InsufficientOutput with
+    // engine AND output unchanged. Applied includes semantic rejection events.
+    // Implementations may use a tighter proven bound from a read-only preflight.
     // ---- Hot path -------------------------------------------------------
-    void handle(const NewOrder& cmd, EventBuffer& out);
-    void handle(const CancelOrder& cmd, EventBuffer& out);
-    void handle(const ReplaceOrder& cmd, EventBuffer& out);
-    void handle(const MassCancel& cmd, EventBuffer& out);
-    void handle(const SetPhase& cmd, EventBuffer& out);
-    void handle(const Command& cmd, EventBuffer& out);
+    [[nodiscard]] HandleResult handle(const NewOrder& cmd, EventBuffer& out);
+    [[nodiscard]] HandleResult handle(const CancelOrder& cmd, EventBuffer& out);
+    [[nodiscard]] HandleResult handle(const ReplaceOrder& cmd, EventBuffer& out);
+    [[nodiscard]] HandleResult handle(const MassCancel& cmd, EventBuffer& out);
+    [[nodiscard]] HandleResult handle(const SetPhase& cmd, EventBuffer& out);
+    [[nodiscard]] HandleResult handle(const Command& cmd, EventBuffer& out);
 
     // ---- Queries (not latency critical, never allocate) ------------------
     [[nodiscard]] std::size_t instrument_count() const noexcept;
@@ -123,9 +146,10 @@ private:
 
 template <typename F>
 void MatchingEngine::for_each_order(F&& f) const {
+    auto callback = [&](const OrderInfo& o) { f(o); };
     visit_orders(
-        [](const OrderInfo& o, void* ctx) { (*static_cast<std::remove_reference_t<F>*>(ctx))(o); },
-        const_cast<void*>(static_cast<const void*>(&f)));
+        [](const OrderInfo& o, void* ctx) { (*static_cast<decltype(callback)*>(ctx))(o); },
+        &callback);
 }
 
 }  // namespace exsim

@@ -5,6 +5,9 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <limits>
+#include <stdexcept>
+#include <utility>
 #include <type_traits>
 
 namespace lob {
@@ -32,8 +35,14 @@ public:
 
     FlatHashMap(const FlatHashMap&) = delete;
     FlatHashMap& operator=(const FlatHashMap&) = delete;
-    FlatHashMap(FlatHashMap&&) noexcept = default;
-    FlatHashMap& operator=(FlatHashMap&&) noexcept = default;
+    FlatHashMap(FlatHashMap&& other) noexcept { swap(other); }
+    FlatHashMap& operator=(FlatHashMap&& other) noexcept {
+        if (this != &other) {
+            FlatHashMap moved(std::move(other));
+            swap(moved);
+        }
+        return *this;
+    }
 
     // Sizes the table to hold at least `max_entries` keys at <= 50% load.
     // Existing entries are preserved. Never shrinks.
@@ -41,17 +50,21 @@ public:
         if (max_entries <= max_entries_) {
             return;
         }
+        const auto limit = std::numeric_limits<std::size_t>::max();
+        if (max_entries > limit / 2) throw std::length_error("FlatHashMap reserve");
         std::size_t capacity = 16;
         while (capacity < max_entries * 2) {
-            capacity <<= 1;
+            if (capacity > limit / 2) throw std::length_error("FlatHashMap reserve");
+            capacity *= 2;
         }
+        if (capacity > limit / sizeof(Slot)) throw std::length_error("FlatHashMap storage");
         rehash(capacity);
     }
 
     void set_allow_growth(bool allow_growth) noexcept { allow_growth_ = allow_growth; }
 
     [[nodiscard]] V* find(Key key) noexcept {
-        if (LOB_UNLIKELY(mask_ == 0)) {
+        if (LOB_UNLIKELY(mask_ == 0 || key == 0)) {
             return nullptr;
         }
         for (std::size_t i = slot_of(key);; i = (i + 1) & mask_) {
@@ -81,7 +94,7 @@ public:
             if (!allow_growth_) {
                 return false;
             }
-            rehash(mask_ == 0 ? 16 : (mask_ + 1) * 2);
+            reserve(max_entries_ == 0 ? 8 : max_entries_ + 1);
         }
         for (std::size_t i = slot_of(key);; i = (i + 1) & mask_) {
             Slot& slot = slots_[i];
@@ -138,8 +151,9 @@ public:
     template <typename F>
     void for_each(F&& f) const {
         for (std::size_t i = 0; mask_ != 0 && i <= mask_; ++i) {
-            if (slots_[i].key != 0) {
-                f(slots_[i].key, slots_[i].value);
+            const Slot& slot = slots_[i];
+            if (slot.key != 0) {
+                f(slot.key, slot.value);
             }
         }
     }
@@ -150,6 +164,16 @@ public:
     [[nodiscard]] std::size_t capacity() const noexcept { return mask_ == 0 ? 0 : mask_ + 1; }
 
 private:
+    void swap(FlatHashMap& other) noexcept {
+        using std::swap;
+        swap(slots_, other.slots_);
+        swap(mask_, other.mask_);
+        swap(size_, other.size_);
+        swap(max_entries_, other.max_entries_);
+        swap(shift_, other.shift_);
+        swap(allow_growth_, other.allow_growth_);
+    }
+
     struct Slot {
         Key key;
         V value;
@@ -160,12 +184,13 @@ private:
     }
 
     void rehash(std::size_t new_capacity) {
+        auto replacement = std::make_unique<Slot[]>(new_capacity);
         std::unique_ptr<Slot[]> old = std::move(slots_);
         const std::size_t old_capacity = capacity();
 
         // Value-initialisation zero-fills every slot, which also pre-faults
         // the pages so the hot path never takes a first-touch page fault.
-        slots_.reset(new Slot[new_capacity]());
+        slots_ = std::move(replacement);
         mask_ = new_capacity - 1;
         max_entries_ = new_capacity / 2;
         shift_ = 64;

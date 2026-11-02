@@ -16,6 +16,7 @@
 #   examples/<name>.cpp     one binary per file: build/<mode>/examples/<name>
 #   benchmark/**/*.cpp      build/bench/benchmark
 
+.DEFAULT_GOAL := all
 MODE ?= release
 
 CXX ?= c++
@@ -53,6 +54,24 @@ TEST_SRCS := $(shell find tests -name '*.cpp' | sort)
 EXAMPLE_SRCS := $(sort $(wildcard examples/*.cpp))
 TOOL_NAMES := $(sort $(patsubst tools/%/,%,$(dir $(wildcard tools/*/*.cpp))))
 
+ifeq ($(shell uname -s),Darwin)
+  BENCHMARK_PREFIX := $(shell brew --prefix google-benchmark 2>/dev/null || echo /opt/homebrew/opt/google-benchmark)
+  BENCH_CPPFLAGS := -I$(BENCHMARK_PREFIX)/include
+  BENCH_LDFLAGS := -L$(BENCHMARK_PREFIX)/lib
+endif
+
+# Quote arbitrary configuration text as one shell argument.
+shell_quote = '$(subst ','"'"',$(1))'
+# Parse-time content stamps change timestamps only when the configuration changes.
+# Separate modes retain independent configurations. Source removal forces relink.
+$(shell mkdir -p $(BUILD))
+$(shell printf '%s\n' $(call shell_quote,$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(BENCH_CPPFLAGS)) > $(BUILD)/compile.tmp)
+$(shell cmp -s $(BUILD)/compile.tmp $(BUILD)/compile.config || cp $(BUILD)/compile.tmp $(BUILD)/compile.config)
+$(shell printf '%s\n' $(call shell_quote,$(CXX) $(CXXFLAGS) $(LDFLAGS) $(LDLIBS) $(BENCH_LDFLAGS)) > $(BUILD)/link.tmp)
+$(shell cmp -s $(BUILD)/link.tmp $(BUILD)/link.config || cp $(BUILD)/link.tmp $(BUILD)/link.config)
+$(shell printf '%s\n' $(call shell_quote,$(LIB_SRCS) $(TEST_SRCS) $(EXAMPLE_SRCS) $(wildcard tools/*/*.cpp) $(shell find benchmark -name '*.cpp' | sort)) > $(BUILD)/sources.tmp)
+$(shell cmp -s $(BUILD)/sources.tmp $(BUILD)/sources.config || cp $(BUILD)/sources.tmp $(BUILD)/sources.config)
+
 LIB_OBJS := $(call obj,$(LIB_SRCS))
 TEST_BIN := $(BUILD)/run_tests
 TOOL_BINS := $(addprefix $(BUILD)/,$(TOOL_NAMES))
@@ -60,28 +79,30 @@ EXAMPLE_BINS := $(patsubst examples/%.cpp,$(BUILD)/examples/%,$(EXAMPLE_SRCS))
 
 .PHONY: all lib test check tools examples bench bench-run clean itch-replay
 
+$(TEST_BIN) $(TOOL_BINS) $(EXAMPLE_BINS): $(BUILD)/link.config $(BUILD)/sources.config
+
 all: $(TEST_BIN) $(TOOL_BINS) $(EXAMPLE_BINS)
 
 lib: $(LIB_OBJS)
 
-$(BUILD)/obj/%.o: %.cpp
+$(BUILD)/obj/%.o: %.cpp $(BUILD)/compile.config
 	@mkdir -p $(dir $@)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
 
 $(TEST_BIN): $(call obj,$(TEST_SRCS)) $(LIB_OBJS)
 	@mkdir -p $(dir $@)
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) $^ -o $@ $(LDLIBS)
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(filter %.o,$^) -o $@ $(LDLIBS)
 
 define TOOL_RULE
 $(BUILD)/$(1): $(call obj,$(sort $(wildcard tools/$(1)/*.cpp))) $(LIB_OBJS)
 	@mkdir -p $$(dir $$@)
-	$$(CXX) $$(CXXFLAGS) $$(LDFLAGS) $$^ -o $$@ $$(LDLIBS)
+	$$(CXX) $$(CXXFLAGS) $$(LDFLAGS) $$(filter %.o,$$^) -o $$@ $$(LDLIBS)
 endef
 $(foreach t,$(TOOL_NAMES),$(eval $(call TOOL_RULE,$(t))))
 
 $(BUILD)/examples/%: $(BUILD)/obj/examples/%.o $(LIB_OBJS)
 	@mkdir -p $(dir $@)
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) $^ -o $@ $(LDLIBS)
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(filter %.o,$^) -o $@ $(LDLIBS)
 
 test: $(TEST_BIN)
 	./$(TEST_BIN) $(FILTER)
@@ -101,20 +122,15 @@ itch-replay:
 # ---------------------------------------------------------------------------
 # Google Benchmark suite (Homebrew on macOS, system install on Linux).
 # ---------------------------------------------------------------------------
-ifeq ($(shell uname -s),Darwin)
-  BENCHMARK_PREFIX := $(shell brew --prefix google-benchmark 2>/dev/null || echo /opt/homebrew/opt/google-benchmark)
-  BENCH_CPPFLAGS := -I$(BENCHMARK_PREFIX)/include
-  BENCH_LDFLAGS := -L$(BENCHMARK_PREFIX)/lib
-endif
-
 BENCH_SRCS := $(shell find benchmark -name '*.cpp' | sort)
 BENCH_BIN := build/bench/benchmark
 
 ifeq ($(MODE),bench)
+$(BENCH_BIN): $(BUILD)/link.config $(BUILD)/sources.config
 $(BENCH_BIN): CPPFLAGS += -I benchmark $(BENCH_CPPFLAGS)
 $(BENCH_BIN): $(call obj,$(BENCH_SRCS)) $(LIB_OBJS)
 	@mkdir -p $(dir $@)
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) $^ -o $@ $(BENCH_LDFLAGS) -lbenchmark $(LDLIBS)
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(filter %.o,$^) -o $@ $(BENCH_LDFLAGS) -lbenchmark $(LDLIBS)
 
 $(BUILD)/obj/benchmark/%.o: CPPFLAGS += -I benchmark $(BENCH_CPPFLAGS)
 endif
