@@ -205,6 +205,23 @@
       "taskId": "node:delegated-task:command%3Amcp%3Ac7e221c4-df52-4581-ac42-4cf5b1dacf1a%3Adelegate-task%3A3cc2dd62-f412-4b81-ab35-c2ef1cb60688",
       "baseCommit": "81e1db7",
       "recoveryState": "wave 2, launched 2026-11-03"
+    },
+    {
+      "threadId": "thread:delegated-task:command%3Amcp%3Ac7e221c4-df52-4581-ac42-4cf5b1dacf1a%3Adelegate-task%3A2c4eda02-6a4c-4d3c-a4c4-30f9c5c9620e",
+      "title": "research API contract (OpenAPI 3.1) + Next.js research UI on mock data",
+      "status": "running",
+      "provider": "claudeAgent",
+      "model": "claude-opus-5-5",
+      "reasoningEffort": "high",
+      "parentThreadId": "a4344aba-ffd8-4132-bf6d-ea93d8fe68e8",
+      "taskId": "node:delegated-task:command%3Amcp%3Ac7e221c4-df52-4581-ac42-4cf5b1dacf1a%3Adelegate-task%3A2c4eda02-6a4c-4d3c-a4c4-30f9c5c9620e",
+      "baseCommit": "f4d023c",
+      "ownership": [
+        "web/",
+        "docs/api/openapi.yaml",
+        "docs/API.md"
+      ],
+      "recoveryState": "wave 2, launched 2026-11-03"
     }
   ]
 }

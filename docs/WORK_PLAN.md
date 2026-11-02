@@ -8,7 +8,7 @@ Updated 2026-11-03. This is a recovery checkpoint, not live delegate status. Kee
 - First trader workflow: **execution and market-making research**.
 - Primary research UI: **Bun + Next.js + TypeScript + Tailwind CSS + shadcn/ui**, following `/Users/jedi/AGENTS.md`. Prefer existing components and meaningful names. C++ owns simulation/backend behavior.
 - API recommendation: C++ HTTP/OpenAPI with generated TS types; omit a tRPC wrapper initially. The user asked us to assess fit after reopening tRPC, so this is a reasoned recommendation rather than an explicit final veto.
-- Resumed/new delegates use GPT and high reasoning. No Ollama while the user works here. Do not add co-author attribution to commits.
+- Resumed/new delegates use Claude Opus 5.5 and high or xhigh reasoning (user decision 2026-11-03). No Ollama while the user works here. Do not add co-author attribution to commits.
 - Full product rationale, causal simulation requirements, realism assumptions, accounting, and UI workflow: [PRODUCT.md](PRODUCT.md).
 
 ## Verified repository state (2026-11-03)
@@ -54,7 +54,7 @@ Wave-2 task IDs and branches are recorded in [delegation-registry.json](delegati
 | Capability | Use here |
 | --- | --- |
 | Incremental thread reads and individual-item reads | Retrieve specific briefs/final findings with small limits; do not reload whole tool transcripts. |
-| Provider/model configuration | Migrate existing failed children to GPT in their actual checkouts, preserving partial files. |
+| Provider/model configuration | Migrate existing failed children to Claude Opus 5.5 in their actual checkouts, preserving partial files. |
 | App-owned delegate tasks and isolated worktrees | Independent scopes and concise completion reports; new worktrees only via the harness. |
 | Completion notifications | Resume dependent work on completion; no polling loops or scheduled status checks. |
 | Native plan/checklist plus repository checkpoint | Short live milestones in the plan; durable decisions/dependencies/task pointers in these files survive context and provider changes. No separate T3 todo tool was exposed in the inventory. |
@@ -67,4 +67,4 @@ For each completion record: task ID, actual branch/commit, changed scope, tests 
 
 ## Immediate next action
 
-Engines A and C are running on Claude. Launch wave 2 in parallel against `exchange-simulator`: OUCH gateway, FIX gateway, market-data publisher/feed, deterministic research runner. When the gateways and publisher land, launch the server binary and end-to-end tests; when the runner lands, launch the HTTP/OpenAPI API and then the UI. Do not poll running tasks.
+Running on Claude (task IDs in [delegation-registry.json](delegation-registry.json)): engines A and C, OUCH gateway, FIX gateway, market-data publisher/feed, research runner, exchange core, legacy lob fixes, and the research API contract plus Next.js UI on a mock server (`web/`, `docs/api/openapi.yaml`, `docs/API.md`). Integrate each completion on `exchange-simulator` with the full gate. When gateways, publisher, and core land, launch the server binary and end-to-end tests; when the runner and contract land, launch the C++ HTTP/OpenAPI API on real artifacts and point the UI at it. Do not poll running tasks.
