@@ -1,0 +1,9 @@
+instrument AAA tick=0.01 lot=1 max_qty=100 min=99 max=101 ref=100 phase=CONTINUOUS
+session alice own
+session bob own2
+NEW_ORDER instrument=AAA session=alice cl_ord_id=a side=SELL qty=5 price=100
+NEW_ORDER instrument=AAA session=alice cl_ord_id=b side=BUY qty=8 price=0 type=MARKET
+expect count 3
+expect accepted
+expect fill qty=5
+expect canceled canceled_qty=3 leaves_qty=0 reason=IMMEDIATE_OR_CANCEL
