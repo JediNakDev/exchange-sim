@@ -113,5 +113,6 @@ Acceptance: identical manifests and deterministic inputs give identical canonica
 - [HftBacktest order-fill assumptions](https://hftbacktest.readthedocs.io/en/py-v2.1.0/order_fill.html): historical replay cannot respond to hypothetical orders; queue/fill and impact assumptions need explicit treatment.
 - [NautilusTrader backtest sequencing](https://nautilustrader.io/docs/latest/concepts/backtesting/execution-flow/): useful prior art for the causal ordering of market updates, callbacks, and delayed commands. Our ordering still needs its own explicit contract.
 - [Next.js backend-for-frontend guide](https://nextjs.org/docs/app/guides/backend-for-frontend): HTTP route handlers and deployment constraints; Next.js remains an application/control interface.
+- [tRPC introduction](https://trpc.io/docs) and [OpenAPI TypeScript goals](https://openapi-ts.dev/about): TypeScript inference is useful across TS-owned boundaries; schema-generated types fit our C++ boundary and other clients.
 
 These sources support design constraints, not claims that the proposed platform already implements them.
