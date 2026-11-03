@@ -1,0 +1,273 @@
+# Exchange core
+
+`exsim::server::ExchangeCore<Sessions, MarketData, Clock>`
+(`include/exsim/server/exchange_core.hpp`) is the protocol-independent heart
+of the exsim server. It owns the matching engine, the event buffer, the
+configured users and their connection bindings, the canonical journal, the
+simulated-liquidity bots and all admin and fault-injection state. Gateways
+(OUCH, FIX) use it as the Context of `docs/SERVER.md` section 2.1; the market
+data publisher and the gateways are plugged in as compile-time policies.
+
+Everything runs on the single server thread. Construction and admin
+commands may allocate and throw; `submit`, dispatch, `timer`, `bind`,
+`unbind` and the fault queries never allocate, throw or use virtual calls.
+
+## 1. Construction
+
+```cpp
+ServerConfig config;  // load_config(...) has validated it
+MySessions sessions;
+MyMarketData market_data;
+MyClock clock;
+ExchangeCore<MySessions, MyMarketData, MyClock> core(config, sessions, market_data, clock);
+```
+
+The core copies the configuration (pointers returned by `authenticate` point
+into that copy), adds the instruments (ids 1..n in file order), indexes
+users by `SessionId`, registers one bot per `[bot NAME]` section and opens
+the journal when `[journal] path` is set. `CoreOptions::event_buffer_capacity`
+exists for tests only (section 4).
+
+## 2. Policies
+
+Contracts live in `include/exsim/server/core/policies.hpp`.
+
+```cpp
+using ConnectionId = std::uint64_t;  // opaque; e.g. (slot << 32) | generation
+
+concept CoreClock:      c.day_ns()      -> Timestamp      ns since local midnight
+                        c.realtime_ns() -> uint64         ns since the Unix epoch
+concept CoreMarketData: md.on_events(std::span<const Event>)  one call per batch
+                        md.flush()                            emit the open packet
+concept CoreSessions:   s.on_events(SessionId, std::span<const Event>, Core&)
+                        once per distinct non-bot session of a batch, in
+                        first-appearance order, with the whole batch
+
+optional, detected with requires-expressions:
+  md.on_timer(Timestamp, const Core&)  or  md.on_timer(Timestamp)
+                                       heartbeat, NOII; called from core.timer()
+  md.next_sequence() -> uint64         shown by `status`
+  md.packet_faults() -> sim::PacketFaultInjector&
+                                       target of `fault md ...`
+  md.reset_packet_faults()             used by `fault md off` when present
+  md.on_shutdown(Timestamp)            end of system hours / end of session
+  s.on_shutdown(Timestamp, Core&)      OUCH / FIX end-of-day messages
+```
+
+`Sessions::on_events` receives the core so a gateway can look up instruments,
+read `now()`, or call `unbind`/`submit` (those are deferred, section 5).
+
+## 3. Context API (SERVER.md 2.1)
+
+| Call | Behaviour |
+| --- | --- |
+| `authenticate(user, password, protocol)` | `const UserConfig*` or `nullptr` for an unknown user, wrong protocol, wrong password or a user driven by a bot. An empty configured password accepts any password. Names are case sensitive. |
+| `bind(session, connection)` | `false` for an unknown session, a bot session, or a session that is already bound (second login). At most one live binding per session. |
+| `unbind(session)` | No-op when not bound. Clears a pending disconnect request. When the user has `cancel_on_disconnect`, submits `MassCancel{session, instrument 0, cancel_on_disconnect = true}` through the normal path (journaled, dispatched). |
+| `find_instrument(symbol)`, `instrument(id)` | Engine lookups. |
+| `submit(command)` | Section 4. |
+| `now()` | ns since local midnight: the clock, never earlier than a value already returned or a command already stamped. |
+| `realtime_ns()` | The clock's wall time, for FIX SendingTime. |
+
+Queries for tests and status: `user`, `is_bound`, `connection`,
+`bound_connection_count`, `is_bot_session`, `engine`, `config`, `counters`,
+`event_buffer_capacity`, `last_command_timestamp`, `bots`, `journal_state`.
+
+## 4. submit
+
+`SubmitResult submit(const Command&)` follows SERVER.md section 1:
+
+1. **Stamp.** `ts = clock.day_ns()`, or `last + 1` when the clock did not
+   move forward (repeating or stepping back). Command timestamps are strictly
+   increasing for the whole run.
+2. **Trading day.** A stamp outside `[trading_day_start, trading_day_end)` is
+   refused: `OutsideTradingDay`, nothing applied, journaled or dispatched.
+3. **Capacity and handle.** The buffer is cleared (the previous batch has
+   been fully dispatched), then `engine.handle`. The buffer holds
+   `required_event_capacity(engine config)` events, the engine's proven bound
+   for any single command, so `InsufficientOutput` cannot happen in
+   production. If it does (only with a test-sized buffer), the engine and
+   buffer are unchanged; a retry on the same empty buffer would fail the same
+   way, so the core returns `OutputCapacityExceeded` without journaling or
+   dispatching anything and counts it. The command is not silently lost: the
+   caller gets the result. `server_core_dispatch.output_capacity_failure_*`
+   proves engine state is unchanged and the core keeps working.
+4. **Journal.** Every applied command (semantic rejections included) is
+   appended with its stamp. Failures follow section 9.
+5. **Dispatch.** Sessions first (each distinct session once, first
+   appearance, buy leg before sell leg in a Fill, session 0 and bot
+   sessions skipped), then `MarketData::on_events(batch)` and `flush()`,
+   then every bot's `on_events`. Empty batches are not dispatched.
+
+Results: `Applied`, `Deferred`, `OutsideTradingDay`, `OutputCapacityExceeded`,
+`DeferredQueueFull`. When `submit` returns `Applied`, the command and every
+command deferred meanwhile have been fully dispatched.
+
+The dispatch set is a 65536-bit seen set plus a fixed list of every possible
+session id, so deduplication never allocates or overflows. Sessions that are
+not configured (for example a SetPhase rejection to session 0, or a test
+session) are dispatched too when non-zero; the gateway policy decides.
+
+## 5. Re-entrancy
+
+A gateway may call `submit` or `unbind` from inside `Sessions::on_events`
+(for example closing a connection while it handles a batch). The core never
+re-enters the engine: such commands go to a fixed ring
+(`DeferredCommandQueue`, capacity users + 64) and are applied, each with its
+own stamp and batch, right after the current batch reaches market data and
+bots. `submit` returns `Deferred`, or `DeferredQueueFull` (counted) when the
+ring is full. A pending shutdown runs after the deferred commands.
+
+## 6. Timer
+
+`core.timer(loop_now)`, once per server loop iteration:
+
+1. The time handed on is made non-decreasing (never behind a stamped
+   command).
+2. At or after `trading_day_end`, shutdown runs (section 8).
+3. Bots: `on_timer(now, core)` when not shut down and `now >= trading_day_start`.
+4. Market data: `on_timer(now, core)` or `on_timer(now)` when present.
+5. Journal: flushed every `flush_interval_ms` (0 disables the periodic
+   flush), so the file on disk is a valid journal ending at the last flush.
+
+## 7. Bots
+
+`[bot NAME]` sections build a `sim::bots::BotSet<32>` registered in config
+order. Each bot drives one configured user exclusively:
+
+* the bot's `session_id` and `owner` come from that user, `stp` too unless
+  the section sets it; `instrument` is a symbol;
+* that user cannot authenticate or bind, and `fault user` rejects it;
+* bot sessions are never handed to `Sessions` (there is no wire for them),
+  but every batch reaches every bot after market data;
+* bot commands go through `submit` from the timer: stamped, range-checked,
+  journaled and dispatched like client commands. Bots never submit from
+  `on_events`.
+
+`bots on|off` (or `set_bots_enabled`) toggles every bot; a disabled maker
+pulls its quotes on its next timer.
+
+## 8. Admin
+
+`execute_line(line, reply)` parses with `parse_admin` and runs `execute`.
+Every reply is `\n`-terminated lines ending with `OK` or a single
+`ERR <message>`.
+
+| Command | Reply lines before `OK` | Errors |
+| --- | --- | --- |
+| `help` | usage text | |
+| `status` | exchange, trading day, connections, one line per user (bound, connection, faults), live orders, one line per instrument (phase, bid, ask, last), md sequence, md faults, bots, one line per bot, journal, command counters | |
+| `phase SYM\|* PHASE` | `SYM OLD -> NEW` per instrument; applied through `submit` | unknown instrument, `phase not applied: <reason>`, `exchange is shut down` |
+| `book SYM [n]` | `book SYM phase=P`, asks from deepest to best, bids from best down (`ask 150.01 qty=150 orders=2`), or `(empty)`; at most 1000 levels | unknown instrument |
+| `fault md drop\|dup N`, `fault md reorder N [D]`, `fault md rate ...`, `fault md off` | `md faults ...` (config, held, stats) | `market data exposes no packet fault injector` |
+| `fault user U reject N\|delay US\|drop_out N\|disconnect\|off` | `user U session=S reject=.. delay_us=.. drop_out=.. disconnect=..` | unknown user, bot user, disconnect when not connected |
+| `bots on\|off` | `bots on (N configured)` | |
+| `shutdown` | `all instruments closed`, `SetPhase Closed not applied: <reason>` or `already shut down` | |
+
+**Market-data faults** are owned by the MarketData policy: it exposes its
+`sim::PacketFaultInjector` through `packet_faults()` and the core only
+configures it. `reorder N D` sets the reorder delay through `configure`
+(which reseeds the injector's random generator with the configured seed)
+before adding N one-shot reorders. `off` calls `reset_packet_faults()` when
+the policy has it; otherwise it clears the random rates and reports a note
+when one-shot faults or held packets remain, because the injector has no way
+to clear them.
+
+**User faults** live in the core, one `UserFaultState` per user, and are
+consumed by gateways and the loop:
+
+| Query | Who | Meaning |
+| --- | --- | --- |
+| `consume_injected_reject(session)` | gateway, per inbound new order | `true`: reject it yourself (OUCH J, FIX 39=8 Text "injected"), do not submit. Consumes one. |
+| `inbound_delay_ns(session)` | loop or gateway | hold each inbound application message this long (a setting, not consumed) |
+| `consume_drop_out(session)` | gateway, per sequenced outbound message | `true`: store it but do not transmit. Consumes one. |
+| `has_disconnect_requests()`, `take_disconnect_requests(span)` | loop | sessions to close now, config order; the loop closes them and calls `unbind` (cancel-on-disconnect applies) |
+| `user_faults(session)` | status, tests | the whole state |
+
+A new `reject`/`drop_out`/`delay` replaces the previous value (counts start at
+1; `off` clears all). Counts survive a reconnect; a pending disconnect
+request is dropped by `unbind`.
+
+**Shutdown** (admin, `shutdown()`, end of trading day, or a journal failure
+under the `shutdown` policy): `SetPhase{instrument 0, Closed}` through the
+normal path, stamped inside the trading day (clamped to its last
+nanosecond, so the closing batch is representable on every wire), then
+`Sessions::on_shutdown` and `MarketData::on_shutdown` when present, then a
+journal flush. `shutdown_requested()` turns true; the server loop exits when
+it sees it. Idempotent. If the day's last nanosecond is already used, the
+close is reported as not applied but the exchange still shuts down.
+
+## 9. Journal
+
+`[journal]` keys: `path` (empty disables), `on_failure = shutdown | continue`
+(default `shutdown`), `flush_interval_ms` (default 1000, 0 = only explicit
+and shutdown flushes).
+
+* Records are the stamped applied commands in apply order (bots, admin
+  phases and cancel-on-disconnect included). Replaying them with
+  `sim::JournalReader` into a fresh `MatchingEngine` reproduces every
+  dispatched event (`server_core_journal.replay_*`).
+* `JournalWriter` buffers 128 records; the 129th append writes the buffer.
+  The file is readable (has a footer) only after a flush; it ends at the last
+  successful flush.
+* On the first failed append or flush the journal latches `failed`
+  (`journal_state()`, `status`), stops writing, and counts the failure. With
+  `shutdown` the exchange shuts down once the current batch has been fully
+  dispatched (the command whose append failed was applied and is not
+  undone); with `continue` trading goes on without a journal. Buffered
+  records not yet written at the failure are lost, so `journal_records`
+  counts accepted appends, not records on disk.
+* `flush_journal()` writes buffered records and the footer; the destructor
+  flushes too but cannot report errors.
+
+## 10. Configuration keys added
+
+| Section | Key | Default |
+| --- | --- | --- |
+| `[exchange]` | `trading_day_start`, `trading_day_end` (`HH:MM[:SS[.fraction]]`, end may be `24:00`) | `00:00`, `24:00` |
+| `[journal]` | `on_failure` (`shutdown`, `continue`) | `shutdown` |
+| `[journal]` | `flush_interval_ms` | `1000` |
+| `[bot NAME]` | `type` (`market_maker`, `noise_taker`), `user`, `instrument` (symbol), then `apply_bot_option` keys except `name`, `session_id`, `owner` | required |
+
+Validation: start before end; at most 32 bots; unique names; the user exists
+and drives at most one bot; the symbol exists; a maker's quote size rounds to
+at least one lot within `max_order_qty` and `order_capacity >= 2 * levels`; a
+taker's size range contains a whole lot. Errors carry the line number.
+
+## 11. Memory
+
+Sized once at construction, never grown:
+
+| Part | Size |
+| --- | --- |
+| EventBuffer | `(2 * max_orders + 2 * max_instruments + 4) * sizeof(Event)`; `sizeof(Event)` is 104 B, so the defaults (1,048,576 orders, 64 instruments) reserve 2,097,284 events, about 208 MiB of virtual memory. Pages are touched only as far as the largest batch reaches; ordinary batches touch a few KiB. |
+| Dispatch set | 8 KiB seen bits inline + 128 KiB session list |
+| Session index | 128 KiB (`uint16` per possible `SessionId`) |
+| Deferred queue | `(users + 64) * 56 B` |
+| Bots | `BotSet<32>` 23 KiB inline, plus each bot's own-order table (`order_capacity` entries) |
+| Journal writer | 35 KiB (128-record buffer) |
+| Core object | 68 KiB inline (mostly bots and journal); the engine sizes itself from `[engine]` |
+
+## 12. Tests
+
+`tests/exsim/server/core/`, suites `server_core_*`: dispatch order (two-leg
+fills, sweeps, STP, auctions, mass cancel, end-of-day expiry, capacity
+failure), time (repeating and backward clocks, trading-day window, end-of-day
+shutdown), sessions (authenticate, bind, unbind with and without
+cancel-on-disconnect, deferred commands, deferred overflow), admin (every
+command and error, each MarketData shape), faults, bots (deterministic
+bot-to-bot and bot-to-client trading), journal (replay equality, periodic
+flush, both failure policies via `RLIMIT_FSIZE`) and allocation (zero heap
+allocations in steady state with bots, journal, churn and fault queries, via
+`testfw::AllocationScope`).
+
+## 13. Open questions
+
+* Should `submit` refuse commands after shutdown instead of letting the
+  engine reject them in `Closed`? The loop is expected to stop first.
+* Should cancel-on-disconnect `MassCancel` events be dispatched to the
+  unbound session's gateway (today: yes, the gateway decides)?
+* `fault md off` without a reset hook cannot clear one-shot faults or held
+  packets; the MD publisher should provide `reset_packet_faults()`.
+* Trading-day times are local time since midnight; days crossing midnight
+  are not supported.
