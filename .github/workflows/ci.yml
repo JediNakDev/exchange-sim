@@ -36,3 +36,49 @@ jobs:
         run: make -j4 tools MODE=perf CXX=clang++
       - name: engine benchmark (fails on any hot-path allocation)
         run: ./build/perf/exsim_bench --ops 200000
+
+  differential-fuzz:
+    # Random command streams through the production engine and the independent
+    # oracle, compared event by event. Release covers volume; debug runs the
+    # same streams under ASan and UBSan.
+    name: differential fuzz vs oracle (${{ matrix.mode }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { mode: release, seeds: 1000 }
+          - { mode: debug,   seeds: 200 }
+    steps:
+      - uses: actions/checkout@v4
+      - name: build fuzzer
+        run: make -j4 tools MODE=${{ matrix.mode }} CXX=clang++ EXTRA_CXXFLAGS=-Werror
+      - name: canary (an injected oracle bug must be caught)
+        run: |
+          if ./build/${{ matrix.mode }}/exsim_fuzz --inject --profile mixed --seeds 50 --steps 2000 \
+               --artifact "$RUNNER_TEMP/canary" > /dev/null 2>&1; then
+            echo "fuzzer missed the injected LIFO bug"; exit 1
+          fi
+      - name: fixed seeds
+        run: |
+          mkdir -p fuzz-reproducers
+          for profile in mixed tiny; do
+            ./build/${{ matrix.mode }}/exsim_fuzz --profile $profile --seed 1 --seeds ${{ matrix.seeds }} \
+              --steps 2000 --artifact fuzz-reproducers/fixed-$profile
+          done
+      - name: rolling seeds (new range each run)
+        run: |
+          mkdir -p fuzz-reproducers
+          first_seed=$(( ${{ github.run_number }} * 1000000 ))
+          echo "first seed $first_seed; reproduce with --seed $first_seed --seeds ${{ matrix.seeds }} --steps 2000"
+          for profile in mixed tiny; do
+            ./build/${{ matrix.mode }}/exsim_fuzz --profile $profile --seed $first_seed --seeds ${{ matrix.seeds }} \
+              --steps 2000 --artifact fuzz-reproducers/rolling-$profile
+          done
+      - name: keep shrunk reproducers
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-reproducers-${{ matrix.mode }}
+          path: fuzz-reproducers/
+          if-no-files-found: ignore
