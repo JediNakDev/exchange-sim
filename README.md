@@ -39,7 +39,6 @@ GNU Make.
 make test                                     # release build, all tests
 make test MODE=debug                          # ASan + UBSan
 make test MODE=tsan                           # ThreadSanitizer
-make test EXTRA_CXXFLAGS=-DEXSIM_TEST_PRODUCTION   # also run production-engine tests
 make test FILTER=Journal                      # substring filter on test names
 make tools                                    # exsim_bench, exsim_fuzz, exsim_replay, exsim_scenario, itch_replay
 
