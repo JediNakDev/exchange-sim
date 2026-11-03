@@ -137,62 +137,67 @@
     {
       "threadId": "thread:delegated-task:command%3Amcp%3Ac7e221c4-df52-4581-ac42-4cf5b1dacf1a%3Adelegate-task%3Acc12441a-2f3a-45e0-ac87-79d18ff764d1",
       "title": "OUCH 4.2 / SoupBinTCP gateway (server + client)",
-      "status": "stopped-rate-limit",
+      "status": "running",
       "provider": "claudeAgent",
       "model": "claude-opus-5-5",
       "reasoningEffort": "xhigh",
       "parentThreadId": "a4344aba-ffd8-4132-bf6d-ea93d8fe68e8",
       "taskId": "node:delegated-task:command%3Amcp%3Ac7e221c4-df52-4581-ac42-4cf5b1dacf1a%3Adelegate-task%3Acc12441a-2f3a-45e0-ac87-79d18ff764d1",
       "baseCommit": "67e771b",
-      "recoveryState": "wave 2, launched 2026-11-03; stopped 2026-11-03 by Claude API rate limit, partial work preserved in its worktree"
+      "recoveryState": "wave 2, launched 2026-11-03; stopped 2026-11-03 by Claude API rate limit, partial work preserved in its worktree; resumed 2026-11-03 12:10 +08 with instructions to merge exchange-simulator (30424f4) before final verification",
+      "resumeTaskId": "node:delegated-task:limit-resume (harness auto-resume ordinal 2, armed 2026-11-03 12:10 +08) for thread thread:delegated-task:command%3Amcp%3Ac7e221c4-df52-4581-ac42-4cf5b1dacf1a%3Adelegate-task%3Acc12441a-2f3a-45e0-ac87-79d18ff764d1"
     },
     {
       "threadId": "thread:delegated-task:command%3Amcp%3Ac7e221c4-df52-4581-ac42-4cf5b1dacf1a%3Adelegate-task%3A3a447464-fcef-4596-8f36-181a1cbdebb3",
       "title": "FIX 4.4 gateway (session layer + application, server + client)",
-      "status": "stopped-rate-limit",
+      "status": "running",
       "provider": "claudeAgent",
       "model": "claude-opus-5-5",
       "reasoningEffort": "xhigh",
       "parentThreadId": "a4344aba-ffd8-4132-bf6d-ea93d8fe68e8",
       "taskId": "node:delegated-task:command%3Amcp%3Ac7e221c4-df52-4581-ac42-4cf5b1dacf1a%3Adelegate-task%3A3a447464-fcef-4596-8f36-181a1cbdebb3",
       "baseCommit": "67e771b",
-      "recoveryState": "wave 2, launched 2026-11-03; stopped 2026-11-03 by Claude API rate limit, partial work preserved in its worktree"
+      "recoveryState": "wave 2, launched 2026-11-03; stopped 2026-11-03 by Claude API rate limit, partial work preserved in its worktree; resumed 2026-11-03 12:10 +08 with instructions to merge exchange-simulator (30424f4) before final verification",
+      "resumeTaskId": "node:delegated-task:limit-resume (harness auto-resume ordinal 2, armed 2026-11-03 12:10 +08) for thread thread:delegated-task:command%3Amcp%3Ac7e221c4-df52-4581-ac42-4cf5b1dacf1a%3Adelegate-task%3A3a447464-fcef-4596-8f36-181a1cbdebb3"
     },
     {
       "threadId": "thread:delegated-task:command%3Amcp%3Ac7e221c4-df52-4581-ac42-4cf5b1dacf1a%3Adelegate-task%3A0fd6780f-e0a1-4ae3-b7fd-b126b839ea13",
       "title": "ITCH 5.0 / MoldUDP64 publisher, retransmission, feed handler, book builder",
-      "status": "stopped-rate-limit",
+      "status": "running",
       "provider": "claudeAgent",
       "model": "claude-opus-5-5",
       "reasoningEffort": "xhigh",
       "parentThreadId": "a4344aba-ffd8-4132-bf6d-ea93d8fe68e8",
       "taskId": "node:delegated-task:command%3Amcp%3Ac7e221c4-df52-4581-ac42-4cf5b1dacf1a%3Adelegate-task%3A0fd6780f-e0a1-4ae3-b7fd-b126b839ea13",
       "baseCommit": "67e771b",
-      "recoveryState": "wave 2, launched 2026-11-03; stopped 2026-11-03 by Claude API rate limit, partial work preserved in its worktree"
+      "recoveryState": "wave 2, launched 2026-11-03; stopped 2026-11-03 by Claude API rate limit, partial work preserved in its worktree; resumed 2026-11-03 12:10 +08 with instructions to merge exchange-simulator (30424f4) before final verification",
+      "resumeTaskId": "node:delegated-task:limit-resume (harness auto-resume ordinal 2, armed 2026-11-03 12:10 +08) for thread thread:delegated-task:command%3Amcp%3Ac7e221c4-df52-4581-ac42-4cf5b1dacf1a%3Adelegate-task%3A0fd6780f-e0a1-4ae3-b7fd-b126b839ea13"
     },
     {
       "threadId": "thread:delegated-task:command%3Amcp%3Ac7e221c4-df52-4581-ac42-4cf5b1dacf1a%3Adelegate-task%3A0986273d-4c42-4f8b-83ea-6650009a16cf",
       "title": "deterministic research runner, strategies, accounting, manifests, CLI",
-      "status": "stopped-rate-limit",
+      "status": "running",
       "provider": "claudeAgent",
       "model": "claude-opus-5-5",
       "reasoningEffort": "xhigh",
       "parentThreadId": "a4344aba-ffd8-4132-bf6d-ea93d8fe68e8",
       "taskId": "node:delegated-task:command%3Amcp%3Ac7e221c4-df52-4581-ac42-4cf5b1dacf1a%3Adelegate-task%3A0986273d-4c42-4f8b-83ea-6650009a16cf",
       "baseCommit": "67e771b",
-      "recoveryState": "wave 2, launched 2026-11-03; stopped 2026-11-03 by Claude API rate limit, partial work preserved in its worktree"
+      "recoveryState": "wave 2, launched 2026-11-03; stopped 2026-11-03 by Claude API rate limit, partial work preserved in its worktree; resumed 2026-11-03 12:10 +08 with instructions to merge exchange-simulator (30424f4) before final verification",
+      "resumeTaskId": "node:delegated-task:limit-resume (harness auto-resume ordinal 2, armed 2026-11-03 12:10 +08) for thread thread:delegated-task:command%3Amcp%3Ac7e221c4-df52-4581-ac42-4cf5b1dacf1a%3Adelegate-task%3A0986273d-4c42-4f8b-83ea-6650009a16cf"
     },
     {
       "threadId": "thread:delegated-task:command%3Amcp%3Ac7e221c4-df52-4581-ac42-4cf5b1dacf1a%3Adelegate-task%3A23729171-e22e-4669-a727-f38c1b26551b",
       "title": "exchange core: submit/dispatch, admin execution, fault state, bots, journal",
-      "status": "stopped-rate-limit",
+      "status": "running",
       "provider": "claudeAgent",
       "model": "claude-opus-5-5",
       "reasoningEffort": "xhigh",
       "parentThreadId": "a4344aba-ffd8-4132-bf6d-ea93d8fe68e8",
       "taskId": "node:delegated-task:command%3Amcp%3Ac7e221c4-df52-4581-ac42-4cf5b1dacf1a%3Adelegate-task%3A23729171-e22e-4669-a727-f38c1b26551b",
       "baseCommit": "81e1db7",
-      "recoveryState": "wave 2, launched 2026-11-03; stopped 2026-11-03 by Claude API rate limit, partial work preserved in its worktree"
+      "recoveryState": "wave 2, launched 2026-11-03; stopped 2026-11-03 by Claude API rate limit, partial work preserved in its worktree; resumed 2026-11-03 12:10 +08 with instructions to merge exchange-simulator (30424f4) before final verification",
+      "resumeTaskId": "node:delegated-task:limit-resume (harness auto-resume ordinal 2, armed 2026-11-03 12:10 +08) for thread thread:delegated-task:command%3Amcp%3Ac7e221c4-df52-4581-ac42-4cf5b1dacf1a%3Adelegate-task%3A23729171-e22e-4669-a727-f38c1b26551b"
     },
     {
       "threadId": "thread:delegated-task:command%3Amcp%3Ac7e221c4-df52-4581-ac42-4cf5b1dacf1a%3Adelegate-task%3A3cc2dd62-f412-4b81-ab35-c2ef1cb60688",
