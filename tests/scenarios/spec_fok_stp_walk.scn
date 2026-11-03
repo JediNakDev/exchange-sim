@@ -1,0 +1,49 @@
+# SPEC 4.3: FOK pre-check walks crossing levels in priority order. Self-match with
+# CancelResting is skipped; any other mode stops the walk. A kill emits only
+# Canceled{FILL_OR_KILL, canceled_qty=qty, cum_qty=0, was_resting=false}.
+instrument AAA tick=0.01 lot=1 max_qty=100 min=99 max=101 ref=100 phase=CONTINUOUS
+session alice firmA
+session bob firmB
+NEW_ORDER instrument=AAA session=bob owner=firmB cl_ord_id=o1 side=SELL qty=5 price=100
+NEW_ORDER instrument=AAA session=alice owner=firmA cl_ord_id=s1 side=SELL qty=5 price=100
+# enough foreign liquidity before the self-match: CancelAggressor FOK fills fully
+NEW_ORDER instrument=AAA session=alice owner=firmA stp=CANCEL_AGGRESSOR tif=FOK cl_ord_id=f1 side=BUY qty=5 price=100
+expect count 2
+expect accepted order_id=3 tif=FOK
+expect fill match_id=1 qty=5 price=100 buy.order_id=3 buy.leaves_qty=0 buy.cum_qty=5 sell.order_id=1 sell.leaves_qty=0
+NEW_ORDER instrument=AAA session=bob owner=firmB cl_ord_id=o2 side=SELL qty=5 price=100
+# self-match at the head stops the walk at avail=0
+NEW_ORDER instrument=AAA session=alice owner=firmA stp=CANCEL_AGGRESSOR tif=FOK cl_ord_id=f2 side=BUY qty=5 price=100 ts=21
+expect count 2
+expect accepted order_id=5
+expect canceled ts=21 order_id=5 cl_ord_id=f2 request_cl_ord_id=0 session=alice side=BUY price=100 canceled_qty=5 cum_qty=0 reason=FILL_OR_KILL was_resting=false leaves_qty=0
+expect depth AAA ask 100:10:2
+# CancelResting skips own liquidity in the walk, then matching cancels it and fills foreign
+NEW_ORDER instrument=AAA session=alice owner=firmA stp=CANCEL_RESTING tif=FOK cl_ord_id=f3 side=BUY qty=5 price=100
+expect count 3
+expect accepted order_id=6
+expect canceled order_id=2 cl_ord_id=s1 reason=SELF_TRADE_PREVENTION was_resting=true canceled_qty=5
+expect fill match_id=2 qty=5 buy.order_id=6 buy.leaves_qty=0 sell.order_id=4 sell.cl_ord_id=o2
+expect depth AAA ask
+NEW_ORDER instrument=AAA session=bob owner=firmB cl_ord_id=o3 side=SELL qty=5 price=100
+NEW_ORDER instrument=AAA session=alice owner=firmA cl_ord_id=s2 side=SELL qty=5 price=100.5
+NEW_ORDER instrument=AAA session=bob owner=firmB cl_ord_id=o4 side=SELL qty=5 price=101
+# CancelBoth: walk stops at the self-match on the second level, 5 < 10, killed; book unchanged
+NEW_ORDER instrument=AAA session=alice owner=firmA stp=CANCEL_BOTH tif=FOK cl_ord_id=f4 side=BUY qty=10 price=101
+expect count 2
+expect accepted order_id=10
+expect canceled order_id=10 canceled_qty=10 reason=FILL_OR_KILL
+expect depth AAA ask 100:5:1 100.5:5:1 101:5:1
+# limit restricts the walk: only the 100 level crosses a 100 buy
+NEW_ORDER instrument=AAA session=bob tif=FOK cl_ord_id=f5 side=BUY qty=6 price=100
+expect count 2
+expect accepted order_id=11
+expect canceled order_id=11 canceled_qty=6 reason=FILL_OR_KILL
+# exact liquidity over three levels; owner 0 aggressor never self-matches
+NEW_ORDER instrument=AAA session=bob tif=FOK cl_ord_id=f6 side=BUY qty=15 price=101
+expect count 4
+expect accepted order_id=12
+expect fill match_id=3 price=100 qty=5 buy.leaves_qty=10 buy.cum_qty=5 sell.order_id=7
+expect fill match_id=4 price=100.5 qty=5 buy.leaves_qty=5 buy.cum_qty=10 sell.order_id=8 sell.owner=firmA
+expect fill match_id=5 price=101 qty=5 buy.leaves_qty=0 buy.cum_qty=15 sell.order_id=9
+expect depth AAA ask

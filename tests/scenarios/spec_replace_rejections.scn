@@ -1,0 +1,84 @@
+# SPEC 6 checks in order: UnknownOrder, InvalidClOrdId / DuplicateClOrdId,
+# InvalidQuantity, InvalidPrice, phase, post-only (Continuous only). All checks
+# precede the qty<=cum cancel. Known-target rejections echo target ID and instrument.
+# SPEC 3: Replace allowed in PreOpen, rejected in Halted and Closed; Cancel allowed everywhere.
+instrument AAA tick=0.01 lot=1 max_qty=100 min=99 max=101 ref=100 phase=CONTINUOUS
+session alice firmA
+session bob firmB
+NEW_ORDER instrument=AAA session=alice cl_ord_id=d side=BUY qty=5 price=99
+NEW_ORDER instrument=AAA session=alice cl_ord_id=e side=BUY qty=1 price=99
+NEW_ORDER instrument=AAA session=alice tif=GTC cl_ord_id=f side=SELL qty=1 price=101
+NEW_ORDER instrument=AAA session=alice post_only=true cl_ord_id=g side=SELL qty=1 price=100
+REPLACE session=alice orig_cl_ord_id=zz cl_ord_id=n1 qty=5 price=99 ts=4
+expect count 1
+expect rejected instrument=0 ts=4 cmd=REPLACE reason=UNKNOWN_ORDER session=alice cl_ord_id=n1 orig_cl_ord_id=zz order_id=0
+# lookup is per session
+REPLACE session=bob orig_cl_ord_id=d qty=5 price=99
+expect count 1
+expect rejected instrument=0 reason=UNKNOWN_ORDER session=bob orig_cl_ord_id=d order_id=0
+REPLACE session=alice orig_cl_ord_id=d cl_ord_id=281474976710656 qty=0 price=1
+expect count 1
+expect rejected instrument=AAA cmd=REPLACE reason=INVALID_CLORDID session=alice cl_ord_id=281474976710656 orig_cl_ord_id=d order_id=1
+REPLACE session=alice orig_cl_ord_id=d cl_ord_id=e qty=0 price=1
+expect count 1
+expect rejected reason=DUPLICATE_CLORDID cl_ord_id=e orig_cl_ord_id=d order_id=1
+# explicit cl_ord_id equal to orig is not a duplicate
+REPLACE session=alice orig_cl_ord_id=d cl_ord_id=d qty=5 price=99
+expect count 1
+expect replaced old_order_id=1 new_order_id=1 orig_cl_ord_id=d cl_ord_id=d priority_kept=true
+REPLACE session=alice orig_cl_ord_id=d qty=0 price=1
+expect rejected reason=INVALID_QUANTITY order_id=1
+REPLACE session=alice orig_cl_ord_id=d qty=101 price=99
+expect rejected reason=INVALID_QUANTITY
+REPLACE session=alice orig_cl_ord_id=d qty=5 price=98.99
+expect rejected reason=INVALID_PRICE
+REPLACE session=alice orig_cl_ord_id=d qty=5 price=101.01
+expect rejected reason=INVALID_PRICE
+REPLACE session=alice orig_cl_ord_id=d qty=5 price=99.005
+expect rejected reason=INVALID_PRICE
+# partially fill d (cum 2): checks still run before the qty<=cum cancel path
+NEW_ORDER instrument=AAA session=bob cl_ord_id=x side=SELL qty=2 price=99
+expect count 2
+expect accepted order_id=5
+expect fill match_id=1 buy.order_id=1 buy.leaves_qty=3 buy.cum_qty=2
+REPLACE session=alice orig_cl_ord_id=d cl_ord_id=e qty=2 price=99
+expect count 1
+expect rejected reason=DUPLICATE_CLORDID
+REPLACE session=alice orig_cl_ord_id=d qty=2 price=98
+expect count 1
+expect rejected reason=INVALID_PRICE
+SET_PHASE instrument=AAA phase=HALTED
+REPLACE session=alice orig_cl_ord_id=d qty=0 price=99
+expect count 1
+expect rejected reason=INVALID_QUANTITY
+REPLACE session=alice orig_cl_ord_id=d qty=5 price=99
+expect count 1
+expect rejected instrument=AAA reason=INSTRUMENT_HALTED order_id=1
+CANCEL session=alice orig_cl_ord_id=e cl_ord_id=k1
+expect count 1
+expect canceled order_id=2 cl_ord_id=e request_cl_ord_id=k1 canceled_qty=1 reason=USER_REQUESTED was_resting=true
+# Halted -> PreOpen: no uncross; PreOpen replace of a post-only order skips the cross check
+SET_PHASE instrument=AAA phase=PRE_OPEN
+expect count 1
+expect phase_changed old_phase=HALTED new_phase=PRE_OPEN
+REPLACE session=alice orig_cl_ord_id=g qty=1 price=99
+expect count 2
+expect replaced old_order_id=4 new_order_id=6 price=99 priority_kept=false
+expect rested order_id=6 price=99 leaves_qty=1
+# PreOpen -> Closed: uncross at the single candidate 99, then DAY expiry, then phase change
+SET_PHASE instrument=AAA phase=CLOSED ts=30
+expect count 4
+expect fill ts=30 match_id=2 price=99 qty=1 aggressor=NONE buy.order_id=1 buy.leaves_qty=2 buy.cum_qty=3 sell.order_id=6 sell.cl_ord_id=g sell.leaves_qty=0 sell.cum_qty=1
+expect auction_summary ts=30 price=99 matched_qty=1 match_id=3
+expect canceled ts=30 order_id=1 cl_ord_id=d request_cl_ord_id=0 canceled_qty=2 cum_qty=3 reason=END_OF_DAY was_resting=true leaves_qty=0
+expect phase_changed instrument=AAA ts=30 old_phase=PRE_OPEN new_phase=CLOSED
+expect depth AAA ask 101:1:1
+REPLACE session=alice orig_cl_ord_id=f qty=1 price=101
+expect count 1
+expect rejected reason=MARKET_CLOSED order_id=3
+REPLACE session=alice orig_cl_ord_id=f qty=1 price=98
+expect count 1
+expect rejected reason=INVALID_PRICE order_id=3
+CANCEL session=alice orig_cl_ord_id=f cl_ord_id=k2
+expect count 1
+expect canceled order_id=3 request_cl_ord_id=k2 reason=USER_REQUESTED

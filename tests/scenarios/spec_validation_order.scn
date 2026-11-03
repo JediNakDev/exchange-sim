@@ -1,0 +1,88 @@
+# SPEC 4.1: validation checks run in the listed order; first failure emits one
+# Rejected{cmd=NEW_ORDER, orig_cl_ord_id=0, order_id=0, instrument=cmd.instrument}
+# echoing request session and token (SPEC 12). Rejections consume no OrderId (SPEC 1).
+# Expected values derived by hand from SPEC.md, not from either implementation.
+instrument AAA tick=0.01 lot=10 max_qty=1000 min=99 max=101 ref=100 phase=CONTINUOUS
+instrument BBB tick=0.01 lot=1 max_qty=100 min=99 max=101 ref=100 phase=CLOSED
+session alice firmA
+session bob firmB
+# 4.1.1 unknown instrument beats every later check; Rejected.instrument echoes cmd.instrument
+NEW_ORDER instrument=99 session=0 cl_ord_id=0 side=7 qty=0 price=1 ts=11
+expect count 1
+expect rejected instrument=99 ts=11 cmd=NEW_ORDER reason=UNKNOWN_INSTRUMENT session=0 cl_ord_id=0 orig_cl_ord_id=0 order_id=0
+# 4.1.2 session 0, token 0, token above 2^48-1
+NEW_ORDER instrument=AAA session=0 cl_ord_id=tok1 side=BUY qty=10 price=100
+expect count 1
+expect rejected instrument=AAA cmd=NEW_ORDER reason=INVALID_CLORDID session=0 cl_ord_id=tok1 orig_cl_ord_id=0 order_id=0
+NEW_ORDER instrument=AAA session=alice cl_ord_id=0 side=BUY qty=10 price=100
+expect count 1
+expect rejected reason=INVALID_CLORDID session=alice cl_ord_id=0
+NEW_ORDER instrument=AAA session=alice cl_ord_id=281474976710656 side=BUY qty=10 price=100
+expect count 1
+expect rejected reason=INVALID_CLORDID session=alice cl_ord_id=281474976710656 order_id=0
+# boundary: 2^48-1 is a valid token; first accepted order gets OrderId 1 despite 4 rejections
+NEW_ORDER instrument=AAA session=alice cl_ord_id=281474976710655 side=BUY qty=10 price=99 ts=12
+expect count 2
+expect accepted instrument=AAA ts=12 order_id=1 cl_ord_id=281474976710655 session=alice owner=0 side=BUY ord_type=LIMIT tif=DAY stp=NONE post_only=false price=99 qty=10
+expect rested instrument=AAA ts=12 order_id=1 cl_ord_id=281474976710655 session=alice side=BUY price=99 leaves_qty=10
+# 4.1.3 duplicate beats invalid enum (4) and invalid quantity (5)
+NEW_ORDER instrument=AAA session=alice cl_ord_id=281474976710655 side=7 qty=0 price=100
+expect count 1
+expect rejected reason=DUPLICATE_CLORDID cl_ord_id=281474976710655 order_id=0
+# same token in another session is not a duplicate (tokens are per session)
+NEW_ORDER instrument=AAA session=bob cl_ord_id=281474976710655 side=BUY qty=10 price=99
+expect count 2
+expect accepted order_id=2 session=bob
+expect rested order_id=2
+# 4.1.4 every enum out of range, and post_only with market / IOC / FOK; beats qty (5)
+NEW_ORDER instrument=AAA session=alice cl_ord_id=e1 side=2 qty=0 price=100
+expect count 1
+expect rejected reason=INVALID_FIELD cl_ord_id=e1
+NEW_ORDER instrument=AAA session=alice cl_ord_id=e2 side=BUY type=2 qty=10 price=100
+expect rejected reason=INVALID_FIELD cl_ord_id=e2
+NEW_ORDER instrument=AAA session=alice cl_ord_id=e3 side=BUY tif=4 qty=10 price=100
+expect rejected reason=INVALID_FIELD cl_ord_id=e3
+NEW_ORDER instrument=AAA session=alice cl_ord_id=e4 side=BUY stp=4 qty=10 price=100
+expect rejected reason=INVALID_FIELD cl_ord_id=e4
+NEW_ORDER instrument=AAA session=alice cl_ord_id=e5 side=BUY tif=IOC post_only=true qty=0 price=100
+expect rejected reason=INVALID_FIELD cl_ord_id=e5
+NEW_ORDER instrument=AAA session=alice cl_ord_id=e6 side=BUY tif=FOK post_only=true qty=10 price=100
+expect rejected reason=INVALID_FIELD cl_ord_id=e6
+NEW_ORDER instrument=AAA session=alice cl_ord_id=e7 side=BUY type=MARKET post_only=true qty=10 price=100
+expect rejected reason=INVALID_FIELD cl_ord_id=e7
+# 4.1.5 quantity: not a lot multiple, above max, zero; beats invalid price (6)
+NEW_ORDER instrument=AAA session=alice cl_ord_id=q1 side=BUY qty=15 price=98
+expect count 1
+expect rejected reason=INVALID_QUANTITY cl_ord_id=q1
+NEW_ORDER instrument=AAA session=alice cl_ord_id=q2 side=BUY qty=1010 price=100
+expect rejected reason=INVALID_QUANTITY cl_ord_id=q2
+# 4.1.6 price: one tick outside each band edge, and off the tick grid
+NEW_ORDER instrument=AAA session=alice cl_ord_id=p1 side=BUY qty=10 price=98.99
+expect rejected reason=INVALID_PRICE cl_ord_id=p1
+NEW_ORDER instrument=AAA session=alice cl_ord_id=p2 side=SELL qty=10 price=101.01
+expect rejected reason=INVALID_PRICE cl_ord_id=p2
+NEW_ORDER instrument=AAA session=alice cl_ord_id=p3 side=SELL qty=10 price=100.005
+expect rejected reason=INVALID_PRICE cl_ord_id=p3
+# 4.1.6 before 4.1.7: bad price on a Closed instrument reports INVALID_PRICE
+NEW_ORDER instrument=BBB session=alice cl_ord_id=c1 side=BUY qty=10 price=98
+expect count 1
+expect rejected instrument=BBB reason=INVALID_PRICE cl_ord_id=c1
+NEW_ORDER instrument=BBB session=alice cl_ord_id=c2 side=BUY qty=0 price=100
+expect rejected instrument=BBB reason=INVALID_QUANTITY
+NEW_ORDER instrument=BBB session=alice cl_ord_id=c3 side=BUY qty=10 price=100
+expect rejected instrument=BBB reason=MARKET_CLOSED
+# max quantity and both band edges are valid; OrderIds continue at 3
+NEW_ORDER instrument=AAA session=alice cl_ord_id=ok1 side=SELL qty=1000 price=101
+expect count 2
+expect accepted order_id=3 qty=1000 price=101
+expect rested order_id=3 leaves_qty=1000
+# 4.1.6: a market order's price is ignored and echoed verbatim, even when off-grid and negative
+NEW_ORDER instrument=AAA session=alice cl_ord_id=m1 side=SELL type=MARKET qty=30 price=-0.0001 ts=13
+expect count 4
+expect accepted order_id=4 ord_type=MARKET tif=DAY price=-0.0001 qty=30
+expect fill ts=13 match_id=1 price=99 qty=10 aggressor=SELL buy.order_id=1 buy.cl_ord_id=281474976710655 buy.session=alice buy.owner=0 buy.leaves_qty=0 buy.cum_qty=10 sell.order_id=4 sell.cl_ord_id=m1 sell.session=alice sell.owner=0 sell.leaves_qty=20 sell.cum_qty=10
+expect fill match_id=2 price=99 qty=10 aggressor=SELL buy.order_id=2 buy.session=bob buy.leaves_qty=0 buy.cum_qty=10 sell.order_id=4 sell.leaves_qty=10 sell.cum_qty=20
+# 4.6: market TIF (DAY here) is ignored; remainder canceled, price echoed verbatim (SPEC 12)
+expect canceled ts=13 order_id=4 cl_ord_id=m1 request_cl_ord_id=0 session=alice side=SELL price=-0.0001 canceled_qty=10 cum_qty=20 reason=IMMEDIATE_OR_CANCEL was_resting=false leaves_qty=0
+expect depth AAA bid
+expect depth AAA ask 101:1000:1
