@@ -71,7 +71,7 @@ For each completion record: task ID, actual branch/commit, changed scope, tests 
 
 2026-11-03 about 07:00: every running delegate stopped on the Claude API rate limit; partial work stays in each worktree (see registry). Legacy lob fixes completed and merged (`7035f89`): ShardedEngine per-symbol books, bounded fill output, client mapping reclamation (FOUNDATION_REVIEW findings 16, 36, 37).
 
-Resume in small batches to stay under the limit, critical path first:
+The harness auto-resumed every stopped delegate at 12:10 +08 (limit-resume), so all of them are running again with their partial work; the critical-path five also received instructions to merge `exchange-simulator` first. Priority if the limit hits again:
 1. OUCH gateway, FIX gateway, market-data publisher/feed, exchange core, research runner.
 2. Then, as slots free: API contract plus UI, engines A and C, fuzzing, SPEC conformance audit, SBE over FIXP.
 
