@@ -45,14 +45,28 @@ resting orders needs 10 free slots and emits 9 events. The contract only promise
   Makefile). B's public-API tests (`tests/exsim/engine/vector_*`) were kept as
   a second independent suite; one asserted B's exact preflight bound and now
   asserts the contract bound instead.
-- Differential fuzz against the oracle: see `docs/WORK_PLAN.md` for the
-  integration run and log paths. The variant's own session ran 20 seeds x
-  200k steps on both profiles (8M commands) with no divergence.
+- Linux container (Debian trixie), `-Werror`: g++ 14 and clang++ 19, release
+  351/351 and ASan+UBSan 349/349 each; perf build clean, zero allocations.
+- Differential fuzz against the oracle: 1000 seeds x 20000 steps on each of
+  the `mixed` and `tiny` profiles (40M commands), no divergence. The variant's
+  own session had already run 20 seeds x 200k steps on both (8M commands).
 
 ## Benchmarks
 
-See `docs/WORK_PLAN.md` and the README performance table for the side by side
-B versus C run taken at integration.
+`exsim_bench --ops 2000000`, perf build, Apple M6 macOS, B and C alternated
+three times in one session under the same background load (load average
+13 to 15, other agents compiling), so both saw the same noise. Every run
+had zero allocations. Median Mops/s:
+
+| Workload | B | C | C / B |
+| --- | ---: | ---: | ---: |
+| passive_add | 6.61 | 11.91 | 1.80x |
+| cancel | 4.28 | 7.59 | 1.77x |
+| aggressive | 10.38 | 12.99 | 1.25x |
+| mixed | 7.23 | 13.11 | 1.81x |
+
+C was faster than B on every workload in every round. The variant author
+measured 15.9, 9.0, 16.6 and 17.5 Mops/s for C on a quieter machine.
 
 ## SPEC readings flagged by the variant author
 

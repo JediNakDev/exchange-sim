@@ -18,7 +18,7 @@ is in progress or planned and must not be read as working.
 
 | Component | State |
 | --- | --- |
-| Matching engine: price-time priority, phases and auctions, market/IOC/FOK, post-only, STP, replace and partial cancel, mass cancel, expiry | **integrated** (`src/exsim/matching_engine.cpp`, sorted level vectors) |
+| Matching engine: price-time priority, phases and auctions, market/IOC/FOK, post-only, STP, replace and partial cancel, mass cancel, expiry | **integrated** (`src/exsim/matching_engine.cpp`, index arena with hot/cold split; see [engine variants](docs/engine-variants/)) |
 | Independent reference oracle, differential fuzzer with shrinker, scenario DSL, canonical journal and replay | **integrated** |
 | Wire codecs: OUCH 4.2, SoupBinTCP 3.0, FIX 4.4, ITCH 5.0, MoldUDP64 | **integrated** (codec level, no sessions yet) |
 | Networking: kqueue/epoll poller, TCP server and client, UDP and multicast | **integrated** |
@@ -93,7 +93,7 @@ Normative documents: [SPEC.md](docs/SPEC.md) (matching semantics),
 
 | Layer | What it checks |
 | --- | --- |
-| Unit and contract tests (`tests/`) | about 290 test cases: codecs, networking, engine contracts, journal, bots, ledger, legacy book |
+| Unit and contract tests (`tests/`) | about 350 test cases: codecs, networking, engine contracts, journal, bots, ledger, legacy book |
 | Reference oracle (`tests/exsim/reference/`) | a deliberately simple second implementation of SPEC.md, written independently of the production engine |
 | Differential fuzzer (`tools/exsim_fuzz`) | random command streams through engine and oracle, compared event by event, with a shrinker for minimal reproducers |
 | Scenarios (`tests/scenarios/*.scn`) | 23 hand-written exchange situations with exact expected events, run against both implementations |
@@ -103,25 +103,28 @@ Normative documents: [SPEC.md](docs/SPEC.md) (matching semantics),
 
 Engine validation so far: 1000 seeds x 20000 steps for each fuzz profile
 (40M commands) with no divergence between the production engine and the
-oracle. Differential agreement does not prove both match the spec, which is
+oracle, run separately for the current engine and the one it replaced. Differential agreement does not prove both match the spec, which is
 why a separate hand-derived SPEC conformance audit is queued.
 
 ## Performance
 
-Matching engine, `exsim_bench`, perf build (`-O3 -march=native -flto`), zero
-allocations in every workload. Shared developer machine without core
-isolation, so treat these as indicative.
+Matching engine, `exsim_bench --ops 2000000`, perf build (`-O3 -march=native
+-flto`), Apple M6 macOS, zero allocations in every workload. The production
+engine (C, index arena) and the previous one (B, sorted level vectors) were
+alternated three times in one session under the same background load, so the
+comparison is fair but the absolute numbers are pessimistic. Median of three:
 
-| Workload | Apple M6, macOS, 2M ops: Mops/s | mean ns | p99 ns | Linux arm64 container, 200k ops: Mops/s |
-| --- | ---: | ---: | ---: | ---: |
-| passive_add | 6.02 | 166 | 375 | 9.85 |
-| cancel | 4.58 | 218 | 541 | 5.13 |
-| aggressive | 7.61 | 131 | 375 | 13.48 |
-| mixed | 6.31 | 159 | 500 | 11.65 |
+| Workload | C: Mops/s | C: mean ns | C: p99 ns | B: Mops/s | C / B |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| passive_add | 11.91 | 84 | 291 | 6.61 | 1.80x |
+| cancel | 7.59 | 132 | 458 | 4.28 | 1.77x |
+| aggressive | 12.99 | 77 | 291 | 10.38 | 1.25x |
+| mixed | 13.11 | 76 | 333 | 7.23 | 1.81x |
 
-The 2M-op run keeps far more live orders than the 200k smoke run, which
-explains most of the gap. Wire-to-wire latency through the gateways will be
-measured once the server binary exists.
+On a quieter machine the variant author measured 15.9, 9.0, 16.6 and 17.5
+Mops/s for C. Layouts, measurements and rejected optimizations are recorded
+in [docs/engine-variants/](docs/engine-variants/). Wire-to-wire latency
+through the gateways will be measured once the server binary exists.
 
 ## Repository layout
 
