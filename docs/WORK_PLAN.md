@@ -69,4 +69,10 @@ For each completion record: task ID, actual branch/commit, changed scope, tests 
 
 ## Immediate next action
 
-Running on Claude (task IDs in [delegation-registry.json](delegation-registry.json)): engines A and C, OUCH gateway, FIX gateway, market-data publisher/feed, research runner, exchange core, legacy lob fixes, the research API contract plus Next.js UI on a mock server (`web/`, `docs/api/openapi.yaml`, `docs/API.md`), and libFuzzer campaigns for protocol decoders and text parsers (`fuzz/`, Docker image `exsim-dev` with `libclang-rt-19-dev`). Route any header bugs the fuzzer reports to the owning delegate. An independent SPEC.md conformance audit (hand-derived scenarios, `docs/SPEC_CONFORMANCE.md`) checks for misreadings shared by the oracle and engine, which differential fuzzing cannot detect. Integrate each completion on `exchange-simulator` with the full gate. When gateways, publisher, and core land, launch the server binary and end-to-end tests; when the runner and contract land, launch the C++ HTTP/OpenAPI API on real artifacts and point the UI at it. Do not poll running tasks.
+2026-11-03 about 07:00: every running delegate stopped on the Claude API rate limit; partial work stays in each worktree (see registry). Legacy lob fixes completed and merged (`7035f89`): ShardedEngine per-symbol books, bounded fill output, client mapping reclamation (FOUNDATION_REVIEW findings 16, 36, 37).
+
+Resume in small batches to stay under the limit, critical path first:
+1. OUCH gateway, FIX gateway, market-data publisher/feed, exchange core, research runner.
+2. Then, as slots free: API contract plus UI, engines A and C, fuzzing, SPEC conformance audit, SBE over FIXP.
+
+When gateways, publisher, and core land, launch the server binary and end-to-end tests; when the runner and contract land, launch the C++ HTTP/OpenAPI API. Do not poll running tasks.
