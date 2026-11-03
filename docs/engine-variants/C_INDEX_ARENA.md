@@ -51,6 +51,20 @@ resting orders needs 10 free slots and emits 9 events. The contract only promise
   the `mixed` and `tiny` profiles (40M commands), no divergence. The variant's
   own session had already run 20 seeds x 200k steps on both (8M commands).
 
+## Foundation review gates owned by the engine
+
+`docs/FOUNDATION_REPAIRS.md` leaves these engine gates to whichever engine is
+production. All of them run against C in `run_tests`:
+
+| Finding | Gate | Tests |
+| --- | --- | --- |
+| 6 | insufficient output with a nonempty buffer leaves state, counters and output unchanged; identical retry; allocation-free worst cases | `vector_output.nonempty_insufficient_output_retry_all_commands`, `vector_output.bounds_cover_worst_case_sweep_mass_cancel_and_phase`, `arena_buffer.insufficient_output_changes_neither_engine_nor_output`, `arena_buffer.startup_sized_buffer_covers_worst_case_commands`, harness preflight and allocation tests |
+| 10 | crossed PreOpen to Halted to Continuous or Closed | `arena_phase.halted_keeps_a_crossed_book_and_leaving_it_uncrosses`, `arena_auction.halted_cross_summary_and_expiry`, `vector_auction.halted_cross_summary_ids_and_expiration` |
+| 14 | invalid instrument and engine configs | `arena_config.invalid_configs_and_wide_aggregates`, `arena_config.engine_config_bounds_throw`, `vector_instrument.*config*`, `vector_capacity.invalid_engine_configs_throw` |
+| 15 | complete active event fields | the oracle differential and scenarios compare every field; arena and vector field tests |
+| 30 | aggregate widths (two maximum quantities at one level) | `arena_config.invalid_configs_and_wide_aggregates` |
+| 31 | conservation across amendment chains | `vector_invariants.randomized_commands_and_deterministic_active_fields`, `arena_randomized.invariants_hold_after_every_command_*` |
+
 ## Benchmarks
 
 `exsim_bench --ops 2000000`, perf build, Apple M6 macOS, B and C alternated
