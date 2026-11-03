@@ -88,7 +88,7 @@
     {
       "threadId": "thread:delegated-task:command%3Amcp%3Aa3cfcbf8-77f5-42db-85b2-f422e93526a8%3Adelegate-task%3A9bddc223-562b-4ffb-9b34-40d9a4b31ac4",
       "title": "engine variant C: index arena, hot/cold split",
-      "status": "running",
+      "status": "completed",
       "provider": "claudeAgent",
       "model": "claude-opus-5-5",
       "parentThreadId": "a4344aba-ffd8-4132-bf6d-ea93d8fe68e8",
@@ -96,9 +96,15 @@
       "previousProvider": "claudeAgent",
       "previousModel": "claude-opus-5-5",
       "reasoningEffort": "xhigh",
-      "recoveryState": "GPT run failed at usage limit; resumed on Claude 2026-11-03 with oracle gate; stopped 2026-11-03 by Claude API rate limit, partial work preserved in its worktree; auto-resumed by the harness 2026-11-03 12:10 +08 (limit-resume ordinal 2)",
+      "recoveryState": "GPT run failed at usage limit; resumed on Claude 2026-11-03 with oracle gate; stopped 2026-11-03 by Claude API rate limit, partial work preserved in its worktree; auto-resumed by the harness 2026-11-03 12:10 +08 (limit-resume ordinal 2); completed 2026-11-03 12:14 +08 (cd8376d); integrated on integrate-engine-c pending independent review",
       "taskId": "node:delegated-task:command%3Amcp%3Ac7e221c4-df52-4581-ac42-4cf5b1dacf1a%3Athread-send%3A025df5c0-b73b-4e14-84f9-cd03328dbf0e",
-      "runId": "run:thread:thread%3Adelegated-task%3Acommand%253Amcp%253Aa3cfcbf8-77f5-42db-85b2-f422e93526a8%253Adelegate-task%253A9bddc223-562b-4ffb-9b34-40d9a4b31ac4:ordinal:2"
+      "runId": "run:thread:thread%3Adelegated-task%3Acommand%253Amcp%253Aa3cfcbf8-77f5-42db-85b2-f422e93526a8%253Adelegate-task%253A9bddc223-562b-4ffb-9b34-40d9a4b31ac4:ordinal:2",
+      "resultCommit": "cd8376d",
+      "integrationBranch": "integrate-engine-c",
+      "integrationCommits": [
+        "0e9de4c",
+        "3f9dc78"
+      ]
     },
     {
       "threadId": "thread:delegated-task:command%3Amcp%3Aa3cfcbf8-77f5-42db-85b2-f422e93526a8%3Adelegate-task%3A375af3c9-3a0a-45df-a3e5-8798c60a0e73",
@@ -285,6 +291,22 @@
         "tests/exsim/protocol/sbe_*"
       ],
       "recoveryState": "wave 2, launched 2026-11-03; proposes GATEWAYS.md/SERVER.md additions in its report; stopped 2026-11-03 by Claude API rate limit, partial work preserved in its worktree; auto-resumed by the harness 2026-11-03 12:10 +08 (limit-resume ordinal 2)"
+    },
+    {
+      "threadId": "thread:delegated-task:command%3Amcp%3A77c45547-e76a-49aa-a48f-5f6f5c1020cf%3Adelegate-task%3A38045dc3-642d-44fa-bf93-13252c61be81",
+      "title": "independent review of production engine C (index arena)",
+      "status": "running",
+      "provider": "claudeAgent",
+      "model": "claude-opus-5-5",
+      "reasoningEffort": "high",
+      "parentThreadId": "a4344aba-ffd8-4132-bf6d-ea93d8fe68e8",
+      "taskId": "node:delegated-task:command%3Amcp%3A77c45547-e76a-49aa-a48f-5f6f5c1020cf%3Adelegate-task%3A38045dc3-642d-44fa-bf93-13252c61be81",
+      "baseCommit": "0e9de4c",
+      "ownership": [
+        "read-only review",
+        "/tmp/exsim-c-review/"
+      ],
+      "report": "/tmp/exsim-c-review/REPORT.md"
     }
   ]
 }
