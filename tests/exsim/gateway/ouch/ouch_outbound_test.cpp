@@ -515,7 +515,7 @@ TEST_CASE(gateway_ouch_outbound, uncross_after_a_halt_is_flagged_h_per_instrumen
 TEST_CASE(gateway_ouch_outbound, end_of_day_system_event_golden) {
     AliceAndBob fixture;
     fixture.exchange.advance(42);
-    fixture.exchange.user_state(1).append_end_of_day_event(fixture.exchange);
+    fixture.exchange.user_state(1).append_end_of_day_event(fixture.exchange.now(), fixture.exchange);
     const std::vector<std::string> frames = fixture.alice.take_frames();
     REQUIRE_EQ(frames.size(), 1u);
     CHECK(frames[0] == Golden().byte('S').u64(kNineThirty + 42).byte('E').soup('S'));

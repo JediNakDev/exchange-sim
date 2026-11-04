@@ -396,7 +396,7 @@ TEST_CASE(gateway_ouch_session, fault_hooks_reject_and_drop) {
     RawSession alice(exchange);
     REQUIRE(alice.login("alice", "alicepw"));
     alice.take_frames();
-    exchange.user_state(1).inject_gateway_rejects(2);
+    exchange.inject_gateway_rejects(1, 2);
     for (const char* token : {"BID1", "BID2", "BID3"}) {
         alice.send_message(enter_order(token, 'B', 10, "AAPL", kHundredDollars));
     }
@@ -405,7 +405,7 @@ TEST_CASE(gateway_ouch_session, fault_hooks_reject_and_drop) {
     CHECK_EQ(decode_ouch<ouch42::OrderRejected>(frames[0]).reason, 'O');
     CHECK_EQ(exchange.submitted_command_count(), 1u);
 
-    exchange.user_state(1).drop_next_outbound_messages(1);
+    exchange.drop_next_outbound_messages(1, 1);
     alice.send_message(enter_order("BID4", 'B', 10, "AAPL", kHundredDollars));
     CHECK(alice.take_frames().empty());  // stored as message 5, never written
     alice.send_message(enter_order("BID5", 'B', 10, "AAPL", kHundredDollars));
@@ -416,7 +416,7 @@ TEST_CASE(gateway_ouch_session, fault_hooks_reject_and_drop) {
     alice.disconnect();
 
     // Replay is never affected by the drop fault and recovers the message.
-    exchange.user_state(1).drop_next_outbound_messages(5);
+    exchange.drop_next_outbound_messages(1, 5);
     RawSession recovered(exchange);
     REQUIRE(recovered.login("alice", "alicepw", 5));
     frames = recovered.take_frames();
@@ -437,15 +437,17 @@ TEST_CASE(gateway_ouch_session, trading_day_lifecycle) {
         REQUIRE_EQ(frames.size(), 1u);
         CHECK_EQ(decode_ouch<ouch42::OrderCanceled>(frames[0]).reason, 'E');
         exchange.advance(kOneSecond);
-        exchange.user_state(1).append_end_of_day_event(exchange);
+        exchange.user_states().on_shutdown(exchange.now(), exchange);  // System Event 'E' for every OUCH user
         alice.connection().end_session(exchange);
         frames = alice.take_frames();
         REQUIRE_EQ(frames.size(), 2u);
         CHECK(frames[0] == Golden().byte('S').u64(kNineThirty + kOneSecond).byte('E').soup('S'));
         CHECK(frames[1] == control_frame<'Z'>());
     }
-    exchange.user_state(1).reset_for_new_trading_day();
+    CHECK_EQ(exchange.user_state(2).store().last_seq(), 1u);  // bob never logged in: just the stored 'E'
+    exchange.user_states().reset_for_new_trading_day();
     CHECK_EQ(exchange.user_state(1).store().last_seq(), 0u);
+    CHECK_EQ(exchange.user_state(2).store().last_seq(), 0u);
     exchange.set_phase(0, Phase::Continuous);
     RawSession alice(exchange);
     REQUIRE(alice.login("alice", "alicepw", 1));

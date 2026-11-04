@@ -4,29 +4,40 @@
 // Server side of OUCH 4.2 over SoupBinTCP 3.0 (docs/GATEWAYS.md section 2,
 // docs/SERVER.md section 2). Pure state machines over byte buffers:
 //
-//   OuchUserState<Sink>   one per configured OUCH user for the whole trading
-//                         day: token table, per-order instructions, sequenced
-//                         store, OUCH application mapping both ways.
-//   OuchConnection<Sink>  one per TCP connection: SoupBinTCP framing, login,
-//                         replay, heartbeats, idle timeout, logout.
+//   OuchUserState<Sink>           one per configured OUCH user for the whole
+//                                 trading day: token table, per-order
+//                                 instructions, sequenced store, OUCH
+//                                 application mapping both ways.
+//   OuchUserStateDirectory<Sink>  every OUCH user's state by session; also the
+//                                 server::ExchangeCore `Sessions` policy.
+//   OuchConnection<Sink>          one per TCP connection: SoupBinTCP framing,
+//                                 login, replay, heartbeats, idle timeout,
+//                                 logout.
 //
-// Both are templated on the byte sink (byte_sink.hpp); their entry points are
-// templated on the server Context (OuchServerContext below). No virtual
-// dispatch, no exceptions, no std::string and no heap allocation after
-// construction: every buffer is fixed or sized from configuration.
+// All are templated on the byte sink (byte_sink.hpp); their entry points are
+// templated on the server Context (OuchServerContext below), which
+// server::ExchangeCore satisfies. No virtual dispatch, no exceptions, no
+// std::string and no heap allocation after construction: every buffer is
+// fixed or sized from configuration.
 //
 // Driving contract for the server integrator:
-//   * connection.on_data(bytes, ctx) consumes every byte it is given.
-//   * after engine.handle, call user_state.on_events(batch, ctx) once for every
-//     distinct session in the batch (SERVER.md 2.3).
-//   * call connection.on_timer(ctx) periodically (heartbeat, idle timeout,
-//     paused replay) and connection.on_writable(ctx) after send space frees.
+//   * build one OuchUserStateDirectory for the day and give it to the core as
+//     its Sessions (or call its on_events/on_shutdown from your own Sessions).
+//     The core then calls on_events(session, batch, core) once per distinct
+//     session of each batch (SERVER.md 2.3) and on_shutdown at end of day.
+//   * per accepted TCP connection, construct an OuchConnection with that
+//     directory; connection.on_data(bytes, core) consumes every byte.
+//   * call connection.on_timer(core) periodically (heartbeat, idle timeout,
+//     paused replay) and connection.on_writable(core) after send space frees.
 //   * when connection.close_requested(): close the socket (after flushing if
-//     flush_before_close()) and then call connection.on_disconnect(ctx). Also
-//     call on_disconnect(ctx) when the socket drops on its own. on_disconnect
-//     detaches the user and calls ctx.unbind (cancel-on-disconnect).
-//   * on_events never calls back into ctx.submit/bind/unbind, so it is safe to
-//     run during dispatch; closes it causes are completed by the caller later.
+//     flush_before_close()) and then call connection.on_disconnect(core). Also
+//     call on_disconnect(core) when the socket drops on its own, or for the
+//     core's take_disconnect_requests. on_disconnect detaches the user and
+//     calls core.unbind (cancel-on-disconnect).
+//   * on_events never calls back into submit/bind/unbind, so it is safe to run
+//     during dispatch; closes it causes are completed by the caller later.
+//   * fault injection is read from the Context (consume_injected_reject,
+//     consume_drop_out); `fault user X delay` belongs to the server loop.
 
 #include "exsim/command.hpp"
 #include "exsim/event.hpp"
@@ -35,10 +46,10 @@
 #include "exsim/gateway/sequenced_store.hpp"
 #include "exsim/gateway/token_table.hpp"
 #include "exsim/instrument.hpp"
-#include "exsim/net/tcp_server.hpp"
 #include "exsim/protocol/ouch42.hpp"
 #include "exsim/protocol/soupbintcp.hpp"
 #include "exsim/server/config.hpp"
+#include "exsim/server/core/policies.hpp"
 #include "exsim/types.hpp"
 #include "lob/compiler.hpp"
 
@@ -52,7 +63,9 @@
 #include <memory>
 #include <span>
 #include <string_view>
+#include <type_traits>
 #include <utility>
+#include <vector>
 
 namespace exsim::gateway::ouch {
 
@@ -130,23 +143,48 @@ class OuchUserState;
 template <OuchByteSink ByteSink>
 class OuchConnection;
 
-// What the server must provide (SERVER.md 2.1 plus the user-state lookup).
-// unbind triggers cancel-on-disconnect when the user is configured for it;
-// submit stamps the command, runs the engine and dispatches the batch to
-// every OuchUserState::on_events before returning.
-template <class Context, class ByteSink>
+// What the server must provide: SERVER.md 2.1 plus the per-user fault queries
+// of SERVER.md 4. server::ExchangeCore satisfies it. unbind triggers
+// cancel-on-disconnect when the user is configured for it; submit stamps the
+// command, runs the engine and dispatches the batch to the sessions before
+// returning. submit returns void (always applied) or server::SubmitResult.
+template <class Context>
 concept OuchServerContext = requires(Context& context, const Context& const_context, std::string_view text,
-                                     SessionId session, net::ConnectionId connection, const Symbol& symbol,
+                                     SessionId session, server::ConnectionId connection, const Symbol& symbol,
                                      InstrumentId instrument, const Command& command) {
     { context.authenticate(text, text, server::Protocol::Ouch42) } -> std::same_as<const server::UserConfig*>;
     { context.bind(session, connection) } -> std::same_as<bool>;
     context.unbind(session);
     { const_context.find_instrument(symbol) } -> std::same_as<InstrumentId>;
     { const_context.instrument(instrument) } -> std::same_as<const InstrumentConfig*>;
-    context.submit(command);
+    requires std::is_void_v<decltype(context.submit(command))> ||
+                 std::same_as<decltype(context.submit(command)), server::SubmitResult>;
     { const_context.now() } -> std::same_as<Timestamp>;
-    { context.ouch_user_state(session) } -> std::same_as<OuchUserState<ByteSink>*>;
+    { context.consume_injected_reject(session) } -> std::same_as<bool>;
+    { context.consume_drop_out(session) } -> std::same_as<bool>;
 };
+
+// No gateway reject: the command reached the engine (or will, if deferred).
+inline constexpr char kCommandApplied = '\0';
+
+// Submits `command`. Returns the OUCH reject reason for a command the Context
+// reports it did not apply (outside the trading day: 'C'), else kCommandApplied.
+template <class Context>
+[[nodiscard]] char submit_to_engine(Context& context, const Command& command) noexcept {
+    if constexpr (std::is_void_v<decltype(context.submit(command))>) {
+        context.submit(command);
+        return kCommandApplied;
+    } else {
+        switch (context.submit(command)) {
+            case server::SubmitResult::Applied:
+            case server::SubmitResult::Deferred: return kCommandApplied;
+            case server::SubmitResult::OutsideTradingDay: return kOuchRejectExchangeClosed;
+            case server::SubmitResult::OutputCapacityExceeded:
+            case server::SubmitResult::DeferredQueueFull: return kOuchRejectOther;
+        }
+        return kOuchRejectOther;
+    }
+}
 
 // ============================================================================
 // OuchUserState
@@ -179,7 +217,7 @@ public:
     // connection. Safe during dispatch: never calls back into the context
     // except the read-only instrument() and now().
     template <class Context>
-        requires OuchServerContext<Context, ByteSink>
+        requires OuchServerContext<Context>
     void on_events(std::span<const Event> batch, Context& context) noexcept {
         AuctionPhaseLookup auction_phase_lookup;
         for (std::size_t index = 0; index < batch.size(); ++index) {
@@ -222,11 +260,12 @@ public:
         }
     }
 
-    // System Event 'E' (end of day). Call after the closing SetPhase batch.
+    // System Event 'E' (end of day) stamped `end_of_day`. Call after the
+    // closing SetPhase batch (OuchUserStateDirectory::on_shutdown does).
     template <class Context>
-        requires OuchServerContext<Context, ByteSink>
-    void append_end_of_day_event(Context& context) noexcept {
-        append_system_event(kOuchSystemEventEndOfDay, context.now());
+        requires OuchServerContext<Context>
+    void append_end_of_day_event(Timestamp end_of_day, Context& context) noexcept {
+        append_system_event(kOuchSystemEventEndOfDay, end_of_day, context);
     }
 
     // Start of a new trading day: forget tokens, instructions and messages.
@@ -237,15 +276,7 @@ public:
         store_.clear();
         start_of_day_sent_ = false;
         store_overflowed_ = false;
-        injected_rejects_remaining_ = 0;
-        outbound_drops_remaining_ = 0;
     }
-
-    // Fault injection (SERVER.md 4): the gateway itself rejects the next
-    // `count` Enter Orders with J 'O'; the next `count` live sequenced
-    // messages are stored but not transmitted.
-    void inject_gateway_rejects(std::uint32_t count) noexcept { injected_rejects_remaining_ = count; }
-    void drop_next_outbound_messages(std::uint32_t count) noexcept { outbound_drops_remaining_ = count; }
 
     [[nodiscard]] const SequencedStore& store() const noexcept { return store_; }
     [[nodiscard]] const TokenTable& tokens() const noexcept { return tokens_; }
@@ -284,16 +315,18 @@ private:
     }
 
     // System Event 'S' once per trading day, right after the first login.
-    void append_start_of_day_if_needed(Timestamp now) noexcept {
+    template <class Context>
+    void append_start_of_day_if_needed(Context& context) noexcept {
         if (start_of_day_sent_) return;
         start_of_day_sent_ = true;
-        append_system_event(kOuchSystemEventStartOfDay, now);
+        append_system_event(kOuchSystemEventStartOfDay, context.now(), context);
     }
 
-    // True if the next live sequenced message must be stored but not sent.
-    [[nodiscard]] bool consume_outbound_drop() noexcept {
-        if (LOB_LIKELY(outbound_drops_remaining_ == 0)) return false;
-        --outbound_drops_remaining_;
+    // Fault injection (SERVER.md 4, `fault user X drop_out n`): true if the
+    // next live sequenced message must stay stored but not be transmitted.
+    template <class Context>
+    [[nodiscard]] bool consume_outbound_drop(Context& context) noexcept {
+        if (LOB_LIKELY(!context.consume_drop_out(session_id_))) return false;
         ++statistics_.outbound_messages_dropped_by_fault;
         return true;
     }
@@ -322,8 +355,7 @@ private:
             reject_at_gateway(request.token, kOuchRejectOther, context);
             return;
         }
-        if (injected_rejects_remaining_ > 0) {
-            --injected_rejects_remaining_;
+        if (context.consume_injected_reject(session_id_)) {  // `fault user X reject n`
             reject_at_gateway(request.token, kOuchRejectOther, context);
             return;
         }
@@ -354,7 +386,10 @@ private:
         order.post_only = display_is_post_only(request.display);
         order.price = request.price;
         order.qty = request.shares;
-        context.submit(Command{order});
+        const char not_applied_reason = submit_to_engine(context, Command{order});
+        if (LOB_UNLIKELY(not_applied_reason != kCommandApplied)) {
+            reject_at_gateway(request.token, not_applied_reason, context);
+        }
     }
 
     template <class Context>
@@ -396,7 +431,10 @@ private:
         replace.price = request.price;
         replace.qty = request.shares;  // OUCH shares = new total quantity
         replace.force_priority_loss = true;
-        context.submit(Command{replace});
+        const char not_applied_reason = submit_to_engine(context, Command{replace});
+        if (LOB_UNLIKELY(not_applied_reason != kCommandApplied)) {
+            reject_at_gateway(request.replacement_token, not_applied_reason, context);
+        }
     }
 
     // X shares is the new intended total. The engine's reduce_to_total_qty has
@@ -418,7 +456,7 @@ private:
         cancel.session = session_id_;
         cancel.orig_cl_ord_id = order_id;
         cancel.reduce_to_total_qty = request.shares;
-        context.submit(Command{cancel});
+        (void)submit_to_engine(context, Command{cancel});  // OUCH has no cancel reject: not applied is silent
     }
 
     template <class Context>
@@ -439,7 +477,7 @@ private:
         message.timestamp = context.now();
         message.token = token;
         message.reason = reason;
-        append_sequenced(message, message.timestamp);
+        append_sequenced(message, context);
     }
 
     [[nodiscard]] bool store_admits_new_requests() const noexcept {
@@ -498,7 +536,7 @@ private:
         message.cross_type = instructions.cross_type;
         message.order_state = kOuchOrderStateLive;  // no atomic-dead acknowledgement compression
         message.bbo_weight = kOuchBboWeightUnspecified;
-        append_sequenced(message, context.now());
+        append_sequenced(message, context);
     }
 
     template <class Context>
@@ -510,7 +548,7 @@ private:
         message.timestamp = event.ts;
         copy_token(rejected.cl_ord_id, message.token);  // request token (replacement token for U)
         message.reason = ouch_reject_reason(rejected.reason);
-        append_sequenced(message, context.now());
+        append_sequenced(message, context);
     }
 
     template <class Context>
@@ -522,7 +560,7 @@ private:
         message.price = event.fill.price;
         message.liquidity = liquidity_flag;
         message.match_number = event.fill.match_id;
-        append_sequenced(message, context.now());
+        append_sequenced(message, context);
     }
 
     template <class Context>
@@ -533,7 +571,7 @@ private:
         copy_token(canceled.cl_ord_id, message.token);
         message.shares = canceled.canceled_qty;  // decrement shares
         message.reason = ouch_cancel_reason(canceled.reason);
-        append_sequenced(message, context.now());
+        append_sequenced(message, context);
     }
 
     template <class Context>
@@ -558,22 +596,23 @@ private:
         message.order_state = kOuchOrderStateLive;
         copy_token(replaced.orig_cl_ord_id, message.previous_token);
         message.bbo_weight = kOuchBboWeightUnspecified;
-        append_sequenced(message, context.now());
+        append_sequenced(message, context);
     }
 
-    void append_system_event(char system_event, Timestamp now) noexcept {
+    template <class Context>
+    void append_system_event(char system_event, Timestamp event_time, Context& context) noexcept {
         protocol::ouch42::SystemEvent message;
-        message.timestamp = now;
+        message.timestamp = event_time;
         message.event = system_event;
-        append_sequenced(message, now);
+        append_sequenced(message, context);
     }
 
     // Frames `message` as SoupBinTCP Sequenced Data, stores it (assigning its
     // sequence number) and hands it to the attached connection. A full store
     // ends the user's session for the day: the message is lost, so replay
     // could never be complete again (see OuchCloseReason::StoreFull).
-    template <class Message>
-    void append_sequenced(const Message& message, Timestamp now) noexcept {
+    template <class Message, class Context>
+    void append_sequenced(const Message& message, Context& context) noexcept {
         if (LOB_UNLIKELY(store_overflowed_)) {
             ++statistics_.messages_lost_to_store_overflow;
             return;
@@ -592,10 +631,10 @@ private:
         if (LOB_UNLIKELY(!store_.append({frame, frame_size}))) {
             store_overflowed_ = true;
             ++statistics_.messages_lost_to_store_overflow;
-            if (attached_connection_ != nullptr) attached_connection_->terminate_for_store_overflow(now);
+            if (attached_connection_ != nullptr) attached_connection_->terminate_for_store_overflow(context.now());
             return;
         }
-        if (attached_connection_ != nullptr) attached_connection_->deliver_stored_messages(now);
+        if (attached_connection_ != nullptr) attached_connection_->deliver_stored_messages(context);
     }
 
     [[nodiscard]] const OuchOrderInstructions& instructions_for(ClOrdId cl_ord_id) const noexcept {
@@ -628,11 +667,89 @@ private:
     SequencedStore store_;
     std::size_t store_reserve_messages_;
     OuchConnection<ByteSink>* attached_connection_ = nullptr;
-    std::uint32_t injected_rejects_remaining_ = 0;
-    std::uint32_t outbound_drops_remaining_ = 0;
     bool start_of_day_sent_ = false;
     bool store_overflowed_ = false;
     OuchUserStatistics statistics_{};
+};
+
+// ============================================================================
+// OuchUserStateDirectory
+// ============================================================================
+
+// The OUCH users' states for the trading day, found by session id. It
+// satisfies server::ExchangeCore's Sessions policy, so an OUCH-only server
+// passes it to the core directly; a server that also runs FIX forwards each
+// call for OUCH sessions to it. Sessions without an OUCH user state (FIX
+// users, bots) are ignored.
+template <OuchByteSink ByteSink>
+class OuchUserStateDirectory {
+public:
+    // One user state per configured OUCH user that no bot drives (a bot owns
+    // its session exclusively, so it never logs in over OUCH).
+    OuchUserStateDirectory(const server::ServerConfig& config, const OuchUserStateLimits& limits) {
+        SessionId largest_session = 0;
+        for (const server::UserConfig& user : config.users) {
+            if (!is_wire_ouch_user(user, config)) continue;
+            user_states_.push_back(std::make_unique<OuchUserState<ByteSink>>(user, limits));
+            largest_session = std::max(largest_session, user.session_id);
+        }
+        user_state_by_session_.assign(std::size_t{largest_session} + 1, nullptr);
+        for (const std::unique_ptr<OuchUserState<ByteSink>>& user_state : user_states_) {
+            user_state_by_session_[user_state->session_id()] = user_state.get();
+        }
+    }
+
+    explicit OuchUserStateDirectory(const server::ServerConfig& config)
+        : OuchUserStateDirectory(config, OuchUserStateLimits::from(config.engine)) {}
+
+    // User states are referenced by connections: keep the directory in place.
+    OuchUserStateDirectory(const OuchUserStateDirectory&) = delete;
+    OuchUserStateDirectory& operator=(const OuchUserStateDirectory&) = delete;
+    OuchUserStateDirectory(OuchUserStateDirectory&&) = delete;
+    OuchUserStateDirectory& operator=(OuchUserStateDirectory&&) = delete;
+
+    // nullptr if `session` is not an OUCH user's.
+    [[nodiscard]] OuchUserState<ByteSink>* find(SessionId session) const noexcept {
+        return session < user_state_by_session_.size() ? user_state_by_session_[session] : nullptr;
+    }
+
+    // SERVER.md 2.3: once per distinct session of each batch.
+    template <class Context>
+        requires OuchServerContext<Context>
+    void on_events(SessionId session, std::span<const Event> batch, Context& context) noexcept {
+        if (OuchUserState<ByteSink>* user_state = find(session)) user_state->on_events(batch, context);
+    }
+
+    // End of day, after the closing SetPhase batch: System Event 'E' for every
+    // user (stored for those not logged in, so a later login recovers it).
+    template <class Context>
+        requires OuchServerContext<Context>
+    void on_shutdown(Timestamp end_of_day, Context& context) noexcept {
+        for (const std::unique_ptr<OuchUserState<ByteSink>>& user_state : user_states_) {
+            user_state->append_end_of_day_event(end_of_day, context);
+        }
+    }
+
+    // Precondition: no connection attached to any user state.
+    void reset_for_new_trading_day() noexcept {
+        for (const std::unique_ptr<OuchUserState<ByteSink>>& user_state : user_states_) {
+            user_state->reset_for_new_trading_day();
+        }
+    }
+
+    [[nodiscard]] std::size_t size() const noexcept { return user_states_.size(); }
+
+private:
+    [[nodiscard]] static bool is_wire_ouch_user(const server::UserConfig& user, const server::ServerConfig& config) {
+        if (user.protocol != server::Protocol::Ouch42 || user.session_id == 0) return false;
+        for (const server::BotSectionConfig& bot : config.bots) {
+            if (bot.user == user.username) return false;
+        }
+        return true;
+    }
+
+    std::vector<std::unique_ptr<OuchUserState<ByteSink>>> user_states_;
+    std::vector<OuchUserState<ByteSink>*> user_state_by_session_;  // index = SessionId
 };
 
 // ============================================================================
@@ -646,9 +763,12 @@ public:
     // longer Debug packets are a protocol violation).
     static constexpr std::size_t kInboundFrameCapacity = 256;
 
-    OuchConnection(ByteSink sink, net::ConnectionId connection_id, const OuchSessionSettings& settings,
+    // `user_states` is where logins find their user; it must outlive the connection.
+    OuchConnection(ByteSink sink, const OuchUserStateDirectory<ByteSink>& user_states,
+                   server::ConnectionId connection_id, const OuchSessionSettings& settings,
                    Timestamp connected_at) noexcept
         : sink_(std::move(sink)),
+          user_states_(&user_states),
           connection_id_(connection_id),
           settings_(settings),
           frame_reader_(std::span<char>(inbound_frame_), kInboundFrameCapacity - 2),
@@ -669,7 +789,7 @@ public:
 
     // Consumes every byte (partial frames are buffered internally).
     template <class Context>
-        requires OuchServerContext<Context, ByteSink>
+        requires OuchServerContext<Context>
     std::size_t on_data(std::span<const char> bytes, Context& context) noexcept {
         if (state_ == OuchConnectionState::Closed) return bytes.size();
         last_inbound_ns_ = context.now();
@@ -692,14 +812,14 @@ public:
 
     // Idle timeout, server heartbeat, paused replay.
     template <class Context>
-        requires OuchServerContext<Context, ByteSink>
+        requires OuchServerContext<Context>
     void on_timer(Context& context) noexcept {
         if (state_ != OuchConnectionState::Closed) {
             const Timestamp now = context.now();
             if (elapsed(last_inbound_ns_, now) >= settings_.client_idle_timeout_ns) {
                 close(OuchCloseReason::ClientIdleTimeout);
             } else if (state_ == OuchConnectionState::LoggedIn) {
-                deliver_stored_messages(now);
+                deliver_stored_messages(context);
                 if (state_ == OuchConnectionState::LoggedIn && !replaying_ &&
                     elapsed(last_outbound_ns_, now) >= settings_.server_heartbeat_interval_ns &&
                     !write_unsequenced(protocol::soupbintcp::ServerHeartbeat{}, now)) {
@@ -712,16 +832,16 @@ public:
 
     // Send space became available: continue a paused replay.
     template <class Context>
-        requires OuchServerContext<Context, ByteSink>
+        requires OuchServerContext<Context>
     void on_writable(Context& context) noexcept {
-        if (state_ == OuchConnectionState::LoggedIn) deliver_stored_messages(context.now());
+        if (state_ == OuchConnectionState::LoggedIn) deliver_stored_messages(context);
         if (state_ == OuchConnectionState::Closed) release_session(context);
     }
 
     // The TCP connection is gone (or the server closed it after
     // close_requested()). Detaches and unbinds the user: cancel-on-disconnect.
     template <class Context>
-        requires OuchServerContext<Context, ByteSink>
+        requires OuchServerContext<Context>
     void on_disconnect(Context& context) noexcept {
         if (state_ != OuchConnectionState::Closed) close(OuchCloseReason::TransportClosed);
         release_session(context);
@@ -729,10 +849,10 @@ public:
 
     // Server shutdown: SoupBinTCP End of Session, then close.
     template <class Context>
-        requires OuchServerContext<Context, ByteSink>
+        requires OuchServerContext<Context>
     void end_session(Context& context) noexcept {
         if (state_ == OuchConnectionState::LoggedIn) {
-            deliver_stored_messages(context.now());
+            deliver_stored_messages(context);
             write_unsequenced(protocol::soupbintcp::EndOfSession{}, context.now());
         }
         if (state_ != OuchConnectionState::Closed) close(OuchCloseReason::EndOfSession);
@@ -748,7 +868,7 @@ public:
     }
     [[nodiscard]] bool is_replaying() const noexcept { return replaying_; }
     [[nodiscard]] std::uint64_t next_sequence_to_send() const noexcept { return next_sequence_to_send_; }
-    [[nodiscard]] net::ConnectionId connection_id() const noexcept { return connection_id_; }
+    [[nodiscard]] server::ConnectionId connection_id() const noexcept { return connection_id_; }
     [[nodiscard]] OuchUserState<ByteSink>* user_state() const noexcept { return user_state_; }
     [[nodiscard]] ByteSink& sink() noexcept { return sink_; }
     [[nodiscard]] const ByteSink& sink() const noexcept { return sink_; }
@@ -791,7 +911,7 @@ private:
             context.authenticate(protocol::wire::alpha(request.username.data(), request.username.size()),
                                  protocol::wire::alpha(request.password.data(), request.password.size()),
                                  server::Protocol::Ouch42);
-        OuchUserState<ByteSink>* user_state = user != nullptr ? context.ouch_user_state(user->session_id) : nullptr;
+        OuchUserState<ByteSink>* user_state = user != nullptr ? user_states_->find(user->session_id) : nullptr;
         if (user_state == nullptr) {
             reject_login(kSoupLoginRejectNotAuthorized, now);
             return;
@@ -801,12 +921,14 @@ private:
             reject_login(kSoupLoginRejectSessionNotAvailable, now);
             return;
         }
-        accept_login(*user_state, request.sequence, now);
+        accept_login(*user_state, request.sequence, context);
     }
 
     // Requested sequence 0 starts after the last stored message; N >= 1
     // replays from N, clamped to the next message to be generated.
-    void accept_login(OuchUserState<ByteSink>& user_state, std::uint64_t requested_sequence, Timestamp now) noexcept {
+    template <class Context>
+    void accept_login(OuchUserState<ByteSink>& user_state, std::uint64_t requested_sequence, Context& context) noexcept {
+        const Timestamp now = context.now();
         const std::uint64_t next_unstored = user_state.store().next_seq();
         const std::uint64_t first_sequence =
             requested_sequence == 0 ? next_unstored : std::min(requested_sequence, next_unstored);
@@ -823,8 +945,8 @@ private:
             close(OuchCloseReason::SendBufferFull);
             return;
         }
-        deliver_stored_messages(now);
-        if (state_ == OuchConnectionState::LoggedIn) user_state.append_start_of_day_if_needed(now);
+        deliver_stored_messages(context);
+        if (state_ == OuchConnectionState::LoggedIn) user_state.append_start_of_day_if_needed(context);
     }
 
     void reject_login(char reason, Timestamp now) noexcept {
@@ -840,11 +962,13 @@ private:
     // room. A replay pauses on a full sink and continues from on_writable /
     // on_timer; live output that does not fit closes the connection
     // (SendBufferFull) and the client recovers by replay.
-    void deliver_stored_messages(Timestamp now) noexcept {
+    template <class Context>
+    void deliver_stored_messages(Context& context) noexcept {
         if (state_ != OuchConnectionState::LoggedIn) return;
+        const Timestamp now = context.now();
         const SequencedStore& store = user_state_->store();
         while (next_sequence_to_send_ <= store.last_seq()) {
-            if (!replaying_ && user_state_->consume_outbound_drop()) {
+            if (!replaying_ && user_state_->consume_outbound_drop(context)) {
                 ++next_sequence_to_send_;
                 continue;
             }
@@ -901,7 +1025,8 @@ private:
     }
 
     ByteSink sink_;
-    net::ConnectionId connection_id_;
+    const OuchUserStateDirectory<ByteSink>* user_states_;
+    server::ConnectionId connection_id_;
     OuchSessionSettings settings_;
     char inbound_frame_[kInboundFrameCapacity]{};
     protocol::soupbintcp::FrameReader frame_reader_;

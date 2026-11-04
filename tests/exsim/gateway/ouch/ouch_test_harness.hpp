@@ -3,9 +3,11 @@
 
 // In-memory server for OUCH gateway tests: a Context (docs/SERVER.md 2.1)
 // that owns a real exsim::MatchingEngine and an EventBuffer sized with
-// required_event_capacity, a session registry, and SERVER.md 2.3 dispatch
-// (each distinct session of a batch gets on_events exactly once). Plus a
-// memory byte sink, client/server links, frame builders and decoders.
+// required_event_capacity, a session registry, the per-user fault counters of
+// SERVER.md 4, an OuchUserStateDirectory and SERVER.md 2.3 dispatch (each
+// distinct session of a batch gets on_events exactly once). Plus a memory
+// byte sink, client/server links, frame builders and decoders.
+// (ouch_exchange_core_test.cpp runs the gateway on the real ExchangeCore.)
 //
 // Hot-path members (submit, dispatch, sinks) do not allocate after setup, so
 // steady-state allocation tests can wrap them.
@@ -58,6 +60,7 @@ private:
 };
 
 using TestUserState = OuchUserState<MemoryByteSink>;
+using TestUserStateDirectory = OuchUserStateDirectory<MemoryByteSink>;
 using TestConnection = OuchConnection<MemoryByteSink>;
 
 // ---------------------------------------------------------------------------
@@ -117,6 +120,13 @@ struct TestExchangeConfig {
         config.session_settings.client_idle_timeout_ns = 15 * kOneSecond;
         return config;
     }
+
+    // The part of a ServerConfig the user state directory reads.
+    [[nodiscard]] server::ServerConfig server_config() const {
+        server::ServerConfig config;
+        config.users = users;
+        return config;
+    }
 };
 
 // ---------------------------------------------------------------------------
@@ -129,16 +139,13 @@ public:
         : config_(std::move(config)),
           engine_(config_.engine),
           events_(required_event_capacity(config_.engine)),
-          user_state_by_session_(65536, nullptr),
+          user_states_(config_.server_config(), config_.limits),
           binding_by_session_(65536),
+          injected_rejects_by_session_(65536, 0),
+          outbound_drops_by_session_(65536, 0),
           session_dispatch_mark_(65536, 0) {
         for (const InstrumentConfig& instrument : config_.instruments) {
             REQUIRE(engine_.add_instrument(instrument) != 0);
-        }
-        for (const server::UserConfig& user : config_.users) {
-            if (user.protocol != server::Protocol::Ouch42) continue;
-            user_states_.push_back(std::make_unique<TestUserState>(user, config_.limits));
-            user_state_by_session_[user.session_id] = user_states_.back().get();
         }
         dispatch_sessions_.reserve(65536);
     }
@@ -155,7 +162,7 @@ public:
         return nullptr;
     }
 
-    bool bind(SessionId session, net::ConnectionId connection) noexcept {
+    bool bind(SessionId session, server::ConnectionId connection) noexcept {
         if (binding_by_session_[session].has_value()) return false;
         binding_by_session_[session] = connection;
         return true;
@@ -194,9 +201,19 @@ public:
     Timestamp now() const noexcept { return now_; }
     std::uint64_t realtime_ns() const noexcept { return now_; }
 
-    TestUserState* ouch_user_state(SessionId session) noexcept { return user_state_by_session_[session]; }
+    // SERVER.md 4 fault queries: each true consumes one count.
+    bool consume_injected_reject(SessionId session) noexcept { return consume_one(injected_rejects_by_session_[session]); }
+    bool consume_drop_out(SessionId session) noexcept { return consume_one(outbound_drops_by_session_[session]); }
 
     // ---- Test controls ------------------------------------------------------
+
+    // `fault user X reject n` and `fault user X drop_out n`.
+    void inject_gateway_rejects(SessionId session, std::uint32_t count) noexcept {
+        injected_rejects_by_session_[session] = count;
+    }
+    void drop_next_outbound_messages(SessionId session, std::uint32_t count) noexcept {
+        outbound_drops_by_session_[session] = count;
+    }
 
     void set_now(Timestamp now) noexcept { now_ = now; }
     void advance(Timestamp duration) noexcept { now_ += duration; }
@@ -208,7 +225,8 @@ public:
     }
 
     MatchingEngine& engine() noexcept { return engine_; }
-    TestUserState& user_state(SessionId session) noexcept { return *user_state_by_session_[session]; }
+    TestUserState& user_state(SessionId session) noexcept { return *user_states_.find(session); }
+    TestUserStateDirectory& user_states() noexcept { return user_states_; }
     const OuchSessionSettings& session_settings() const noexcept { return config_.session_settings; }
     bool is_bound(SessionId session) const noexcept { return binding_by_session_[session].has_value(); }
     std::uint64_t submitted_command_count() const noexcept { return submitted_command_count_; }
@@ -216,11 +234,11 @@ public:
     std::uint64_t unbind_count() const noexcept { return unbind_count_; }
     const Command& last_command() const noexcept { return last_command_; }
     const EventBuffer& last_batch() const noexcept { return events_; }
-    net::ConnectionId next_connection_id() noexcept { return {next_connection_slot_++, 1}; }
+    server::ConnectionId next_connection_id() noexcept { return next_connection_number_++; }
 
     // Live order of `session` with the given OUCH token, if any.
     std::optional<OrderInfo> find_live_order(SessionId session, std::string_view token14) const noexcept {
-        const ClOrdId id = user_state_by_session_[session]->find_cl_ord_id(token14);
+        const ClOrdId id = user_states_.find(session)->find_cl_ord_id(token14);
         if (id == 0) return std::nullopt;
         return engine_.find_order(session, id);
     }
@@ -234,6 +252,12 @@ private:
             case CommandType::MassCancel: command.mass_cancel.ts = now; break;
             case CommandType::SetPhase: command.set_phase.ts = now; break;
         }
+    }
+
+    static bool consume_one(std::uint32_t& remaining) noexcept {
+        if (remaining == 0) return false;
+        --remaining;
+        return true;
     }
 
     void mark_session(SessionId session) noexcept {
@@ -261,9 +285,7 @@ private:
                 case EventType::AuctionSummary: break;
             }
         }
-        for (const SessionId session : dispatch_sessions_) {
-            if (TestUserState* user_state = user_state_by_session_[session]) user_state->on_events(batch, *this);
-        }
+        for (const SessionId session : dispatch_sessions_) user_states_.on_events(session, batch, *this);
     }
 
     const server::UserConfig* find_user(SessionId session) const noexcept {
@@ -276,9 +298,10 @@ private:
     TestExchangeConfig config_;
     MatchingEngine engine_;
     EventBuffer events_;
-    std::vector<std::unique_ptr<TestUserState>> user_states_;
-    std::vector<TestUserState*> user_state_by_session_;
-    std::vector<std::optional<net::ConnectionId>> binding_by_session_;
+    TestUserStateDirectory user_states_;
+    std::vector<std::optional<server::ConnectionId>> binding_by_session_;
+    std::vector<std::uint32_t> injected_rejects_by_session_;
+    std::vector<std::uint32_t> outbound_drops_by_session_;
     std::vector<std::uint64_t> session_dispatch_mark_;
     std::vector<SessionId> dispatch_sessions_;
     std::uint64_t dispatch_generation_ = 0;
@@ -286,11 +309,11 @@ private:
     std::uint64_t submitted_command_count_ = 0;
     std::uint64_t insufficient_output_count_ = 0;
     std::uint64_t unbind_count_ = 0;
-    std::uint32_t next_connection_slot_ = 1;
+    server::ConnectionId next_connection_number_ = 1;
     Command last_command_{};
 };
 
-static_assert(OuchServerContext<TestExchange, MemoryByteSink>);
+static_assert(OuchServerContext<TestExchange>);
 
 // ---------------------------------------------------------------------------
 // Frame builders (client -> server) using the codecs
@@ -474,8 +497,9 @@ class RawSession {
 public:
     explicit RawSession(TestExchange& exchange, std::size_t sink_capacity = std::size_t{1} << 20)
         : exchange_(exchange) {
-        connection_ = std::make_unique<TestConnection>(MemoryByteSink(sink_capacity), exchange.next_connection_id(),
-                                                       exchange.session_settings(), exchange.now());
+        connection_ = std::make_unique<TestConnection>(MemoryByteSink(sink_capacity), exchange.user_states(),
+                                                       exchange.next_connection_id(), exchange.session_settings(),
+                                                       exchange.now());
     }
     ~RawSession() { disconnect(); }
 
@@ -588,7 +612,7 @@ public:
     // New TCP connection (server side object); the client must then log in.
     void connect() {
         drop_transport();
-        connection_ = std::make_unique<TestConnection>(MemoryByteSink(server_sink_capacity_),
+        connection_ = std::make_unique<TestConnection>(MemoryByteSink(server_sink_capacity_), exchange_.user_states(),
                                                        exchange_.next_connection_id(), exchange_.session_settings(),
                                                        exchange_.now());
     }
