@@ -89,9 +89,9 @@ bool strategy_key_applies(std::string_view key, StrategyKind kind) noexcept {
         return is_market_maker_kind(kind);
     if (key == "skew_ticks_per_unit" || key == "skew_unit" || key == "scale_size_with_inventory")
         return kind == StrategyKind::InventoryAwareMarketMaker;
-    if (key == "side" || key == "parent_qty" || key == "start" || key == "limit_offset_ticks")
+    if (key == "side" || key == "parent_qty" || key == "start" || key == "limit_offset_ticks" || key == "execution_duration")
         return kind == StrategyKind::TwapExecutor || kind == StrategyKind::ImmediateSweepExecutor;
-    if (key == "execution_duration" || key == "slice_interval") return kind == StrategyKind::TwapExecutor;
+    if (key == "slice_interval") return kind == StrategyKind::TwapExecutor;
     return false;
 }
 
@@ -440,6 +440,8 @@ Timestamp background_agent_timer_interval(const BackgroundAgentConfig& agent) no
 }
 
 void validate_experiment_config(ExperimentConfig& config) {
+    check(config.strategy.kind <= StrategyKind::ImmediateSweepExecutor, "unknown strategy kind");
+    check(config.accounting.mark <= MarkConvention::LastTrade, "unknown mark convention");
     auto& instrument = config.instrument;
     check(config.name.size() <= 128, "experiment name is longer than 128 bytes");
     check(valid_instrument_config(instrument), "invalid instrument rules (tick, lot, band, reference)");
@@ -470,6 +472,7 @@ void validate_experiment_config(ExperimentConfig& config) {
           "initial_cash must be 0..450359962737.0496");
 
     const auto& metrics = config.metrics;
+    check(metrics.markout_horizon_count <= kMaxMarkoutHorizons, "too many markout horizons");
     check(metrics.sample_interval_ns > 0, "sample_interval must be positive");
     for (std::size_t i = 0; i < metrics.markout_horizon_count; ++i)
         check(metrics.markout_horizons_ns[i] > 0 && metrics.markout_horizons_ns[i] <= kMaxDurationNs, "markout horizons must be positive");
@@ -477,6 +480,18 @@ void validate_experiment_config(ExperimentConfig& config) {
     auto& limits = config.limits;
     check(limits.duration_ns > 0 && limits.duration_ns <= kMaxDurationNs, "duration must be positive and at most 7 days");
     check(limits.max_simulation_events > 0, "max_simulation_events must be positive");
+    // Bound every cumulative monetary metric, including doubled markouts,
+    // before entering the allocation-free loop. Each simulated event can
+    // execute at most max_open_orders existing strategy orders plus one new
+    // order. Leave room for valuation and reconciliation intermediates.
+    const long double monetary_bound = static_cast<long double>(limits.max_simulation_events) *
+        (static_cast<long double>(risk.max_open_orders) + 1) * risk.max_order_qty *
+        (static_cast<long double>(instrument.max_price) + kMaxFee);
+    check(monetary_bound <= static_cast<long double>(std::numeric_limits<std::int64_t>::max()) / 4,
+          "event, order and price bounds exceed safe metric arithmetic capacity");
+    check(static_cast<long double>(std::max(risk.max_long_position, risk.max_short_position)) * instrument.max_price <=
+              static_cast<long double>(std::numeric_limits<std::int64_t>::max()) / 4,
+          "position value exceeds safe metric arithmetic capacity");
     check(limits.simulation_queue_capacity >= 64 && limits.simulation_queue_capacity <= (1u << 24), "simulation_queue_capacity must be 64..16777216");
     check(limits.observation_queue_capacity >= 64 && limits.observation_queue_capacity <= (1u << 24), "observation_queue_capacity must be 64..16777216");
     check(limits.recorder_command_capacity >= 64 && limits.recorder_command_capacity <= (1u << 24), "recorder_command_capacity must be 64..16777216");
@@ -501,6 +516,7 @@ void validate_experiment_config(ExperimentConfig& config) {
     }
     if (strategy.kind == StrategyKind::TwapExecutor || strategy.kind == StrategyKind::ImmediateSweepExecutor) {
         check(strategy.parent.parent_qty > 0 && on_grid(strategy.parent.parent_qty, lot), "parent_qty must be a positive multiple of lot_size");
+        check(strategy.parent.execution_duration_ns <= kMaxDurationNs, "execution_duration exceeds 7 days");
         check(strategy.parent.start_ns < limits.duration_ns, "start must be before the run duration ends");
         check(strategy.parent.limit_offset_ticks <= 100'000, "limit_offset_ticks must be at most 100000");
     }
@@ -547,9 +563,9 @@ ConfigEntries strategy_parameter_entries(const StrategyConfig& strategy) {
         entries.emplace_back("parent_qty", std::to_string(strategy.parent.parent_qty));
         entries.emplace_back("start_ns", std::to_string(strategy.parent.start_ns));
         entries.emplace_back("limit_offset_ticks", std::to_string(strategy.parent.limit_offset_ticks));
+        entries.emplace_back("execution_duration_ns", std::to_string(strategy.parent.execution_duration_ns));
     }
     if (strategy.kind == StrategyKind::TwapExecutor) {
-        entries.emplace_back("execution_duration_ns", std::to_string(strategy.parent.execution_duration_ns));
         entries.emplace_back("slice_interval_ns", std::to_string(strategy.parent.slice_interval_ns));
     }
     return entries;

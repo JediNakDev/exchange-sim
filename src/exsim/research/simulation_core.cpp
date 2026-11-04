@@ -281,14 +281,20 @@ void SimulationCore::begin_run() noexcept {
 RunStop SimulationCore::prepare_step(const RunBounds& bounds, std::uint64_t steps_taken) noexcept {
     switch (state_) {
         case RunState::Completed: return RunStop::Completed;
-        case RunState::Failed: return RunStop::Failed;
-        case RunState::Cancelled: return RunStop::Cancelled;
+        case RunState::Failed:
+        case RunState::Cancelled: {
+            if (recorder_.needs_flush()) return RunStop::FlushRequired;
+            const RunStop terminal_stop = state_ == RunState::Failed ? RunStop::Failed : RunStop::Cancelled;
+            close_quote_exposure(now_);
+            if (!continue_finishing() && recorder_.needs_flush()) return RunStop::FlushRequired;
+            return terminal_stop;
+        }
         default: break;
     }
     if (stop_requested_) {
         state_ = RunState::Cancelled;
         termination_ = TerminationReason::CancelRequested;
-        return RunStop::Cancelled;
+        return prepare_step(bounds, steps_taken);
     }
     state_ = RunState::Running;
     if (recorder_.needs_flush()) return RunStop::FlushRequired;
@@ -1094,10 +1100,11 @@ void SimulationCore::process_markout_probe(const ObservationEvent& probe) noexce
 // queued is censored (its horizon is past the end). Returns false when the
 // recorder must be flushed first (or the run failed).
 bool SimulationCore::continue_finishing() noexcept {
+    const RunState terminal_state = state_;
     if (!terminal_sample_taken_) {
         terminal_sample_taken_ = true;
         if (last_sample_time_ != end_time()) take_series_sample();
-        if (state_ == RunState::Failed) return false;
+        if (state_ == RunState::Failed && terminal_state != RunState::Failed) return false;
     }
     while (!observation_queue_.empty()) {
         if (recorder_.needs_flush()) return false;
@@ -1118,7 +1125,7 @@ bool SimulationCore::continue_finishing() noexcept {
             return false;
         }
     }
-    state_ = RunState::Completed;
+    state_ = terminal_state == RunState::Failed || terminal_state == RunState::Cancelled ? terminal_state : RunState::Completed;
     return true;
 }
 

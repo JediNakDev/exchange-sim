@@ -161,3 +161,45 @@ TEST_CASE(research_config, durations_seeds_and_unknown_keys) {
     catch (const ConfigError&) { rejected = true; }
     CHECK(rejected);
 }
+
+TEST_CASE(research_markouts, cancellation_censors_pending_horizons) {
+    auto config = quiet_market_config();
+    config.metrics.markout_horizon_count = 1;
+    config.metrics.markout_horizons_ns[0] = 500 * kMillisecond;
+    Simulation<HookStrategy> simulation(config, 1);
+    REQUIRE(simulation.schedule_scripted_command(0, scripted_limit_order(1, Side::SELL, cents(10000), 100)));
+    bool sent = false;
+    simulation.strategy().market_data = [&](const MarketDataUpdate&, StrategyContext& context) {
+        if (sent) return;
+        sent = true;
+        (void)context.submit_limit_order(Side::BUY, cents(10000), 10, TimeInForce::IOC, false);
+    };
+    CollectedRecords records;
+    CHECK(run_until_time(simulation, 100 * kMillisecond, &records) == RunStop::PausedAtTime);
+    simulation.request_stop();
+    CHECK(run_to_end(simulation, &records) == RunStop::Cancelled);
+    REQUIRE_EQ(records.markouts.size(), 1u);
+    CHECK(records.markouts[0].status == MarkoutStatus::Censored);
+    CHECK_EQ(simulation.now(), 100 * kMillisecond);
+}
+TEST_CASE(research_config, invalid_horizon_count_and_unsafe_arithmetic_are_rejected) {
+    auto config = quiet_market_config();
+    config.metrics.markout_horizon_count = kMaxMarkoutHorizons + 1;
+    bool rejected = false;
+    try { validate_experiment_config(config); } catch (const ConfigError&) { rejected = true; }
+    CHECK(rejected);
+    config = quiet_market_config();
+    config.limits.max_simulation_events = UINT64_MAX;
+    rejected = false;
+    try { validate_experiment_config(config); } catch (const ConfigError&) { rejected = true; }
+    CHECK(rejected);
+}
+TEST_CASE(research_config, sweep_duration_is_part_of_config_identity) {
+    auto config = quiet_market_config();
+    config.strategy.kind = StrategyKind::ImmediateSweepExecutor;
+    const auto before = experiment_config_hash(config);
+    config.strategy.parent.execution_duration_ns += 1;
+    CHECK_NE(before, experiment_config_hash(config));
+    const auto parsed = parse_experiment_config("[strategy]\nkind = immediate_sweep_executor\nexecution_duration = 2s\n");
+    CHECK_EQ(parsed.strategy.parent.execution_duration_ns, 2 * kNanosPerSecond);
+}
