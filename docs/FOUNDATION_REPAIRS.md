@@ -56,6 +56,45 @@ OUCH 4.2, ITCH 5.0 and FIX session documents linked in GATEWAYS.md.
 | 11,12,13,22,23 | Contract repaired for fresh cross match ID, exactly-one replacement creation, wire price/time bounds, batch validation boundaries and explicitly simplified NOII. Publisher/server owners must test two-leg auction output, cross IDs, replace/rest suppression, day/price range rejection, one-sided NOII and multi-packet mass cancel with feed reconstruction at the batch boundary. No codec commit dependency introduced. |
 | 16,36,37 | Explicitly deferred legacy implementation: cross-symbol matching, fill-vector allocation boundary, completed-order mapping leaks. A separate legacy owner must add same-shard instrument isolation, >1024-fill allocation guard, and long-running mapping-reclamation tests. Legacy ShardedEngine is prohibited as production simulator infrastructure until these gates pass. |
 
+## Legacy fixes
+
+Findings 16, 36 and 37 are now fixed in the legacy `lob::` layer. The gates
+named in the table row above have tests in `tests/lob/`.
+
+- **16, instrument isolation.** Each shard pre-creates
+  `ShardedEngineConfig::max_symbols_per_shard` books, all sized by
+  `book_config`. The producer thread binds a new symbol to a free book on
+  its first add, and the command carries that book slot. Adds for a further
+  symbol on a full shard return `nullopt`. Cancel and modify only reach the
+  book bound to the handle's symbol. Tests:
+  `sharded_engine.same_shard_different_symbols_never_match`,
+  `cancel_with_other_symbol_handle_cannot_reach_order` and
+  `symbols_beyond_shard_capacity_are_rejected`.
+- **36, bounded fill output.** `OrderBookConfig::max_fills_per_add_order`
+  (default 1024) is reserved at construction and never grown. If an
+  aggressive order still crosses once the buffer is full, matching stops and
+  the unexecuted remainder is cancelled rather than rested, so the book
+  never crosses. `AddResult` reports this through `fill_limit_reached` and
+  `cancelled_quantity`. Every fill that executed is reported, and none are
+  dropped. Tests: `order_book_fill_limit.*`, including an allocation-free
+  sweep of 2000 resting orders and a 1500-order sweep that stops at the
+  default bound.
+- **37, mapping reclamation.** Each book keeps a forward and a reverse
+  client-id map, both fixed at `max_resting_orders` with growth disabled.
+  Mappings are erased when a resting order is fully filled (found from the
+  fill list), when it is cancelled, or when a modify leaves it nothing to
+  execute. A modify like that now removes the order from the book. A
+  remainder that finds no capacity is cancelled and counted. Test:
+  `sharded_engine.mapping_count_stays_bounded_over_millions_of_orders`
+  submits 2,000,000 adds into 1024-entry maps, and the mapping count stays 0
+  at every checkpoint with no capacity rejection.
+
+Remaining legacy limits: `stop()` pushes its Stop command from the calling
+thread, which can race a still-active producer on the SPSC queue. In
+non-deterministic builds the ladders and pools still grow when a price or
+order falls outside the configured range. Fills are not reported back to
+engine callers.
+
 ## Validation evidence
 
 Logs are outside tracked sources in `/tmp/exsim-foundation-logs/`:

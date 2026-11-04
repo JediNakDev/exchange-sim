@@ -6,31 +6,26 @@ namespace lob {
 
 namespace {
 
-constexpr std::size_t kInitialOrderCapacity = 1u << 16;
-constexpr std::size_t kInitialOrderPoolObjects = 1u << 16;
-constexpr std::size_t kInitialLevelPoolObjects = 1u << 14;
-constexpr std::size_t kInitialFillCapacity = 1024;
-
-constexpr Price kDefaultMinPrice = -100000;
-constexpr Price kDefaultMaxPrice = 100000;
-
 inline std::size_t bit_word_index(std::size_t idx) noexcept { return idx >> 6; }
 inline std::size_t bit_offset(std::size_t idx) noexcept { return idx & 63u; }
 
 }  // namespace
 
-OrderBook::OrderBook()
+OrderBook::OrderBook() : OrderBook(OrderBookConfig{}) {}
+
+OrderBook::OrderBook(const OrderBookConfig& config)
     : min_price_(0)
     , max_price_(-1)
     , ladder_initialized_(false)
     , highest_buy_(nullptr)
     , lowest_sell_(nullptr)
+    , max_fills_per_add_order_(std::max<std::size_t>(1, config.max_fills_per_add_order))
     , next_order_id_(1) {
-    orders_.reserve(kInitialOrderCapacity);
+    orders_.reserve(std::max<std::size_t>(1, config.max_resting_orders));
 
-    order_pool_.reserve(kInitialOrderPoolObjects);
-    level_pool_.reserve(kInitialLevelPoolObjects);
-    fill_buffer_.reserve(kInitialFillCapacity);
+    order_pool_.reserve(std::max<std::size_t>(1, config.max_resting_orders));
+    level_pool_.reserve(std::max<std::size_t>(1, config.max_price_levels));
+    fill_buffer_.reserve(max_fills_per_add_order_);
 
 #ifdef LOB_DETERMINISTIC_POOL
     order_pool_.set_allow_growth(false);
@@ -39,7 +34,7 @@ OrderBook::OrderBook()
     orders_.set_allow_growth(true);
 #endif
 
-    initialize_ladders(kDefaultMinPrice, kDefaultMaxPrice);
+    initialize_ladders(config.min_price, config.max_price);
 }
 
 OrderBook::~OrderBook() { clear(); }
@@ -210,11 +205,8 @@ void OrderBook::refresh_best_levels() noexcept {
 }
 
 template<Side S>
-void OrderBook::add_order_to_book_impl(Order* order) {
-    ensure_price_range(order->price);
-    if (order->price < min_price_ || order->price > max_price_) {
-        return;
-    }
+bool OrderBook::add_order_to_book_impl(Order* order) {
+    // add_order already validated the price against the ladder range.
 
     const std::size_t idx = ladder_index(order->price);
     auto& ladder = (S == Side::BUY) ? bid_ladder_ : ask_ladder_;
@@ -225,7 +217,7 @@ void OrderBook::add_order_to_book_impl(Order* order) {
     if (LOB_UNLIKELY(!level)) {
         level = level_pool_.create(order->price);
         if (LOB_UNLIKELY(!level)) {
-            return;
+            return false;
         }
         set_active(active, idx);
         if constexpr (S == Side::BUY) {
@@ -235,6 +227,7 @@ void OrderBook::add_order_to_book_impl(Order* order) {
         }
     }
     level->add_order(order);
+    return true;
 }
 
 template<Side S>
@@ -275,7 +268,7 @@ void OrderBook::remove_order_from_book_impl(Order* order) {
 }
 
 template<Side S>
-void OrderBook::match_order_impl(Order* incoming) {
+bool OrderBook::match_order_impl(Order* incoming) {
     auto& fills = fill_buffer_;
 
     while (!incoming->is_filled()) {
@@ -291,6 +284,13 @@ void OrderBook::match_order_impl(Order* incoming) {
         }
 
         while (!incoming->is_filled() && !contra_level->is_empty()) {
+            if (LOB_UNLIKELY(fills.size() >= max_fills_per_add_order_)) {
+                // Still crossing, but the bounded fill buffer is full. Stop
+                // here: every executed fill is reported and the caller
+                // cancels the remainder. The current level is non-empty, so
+                // no ladder cleanup is pending.
+                return true;
+            }
             Order* resting = contra_level->front();
             const Quantity fill_qty = std::min(incoming->remaining_quantity, resting->remaining_quantity);
 
@@ -333,13 +333,14 @@ void OrderBook::match_order_impl(Order* incoming) {
             }
         }
     }
+    return false;
 }
 
 // Explicit template instantiations
-template void OrderBook::match_order_impl<Side::BUY>(Order*);
-template void OrderBook::match_order_impl<Side::SELL>(Order*);
-template void OrderBook::add_order_to_book_impl<Side::BUY>(Order*);
-template void OrderBook::add_order_to_book_impl<Side::SELL>(Order*);
+template bool OrderBook::match_order_impl<Side::BUY>(Order*);
+template bool OrderBook::match_order_impl<Side::SELL>(Order*);
+template bool OrderBook::add_order_to_book_impl<Side::BUY>(Order*);
+template bool OrderBook::add_order_to_book_impl<Side::SELL>(Order*);
 template void OrderBook::remove_order_from_book_impl<Side::BUY>(Order*);
 template void OrderBook::remove_order_from_book_impl<Side::SELL>(Order*);
 
@@ -347,37 +348,46 @@ OrderBook::AddResult OrderBook::add_order(Price price, Quantity quantity, Side s
     fill_buffer_.clear();
     ensure_price_range(price);
     if (LOB_UNLIKELY(price < min_price_ || price > max_price_)) {
-        return AddResult{0, {}, 0};
+        return AddResult{0, {}, 0, 0, false};
     }
 
     const OrderId order_id = next_order_id_++;
     Order* order_ptr = order_pool_.create(order_id, price, quantity, side);
     if (LOB_UNLIKELY(!order_ptr)) {
-        return AddResult{0, {}, 0};
+        return AddResult{0, {}, 0, 0, false};
     }
 
-    if (side == Side::BUY) {
-        match_order_impl<Side::BUY>(order_ptr);
-    } else {
-        match_order_impl<Side::SELL>(order_ptr);
-    }
+    const bool fill_limit_reached = (side == Side::BUY)
+        ? match_order_impl<Side::BUY>(order_ptr)
+        : match_order_impl<Side::SELL>(order_ptr);
     const Quantity remaining = order_ptr->remaining_quantity;
-    if (!order_ptr->is_filled()) {
-        if (LOB_UNLIKELY(!orders_.insert(order_ptr->id, order_ptr))) {
-            // Id map full (deterministic mode): drop the remainder.
-            order_pool_.destroy(order_ptr);
-            return AddResult{order_id, fill_buffer_, 0};
-        }
-        if (side == Side::BUY) {
-            add_order_to_book_impl<Side::BUY>(order_ptr);
-        } else {
-            add_order_to_book_impl<Side::SELL>(order_ptr);
-        }
-    } else {
+
+    if (order_ptr->is_filled()) {
         order_pool_.destroy(order_ptr);
+        return AddResult{order_id, fill_buffer_, 0, 0, false};
+    }
+    if (LOB_UNLIKELY(fill_limit_reached)) {
+        // The remainder still crosses; resting it would cross the book.
+        order_pool_.destroy(order_ptr);
+        return AddResult{order_id, fill_buffer_, 0, remaining, true};
+    }
+    if (LOB_UNLIKELY(!orders_.insert(order_ptr->id, order_ptr))) {
+        // Id map full (growth disabled): drop the remainder.
+        order_pool_.destroy(order_ptr);
+        return AddResult{order_id, fill_buffer_, 0, remaining, false};
+    }
+    const bool placed = (side == Side::BUY)
+        ? add_order_to_book_impl<Side::BUY>(order_ptr)
+        : add_order_to_book_impl<Side::SELL>(order_ptr);
+    if (LOB_UNLIKELY(!placed)) {
+        // No price-level capacity: drop the remainder instead of keeping an
+        // id that is not on any level.
+        (void)orders_.erase(order_id);
+        order_pool_.destroy(order_ptr);
+        return AddResult{order_id, fill_buffer_, 0, remaining, false};
     }
 
-    return AddResult{order_id, fill_buffer_, remaining};
+    return AddResult{order_id, fill_buffer_, remaining, 0, false};
 }
 
 bool OrderBook::cancel_order(OrderId order_id) {
@@ -406,6 +416,10 @@ bool OrderBook::modify_order(OrderId order_id, Quantity new_quantity) {
     Order* order = *slot;
     const Quantity filled_qty = order->quantity - order->remaining_quantity;
     const Quantity new_remaining = (new_quantity > filled_qty) ? (new_quantity - filled_qty) : 0;
+    if (new_remaining == 0) {
+        // Nothing left to execute: a zero-quantity order must not rest.
+        return cancel_order(order_id);
+    }
 
     PriceLevel* level = order->parent_level;
     if (level) {

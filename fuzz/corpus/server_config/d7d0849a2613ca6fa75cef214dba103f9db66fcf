@@ -1,0 +1,5 @@
+# e pmi_open
+
+[instrument MSFSPY]
+tick_size = 0.01
+min_price = 5.01

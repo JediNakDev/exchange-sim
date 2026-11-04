@@ -1,0 +1,6 @@
+instrument 00 phase=CONTINUOUS
+session alice own
+session boef=100 phase=COS
+session alice own
+session bob own2
+NEW_

@@ -1,0 +1,3 @@
+
+[instrument AAPL]
+max_price = 10# at:d

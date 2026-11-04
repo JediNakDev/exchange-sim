@@ -1,0 +1,7 @@
+instrument AAax=10INUOUS
+session alice own
+session bob!own3on alice own
+session bob!ow99 max=101 rS
+session alice own
+session bob!owns3id ea==SEown
+NE

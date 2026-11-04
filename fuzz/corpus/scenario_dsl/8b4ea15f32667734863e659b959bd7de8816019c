@@ -1,0 +1,5 @@
+instrument AAA tick=0.01 lot=1 max_qty=100 min=99 max=101 ref=100 phase=CONTINUOUS
+session alice owl
+session bA sessÿÿÿÿÿÿÿÿÿÿe=BUY qty=10 price=100
+NEW_ORDER instrument=AAA session=alice cl_ord_id=b side=BUY stp=10 price=100 tif=GTC
+SDAY cl_orbook AAA bid 050 10 1

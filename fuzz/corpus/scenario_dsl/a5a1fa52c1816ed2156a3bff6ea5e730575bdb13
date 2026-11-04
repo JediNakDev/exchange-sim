@@ -1,0 +1,96 @@
+instrument AAA tick=0.01 lot=1 max_qty=100 min=99 max=101 ref=100 phase=CONTINUOUS
+session alice own
+session bob own2
+NEW_ORDER#instrument=AAA session=alÿÿÿÿÿÿÿÿÿÿÿÿÿlot=1 max_qty=100 min=99 max=101 ref=100 phase=CONTINUOUS
+session alice own
+session bob own2
+NEW_ORDER#instrument=AAA session=alÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿice cl_ord_id=a side=BUY ase=CONTINUOUS
+session alicession bob own2
+NEW_ORDER#instrument=AAA sessionTINUOUS
+session alice <own
+session bob on2
+NEW_ORDER#instrument=AAA session=alice ce=CONTINUOUS
+session alice own
+session boâ own2
+NEW_ORDER#instrum
+session alice <own
+session bob ose=CONTINUOUS
+session alicession bob own2
+NEW_ORDER#instrument=AAA sessionTINUOUS
+session alice <own
+session bob on2
+NEW_ORDER#instrument=AAA session=alice ce=CONTINUOUS
+session alice own
+session boâ own2
+NEW_ORDER#instrum
+session alice <own
+session bob o smax=050 ref=100 phase=CONTINUOUS
+session alice own
+session bob own2
+NEW_ORDER#instrul_ord_ice own
+session boâ own2
+NEW_ORDER#instrument=AAA session=alice cl_ord_id=a side=BUY ase=CONTINUOUS
+session alicession bob own2
+NEW_ORDER#instrument=AAA sessionTINUOUS
+session alice <own
+session bob o smax=005 ref=101 phase=CONTINUOUS
+session alice own
+session bob own2
+NEW_ORDER#instrul_ord_id=ŸÕside=BUYNUOUS
+session a smax=050 ref=100 phase=CONTINUOUS
+session alice own
+session bob own2
+NEW_ORDER#instrul_ord_ice own
+session boâ own2
+NEW_ORDER#instrument=AAA session=alice cl_ord_id=a side=BUY ase=CONTINUOUS
+session alicession bob own2
+NEW_ORDER#instrument=AAÿÿÿÿice cl_ord_id=a side=BUY ase=CONTINUOUS
+session alicession bob own2
+NEW_ORDER#instrument=AAA sessionTINUOUS
+session alice <own
+session bob on2
+NEW_ORDER#instrument=AAA session=alice ce=CONTINUOUS
+session alice own
+session boâ own2
+NEW_ORDER#instrum
+session alice <own
+session bob ose=CONTINUOUS
+session alicession bob own2
+NEW_ORDER#instrument=AAA sessionTINUOUS
+session alice <own
+session bob on2
+NEW_ORDER#instrument=AAA session=alice ce=CONTINUOUS
+session alice own
+session boâ own2
+NEW_ORDER#instrum
+session alice <own
+session bob o smax=050 ref=100 phase=CONTINUOUS
+session alice own
+session bob own2
+NEW_ORDER#instrul_ord_ice own
+session boâ own2
+NEW_ORDER#instrument=AAA session=alice cl_ord_id=a side=BUY ase=CONTINUOUS
+session alicession bob own2
+NEW_ORDER#instrument=AAA sessionTINUOUS
+session alice <own
+session bob o smax=005 ref=101 phase=CONTINUOUS
+session alice own
+session bob own2
+NEW_ORDER#instrul_ord_id=ŸÕside=BUYNUOUS
+session a smax=050 ref=100 phase=CONTINUOUS
+session alice own
+session bob own2
+NEW_ORDER#instrul_ord_ice own
+session boâ own2
+NEW_ORDER#instrument=AAA session=alice cl_ord_id=a side=BUY ase=CONTINUOUS
+session alicession bob own2
+NEW_ORDER#instrument=AAA sessionTINUOUS
+session alice <own
+session bob o smax=005 ref=101 phase=CONTINUOUS
+session alice own
+session bob own2
+NEW_ORDER#instrul_ord_id=ŸÕside=BUYNUOUS
+session alice <own
+session bob on2
+NEW_ORDER#instrument=AAA sesse new_o.rde new_o.rder_id=3
+expect rdsted

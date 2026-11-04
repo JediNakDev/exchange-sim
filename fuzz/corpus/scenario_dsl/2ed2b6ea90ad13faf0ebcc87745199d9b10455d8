@@ -1,0 +1,4 @@
+instrument S
+session alice own
+session bobo2 S
+nw

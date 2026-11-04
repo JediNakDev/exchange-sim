@@ -1,11 +1,13 @@
 #include "exsim/server/config.hpp"
 
+#include <algorithm>
 #include <charconv>
 #include <cstdio>
 #include <limits>
 #include <set>
 #include <string>
 #include <system_error>
+#include <utility>
 
 namespace exsim::server {
 
@@ -94,17 +96,33 @@ bool printable_ascii(std::string_view s) noexcept {
     return true;
 }
 
-enum class Section { None, Exchange, MarketData, Engine, Journal, Instrument, User };
+enum class Section { None, Exchange, MarketData, Engine, Journal, Instrument, User, Bot };
+
+// A [bot] key waiting for the end of its section: bot options depend on
+// `type`, which may appear after them.
+struct PendingBotKey {
+    std::string key;
+    std::string value;
+    int line_no = 0;
+};
 
 struct Parser {
     ServerConfig& cfg;
     std::string& error;
     int line_no = 0;
     Section section = Section::None;
+    std::vector<PendingBotKey> pending_bot_keys{};
+    std::vector<int> bot_header_lines{};   // per cfg.bots entry
+    std::vector<bool> bot_stp_explicit{};  // per cfg.bots entry: stp set in the section
 
     bool fail(const std::string& msg) {
         error = std::to_string(line_no) + ": " + msg;
         return false;
+    }
+
+    bool fail_at(int line, const std::string& msg) {
+        line_no = line;
+        return fail(msg);
     }
 
     bool bad_value(std::string_view key, std::string_view value) {
@@ -114,6 +132,9 @@ struct Parser {
     bool unknown_key(std::string_view key) { return fail("unknown key '" + std::string(key) + "'"); }
 
     bool header(std::string_view h) {
+        if (!finish_bot_section()) {
+            return false;
+        }
         const std::size_t sp = h.find_first_of(" \t");
         const std::string kind = lower(trim(h.substr(0, sp)));
         const std::string_view arg = sp == std::string_view::npos ? std::string_view{} : trim(h.substr(sp));
@@ -147,7 +168,84 @@ struct Parser {
             section = Section::User;
             return true;
         }
+        if (kind == "bot") {
+            if (arg.empty() || arg.size() > sim::bots::BotName::kCapacity || !printable_ascii(arg)) {
+                return fail("bot name must be 1-32 printable characters");
+            }
+            BotSectionConfig b{};
+            b.name = std::string(arg);
+            cfg.bots.push_back(std::move(b));
+            bot_header_lines.push_back(line_no);
+            bot_stp_explicit.push_back(false);
+            pending_bot_keys.clear();
+            section = Section::Bot;
+            return true;
+        }
         return fail("unknown section [" + std::string(h) + "]");
+    }
+
+    // Applies the collected keys of the current [bot] section (no-op for
+    // any other section). Called at every header and at end of input.
+    bool finish_bot_section() {
+        if (section != Section::Bot) {
+            return true;
+        }
+        section = Section::None;
+        BotSectionConfig& bot = cfg.bots.back();
+        const int header_line = bot_header_lines.back();
+        bool have_type = false;
+        for (const PendingBotKey& k : pending_bot_keys) {
+            if (k.key != "type") {
+                continue;
+            }
+            const std::string type = lower(k.value);
+            if (type == "market_maker") bot.type = BotType::MarketMaker;
+            else if (type == "noise_taker") bot.type = BotType::NoiseTaker;
+            else return fail_at(k.line_no, "invalid value '" + k.value + "' for 'type' (market_maker|noise_taker)");
+            have_type = true;
+        }
+        if (!have_type) {
+            return fail_at(header_line, "bot " + bot.name + ": 'type' is required");
+        }
+        bot.market_maker.name.assign(bot.name);
+        bot.noise_taker.name.assign(bot.name);
+        for (const PendingBotKey& k : pending_bot_keys) {
+            if (k.key == "type") {
+                continue;
+            }
+            if (k.key == "user") {
+                bot.user = k.value;
+                continue;
+            }
+            if (k.key == "instrument") {
+                bot.instrument_symbol = k.value;
+                continue;
+            }
+            if (k.key == "session_id" || k.key == "owner") {
+                return fail_at(k.line_no, "bot key '" + k.key + "' is taken from the bot's user");
+            }
+            if (k.key == "name") {
+                return fail_at(k.line_no, "bot key 'name' is taken from the section header");
+            }
+            const bool applied = bot.type == BotType::MarketMaker
+                                     ? sim::bots::apply_bot_option(bot.market_maker, k.key, k.value)
+                                     : sim::bots::apply_bot_option(bot.noise_taker, k.key, k.value);
+            if (!applied) {
+                return fail_at(k.line_no, "invalid " + std::string(to_string(bot.type)) + " option '" + k.key +
+                                              " = " + k.value + "'");
+            }
+            if (k.key == "stp") {
+                bot_stp_explicit.back() = true;
+            }
+        }
+        if (bot.user.empty()) {
+            return fail_at(header_line, "bot " + bot.name + ": 'user' is required");
+        }
+        if (bot.instrument_symbol.empty()) {
+            return fail_at(header_line, "bot " + bot.name + ": 'instrument' is required");
+        }
+        pending_bot_keys.clear();
+        return true;
     }
 
     bool exchange_key(const std::string& k, std::string_view v) {
@@ -160,6 +258,8 @@ struct Parser {
         if (k == "max_connections") return (parse_uint(v, x.max_connections) && x.max_connections > 0) || bad_value(k, v);
         if (k == "heartbeat_interval_ms") return (parse_uint(v, x.heartbeat_interval_ms) && x.heartbeat_interval_ms > 0) || bad_value(k, v);
         if (k == "soup_session") { x.soup_session = std::string(v); return true; }
+        if (k == "trading_day_start") return parse_day_time(v, x.trading_day_start_ns) || bad_value(k, v);
+        if (k == "trading_day_end") return parse_day_time(v, x.trading_day_end_ns) || bad_value(k, v);
         return unknown_key(k);
     }
 
@@ -190,6 +290,14 @@ struct Parser {
 
     bool journal_key(const std::string& k, std::string_view v) {
         if (k == "path") { cfg.journal_path = std::string(v); return true; }
+        if (k == "on_failure") {
+            const std::string policy = lower(v);
+            if (policy == "shutdown") cfg.journal_failure_policy = JournalFailurePolicy::Shutdown;
+            else if (policy == "continue") cfg.journal_failure_policy = JournalFailurePolicy::Continue;
+            else return bad_value(k, v);
+            return true;
+        }
+        if (k == "flush_interval_ms") return parse_uint(v, cfg.journal_flush_interval_ms) || bad_value(k, v);
         return unknown_key(k);
     }
 
@@ -234,6 +342,9 @@ struct Parser {
             case Section::Journal: return journal_key(key, value);
             case Section::Instrument: return instrument_key(key, value);
             case Section::User: return user_key(key, value);
+            case Section::Bot:
+                pending_bot_keys.push_back(PendingBotKey{key, std::string(value), line_no});
+                return true;
         }
         return fail("internal error");
     }
@@ -288,6 +399,71 @@ struct Parser {
                 return fail("user " + u.username + ": SoupBinTCP limits username to 6 and password to 10 characters");
             }
         }
+        if (cfg.exchange.trading_day_start_ns >= cfg.exchange.trading_day_end_ns) {
+            return fail("exchange.trading_day_start must be before exchange.trading_day_end");
+        }
+        return validate_bots();
+    }
+
+    // Resolves user/symbol references and rejects bot configurations that
+    // could never submit a valid order (bots/README.md, "Cross-field").
+    bool validate_bots() {
+        if (cfg.bots.size() > kMaxBots) {
+            return fail("more than " + std::to_string(kMaxBots) + " [bot] sections");
+        }
+        std::set<std::string> bot_names;
+        std::set<std::string> bot_users;
+        for (std::size_t i = 0; i < cfg.bots.size(); ++i) {
+            BotSectionConfig& bot = cfg.bots[i];
+            line_no = bot_header_lines[i];
+            if (!bot_names.insert(bot.name).second) {
+                return fail("duplicate bot " + bot.name);
+            }
+            const UserConfig* user = cfg.find_user(bot.user);
+            if (user == nullptr) {
+                return fail("bot " + bot.name + ": unknown user " + bot.user);
+            }
+            if (!bot_users.insert(bot.user).second) {
+                return fail("bot " + bot.name + ": user " + bot.user + " is already driven by another bot");
+            }
+            std::size_t instrument_index = cfg.instruments.size();
+            for (std::size_t j = 0; j < cfg.instruments.size(); ++j) {
+                if (cfg.instruments[j].symbol.view() == bot.instrument_symbol) {
+                    instrument_index = j;
+                }
+            }
+            if (instrument_index == cfg.instruments.size()) {
+                return fail("bot " + bot.name + ": unknown instrument " + bot.instrument_symbol);
+            }
+            const InstrumentConfig& instrument = cfg.instruments[instrument_index];
+            for (sim::bots::BotConfig* identity :
+                 {static_cast<sim::bots::BotConfig*>(&bot.market_maker), static_cast<sim::bots::BotConfig*>(&bot.noise_taker)}) {
+                identity->session_id = user->session_id;
+                identity->owner = user->owner;
+                identity->instrument = static_cast<InstrumentId>(instrument_index + 1);
+                if (!bot_stp_explicit[i]) {
+                    identity->stp = user->stp;
+                }
+            }
+            if (bot.type == BotType::MarketMaker) {
+                const sim::bots::MarketMakerConfig& m = bot.market_maker;
+                const Quantity quoted = std::min(m.size, instrument.max_order_qty) / instrument.lot_size * instrument.lot_size;
+                if (quoted == 0) {
+                    return fail("bot " + bot.name + ": size is below the lot_size of " + bot.instrument_symbol);
+                }
+                if (m.order_capacity < std::size_t{2} * m.levels) {
+                    return fail("bot " + bot.name + ": order_capacity must hold 2 * levels orders");
+                }
+            } else {
+                const sim::bots::NoiseTakerConfig& t = bot.noise_taker;
+                const std::uint64_t lowest_lots = (std::uint64_t{t.min_size} + instrument.lot_size - 1) / instrument.lot_size;
+                const std::uint64_t highest_lots = std::min(t.max_size, instrument.max_order_qty) / instrument.lot_size;
+                if (lowest_lots == 0 || lowest_lots > highest_lots) {
+                    return fail("bot " + bot.name + ": min_size..max_size holds no lot multiple of " + bot.instrument_symbol);
+                }
+            }
+        }
+        line_no = 0;
         return true;
     }
 };
@@ -369,6 +545,74 @@ std::string format_price(Price p) {
     return out;
 }
 
+bool parse_day_time(std::string_view text, Timestamp& out) noexcept {
+    // HH:MM[:SS[.fraction]]
+    auto two_digits = [](std::string_view s, std::size_t at, unsigned& value) noexcept {
+        if (s.size() < at + 2 || s[at] < '0' || s[at] > '9' || s[at + 1] < '0' || s[at + 1] > '9') {
+            return false;
+        }
+        value = static_cast<unsigned>((s[at] - '0') * 10 + (s[at + 1] - '0'));
+        return true;
+    };
+    unsigned hours = 0, minutes = 0, seconds = 0;
+    if (!two_digits(text, 0, hours) || text.size() < 5 || text[2] != ':' || !two_digits(text, 3, minutes)) {
+        return false;
+    }
+    std::size_t at = 5;
+    std::uint64_t fraction_ns = 0;
+    if (text.size() > at) {
+        if (text[at] != ':' || !two_digits(text, at + 1, seconds)) {
+            return false;
+        }
+        at += 3;
+        if (text.size() > at) {
+            if (text[at] != '.' || text.size() == at + 1 || text.size() > at + 10) {
+                return false;
+            }
+            std::uint64_t scale = 100'000'000;
+            for (std::size_t i = at + 1; i < text.size(); ++i) {
+                if (text[i] < '0' || text[i] > '9') {
+                    return false;
+                }
+                fraction_ns += static_cast<std::uint64_t>(text[i] - '0') * scale;
+                scale /= 10;
+            }
+        }
+    }
+    if (minutes > 59 || seconds > 59) {
+        return false;
+    }
+    if (hours > 24 || (hours == 24 && (minutes != 0 || seconds != 0 || fraction_ns != 0))) {
+        return false;
+    }
+    out = ((Timestamp{hours} * 60 + minutes) * 60 + seconds) * 1'000'000'000 + fraction_ns;
+    return true;
+}
+
+std::string format_day_time(Timestamp ns_since_midnight) {
+    const std::uint64_t total_seconds = ns_since_midnight / 1'000'000'000;
+    std::uint64_t fraction = ns_since_midnight % 1'000'000'000;
+    char text[64];  // room for three 20-digit fields, so no truncation is possible
+    std::snprintf(text, sizeof text, "%02llu:%02llu:%02llu", static_cast<unsigned long long>(total_seconds / 3600),
+                  static_cast<unsigned long long>(total_seconds / 60 % 60),
+                  static_cast<unsigned long long>(total_seconds % 60));
+    std::string out(text);
+    if (fraction != 0) {
+        char digits[10] = {'0', '0', '0', '0', '0', '0', '0', '0', '0', '\0'};
+        for (int i = 8; i >= 0; --i) {
+            digits[i] = static_cast<char>('0' + fraction % 10);
+            fraction /= 10;
+        }
+        int n = 9;
+        while (n > 1 && digits[n - 1] == '0') {
+            --n;
+        }
+        out.push_back('.');
+        out.append(digits, static_cast<std::size_t>(n));
+    }
+    return out;
+}
+
 bool parse_config(std::string_view text, ServerConfig& out, std::string& error) {
     ServerConfig cfg{};
     Parser p{cfg, error};
@@ -397,6 +641,9 @@ bool parse_config(std::string_view text, ServerConfig& out, std::string& error) 
         if (!p.key_value(line)) {
             return false;
         }
+    }
+    if (!p.finish_bot_section()) {
+        return false;
     }
     if (!p.validate()) {
         return false;

@@ -1,0 +1,6 @@
+# esim exn
+
+[instrument SPY]
+
+initial_phase = co 1
+spue

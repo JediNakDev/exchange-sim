@@ -1,6 +1,6 @@
 # Working state and implementation plan
 
-Updated 2026-11-03. This is a recovery checkpoint, not live delegate status. Keep it concise; put detailed evidence in the relevant report or log.
+Updated 2026-11-04. This is a recovery checkpoint, not live delegate status. Keep it concise; put detailed evidence in the relevant report or log.
 
 ## User decisions and constraints
 
@@ -8,7 +8,7 @@ Updated 2026-11-03. This is a recovery checkpoint, not live delegate status. Kee
 - First trader workflow: **execution and market-making research**.
 - Primary research UI: **Bun + Next.js + TypeScript + Tailwind CSS + shadcn/ui**, following `/Users/jedi/AGENTS.md`. Prefer existing components and meaningful names. C++ owns simulation/backend behavior.
 - API recommendation: C++ HTTP/OpenAPI with generated TS types; omit a tRPC wrapper initially. The user asked us to assess fit after reopening tRPC, so this is a reasoned recommendation rather than an explicit final veto.
-- Resumed/new delegates use Claude Opus 5.5 and high or xhigh reasoning (user decision 2026-11-03). No Ollama while the user works here. Do not add co-author attribution to commits.
+- Resumed/new delegates use GPT/ChatGPT with high reasoning (user decision 2026-11-04, replacing the Claude-only preference after its usage limit). No Ollama while the user works here. Do not add co-author attribution to commits.
 - Full product rationale, causal simulation requirements, realism assumptions, accounting, and UI workflow: [PRODUCT.md](PRODUCT.md).
 
 ## Verified repository state (2026-11-03)
@@ -31,6 +31,7 @@ Updated 2026-11-03. This is a recovery checkpoint, not live delegate status. Kee
 - [x] Integrate oracle/fuzzer/scenarios/journal; validate and integrate engine B.
 - [ ] Finish engines A and C (resumed on Claude), validate with the oracle, benchmark all three on one machine/run, keep the fastest correct one.
 - [ ] Protocol sessions: OUCH 4.2/SoupBinTCP and FIX 4.4 (server and client).
+- [ ] Third order-entry protocol: SBE over FIXP (FIX Trading Community open standards, exsim-owned schema), codec, session, gateway per SERVER.md section 2, client.
 - [ ] Market data: ITCH/MoldUDP64 publisher, retransmission server, client receiver and book builder, feed-correctness test under packet faults.
 - [ ] Server binary (reactor, gateways, MD, admin, faults, bots, journal) and end-to-end loopback tests; client tool; wire-to-wire latency benchmark.
 - [ ] Deterministic event runner with latency model and compiled baseline strategies (fixed-spread MM, inventory-aware MM, TWAP), accounting, manifests/artifacts, CLI.
@@ -43,7 +44,7 @@ Updated 2026-11-03. This is a recovery checkpoint, not live delegate status. Kee
 | Task | Checkout | State |
 | --- | --- | --- |
 | Ladder engine A | `/Users/jedi/.t3/worktrees/lob/t3-eaaf2612` | Resumed on Claude 2026-11-03 (gate: merge `5abebec`, production tests, fuzz, bench). |
-| Arena engine C | `/Users/jedi/.t3/worktrees/lob/t3-2d9b3f09` | Resumed on Claude 2026-11-03 (same gate). |
+| Arena engine C | `/Users/jedi/.t3/worktrees/lob/t3-2d9b3f09` | Done (`cd8376d`). Integrated on branch `integrate-engine-c` (`0e9de4c`, docs `3f9dc78`) in scratch worktree `engine-c-integration`; merge into `exchange-simulator` waits for the independent review (task `...77c45547...%3Adelegate-task%3A38045dc3-642d-44fa-bf93-13252c61be81`, report `/tmp/exsim-c-review/REPORT.md`). |
 | Vector engine B | `/Users/jedi/.t3/worktrees/lob/t3-3500e31b` | Done, integrated. Untracked `tests/exsim/engine/vector_reference_model.hpp` is the redundant second oracle; not merged. |
 | Oracle/fuzzer/journal/scenarios | `/Users/jedi/.t3/worktrees/lob/t3-0fb59d8d` | Done, integrated. Disabled shim stays untracked there. |
 | Networking, codecs, bots | see registry | Done, integrated. |
@@ -68,4 +69,12 @@ For each completion record: task ID, actual branch/commit, changed scope, tests 
 
 ## Immediate next action
 
-Running on Claude (task IDs in [delegation-registry.json](delegation-registry.json)): engines A and C, OUCH gateway, FIX gateway, market-data publisher/feed, research runner, exchange core, legacy lob fixes, the research API contract plus Next.js UI on a mock server (`web/`, `docs/api/openapi.yaml`, `docs/API.md`), and libFuzzer campaigns for protocol decoders and text parsers (`fuzz/`, Docker image `exsim-dev` with `libclang-rt-19-dev`). Route any header bugs the fuzzer reports to the owning delegate. An independent SPEC.md conformance audit (hand-derived scenarios, `docs/SPEC_CONFORMANCE.md`) checks for misreadings shared by the oracle and engine, which differential fuzzing cannot detect. Integrate each completion on `exchange-simulator` with the full gate. When gateways, publisher, and core land, launch the server binary and end-to-end tests; when the runner and contract land, launch the C++ HTTP/OpenAPI API on real artifacts and point the UI at it. Do not poll running tasks.
+2026-11-03 17:20 +08: engine C replaces B as the production engine on `integrate-engine-c`. Checks, all with `-Werror`: macOS release 351/351, ASan/UBSan 349/349, TSan 349/349 (`/tmp/exsim-c-{release,debug,tsan}.log`); Linux g++ and clang++ release 351/351 and debug 349/349 (`/tmp/exsim-c-linux.log`); fuzz 1000 seeds x 20000 steps on mixed and tiny, 40M commands, no divergence (`/tmp/exsim-c-fuzz-{mixed,tiny}.log`); interleaved B/C bench, C 1.25x to 1.81x faster on every workload (`/tmp/exsim-bench-b-vs-c.log`, `docs/engine-variants/C_INDEX_ARENA.md`). The Makefile now defines `EXSIM_TEST_PRODUCTION`. On review completion: fix confirmed findings, fast-forward `exchange-simulator`, tell the SPEC audit delegate the production engine is now C. When engine A lands, run the same interleaved bench against C.
+
+2026-11-03 about 07:00: every running delegate stopped on the Claude API rate limit; partial work stays in each worktree (see registry). Legacy lob fixes completed and merged (`7035f89`): ShardedEngine per-symbol books, bounded fill output, client mapping reclamation (FOUNDATION_REVIEW findings 16, 36, 37).
+
+The harness auto-resumed every stopped delegate at 12:10 +08 (limit-resume), so all of them are running again with their partial work; the critical-path five also received instructions to merge `exchange-simulator` first. Priority if the limit hits again:
+1. OUCH gateway, FIX gateway, market-data publisher/feed, exchange core, research runner.
+2. Then, as slots free: API contract plus UI, engines A and C, fuzzing, SPEC conformance audit, SBE over FIXP.
+
+When gateways, publisher, and core land, launch the server binary and end-to-end tests; when the runner and contract land, launch the C++ HTTP/OpenAPI API. Do not poll running tasks.

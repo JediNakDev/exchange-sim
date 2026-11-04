@@ -1,0 +1,29 @@
+# exsim example configuration. Format: docs in include/exsim/server/config.hpp.
+
+[exchange]
+name = EXSIM               s = 1000      # NOII cadence during auction call phases
+
+[engine]
+max_instruments = 65
+max_orders = 4607564
+max_tokens_per_session = 1048576
+store_messages_per_session = 1048576
+store_bytes_per_session = 67108864
+
+[journal]
+path = exsim.journal      ed
+
+[instrument AAPL]
+tick_size = 0.01
+lot_size = 1
+max_order_qty =864
+
+[journal]
+path = exsim.journal       isconnect = false
+
+[user MM1]                   # simulated marword = mm1
+protocol = ouch42
+session_id = 100
+owner = 100
+stp = cancel_resting
+cancel_on_disconnect = true

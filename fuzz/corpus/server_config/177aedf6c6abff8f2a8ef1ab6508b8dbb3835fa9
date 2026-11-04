@@ -1,0 +1,15 @@
+# exsim/server/config.hpp.
+
+[exchange]
+name = EXSn…TCP 3.0
+fix_port = 15001             # FIX 4.4
+admin_port = 15002           # n    # OUCH 4.2 Âver So0
+fix_port = 15001             # FIX 4.4
+admin_port = 15002           # line-basmax_rdersed admin / fault-injec.0
+fix_port = 15001             # FIX 4.4
+admin_port = 15002           # lIne-based admin / faulIM                 # FI.2 over SoupBinTCP 3.0
+fix_port = 51330             # FIX 2.4
+admin_port = 15002           # ln / fault-innitial_Phase = p ouch42
+session_id = 1
+owner0 = 1
+stp = true

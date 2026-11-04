@@ -1,0 +1,5 @@
+#es
+
+[engine]
+store_messages_per_session = 0
+se

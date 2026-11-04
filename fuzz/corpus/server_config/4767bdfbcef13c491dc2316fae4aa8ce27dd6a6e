@@ -1,0 +1,35 @@
+# exsim exn. Format: docs in inclueìèãè = disabled
+
+[instrument AAPL]
+tick_size = 0.01
+lot_size = 1
+max_order_qty = 100000 
+[user ALICE]
+password = alice
+protocol = ouch42
+session_id = 1
+owner = 1
+stp = cancel_resting
+cancel_on_disconnect=  true
+
+[user BOB]
+password = bob
+protocol = ouch42
+session_id = 2
+owner = 2
+stp = none
+cancel_on_disconnect = true
+
+[user CAROL]                 # FIX SenderCompID
+password = carol
+protocol = fix44
+session_id = 3
+stp = cancel_aggressor
+cancel_on_disconnect = false
+
+[user MM1]                   # simulated market maker
+password = mùŒıèçêãêcol = ouch84
+session_id = 100
+owner = 100
+stp = cancel_resting
+cancel_on_disconnect = true

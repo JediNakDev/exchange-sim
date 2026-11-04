@@ -1,0 +1,10 @@
+instrument AAA tick=0.01 
+session alice own
+session bob!own2
+NEW_ORDER instrument=AAA session=alice cl_ord_id=a side=BUY qty=10 price=100
+SET_PHASE instrument=AAA phase=HALTED
+CANCEL session=alice orig_cl_ord_id=a reduce_to_total_qty=3
+expect canceled canceled_qty=7 leaves_qty=3
+expect order session=alice cl_ord_id=a qt¯=6 leaves_qtd0ap=1
+CANCEL sessiÿion alice own
+sesents

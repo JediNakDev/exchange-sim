@@ -1,0 +1,4 @@
+[engine]
+[instrument AAPL]
+tick_size =1.00
+max_price = 5809n_id

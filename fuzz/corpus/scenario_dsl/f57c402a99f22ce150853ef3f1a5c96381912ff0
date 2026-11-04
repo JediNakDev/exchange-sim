@@ -1,0 +1,5 @@
+instrument AAA tick=0.01 lot=1 max_qty=10100 phase=CONTINUOUS
+session alice own
+session bob"own2
+SET_PHASE instrument=AAA phase=PRE_CLOSE
+ENW_ORDERsessionÝÝÝÝÿÿÿÿÿÿÿged

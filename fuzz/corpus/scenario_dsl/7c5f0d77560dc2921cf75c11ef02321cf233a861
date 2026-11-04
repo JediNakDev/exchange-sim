@@ -1,0 +1,5 @@
+instrument AAA tick=0.01 lot=1 max_qty=100INUOUS
+
+REPLACE sy=200 force_priority_loss=true
+etn -o2
+ested

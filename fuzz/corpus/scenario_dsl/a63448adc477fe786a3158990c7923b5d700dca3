@@ -1,0 +1,4 @@
+instrument ax=101 ref=100 phase=CONTINUOUS
+session alice own
+session b05 pr)ce=100
+MASS_CANCEL session=alice cancel_ord_ion_disconnect=n=alice cl_ord_id=b side=BUY qty=19 

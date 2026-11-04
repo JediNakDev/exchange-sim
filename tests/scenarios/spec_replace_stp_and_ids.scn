@@ -1,0 +1,37 @@
+# SPEC 6: a priority-loss replace re-enters matching with its own owner/STP mode.
+# SPEC 4.5: CancelAggressor cancels the replaced order with was_resting=false.
+# request_cl_ord_id of these STP cancels is deliberately NOT asserted: SPEC 12 says
+# "request token is zero except for Cancel/Replace/MassCancel" (ambiguity A3).
+# SPEC 1: SessionId up to 65535 and token 2^48-1 do not alias other sessions.
+instrument AAA tick=0.01 lot=1 max_qty=100 min=99 max=101 ref=100 phase=CONTINUOUS
+session alice firmA
+session bob firmB
+NEW_ORDER instrument=AAA session=alice owner=firmA cl_ord_id=o1 side=SELL qty=5 price=100
+NEW_ORDER instrument=AAA session=alice owner=firmA stp=CANCEL_AGGRESSOR cl_ord_id=r side=BUY qty=5 price=99
+REPLACE session=alice orig_cl_ord_id=r cl_ord_id=r2 qty=5 price=100
+expect count 2
+expect replaced old_order_id=2 new_order_id=3 orig_cl_ord_id=r cl_ord_id=r2 old_price=99 price=100 priority_kept=false
+expect canceled order_id=3 cl_ord_id=r2 session=alice side=BUY price=100 canceled_qty=5 cum_qty=0 reason=SELF_TRADE_PREVENTION was_resting=false leaves_qty=0
+expect depth AAA bid
+expect depth AAA ask 100:5:1
+NEW_ORDER instrument=AAA session=bob owner=firmB cl_ord_id=o2 side=SELL qty=5 price=100
+NEW_ORDER instrument=AAA session=alice owner=firmA stp=CANCEL_RESTING cl_ord_id=q side=BUY qty=5 price=99
+REPLACE session=alice orig_cl_ord_id=q qty=5 price=100
+expect count 3
+expect replaced old_order_id=5 new_order_id=6 priority_kept=false
+expect canceled order_id=1 cl_ord_id=o1 reason=SELF_TRADE_PREVENTION was_resting=true canceled_qty=5
+expect fill match_id=1 price=100 qty=5 aggressor=BUY buy.order_id=6 buy.cl_ord_id=q buy.owner=firmA buy.leaves_qty=0 sell.order_id=4 sell.owner=firmB
+expect depth AAA ask
+# highest session id with the highest token, and the same token in session alice
+NEW_ORDER instrument=AAA session=65535 cl_ord_id=281474976710655 side=BUY qty=1 price=99
+expect count 2
+expect accepted order_id=7 session=65535 cl_ord_id=281474976710655
+expect rested order_id=7 session=65535
+NEW_ORDER instrument=AAA session=alice cl_ord_id=281474976710655 side=BUY qty=1 price=99
+expect count 2
+expect accepted order_id=8 session=alice
+CANCEL session=65535 orig_cl_ord_id=281474976710655 cl_ord_id=1
+expect count 1
+expect canceled order_id=7 session=65535 request_cl_ord_id=1 reason=USER_REQUESTED
+expect order session=alice cl_ord_id=281474976710655 order_id=8
+expect depth AAA bid 99:1:1
