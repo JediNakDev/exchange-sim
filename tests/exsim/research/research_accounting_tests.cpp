@@ -88,13 +88,17 @@ TEST_CASE(research_accounting, fee_round_trip_is_exact) {
     CHECK_EQ(metrics.sell_notional, 100 * cents(10005));
     CHECK_EQ(metrics.spread_capture_total_times_two, 50'000);
 
-    // Flat at the end: equity is cash even though the final book is one-sided.
+    // Flat at the end; the final book is one-sided, so the mark is the last
+    // two-sided mid (bid 99.90, ask 100.05), carried forward.
     const FinalValuation valuation = final_valuation(simulation);
-    CHECK(!valuation.has_mark);
+    REQUIRE(valuation.has_mark);
+    CHECK_EQ(valuation.mark_times_two, cents(9990) + cents(10005));
     CHECK(valuation.has_equity);
-    CHECK_EQ(valuation.equity, ledger.cash);
-    CHECK_EQ(valuation.net_pnl, 49'000);
-    CHECK_EQ(valuation.net_pnl, ledger.gross_realized_pnl + valuation.unrealized_pnl - ledger.fees);
+    CHECK_EQ(valuation.unrealized_pnl_times_two, 0);
+    CHECK_EQ(valuation.equity_times_two, 2 * ledger.cash);
+    CHECK_EQ(valuation.net_pnl_times_two, 2 * 49'000);
+    CHECK_EQ(valuation.net_pnl_times_two,
+             2 * ledger.gross_realized_pnl + valuation.unrealized_pnl_times_two - 2 * ledger.fees);
     const ReconciliationResult reconciliation = reconcile(simulation);
     CHECK(reconciliation.cash_matches_fills);
     CHECK(reconciliation.position_matches_fills);
@@ -109,7 +113,7 @@ TEST_CASE(research_accounting, fee_round_trip_is_exact) {
     CHECK_EQ(member(accounting, "maker_fees").text, std::string("-0.20"));
     CHECK_EQ(member(accounting, "taker_fees").text, std::string("0.30"));
     CHECK_EQ(member(accounting, "net_pnl").text, std::string("4.90"));
-    CHECK(member(accounting, "mark_price").is_null());
+    CHECK_EQ(member(accounting, "mark_price").text, std::string("99.975"));
     CHECK(member(member(accounting, "reconciliation"), "pnl_identity_holds").boolean);
     const JsonValue& spread_capture = member(member(summary, "fills"), "spread_capture");
     CHECK_EQ(member(spread_capture, "total").text, std::string("2.50"));
@@ -169,10 +173,10 @@ TEST_CASE(research_accounting, last_trade_mark_values_the_same_position) {
     REQUIRE_EQ(simulation.ledger().state().position, 50);
     const FinalValuation valuation = final_valuation(simulation);
     REQUIRE(valuation.has_mark);
-    CHECK_EQ(valuation.mark_price, cents(10010));
+    CHECK_EQ(valuation.mark_times_two, 2 * cents(10010));
     CHECK(valuation.has_equity);
-    CHECK_EQ(valuation.unrealized_pnl, 50 * (cents(10010) - cents(10000)));
-    CHECK_EQ(valuation.net_pnl, valuation.unrealized_pnl - 50 * kTakerFeePerShare);
+    CHECK_EQ(valuation.unrealized_pnl_times_two, 2 * 50 * (cents(10010) - cents(10000)));
+    CHECK_EQ(valuation.net_pnl_times_two, valuation.unrealized_pnl_times_two - 2 * 50 * kTakerFeePerShare);
     CHECK_EQ(valuation.open_cost_basis, 50 * cents(10000));
     CHECK(reconcile(simulation).pnl_identity_holds);
 }
@@ -223,12 +227,49 @@ TEST_CASE(research_accounting, busy_run_reconciles_fill_by_fill) {
     CHECK(reconciliation.pnl_identity_holds);
     const FinalValuation valuation = final_valuation(simulation);
     REQUIRE(valuation.has_equity);
-    CHECK_EQ(valuation.equity - config.accounting.initial_cash,
-             ledger.gross_realized_pnl + valuation.unrealized_pnl - ledger.fees);
+    CHECK_EQ(valuation.equity_times_two - 2 * config.accounting.initial_cash,
+             2 * ledger.gross_realized_pnl + valuation.unrealized_pnl_times_two - 2 * ledger.fees);
 
     // Every series sample with equity satisfies the same identity at its time.
     for (const auto& sample : records.samples) {
         if (!sample.has_equity) continue;
-        CHECK_EQ(sample.equity - config.accounting.initial_cash, sample.realized_pnl + sample.unrealized_pnl - sample.fees);
+        CHECK_EQ(sample.equity_times_two - 2 * config.accounting.initial_cash,
+                 2 * (sample.realized_pnl - sample.fees) + sample.unrealized_pnl_times_two);
     }
+}
+
+// A one-sided book does not clear the exchange-mid mark: a position bought
+// out of the ask is still valued at the last two-sided mid, exactly.
+TEST_CASE(research_accounting, exchange_mid_mark_carries_across_a_one_sided_book) {
+    ExperimentConfig config = quiet_market_config();
+    config.instrument.tick_size = 1;  // one price unit, so a mid can fall on half a unit
+    config.instrument.min_price = cents(9900);
+    config.instrument.max_price = cents(10100);
+    Simulation<HookStrategy> simulation(config, 1);
+    REQUIRE(simulation.schedule_scripted_command(1 * kMillisecond, scripted_limit_order(1, Side::BUY, 999'999, 100)));
+    REQUIRE(simulation.schedule_scripted_command(1 * kMillisecond, scripted_limit_order(2, Side::SELL, 1'000'000, 50)));
+    bool bought = false;
+    simulation.strategy().market_data = [&](const MarketDataUpdate& update, StrategyContext& context) {
+        if (!bought && update.top.two_sided()) {
+            bought = true;
+            CHECK_NE(context.submit_limit_order(Side::BUY, 1'000'000, 50, TimeInForce::IOC, false), 0u);
+        }
+    };
+    CollectedRecords records;
+    CHECK(run_to_end(simulation, &records) == RunStop::Completed);
+    CHECK(!simulation.exchange_top_of_book().has_ask);  // the ask was taken out
+    REQUIRE_EQ(simulation.ledger().state().position, 50);
+    const FinalValuation valuation = final_valuation(simulation);
+    REQUIRE(valuation.has_mark);
+    CHECK_EQ(valuation.mark_times_two, 1'999'999);  // 99.99995
+    CHECK_EQ(valuation.unrealized_pnl_times_two, 50 * (1'999'999 - 2'000'000));  // -0.0025
+    CHECK_EQ(simulation.metrics().samples_without_mark, 1u);  // only the t = 0 sample
+    CHECK(reconcile(simulation).pnl_identity_holds);
+    REQUIRE(!records.samples.empty());
+    CHECK(records.samples.back().has_equity);
+    CHECK_EQ(records.samples.back().mark_times_two, 1'999'999);
+    const JsonValue summary = parse_json(render_summary_json(simulation, StrategyIdentity{"hook", 1}, "carried", false));
+    const JsonValue& accounting = member(summary, "accounting");
+    CHECK_EQ(member(accounting, "mark_price").text, std::string("99.99995"));
+    CHECK_EQ(member(accounting, "unrealized_pnl").text, std::string("-0.0025"));
 }

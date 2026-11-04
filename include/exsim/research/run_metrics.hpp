@@ -33,7 +33,7 @@ struct DurationStatistic {
 
 struct MarkoutAccumulator {
     std::uint64_t measured = 0;
-    std::uint64_t unavailable = 0;  // no two-sided exchange book at the horizon
+    std::uint64_t unavailable = 0;  // no two-sided exchange book had existed by the horizon
     std::uint64_t censored = 0;     // horizon past the run end
     std::uint64_t measured_qty = 0;
     std::int64_t total_times_two = 0;  // price units * shares, doubled
@@ -45,7 +45,7 @@ struct ParentOrderTracking {
     Quantity qty = 0;
     Timestamp decision_time = 0;
     bool has_decision_mid = false;
-    std::int64_t decision_mid_times_two = 0;   // exchange truth at decision time (arrival benchmark)
+    std::int64_t decision_mid_times_two = 0;   // reference exchange mid at decision time (arrival benchmark)
     TopOfBook visible_at_decision;             // what the strategy saw
     std::uint64_t market_volume_at_decision = 0;
     std::uint64_t market_volume_at_last_fill = 0;
@@ -133,8 +133,8 @@ struct RunMetrics {
     std::int64_t min_position = 0;
     std::uint64_t limit_breaches = 0;  // fills leaving the true position beyond a limit
     bool has_equity = false;
-    std::int64_t peak_equity = 0;
-    std::int64_t max_drawdown = 0;
+    std::int64_t peak_equity_times_two = 0;
+    std::int64_t max_drawdown_times_two = 0;
     Timestamp max_drawdown_time = 0;
     std::uint64_t samples_without_mark = 0;
 

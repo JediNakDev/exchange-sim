@@ -155,7 +155,7 @@ JsonWriter& JsonWriter::doubled_price_text(std::int64_t value_times_two) {
 
 const JsonValue* JsonValue::find(std::string_view name) const noexcept {
     for (const auto& member : members)
-        if (member.first == name) return &member.second;
+        if (member.name == name) return &member.value;
     return nullptr;
 }
 
@@ -209,7 +209,7 @@ private:
                 if (position_ >= text_.size() || text_[position_] != '"') error("expected key");
                 std::string name = parse_string();
                 if (!consume(':')) error("expected ':'");
-                value.members.emplace_back(std::move(name), parse_value(depth + 1));
+                value.members.push_back(JsonMember{std::move(name), parse_value(depth + 1)});
             } while (consume(','));
             if (!consume('}')) error("expected '}'");
         } else if (head == '[') {

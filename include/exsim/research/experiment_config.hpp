@@ -45,8 +45,9 @@ enum class StrategyKind : std::uint8_t {
 
 // How unrealized P&L and equity are marked. Missing marks stay unavailable.
 enum class MarkConvention : std::uint8_t {
-    ExchangeMid = 0,  // floor((best_bid + best_ask) / 2) from engine truth; needs a two-sided book
-    LastTrade = 1,    // engine last trade price; needs at least one trade
+    ExchangeMid = 0,  // "exchange_mid": last two-sided engine-truth mid at or before the time, exact
+                      // to half a price unit, carried across one-sided books; none before the first
+    LastTrade = 1,    // "last_trade_price": engine last trade price; none before the first trade
 };
 
 [[nodiscard]] std::string_view to_string(MarkConvention mark) noexcept;

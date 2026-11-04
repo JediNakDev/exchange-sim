@@ -88,11 +88,23 @@ unavailable. Floating-point summary `metrics` are convenience values only.
 cash = initial cash - buy notional + sell notional - fees.
 Equity = cash + position * mark.
 Net P&L = equity - initial cash = FIFO gross realized + unrealized - fees.
-Open cost basis is signed net FIFO lot cost. Average cost is derived after the
-run. The mark is floor(current two-sided exchange mid) in price units, or last
-trade under `last_trade`. No current mid means no mark, even if an earlier mid
-existed. Flat equity is cash without requiring a mark. Drawdown is evaluated at
-series observations; it is sampled drawdown, not every-event drawdown.
+Open cost basis is signed net FIFO lot cost (initial cash - cash - fees +
+realized). Unrealized P&L = position * mark - open cost basis. Average cost is
+derived after the run.
+
+Reference exchange mid: the last two-sided engine-truth (bid + ask) / 2 at or
+before the time in question, held exactly in doubled price units so a half
+price unit is never rounded away. A one-sided book does not clear it; it is
+unavailable only before the first two-sided book of the run. This matches the
+`exchange_mid` convention in docs/API.md. Mark conventions (`[accounting] mark`):
+`exchange_mid` (default) uses the reference mid; `last_trade_price` uses the
+last engine trade price. `strategy_visible_mid` from the API enum is not
+supported and is rejected at config load. Mark, unrealized P&L, equity and net
+P&L are written with up to five decimals because they can carry half a price
+unit. Without a mark the mark-dependent fields are null and the series sample
+counts in `samples_without_mark`; a flat position with no mark reports equity
+= cash. Drawdown is evaluated at series observations; it is sampled drawdown,
+not every-event drawdown.
 
 Order fill ratio = accepted new orders with any fill / accepted new orders.
 Full fill ratio = completely filled orders / accepted new orders. Quantity fill
@@ -100,15 +112,16 @@ ratio = filled shares / (accepted new shares + positive replace increases).
 Partial count means orders canceled after some execution. Time to first fill
 starts at the order decision. Quote exposure counts time with a resting bid,
 ask, both, or either; ratios divide by configured run duration. Signed spread
-capture = (mid before filling command - fill price) * buy quantity, reversed for
-sells. Markouts use the current two-sided exchange mid after all simulation
-events at fill time + horizon. One row per fill/horizon is measured, unavailable,
-or censored. Horizons after a completed run end are censored and excluded, not
+capture = (reference mid before the filling command - fill price) * buy
+quantity, reversed for sells; unavailable before the first two-sided book.
+Markouts use the reference mid after all simulation events at fill time +
+horizon. One row per fill/horizon is measured, unavailable (no two-sided book
+had existed yet), or censored. Horizons after a completed run end are censored and excluded, not
 zero. Partial failed/cancelled runs retain processed observations and censor pending
 probes against their last processed simulated time.
 
-Execution benchmark is engine-truth mid at parent decision time, explicitly
-separate from visible mid. Shortfall cost = signed (fill notional - benchmark *
+Execution benchmark is the reference (engine-truth) mid at parent decision
+time, explicitly separate from the strategy-visible mid. Shortfall cost = signed (fill notional - benchmark *
 filled quantity) + fees. It covers executed quantity only; unexecuted opportunity
 cost is unavailable. Participation divides parent fills by total market volume
 between declaration and last fill, including the strategy's own trades.
@@ -148,29 +161,55 @@ Markout `markout` is quantity-weighted, not per-share. `fill_index` joins ledger
 and markout rows. Series `position` is truth, `known_position` is delivered state;
 `open_bid_qty` and `open_ask_qty` are true remaining strategy quantities.
 
+`series.csv` columns, in order: `time_ns`, `exchange_bid`, `exchange_bid_qty`,
+`exchange_ask`, `exchange_ask_qty`, `visible_bid`, `visible_bid_qty`,
+`visible_ask`, `visible_ask_qty`, `position`, `known_position`, `cash`,
+`realized_pnl`, `fees`, `mark_price`, `unrealized_pnl`, `equity`,
+`open_bid_qty`, `open_ask_qty`. `exchange_*` is engine truth at the sample,
+`visible_*` is what the strategy had been delivered; an empty price cell means
+that side was empty. `mark_price`, `unrealized_pnl` and `equity` are empty when
+there is no mark and can carry five decimals.
+
 ## HTTP integration differences
 
-The completed API/UI branch defines another schema family. This disk format
-intentionally retains distinct `exsim.research.*` names and snake_case fields:
-an adapter must translate, not claim disk JSON passes OpenAPI validation.
+docs/API.md and docs/api/openapi.yaml (`exsim.api/1`) define the HTTP schema
+family. The runner writes its own disk format, `exsim.research.*/1`, with
+snake_case fields. The C++ HTTP service is expected to read these files and
+translate; disk JSON does not validate against the OpenAPI schemas as is.
+Semantics already agree: FIFO cost basis, cash/equity/net P&L identities, fee
+sign, carried exact `exchange_mid` mark, censoring of markouts past the run
+end, `fnv1a_64` run digests over canonical encodings, the run state names
+(`queued`, `running`, `paused`, `completed`, `cancelled`, `failed`), and event
+ordering by (simulation time, enqueue sequence).
 
-| Disk runner | Current API/UI contract |
-| --- | --- |
-| `schema`, exsim.research.manifest/1 and summary/1 | `schemaVersion`, exsim.run-manifest/1 and exsim.run-summary/1 |
-| `synthetic_interactive` | `interactive_synthetic` |
-| FIFO realized/unrealized | average cost split |
-| current floor mid, unavailable when one-sided | carried-forward exact half-unit mid |
-| FNV-1a64 config digest | SHA-256 config digest |
-| trimmed exact decimal strings | fixed 4/5 fractional digits |
-| derived JSON numbers in convenience metrics | derived decimal strings with exactness metadata |
-| step counts scheduler and observation events | API describes canonical-event counts |
-| four compiled strategies, parent execution metrics | first UI slice only fixed-spread MM |
+What the adapter must translate or supply:
 
-FIFO and mark differences require an explicit product decision or API revision;
-format conversion alone cannot reconcile those semantics. Do not recompute
-accounting in TypeScript. A future C++ HTTP adapter must preserve these assumptions
-in its manifest or reject incompatible requests. Real runs under `/tmp/research-real-*`
-are generated by the CLI, never copied from `web/mock-server` fixtures.
+| Area | Disk runner (this document) | API contract | Adapter action |
+| --- | --- | --- | --- |
+| Schema names | `schema`: `exsim.research.manifest/1`, `summary/1`, `status/1`, `sweep/1`, `compare/1` | `schemaVersion`: `exsim.run-manifest/1`, `exsim.run-summary/1`, `exsim.comparison/1`; log encodings `exsim.canonical-event/1`, `exsim.order-lifecycle/1`, `exsim.ledger/1`, `exsim.series/1` | rename and restructure |
+| Field case | snake_case | camelCase | rename |
+| Market world | `synthetic_interactive` | `interactive_synthetic` | map the literal |
+| Decimals | exact, trailing zeros trimmed to at least two decimals (`"100.04"`, `"1647.816"`) | fixed 4 (price, currency), 5 (mid, mark, markout, spread capture), 6 (derived) digits | re-pad; values are exact, no rounding needed except derived floats |
+| Derived metrics | `summary.metrics` JSON numbers (doubles) | `DerivedDecimal` strings with `exactness` | format to 6 digits, round half to even |
+| Config digest | `config_hash`: FNV-1a64 of canonical config text (16 hex) | `sha256` | compute SHA-256 over `experiment.conf` or the canonical text in the adapter |
+| Strategy kinds | `fixed_spread_market_maker`, `inventory_aware_market_maker`, `twap_executor`, `immediate_sweep_executor` | enum `fixed_spread_market_maker`, `inventory_aware_market_maker`, `twap_execution`; `executableStrategyKinds` lists only fixed spread | map `twap_executor` to `twap_execution`; the API can widen `executableStrategyKinds`; immediate sweep has no API value |
+| Seed streams | `strategy`, `latency`, `agent.<index>.<kind>.<name>` with formula in the manifest | `DerivedSeed.streamName` enum `background_market_maker`, `background_noise_taker`, `strategy`, `latency_jitter` | map per agent; several agents of one kind need an API change (enum allows one per kind) |
+| Mark conventions | `exchange_mid`, `last_trade_price` | adds `strategy_visible_mid` | reject `strategy_visible_mid` with `validation_failed` |
+| Missing mark, flat | equity = cash (mark null) | equity null with `unavailableReason` whenever the mark is null | emit null equity when `mark_price` is null, or agree to the runner value |
+| Spread capture reference | reference mid before the command that produced the fill (pre-impact) | "mid at the fill time" | same value if read as the mid in force when the fill occurs; state it in the API text |
+| Markout status | `measured`, `unavailable`, `censored` | `available`, `unavailable_no_mark`, `censored_past_run_end` | map one to one |
+| Lifecycle stages | `strategy_submitted`, `risk_rejected`, `exchange_arrival`, `exchange_accepted`, `exchange_rejected`, `exchange_rested`, `exchange_fill`, `exchange_canceled`, `exchange_replaced`, `report_delivered` (with `report_kind`) | `LifecycleStageKind` (`arrived_at_exchange`, `acknowledgment_delivered`, `fill_report_delivered`, `cancel_rejected_too_late`, ...) and `CanonicalEventKind` | map; `risk_rejected` matches `risk_limit_blocked_order`; partial vs full fill from `leaves_qty` |
+| Side, liquidity | `"BUY"`/`"SELL"`, `"maker"`/`"taker"` | `buy`/`sell`, `maker`/`taker` | lowercase side |
+| Termination | `termination_reason`: `end_time_reached`, `event_queue_exhausted`, `cancel_requested`, `event_limit_reached`, `simulation_queue_full`, `observation_queue_full`, `recorder_overflow`, `ledger_rejected_fill`, `engine_output_capacity`, `order_table_corrupt` | `TerminalDiagnostics.outcomeCode` (`completed_at_simulation_bound`, `cancelled_by_request`, `failed_event_bound_exceeded`, `failed_journal_backpressure`, `failed_ledger_overflow`, `failed_internal_error`, ...) | map; queue/recorder/engine capacity map to `failed_internal_error` or `failed_journal_backpressure` |
+| Per-order view | lifecycle rows per request and report | `/orders` with `OrderFinalStatus`, `/orders/{id}/lifecycle` | aggregate lifecycle rows by `cl_ord_id` |
+| Series | `series.csv`, every sample interval, raw columns | `/series` downsampled, kinds `equity`, `inventory`, `exchange_mid`, `quoted_spread`, `drawdown` | derive `quoted_spread` from visible bid/ask, `drawdown` from running peak of `equity`; raw `exchange_mid` is null when one-sided (use `exchange_bid`/`exchange_ask`, not `mark_price`) |
+| Comparison | `exsim_research compare` over two directories, paired by master seed | `/comparisons` by experiment id | reuse `run_compare` logic, or reimplement over summaries |
+| Step unit | `Simulation::step` counts scheduler events (simulation and observation) | `step` counts canonical events | adapter steps until N canonical events were appended |
+| HTTP/IDs | `run_id` is `<name>-<config hash prefix>-seed<N>`; no idempotency, pagination or wall-clock limit | opaque `run_...`, idempotency keys, cursors, `failed_wall_clock_limit_exceeded` | service concern |
+
+`average_cost_basis` and the convenience `metrics` doubles are derived values;
+never feed them back into accounting. No HTTP adapter exists yet; the
+artifacts above are the complete interface it should consume.
 
 ## Field inventory
 
@@ -315,6 +354,12 @@ The following paths enumerate the v1 writer fields, including explicit nulls.
 | `background_agents[].parameters.skew_ticks_per_unit` | string |
 | `background_agents[].parameters.cancel_on_halt` | string |
 | `background_agents[].parameters.order_capacity` | string |
+| `background_agents[].parameters.mean_interval_ms` | string (noise taker) |
+| `background_agents[].parameters.min_size` | string (noise taker) |
+| `background_agents[].parameters.max_size` | string (noise taker) |
+| `background_agents[].parameters.limit_ppm` | string (noise taker) |
+| `background_agents[].parameters.cross_ticks` | string (noise taker) |
+| `background_agents[].parameters.limit_lifetime_ms` | string (noise taker) |
 | `instrument.instrument_id` | string |
 | `instrument.symbol` | string |
 | `instrument.tick_size` | string |
@@ -364,6 +409,7 @@ The following paths enumerate the v1 writer fields, including explicit nulls.
 | `metrics.markout_reference` | string |
 | `metrics.spread_capture_reference` | string |
 | `metrics.execution_benchmark` | string |
+| `metrics.reference_mid_definition` | string |
 | `metrics.sample_interval_ns` | string |
 | `simulation.start_time_ns` | string |
 | `simulation.end_time_ns` | string |
@@ -693,63 +739,51 @@ the existing bots config parser and manifest records their resolved values.
 
 `kind`, `stp`, `half_spread_ticks`, `quote_size`, `requote_interval`, `requote_threshold_ticks`, `post_only`, `skew_ticks_per_unit`, `skew_unit`, `scale_size_with_inventory`, `side`, `parent_qty`, `start`, `limit_offset_ticks`, `execution_duration`, `slice_interval`, `max_orders`, `maker_fee_per_share`, `taker_fee_per_share`, `auction_fee_per_share`, `max_long_position`, `max_short_position`, `max_order_qty`, `max_open_orders`, `initial_cash`, `mark`, `name`, `description`, `seed`, `duration`, `max_simulation_events`, `symbol`, `tick_size`, `lot_size`, `min_price`, `max_price`, `reference_price`, `feed`, `order`, `cancel`, `ack`, `strategy_compute`, `feed_jitter`, `order_jitter`, `cancel_jitter`, `ack_jitter`, `order_channel_fifo`, `sample_interval`, `markout_horizons`, `simulation_queue_capacity`, `observation_queue_capacity`, `recorder_command_capacity`, `recorder_record_capacity`, `recorder_flush_margin`, `session_id`, `instrument`, `timer_interval`, `owner`.
 
-## Verification checkpoint, 2026-11-04
+## Verification checkpoint, 2026-11-05
 
-Implementation commit `b06a276`, parent integration merge `e44b5c6` (parent
-`4f442396723b29cf721269cf58d2d6d6142ed462`). Follow-up commit records allocation
-migration, bounded metric arithmetic, cancellation censoring and this contract.
+Verified on the commit that adds this section, on top of the
+`exchange-simulator` merge `36ed695` (parent `e2cdd11`). Every command used
+-j4 and `EXTRA_CXXFLAGS=-Werror`; logs:
 
-Commands above use -j4 and -Werror. Exact logs:
+| Gate | Result | Log |
+| --- | --- | --- |
+| `make MODE=release test` | 663/663 | `/tmp/exsim-runner-release.log` |
+| `make MODE=debug test` (ASan/UBSan) | 661/661 (two production-only allocation tests are not built in debug) | `/tmp/exsim-runner-debug.log` |
+| `make all` | clean | `/tmp/exsim-runner-all.log` |
+| `make MODE=release test FILTER=research_allocations` | 2/2, zero allocations for the ledger and all four strategies | `/tmp/exsim-runner-allocations.log` |
+| Linux (Docker `exsim-dev`), g++ then clang++, release test | g++ 663/663, clang++ 663/663 (clang++ first exposed a `std::pair` over the incomplete `JsonValue`, fixed with `JsonMember`) | `/tmp/exsim-runner-linux.log` |
+| 5-seed sweeps narrow and wide, independent replay | 10/10 completed, replay verified | `/tmp/exsim-runner-narrow.log`, `/tmp/exsim-runner-wide.log` |
+| Determinism: the narrow sweep run twice, `diff -r -x status.json` | all 51 files except status.json byte-identical | `/tmp/exsim-runner-determinism.log` |
+| `exsim_replay` on each narrow journal | hash equals `summary.digests.event_digest` for all 5 | `/tmp/exsim-runner-replay.log` |
+| `exsim_research compare` | output below | `/tmp/exsim-runner-compare.log` |
 
-- `/tmp/research-final-release.log`: full release suite, known server-core failure.
-- `/tmp/research-final-debug.log`: full ASan/UBSan suite, same server-core failure.
-- `/tmp/research-final-release-focused.log` and `/tmp/research-final-debug-focused.log`: research suites only.
-- `/tmp/research-final-tools.log`: all native tools.
-- `/tmp/research-linux.log`: full GCC -Werror attempt, blocked by unrelated fuzz header.
-- `/tmp/research-final-linux.log`: GCC -Werror research tests, ledger tests, framework self-tests and all tools.
-- `/tmp/research-narrow.log`, `/tmp/research-wide.log`: real five-seed CLI sweeps, each run independently replay verified.
-- `/tmp/research-compare.log`: complete paired compare output below.
+The research suite (50 `research_*` tests plus 9 `position_ledger` tests) covers scheduler
+capacity and ordering, pause/step/resume identity, separate delivery
+latencies, cancel races, FIFO evidence, every host risk reject reason, worst
+case inventory reservation, exact accounting, the carried half-unit reference
+mid, fixed-spread and inventory-skew quote placement, TWAP shortfall,
+TWAP/sweep completion and residuals, markout censoring including
+cancellation, same-seed artifact identity, independent replay, RNG stream
+independence, compare pairing/exclusion/null handling over real sweeps,
+example config parsing, config identity and error lines, and release-mode
+zero allocations.
 
-The full-suite failure is
-`tests/exsim/server/core/dispatch_tests.cpp:174`: SubmitResult actual 3, expected
-Applied (0), in `output_capacity_failure_applies_nothing_and_core_recovers`.
-It is outside runner ownership. Full GCC compilation is blocked by
-`fuzz/targets/price_text.hpp` using `unsigned __int128` under -Wpedantic -Werror.
-No server, shared engine, fuzz, or Makefile changes were made to bypass either.
+Remaining integration limits: no HTTP adapter (see the differences table).
+Historical replay, external strategy virtual time and arbitrary rewind are
+deferred. The CLI exposes batch execution and cancellation; `Simulation`
+exposes pause, step and resume for the future controller. Scripted C++
+commands can intervene; there is no CLI scenario-file interface. Build ids
+default to encoding/version labels; the CLI also hashes its executable.
 
-Focused Linux reproduction (Docker image `exsim-dev`):
+### Five-seed comparison
 
-```sh
-docker run --rm -v "$PWD:/src:ro" -w /tmp exsim-dev sh -c '
-mkdir research-check
-cp -R /src/include /src/src /src/tests /src/tools /src/examples /src/benchmark /src/Makefile research-check/
-cd research-check
-make -j4 test tools CXX=g++ EXTRA_CXXFLAGS=-Werror TEST_SRCS="tests/main.cpp tests/framework/alloc_counter.cpp tests/framework/alloc_counter_tests.cpp $(find tests/exsim/research -name "*.cpp")"
-'
-```
-
-Research coverage includes scheduler capacity/order, pause/resume identity,
-separate delivery latencies, cancel race, FIFO evidence, exact accounting,
-missing marks, same-seed artifact identity, independent replay, RNG independence,
-TWAP and sweep completion/residuals, pending-order risk reservations, markout
-censoring including cancellation, paired sample dispersion, invalid config,
-config identity and release zero allocations for every strategy and ledger.
-
-Remaining integration limits: the HTTP adapter is not implemented. API accounting
-and mark semantics require agreement as described above. Historical replay,
-external strategy virtual time and arbitrary rewind are deferred product work.
-The CLI exposes batch execution and cancellation; C++ Simulation exposes pause,
-step and resume for the future controller. Scripted C++ commands can intervene;
-there is no CLI scenario-file interface. Build IDs default to encoding/version
-labels; the CLI additionally hashes its complete executable for provenance.
-
-### Actual five-seed comparison
-
-These are synthetic demonstrations, not calibrated performance predictions.
+Synthetic demonstration, not a calibrated performance prediction. With a 0.01
+tick every mid is a whole price unit, so these runs exercise the carried mid
+(markouts) but not the half-unit path, which the accounting tests cover.
 
 ```text
-A: /tmp/research-real-narrow (sweep, 5 runs, experiment fixed_spread_narrow, strategy fixed_spread_market_maker, config 0edd6d9534f6122c)
-B: /tmp/research-real-wide (sweep, 5 runs, experiment fixed_spread_wide, strategy fixed_spread_market_maker, config 1413249966561a2b)
+A: /tmp/exsim-runner-narrow (sweep, 5 runs, experiment fixed_spread_narrow, strategy fixed_spread_market_maker, config 0edd6d9534f6122c)
+B: /tmp/exsim-runner-wide (sweep, 5 runs, experiment fixed_spread_wide, strategy fixed_spread_market_maker, config 1413249966561a2b)
 paired seeds (5): 1,2,3,4,5
 unpaired seeds: A none; B none
 excluded runs (not completed): none
@@ -783,13 +817,13 @@ order_fill_ratio                        5    0      0.999036      0.996817    -0
 quantity_fill_ratio                     5    0      0.998652      0.995757   -0.00289513   0.000685837   0.000306716   -0.00352732   -0.00172484
 time_to_first_fill_mean_ns              5    0   5.80981e+07   1.63434e+08   1.05335e+08   1.29584e+07   5.79517e+06   9.32557e+07   1.26284e+08
 two_sided_exposure_ratio                5    0      0.903506      0.887888    -0.0156179     0.0206085     0.0092164    -0.0375181    0.00801068
-spread_capture_per_share                5    0     0.0111691     0.0310048     0.0198356   8.23966e-05   3.68489e-05     0.0196903     0.0198888
-spread_capture_total                    5    0       1545.63       1313.83      -231.807        60.289       26.9621      -334.935      -178.925
-markout_100ms_per_share                 5    0     0.0102814     0.0342289     0.0239475   0.000510631   0.000228361     0.0231202     0.0244701
+spread_capture_per_share                5    0     0.0111987     0.0310096     0.0198108    9.2803e-05   4.15028e-05     0.0196544     0.0198877
+spread_capture_total                    5    0       1562.81       1338.75      -224.062       56.3946       25.2204       -320.75      -178.605
+markout_100ms_per_share                 5    0     0.0102624     0.0341646     0.0239022   0.000571481   0.000255574     0.0230294     0.0244305
 markout_100ms_censored                  5    0             4           1.4          -2.6       1.14018      0.509902            -4            -1
-markout_1s_per_share                    5    0     0.0102892     0.0339451     0.0236559   0.000570769   0.000255256     0.0227884     0.0242441
+markout_1s_per_share                    5    0      0.010251     0.0338601     0.0236091   0.000632283   0.000282766     0.0225282     0.0241681
 markout_1s_censored                     5    0            37          15.2         -21.8       4.08656       1.82757           -29           -19
-markout_5s_per_share                    5    0     0.0104998      0.034069     0.0235692    0.00073027   0.000326587     0.0225495     0.0245656
+markout_5s_per_share                    5    0     0.0104674     0.0341867     0.0237193   0.000885658   0.000396078      0.022341     0.0245737
 markout_5s_censored                     5    0         178.8          68.4        -110.4       7.82943       3.50143          -122          -100
 completion_ratio                        0    5           n/a           n/a           n/a           n/a           n/a           n/a           n/a
 residual_qty                            0    5           n/a           n/a           n/a           n/a           n/a           n/a           n/a

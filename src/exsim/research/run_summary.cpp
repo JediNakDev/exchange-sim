@@ -53,22 +53,19 @@ FinalValuation final_valuation(const SimulationCore& core) noexcept {
     FinalValuation result;
     const LedgerState& ledger_state = core.ledger().state();
     const std::int64_t initial_cash = core.config().accounting.initial_cash;
-    result.open_cost_basis = initial_cash - ledger_state.cash - ledger_state.fees + ledger_state.gross_realized_pnl;
-    if (const auto mark = core.mark_price()) {
+    result.open_cost_basis = open_cost_basis(ledger_state, initial_cash);
+    if (const auto mark = core.mark_times_two()) {
+        const DoubledValuation valuation = value_at_mark(ledger_state, initial_cash, *mark);
         result.has_mark = true;
-        result.mark_price = *mark;
-        if (const auto valuation = core.ledger().valuation(*mark)) {
-            result.has_equity = true;
-            result.unrealized_pnl = valuation->unrealized_pnl;
-            result.equity = valuation->equity;
-            result.net_pnl = valuation->net_pnl;
-        }
-    }
-    if (!result.has_equity && ledger_state.position == 0) {
+        result.mark_times_two = *mark;
         result.has_equity = true;
-        result.equity = ledger_state.cash;
-        result.net_pnl = ledger_state.cash - initial_cash;
+        result.unrealized_pnl_times_two = valuation.unrealized_pnl_times_two;
+        result.equity_times_two = valuation.equity_times_two;
+    } else if (ledger_state.position == 0) {  // nothing to value: equity is cash
+        result.has_equity = true;
+        result.equity_times_two = 2 * ledger_state.cash;
     }
+    if (result.has_equity) result.net_pnl_times_two = result.equity_times_two - 2 * initial_cash;
     return result;
 }
 
@@ -85,8 +82,14 @@ ReconciliationResult reconcile(const SimulationCore& core) noexcept {
     result.fees_match_fills = ledger_state.fees == metrics.maker_fees + metrics.taker_fees + metrics.auction_fees;
     const FinalValuation valuation = final_valuation(core);
     result.pnl_identity_holds =
-        !valuation.has_equity ||
-        valuation.equity - initial_cash == ledger_state.gross_realized_pnl + valuation.unrealized_pnl - ledger_state.fees;
+        !valuation.has_equity || valuation.net_pnl_times_two == 2 * ledger_state.gross_realized_pnl +
+                                                                    valuation.unrealized_pnl_times_two - 2 * ledger_state.fees;
+    if (result.pnl_identity_holds && valuation.has_mark && valuation.mark_times_two % 2 == 0) {
+        // Independent check against the ledger's FIFO lots.
+        const auto lot_valuation = core.ledger().valuation(valuation.mark_times_two / 2);
+        result.pnl_identity_holds =
+            lot_valuation.has_value() && 2 * lot_valuation->unrealized_pnl == valuation.unrealized_pnl_times_two;
+    }
     return result;
 }
 
@@ -166,23 +169,22 @@ std::string render_summary_json(const SimulationCore& core, const StrategyIdenti
     json.key("taker_fees").price_text(metrics.taker_fees);
     json.key("auction_fees").price_text(metrics.auction_fees);
     json.key("mark_price");
-    if (valuation.has_mark) json.price_text(valuation.mark_price);
+    if (valuation.has_mark) json.doubled_price_text(valuation.mark_times_two);
     else json.null();
     json.key("unrealized_pnl");
-    if (valuation.has_mark && valuation.has_equity) json.price_text(valuation.unrealized_pnl);
-    else if (valuation.has_equity) json.price_text(0);
+    if (valuation.has_equity) json.doubled_price_text(valuation.unrealized_pnl_times_two);
     else json.null();
     json.key("equity");
-    if (valuation.has_equity) json.price_text(valuation.equity);
+    if (valuation.has_equity) json.doubled_price_text(valuation.equity_times_two);
     else json.null();
     json.key("net_pnl");
-    if (valuation.has_equity) json.price_text(valuation.net_pnl);
+    if (valuation.has_equity) json.doubled_price_text(valuation.net_pnl_times_two);
     else json.null();
     json.key("max_drawdown");
-    if (metrics.has_equity) json.price_text(metrics.max_drawdown);
+    if (metrics.has_equity) json.doubled_price_text(metrics.max_drawdown_times_two);
     else json.null();
     json.key("max_drawdown_time_ns");
-    if (metrics.has_equity && metrics.max_drawdown > 0) json.integer_text(metrics.max_drawdown_time);
+    if (metrics.has_equity && metrics.max_drawdown_times_two > 0) json.integer_text(metrics.max_drawdown_time);
     else json.null();
     json.key("samples_without_mark").integer_text(metrics.samples_without_mark);
     json.key("reconciliation").begin_object();
@@ -238,7 +240,7 @@ std::string render_summary_json(const SimulationCore& core, const StrategyIdenti
     json.key("auction_count").integer_text(metrics.auction_fill_count);
     json.key("auction_qty").integer_text(metrics.auction_qty);
     json.key("spread_capture").begin_object();
-    json.key("reference").string("exchange_mid_before_the_filling_command");
+    json.key("reference").string("reference_exchange_mid_before_the_filling_command");
     json.key("fills").integer_text(metrics.spread_capture_fills);
     json.key("qty").integer_text(metrics.spread_capture_qty);
     json.key("unavailable").integer_text(metrics.spread_capture_unavailable);
@@ -252,7 +254,7 @@ std::string render_summary_json(const SimulationCore& core, const StrategyIdenti
         const auto& accumulator = metrics.markouts[horizon];
         json.begin_object();
         json.key("horizon_ns").integer_text(config.metrics.markout_horizons_ns[horizon]);
-        json.key("reference").string("exchange_mid");
+        json.key("reference").string("reference_exchange_mid_at_horizon");
         json.key("measured").integer_text(accumulator.measured);
         json.key("unavailable").integer_text(accumulator.unavailable);
         json.key("censored").integer_text(accumulator.censored);
@@ -307,7 +309,7 @@ std::string render_summary_json(const SimulationCore& core, const StrategyIdenti
         json.key("side").string(parent.side == Side::BUY ? "BUY" : "SELL");
         json.key("parent_qty").integer_text(parent.qty);
         json.key("decision_time_ns").integer_text(parent.decision_time);
-        json.key("benchmark").string("arrival_exchange_mid_at_decision");
+        json.key("benchmark").string("reference_exchange_mid_at_decision");
         json.key("arrival_mid");
         if (parent.has_decision_mid) json.doubled_price_text(parent.decision_mid_times_two);
         else json.null();
@@ -372,18 +374,21 @@ std::string render_summary_json(const SimulationCore& core, const StrategyIdenti
     // Flat, derived convenience values (JSON numbers or null) for paired comparison.
     // Currency values are in currency units; exact values live in the sections above.
     const auto currency = [](std::int64_t price_units) { return static_cast<double>(price_units) / kPriceUnitsPerCurrency; };
+    const auto doubled_currency = [](std::int64_t price_units_times_two) {
+        return static_cast<double>(price_units_times_two) / (2 * kPriceUnitsPerCurrency);
+    };
     json.key("metrics").begin_object();
-    put_optional_number(json, "net_pnl", valuation.has_equity ? std::optional<double>(currency(valuation.net_pnl)) : std::nullopt);
-    put_optional_number(json, "equity", valuation.has_equity ? std::optional<double>(currency(valuation.equity)) : std::nullopt);
+    put_optional_number(json, "net_pnl", valuation.has_equity ? std::optional<double>(doubled_currency(valuation.net_pnl_times_two)) : std::nullopt);
+    put_optional_number(json, "equity", valuation.has_equity ? std::optional<double>(doubled_currency(valuation.equity_times_two)) : std::nullopt);
     json.key("realized_pnl").number(currency(ledger_state.gross_realized_pnl));
     put_optional_number(json, "unrealized_pnl",
-                        valuation.has_equity ? std::optional<double>(currency(valuation.unrealized_pnl)) : std::nullopt);
+                        valuation.has_equity ? std::optional<double>(doubled_currency(valuation.unrealized_pnl_times_two)) : std::nullopt);
     json.key("fees").number(currency(ledger_state.fees));
     json.key("final_position").number(static_cast<double>(ledger_state.position));
     json.key("max_position").number(static_cast<double>(metrics.max_position));
     json.key("min_position").number(static_cast<double>(metrics.min_position));
     json.key("limit_breaches").number(static_cast<double>(metrics.limit_breaches));
-    put_optional_number(json, "max_drawdown", metrics.has_equity ? std::optional<double>(currency(metrics.max_drawdown)) : std::nullopt);
+    put_optional_number(json, "max_drawdown", metrics.has_equity ? std::optional<double>(doubled_currency(metrics.max_drawdown_times_two)) : std::nullopt);
     json.key("orders_submitted").number(static_cast<double>(metrics.new_orders_submitted));
     json.key("orders_accepted").number(static_cast<double>(metrics.orders_accepted));
     json.key("orders_rejected").number(static_cast<double>(metrics.orders_rejected));

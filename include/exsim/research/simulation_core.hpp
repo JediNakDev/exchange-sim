@@ -193,6 +193,25 @@ struct BackgroundAgentSummary {
 // command journal so exsim_replay rebuilds the same engine).
 [[nodiscard]] EngineConfig research_engine_config(const ExperimentConfig& experiment_config);
 
+// Signed cost of the open FIFO lots in price units (negative when short):
+// cash = initial - buys + sells - fees and buys - sells = open cost - realized.
+[[nodiscard]] constexpr std::int64_t open_cost_basis(const LedgerState& ledger_state, std::int64_t initial_cash) noexcept {
+    return initial_cash - ledger_state.cash - ledger_state.fees + ledger_state.gross_realized_pnl;
+}
+
+// Valuation at a doubled mark, in doubled price units (exact for half-unit mids).
+struct DoubledValuation {
+    std::int64_t unrealized_pnl_times_two = 0;  // position * mark - open cost basis
+    std::int64_t equity_times_two = 0;          // cash + position * mark
+};
+
+[[nodiscard]] constexpr DoubledValuation value_at_mark(const LedgerState& ledger_state, std::int64_t initial_cash,
+                                                       std::int64_t mark_times_two) noexcept {
+    const std::int64_t position_value_times_two = ledger_state.position * mark_times_two;
+    return {position_value_times_two - 2 * open_cost_basis(ledger_state, initial_cash),
+            2 * ledger_state.cash + position_value_times_two};
+}
+
 class SimulationCore {
 public:
     SimulationCore(const ExperimentConfig& config, std::uint64_t master_seed);
@@ -222,7 +241,16 @@ public:
     [[nodiscard]] RunRecorder& recorder() noexcept { return recorder_; }
     [[nodiscard]] const RunRecorder& recorder() const noexcept { return recorder_; }
     [[nodiscard]] TopOfBook exchange_top_of_book() const noexcept;
-    [[nodiscard]] std::optional<Price> mark_price() const noexcept;
+    // Twice the reference exchange mid: the last two-sided exchange mid at or
+    // before now (a one-sided book does not clear it). Empty until the first
+    // two-sided book. Exact, so a mid on half a price unit stays exact.
+    [[nodiscard]] std::optional<std::int64_t> reference_mid_times_two() const noexcept {
+        if (!has_reference_mid_) return std::nullopt;
+        return reference_mid_times_two_;
+    }
+    // Twice the mark under the configured convention (exchange_mid: the
+    // reference mid; last_trade: the engine's last trade price).
+    [[nodiscard]] std::optional<std::int64_t> mark_times_two() const noexcept;
     [[nodiscard]] std::vector<BackgroundAgentSummary> background_agent_summaries() const;
     [[nodiscard]] const ExchangeTruthOrder* truth_order(ClOrdId cl_ord_id) const noexcept;
 
@@ -273,9 +301,8 @@ private:
     void process_exchange_command(const Command& command, CommandSource source, std::uint16_t agent_index,
                                   const StrategyRequestArrival* request) noexcept;
     void record_strategy_arrival(const StrategyRequestArrival& request, std::uint64_t command_index) noexcept;
-    bool handle_strategy_event(const Event& event, std::uint64_t command_index, const TopOfBook& top_before) noexcept;
-    void handle_strategy_fill(const Event& event, const FillLeg& leg, Side side, std::uint64_t command_index,
-                              const TopOfBook& top_before) noexcept;
+    bool handle_strategy_event(const Event& event, std::uint64_t command_index) noexcept;
+    void handle_strategy_fill(const Event& event, const FillLeg& leg, Side side, std::uint64_t command_index) noexcept;
     void schedule_report(const ExecutionReport& report) noexcept;
     void publish_market_data(const TopOfBook& top, std::uint32_t trade_count, std::uint64_t traded_qty, Price last_price,
                              Aggressor last_aggressor) noexcept;
@@ -345,6 +372,8 @@ private:
     Timestamp pending_wakeup_time_ = kNoTime;
     std::uint64_t market_data_sequence_ = 0;
     TopOfBook last_published_top_;
+    bool has_reference_mid_ = false;
+    std::int64_t reference_mid_times_two_ = 0;
     Timestamp order_channel_last_arrival_ = 0;
     Timestamp feed_channel_last_delivery_ = 0;
     Timestamp ack_channel_last_delivery_ = 0;

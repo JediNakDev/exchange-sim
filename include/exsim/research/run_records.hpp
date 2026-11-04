@@ -151,12 +151,13 @@ struct SeriesSample {
     std::int64_t cash = 0;
     std::int64_t realized_pnl = 0;
     std::int64_t fees = 0;
+    // Valuation in doubled price units (a mid may fall on half a price unit).
     bool has_mark = false;
-    Price mark_price = 0;
+    std::int64_t mark_times_two = 0;
     // Equity is available with a mark, or without one while flat (no position to value).
     bool has_equity = false;
-    std::int64_t unrealized_pnl = 0;
-    std::int64_t equity = 0;
+    std::int64_t unrealized_pnl_times_two = 0;
+    std::int64_t equity_times_two = 0;
     std::uint64_t open_bid_qty = 0;  // strategy resting quantity, engine truth
     std::uint64_t open_ask_qty = 0;
 };

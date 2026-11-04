@@ -68,6 +68,11 @@ void append_csv_price(std::string& line, bool present, Price price) {
     line += ',';
 }
 
+void append_csv_doubled_price(std::string& line, bool present, std::int64_t value_times_two) {
+    if (present) line += format_doubled_price(value_times_two);
+    line += ',';
+}
+
 void append_csv_integer(std::string& line, std::uint64_t value) {
     line += std::to_string(value);
     line += ',';
@@ -329,11 +334,14 @@ std::string render_manifest_json(const SimulationCore& core, const StrategyIdent
     json.key("mark_convention").string(to_string(config.accounting.mark));
     json.key("mark_definition")
         .string(config.accounting.mark == MarkConvention::ExchangeMid
-                    ? "floor((best_bid + best_ask) / 2) of the engine-truth book; unavailable when one-sided"
+                    ? "(best_bid + best_ask) / 2 of the last two-sided engine-truth book at or before the mark time, "
+                      "exact to half a price unit; a one-sided book does not clear it; unavailable before the first "
+                      "two-sided book"
                     : "engine last trade price; unavailable before the first trade");
     json.key("cost_basis").string("FIFO lots");
     json.key("realized_pnl").string("gross of fees, FIFO lot matching");
-    json.key("equity").string("cash + position * mark (fees already deducted from cash); unavailable without a mark unless flat");
+    json.key("equity").string("cash + position * mark (fees already deducted from cash), exact to half a price unit; "
+                              "unavailable without a mark unless flat");
     json.key("arithmetic").string("checked 64-bit integers in price units; floating point only in derived summary statistics");
     json.end_object();
 
@@ -342,9 +350,12 @@ std::string render_manifest_json(const SimulationCore& core, const StrategyIdent
     for (std::size_t horizon = 0; horizon < config.metrics.markout_horizon_count; ++horizon)
         json.integer_text(config.metrics.markout_horizons_ns[horizon]);
     json.end_array();
-    json.key("markout_reference").string("exchange_mid");
-    json.key("spread_capture_reference").string("exchange_mid_before_the_filling_command");
-    json.key("execution_benchmark").string("arrival_exchange_mid_at_decision");
+    json.key("markout_reference").string("reference_exchange_mid_at_horizon");
+    json.key("spread_capture_reference").string("reference_exchange_mid_before_the_filling_command");
+    json.key("execution_benchmark").string("reference_exchange_mid_at_decision");
+    json.key("reference_mid_definition")
+        .string("last two-sided engine-truth (best_bid + best_ask) / 2 at or before the time, carried across "
+                "one-sided books, exact to half a price unit; unavailable before the first two-sided book");
     json.key("sample_interval_ns").integer_text(config.metrics.sample_interval_ns);
     json.end_object();
 
@@ -667,9 +678,9 @@ void RunArtifactWriter::write_series_samples(const RunRecorder& recorder) {
         append_csv_price(line_buffer_, true, sample.cash);
         append_csv_price(line_buffer_, true, sample.realized_pnl);
         append_csv_price(line_buffer_, true, sample.fees);
-        append_csv_price(line_buffer_, sample.has_mark, sample.mark_price);
-        append_csv_price(line_buffer_, sample.has_equity, sample.unrealized_pnl);
-        append_csv_price(line_buffer_, sample.has_equity, sample.equity);
+        append_csv_doubled_price(line_buffer_, sample.has_mark, sample.mark_times_two);
+        append_csv_doubled_price(line_buffer_, sample.has_equity, sample.unrealized_pnl_times_two);
+        append_csv_doubled_price(line_buffer_, sample.has_equity, sample.equity_times_two);
         append_csv_integer(line_buffer_, sample.open_bid_qty);
         line_buffer_ += std::to_string(sample.open_ask_qty);
         line_buffer_ += '\n';

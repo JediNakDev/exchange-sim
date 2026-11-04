@@ -218,8 +218,8 @@ private:
                 if (key == "initial_cash") return require(parse_money(value, config_.accounting.initial_cash), key);
                 if (key == "mark") {
                     if (value == "exchange_mid") config_.accounting.mark = MarkConvention::ExchangeMid;
-                    else if (value == "last_trade") config_.accounting.mark = MarkConvention::LastTrade;
-                    else fail("mark must be exchange_mid or last_trade");
+                    else if (value == "last_trade_price") config_.accounting.mark = MarkConvention::LastTrade;
+                    else fail("mark must be exchange_mid or last_trade_price");
                     return;
                 }
                 break;
@@ -379,7 +379,7 @@ std::string_view to_string(StrategyKind kind) noexcept {
 std::string_view to_string(MarkConvention mark) noexcept {
     switch (mark) {
         case MarkConvention::ExchangeMid: return "exchange_mid";
-        case MarkConvention::LastTrade: return "last_trade";
+        case MarkConvention::LastTrade: return "last_trade_price";
     }
     return "?";
 }

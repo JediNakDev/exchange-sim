@@ -203,11 +203,13 @@ TopOfBook SimulationCore::exchange_top_of_book() const noexcept {
     return top;
 }
 
-std::optional<Price> SimulationCore::mark_price() const noexcept {
-    if (config_.accounting.mark == MarkConvention::LastTrade) return engine_.last_trade_price(instrument_id_);
-    const TopOfBook top = exchange_top_of_book();
-    if (!top.two_sided()) return std::nullopt;
-    return top.mid_times_two() / 2;  // prices are positive, so this is floor
+std::optional<std::int64_t> SimulationCore::mark_times_two() const noexcept {
+    if (config_.accounting.mark == MarkConvention::LastTrade) {
+        const auto last_trade = engine_.last_trade_price(instrument_id_);
+        if (!last_trade) return std::nullopt;
+        return 2 * *last_trade;
+    }
+    return reference_mid_times_two();
 }
 
 std::vector<BackgroundAgentSummary> SimulationCore::background_agent_summaries() const {
@@ -517,8 +519,6 @@ void SimulationCore::process_exchange_command(const Command& command, CommandSou
     if (state_ == RunState::Failed) return;
     Command stamped = command;
     stamp_command_time(stamped, now_);
-    const TopOfBook top_before = exchange_top_of_book();
-
     event_buffer_.clear();
     if (engine_.handle(stamped, event_buffer_) != HandleResult::Applied) {
         fail(TerminationReason::EngineOutputCapacity, digests_.command_count);
@@ -569,12 +569,17 @@ void SimulationCore::process_exchange_command(const Command& command, CommandSou
             ++metrics_.market_trades;
             metrics_.market_traded_qty += event.fill.qty;
         }
-        strategy_touched |= handle_strategy_event(event, command_index, top_before);
+        strategy_touched |= handle_strategy_event(event, command_index);
         if (state_ == RunState::Failed) return;
     }
     if (strategy_touched) update_quote_exposure();
 
     const TopOfBook top_after = exchange_top_of_book();
+    // Fills above used the reference mid from before this command.
+    if (top_after.two_sided()) {
+        has_reference_mid_ = true;
+        reference_mid_times_two_ = top_after.mid_times_two();
+    }
     if (trade_count > 0 || !(top_after == last_published_top_))
         publish_market_data(top_after, trade_count, traded_qty, last_trade_price, last_trade_aggressor);
 }
@@ -628,7 +633,7 @@ void SimulationCore::record_strategy_arrival(const StrategyRequestArrival& reque
     push_lifecycle(row);
 }
 
-bool SimulationCore::handle_strategy_event(const Event& event, std::uint64_t command_index, const TopOfBook& top_before) noexcept {
+bool SimulationCore::handle_strategy_event(const Event& event, std::uint64_t command_index) noexcept {
     LifecycleRecord row;
     row.time = now_;
     row.command_index = command_index;
@@ -723,11 +728,11 @@ bool SimulationCore::handle_strategy_event(const Event& event, std::uint64_t com
         case EventType::Fill: {
             bool touched = false;
             if (event.fill.buy.session == kStrategySessionId) {
-                handle_strategy_fill(event, event.fill.buy, Side::BUY, command_index, top_before);
+                handle_strategy_fill(event, event.fill.buy, Side::BUY, command_index);
                 touched = true;
             }
             if (state_ != RunState::Failed && event.fill.sell.session == kStrategySessionId) {
-                handle_strategy_fill(event, event.fill.sell, Side::SELL, command_index, top_before);
+                handle_strategy_fill(event, event.fill.sell, Side::SELL, command_index);
                 touched = true;
             }
             return touched;
@@ -818,8 +823,7 @@ bool SimulationCore::handle_strategy_event(const Event& event, std::uint64_t com
     return true;
 }
 
-void SimulationCore::handle_strategy_fill(const Event& event, const FillLeg& leg, Side side, std::uint64_t command_index,
-                                          const TopOfBook& top_before) noexcept {
+void SimulationCore::handle_strategy_fill(const Event& event, const FillLeg& leg, Side side, std::uint64_t command_index) noexcept {
     ExchangeTruthOrder* truth = truth_slot(leg.cl_ord_id);
     if (truth == nullptr) {
         fail(TerminationReason::OrderTableCorrupt, leg.cl_ord_id);
@@ -869,9 +873,9 @@ void SimulationCore::handle_strategy_fill(const Event& event, const FillLeg& leg
     fill.position_after = ledger_state.position;
     fill.realized_pnl_after = ledger_state.gross_realized_pnl;
     fill.fees_after = ledger_state.fees;
-    fill.has_mid_before = top_before.two_sided();
+    fill.has_mid_before = has_reference_mid_;
     if (fill.has_mid_before) {
-        fill.mid_before_times_two = top_before.mid_times_two();
+        fill.mid_before_times_two = reference_mid_times_two_;
         fill.spread_capture_times_two = edge_versus_mid_times_two(side, fill.mid_before_times_two, price, qty);
     }
     if (!recorder_.fills.push(fill)) {
@@ -1038,20 +1042,19 @@ void SimulationCore::take_series_sample() noexcept {
     sample.cash = ledger_state.cash;
     sample.realized_pnl = ledger_state.gross_realized_pnl;
     sample.fees = ledger_state.fees;
-    if (const auto mark = mark_price()) {
+    if (const auto mark = mark_times_two()) {
+        const DoubledValuation valuation = value_at_mark(ledger_state, config_.accounting.initial_cash, *mark);
         sample.has_mark = true;
-        sample.mark_price = *mark;
-        if (const auto valuation = ledger_.valuation(*mark)) {
-            sample.has_equity = true;
-            sample.unrealized_pnl = valuation->unrealized_pnl;
-            sample.equity = valuation->equity;
-        }
+        sample.mark_times_two = *mark;
+        sample.has_equity = true;
+        sample.unrealized_pnl_times_two = valuation.unrealized_pnl_times_two;
+        sample.equity_times_two = valuation.equity_times_two;
     } else {
         ++metrics_.samples_without_mark;
-    }
-    if (!sample.has_equity && ledger_state.position == 0) {
-        sample.has_equity = true;
-        sample.equity = ledger_state.cash;
+        if (ledger_state.position == 0) {  // nothing to value: equity is cash
+            sample.has_equity = true;
+            sample.equity_times_two = 2 * ledger_state.cash;
+        }
     }
     for (std::size_t slot = 0; slot < visible_.order_capacity; ++slot) {
         const auto& truth = truth_orders_[slot];
@@ -1059,11 +1062,12 @@ void SimulationCore::take_series_sample() noexcept {
         (truth.side == Side::BUY ? sample.open_bid_qty : sample.open_ask_qty) += truth.leaves_qty;
     }
     if (sample.has_equity) {
-        if (!metrics_.has_equity || sample.equity > metrics_.peak_equity) metrics_.peak_equity = sample.equity;
+        if (!metrics_.has_equity || sample.equity_times_two > metrics_.peak_equity_times_two)
+            metrics_.peak_equity_times_two = sample.equity_times_two;
         metrics_.has_equity = true;
-        const std::int64_t drawdown = metrics_.peak_equity - sample.equity;
-        if (drawdown > metrics_.max_drawdown) {
-            metrics_.max_drawdown = drawdown;
+        const std::int64_t drawdown_times_two = metrics_.peak_equity_times_two - sample.equity_times_two;
+        if (drawdown_times_two > metrics_.max_drawdown_times_two) {
+            metrics_.max_drawdown_times_two = drawdown_times_two;
             metrics_.max_drawdown_time = now_;
         }
     }
@@ -1081,10 +1085,9 @@ void SimulationCore::process_markout_probe(const ObservationEvent& probe) noexce
     record.price = probe.price;
     record.qty = probe.qty;
     auto& accumulator = metrics_.markouts[probe.horizon_index];
-    const TopOfBook top = exchange_top_of_book();
-    if (top.two_sided()) {
+    if (has_reference_mid_) {
         record.status = MarkoutStatus::Measured;
-        record.mid_times_two = top.mid_times_two();
+        record.mid_times_two = reference_mid_times_two_;
         record.markout_times_two = edge_versus_mid_times_two(probe.side, record.mid_times_two, probe.price, probe.qty);
         ++accumulator.measured;
         accumulator.measured_qty += probe.qty;
@@ -1449,9 +1452,8 @@ void SimulationCore::strategy_declare_parent_order(Side side, Quantity qty) noex
     parent.market_volume_at_decision = metrics_.market_traded_qty;
     parent.market_volume_at_last_fill = metrics_.market_traded_qty;
     // Arrival benchmark: exchange truth at the decision instant.
-    const TopOfBook top = exchange_top_of_book();
-    parent.has_decision_mid = top.two_sided();
-    if (parent.has_decision_mid) parent.decision_mid_times_two = top.mid_times_two();
+    parent.has_decision_mid = has_reference_mid_;
+    if (parent.has_decision_mid) parent.decision_mid_times_two = reference_mid_times_two_;
 }
 
 }  // namespace exsim::research

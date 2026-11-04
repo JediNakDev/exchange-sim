@@ -21,15 +21,16 @@ struct StrategyIdentity {
     std::uint32_t version = 0;
 };
 
-// End-of-run valuation with the declared mark convention, exact integers.
+// End-of-run valuation with the declared mark convention, exact integers in
+// doubled price units (the exchange-mid mark may fall on half a price unit).
 struct FinalValuation {
     bool has_mark = false;
-    Price mark_price = 0;
+    std::int64_t mark_times_two = 0;
     bool has_equity = false;        // mark available, or flat
-    std::int64_t unrealized_pnl = 0;
-    std::int64_t equity = 0;
-    std::int64_t net_pnl = 0;       // equity - initial_cash
-    std::int64_t open_cost_basis = 0;  // signed: sum of open lot price * qty (negative when short)
+    std::int64_t unrealized_pnl_times_two = 0;
+    std::int64_t equity_times_two = 0;
+    std::int64_t net_pnl_times_two = 0;  // equity - initial_cash
+    std::int64_t open_cost_basis = 0;    // price units, signed: sum of open lot price * qty (negative when short)
 };
 
 [[nodiscard]] FinalValuation final_valuation(const SimulationCore& core) noexcept;
@@ -39,7 +40,9 @@ struct ReconciliationResult {
     bool cash_matches_fills = false;      // cash == initial - buy notional + sell notional - fees
     bool position_matches_fills = false;  // position == bought - sold
     bool fees_match_fills = false;        // ledger fees == maker + taker + auction fees
-    bool pnl_identity_holds = false;      // equity - initial == realized + unrealized - fees (or no equity)
+    // equity - initial == realized + unrealized - fees, and (for a mark on the
+    // price grid) unrealized equals the ledger's own FIFO lot valuation.
+    bool pnl_identity_holds = false;
 };
 
 [[nodiscard]] ReconciliationResult reconcile(const SimulationCore& core) noexcept;

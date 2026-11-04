@@ -63,6 +63,8 @@ public:
     using std::runtime_error::runtime_error;
 };
 
+struct JsonMember;
+
 struct JsonValue {
     enum class Kind : std::uint8_t { Null, Boolean, Number, String, Array, Object };
     Kind kind = Kind::Null;
@@ -70,10 +72,17 @@ struct JsonValue {
     double number = 0;
     std::string text;  // string value, or the literal text of a number
     std::vector<JsonValue> items;
-    std::vector<std::pair<std::string, JsonValue>> members;
+    // A named struct, not std::pair: std::pair checks traits of JsonValue while
+    // JsonValue is still incomplete, which libstdc++ with clang rejects.
+    std::vector<JsonMember> members;
 
     [[nodiscard]] const JsonValue* find(std::string_view name) const noexcept;
     [[nodiscard]] bool is_null() const noexcept { return kind == Kind::Null; }
+};
+
+struct JsonMember {
+    std::string name;
+    JsonValue value;
 };
 
 // Strict RFC 8259 parse of one value (surrounding whitespace allowed). Throws JsonError.
