@@ -158,19 +158,20 @@
     {
       "threadId": "thread:delegated-task:command%3Amcp%3Ac7e221c4-df52-4581-ac42-4cf5b1dacf1a%3Adelegate-task%3A3a447464-fcef-4596-8f36-181a1cbdebb3",
       "title": "FIX 4.4 gateway (session layer + application, server + client)",
-      "status": "running",
+      "status": "completed",
       "provider": "claudeAgent",
       "model": "claude-opus-5-5",
       "reasoningEffort": "high",
       "parentThreadId": "a4344aba-ffd8-4132-bf6d-ea93d8fe68e8",
       "taskId": "node:delegated-task:command%3Amcp%3A02a9f7c4-6753-45e7-9908-1dbd3dbdf522%3Athread-send%3A47bd93c9-7301-466c-ba07-a5ddc6c6fafe",
       "baseCommit": "67e771b",
-      "recoveryState": "GPT hit its usage limit 2026-11-05; resumed on Claude Opus 5.5 high in t3-49268324 (branch t3/fix44-order-entry-gateway): merge exchange-simulator, verify, commit",
+      "recoveryState": "completed on Claude 2026-11-05 (190ceb1, merge d136ff6); 76 gateway_fix tests; macOS release 689, ASan/UBSan 687, Linux g++/clang++ 689; integrated",
       "resumeTaskId": "node:delegated-task:limit-resume (harness auto-resume ordinal 2, armed 2026-11-03 12:10 +08) for thread thread:delegated-task:command%3Amcp%3Ac7e221c4-df52-4581-ac42-4cf5b1dacf1a%3Adelegate-task%3A3a447464-fcef-4596-8f36-181a1cbdebb3",
       "previousProvider": "claudeAgent",
       "previousModel": "claude-opus-5-5",
       "runId": "run:thread:thread%3Adelegated-task%3Acommand%253Amcp%253Ac7e221c4-df52-4581-ac42-4cf5b1dacf1a%253Adelegate-task%253A3a447464-fcef-4596-8f36-181a1cbdebb3:ordinal:7",
-      "link": "<t3-thread://v2/28299d02-72aa-499f-95da-f2289df17826/thread:delegated-task:command%3Amcp%3Ac7e221c4-df52-4581-ac42-4cf5b1dacf1a%3Adelegate-task%3A3a447464-fcef-4596-8f36-181a1cbdebb3>"
+      "link": "<t3-thread://v2/28299d02-72aa-499f-95da-f2289df17826/thread:delegated-task:command%3Amcp%3Ac7e221c4-df52-4581-ac42-4cf5b1dacf1a%3Adelegate-task%3A3a447464-fcef-4596-8f36-181a1cbdebb3>",
+      "integratedCommit": "4a636ca (from d136ff6)"
     },
     {
       "threadId": "thread:delegated-task:command%3Amcp%3Ac7e221c4-df52-4581-ac42-4cf5b1dacf1a%3Adelegate-task%3A0fd6780f-e0a1-4ae3-b7fd-b126b839ea13",
@@ -336,7 +337,7 @@
       "model": "claude-opus-5-5",
       "reasoningEffort": "high",
       "link": "<t3-thread://v2/28299d02-72aa-499f-95da-f2289df17826/thread:delegated-task:command%3Amcp%3A4bcebf24-eb39-4dca-8805-e9fc91cd70ec%3Adelegate-task%3A08e286a4-cae1-4949-b6f0-83a32243c0a3>",
-      "recoveryState": "launched 2026-11-05 from e2cdd11 in a harness worktree; also resolves EXCHANGE_CORE.md section 13 open questions; FIX and SBE plug in later",
+      "recoveryState": "launched 2026-11-05 from e2cdd11 in a harness worktree; also resolves EXCHANGE_CORE.md section 13 open questions; FIX and SBE plug in later; scope extended 2026-11-05 to wire FIX into the server (drop_out applies to application messages only)",
       "taskId": "node:delegated-task:command%3Amcp%3A4bcebf24-eb39-4dca-8805-e9fc91cd70ec%3Adelegate-task%3A08e286a4-cae1-4949-b6f0-83a32243c0a3"
     },
     {
@@ -360,6 +361,17 @@
       "link": "<t3-thread://v2/28299d02-72aa-499f-95da-f2289df17826/thread:delegated-task:command%3Amcp%3A4bcebf24-eb39-4dca-8805-e9fc91cd70ec%3Adelegate-task%3A337bf277-8344-4bed-9afb-78ff48b41a1a>",
       "recoveryState": "launched 2026-11-05 at e2cdd11; report-only, report /tmp/exsim-review-proto/REPORT.md",
       "taskId": "node:delegated-task:command%3Amcp%3A4bcebf24-eb39-4dca-8805-e9fc91cd70ec%3Adelegate-task%3A337bf277-8344-4bed-9afb-78ff48b41a1a"
+    },
+    {
+      "threadId": "thread:delegated-task:command%3Amcp%3A4bcebf24-eb39-4dca-8805-e9fc91cd70ec%3Adelegate-task%3Acf7a69b1-c24f-40c2-80fe-cdea4b6f93e5",
+      "title": "QA review: FIX 4.4 gateway session layer",
+      "status": "running",
+      "provider": "claudeAgent",
+      "model": "claude-opus-5-5",
+      "reasoningEffort": "high",
+      "link": "<t3-thread://v2/28299d02-72aa-499f-95da-f2289df17826/thread:delegated-task:command%3Amcp%3A4bcebf24-eb39-4dca-8805-e9fc91cd70ec%3Adelegate-task%3Acf7a69b1-c24f-40c2-80fe-cdea4b6f93e5>",
+      "recoveryState": "launched 2026-11-05 at 4a636ca; report-only, report /tmp/exsim-review-fix/REPORT.md",
+      "taskId": "node:delegated-task:command%3Amcp%3A4bcebf24-eb39-4dca-8805-e9fc91cd70ec%3Adelegate-task%3Acf7a69b1-c24f-40c2-80fe-cdea4b6f93e5"
     }
   ]
 }
