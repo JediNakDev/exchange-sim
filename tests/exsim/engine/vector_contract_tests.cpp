@@ -179,8 +179,11 @@ TEST_CASE(vector_output, bounds_cover_worst_case_sweep_mass_cancel_and_phase) {
                 kind==2&&i%2?1200:1000,1}; apply(e,c,setup);
         }
         if(kind==0) apply(e,SetPhase{2,0,Phase::Continuous},setup);
+        // The contract guarantees Applied only when free output reaches
+        // required_event_capacity(config). Tighter preflight bounds are optional,
+        // so the worst-case event counts are checked against the output instead.
         const std::size_t bound=kind==0?9:kind==1?8:19;
-        EventBuffer out(bound);
+        EventBuffer out(required_event_capacity(EngineConfig{2,8}));
         Command cmd;
         if(kind==0) cmd=NewOrder{3,1,2,0,1,Side::BUY,OrdType::Market,TimeInForce::IOC,StpMode::None,false,999,8};
         else if(kind==1) cmd=MassCancel{3,1,0,99,false};

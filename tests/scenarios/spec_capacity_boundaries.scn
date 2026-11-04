@@ -1,0 +1,44 @@
+# SPEC 4.1.9: an incoming order needs a slot even if it would fully fill; reject
+# iff live orders == max_orders at the check. 4.1.8 (post-only) precedes 4.1.9.
+# Replace never needs a new slot (SPEC 6 assigns an OrderId but adds no live order).
+config max_orders=2
+instrument AAA tick=0.01 lot=1 max_qty=100 min=99 max=101 ref=100 phase=CONTINUOUS
+session alice firmA
+session bob firmB
+NEW_ORDER instrument=AAA session=alice cl_ord_id=a1 side=SELL qty=10 price=100
+NEW_ORDER instrument=AAA session=bob cl_ord_id=b0 side=SELL qty=10 price=100.5
+# book full (2 live); an IOC that would fully fill still needs a slot
+NEW_ORDER instrument=AAA session=bob cl_ord_id=b1 side=BUY tif=IOC qty=10 price=100
+expect count 1
+expect rejected cmd=NEW_ORDER reason=CAPACITY_EXCEEDED session=bob cl_ord_id=b1 order_id=0
+NEW_ORDER instrument=AAA session=bob cl_ord_id=b2 side=BUY type=MARKET qty=10 price=0
+expect count 1
+expect rejected reason=CAPACITY_EXCEEDED cl_ord_id=b2
+# post-only cross check (8) runs before capacity (9)
+NEW_ORDER instrument=AAA session=alice cl_ord_id=a2 side=BUY post_only=true qty=10 price=100
+expect count 1
+expect rejected reason=POST_ONLY_WOULD_CROSS cl_ord_id=a2
+NEW_ORDER instrument=AAA session=alice cl_ord_id=a3 side=BUY post_only=true qty=10 price=99.99
+expect count 1
+expect rejected reason=CAPACITY_EXCEEDED cl_ord_id=a3
+# replace with priority loss while full: allowed, OrderId 3 (rejections consumed none)
+REPLACE session=alice orig_cl_ord_id=a1 qty=10 price=100 force_priority_loss=true
+expect count 2
+expect replaced old_order_id=1 new_order_id=3 priority_kept=false
+expect rested order_id=3 cl_ord_id=a1 leaves_qty=10
+# free one slot; the next order is accepted and fully fills
+CANCEL session=alice orig_cl_ord_id=a1
+expect count 1
+expect canceled order_id=3 reason=USER_REQUESTED
+NEW_ORDER instrument=AAA session=bob cl_ord_id=b3 side=BUY tif=IOC qty=10 price=100.5
+expect count 2
+expect accepted order_id=4
+expect fill match_id=1 price=100.5 qty=10 aggressor=BUY buy.order_id=4 sell.order_id=2 sell.leaves_qty=0
+# now empty; two resting orders fill capacity again
+NEW_ORDER instrument=AAA session=bob cl_ord_id=b4 side=BUY qty=1 price=99
+NEW_ORDER instrument=AAA session=bob cl_ord_id=b5 side=BUY qty=1 price=99
+expect accepted order_id=6
+expect rested order_id=6
+NEW_ORDER instrument=AAA session=bob cl_ord_id=b6 side=BUY qty=1 price=99
+expect count 1
+expect rejected reason=CAPACITY_EXCEEDED

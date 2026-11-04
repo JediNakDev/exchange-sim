@@ -34,8 +34,8 @@ For EACH engine variant, run these in its integrated checkout after applying
 this testing infrastructure. Do not copy the local disabled shim.
 
 ```sh
-make test EXTRA_CXXFLAGS=-DEXSIM_TEST_PRODUCTION
-make test MODE=debug EXTRA_CXXFLAGS=-DEXSIM_TEST_PRODUCTION
+make test          # the Makefile defines EXSIM_TEST_PRODUCTION
+make test MODE=debug
 make tools
 build/release/exsim_fuzz --seed 1 --seeds 200 --steps 10000 --profile mixed
 build/release/exsim_fuzz --seed 1 --seeds 200 --steps 10000 --profile tiny

@@ -1,0 +1,52 @@
+# SPEC 5: reduce_to_total_qty target = max(total-cum, 0); target >= leaves is a
+# silent no-op; positive target keeps OrderId, token and FIFO slot with qty=cum+target;
+# target 0 removes the order. No lot validation; allowed in every phase.
+instrument AAA tick=0.01 lot=10 max_qty=1000 min=99 max=101 ref=100 phase=CONTINUOUS
+instrument BBB tick=0.01 lot=1 max_qty=100 min=99 max=101 ref=100 phase=CONTINUOUS
+session alice firmA
+session bob firmB
+NEW_ORDER instrument=AAA session=alice cl_ord_id=a side=BUY qty=100 price=100
+NEW_ORDER instrument=AAA session=alice cl_ord_id=b side=BUY qty=10 price=100
+NEW_ORDER instrument=AAA session=bob cl_ord_id=x1 side=SELL qty=30 price=100
+expect accepted order_id=3
+expect fill match_id=1 buy.order_id=1 buy.leaves_qty=70 buy.cum_qty=30
+# total 55, cum 30 => target 25 (not a lot multiple, still allowed)
+CANCEL session=alice orig_cl_ord_id=a cl_ord_id=k1 reduce_to_total_qty=55 ts=5
+expect count 1
+expect canceled instrument=AAA ts=5 order_id=1 cl_ord_id=a request_cl_ord_id=k1 session=alice side=BUY price=100 canceled_qty=45 cum_qty=30 reason=USER_REQUESTED was_resting=true leaves_qty=25
+expect order session=alice cl_ord_id=a order_id=1 qty=55 leaves_qty=25 cum_qty=30
+expect depth AAA bid 100:35:2
+# FIFO slot retained: the next sell hits a before b
+NEW_ORDER instrument=AAA session=bob cl_ord_id=x2 side=SELL qty=10 price=100
+expect count 2
+expect accepted order_id=4
+expect fill match_id=2 qty=10 buy.order_id=1 buy.leaves_qty=15 buy.cum_qty=40
+# target 15 == leaves 15: nothing; target above leaves: nothing
+CANCEL session=alice orig_cl_ord_id=a reduce_to_total_qty=55
+expect no events
+CANCEL session=alice orig_cl_ord_id=a reduce_to_total_qty=1000
+expect no events
+# total == cum => target 0 => full removal, leaves_qty 0
+CANCEL session=alice orig_cl_ord_id=a cl_ord_id=k2 reduce_to_total_qty=40
+expect count 1
+expect canceled order_id=1 request_cl_ord_id=k2 canceled_qty=15 cum_qty=40 leaves_qty=0 reason=USER_REQUESTED was_resting=true
+expect depth AAA bid 100:10:1
+# BBB: total below cum => target 0 (no unsigned wrap) => full removal
+NEW_ORDER instrument=BBB session=alice cl_ord_id=c side=BUY qty=20 price=100
+NEW_ORDER instrument=BBB session=bob cl_ord_id=x3 side=SELL qty=10 price=100
+expect accepted order_id=6
+expect fill buy.order_id=5 buy.leaves_qty=10 buy.cum_qty=10
+CANCEL session=alice orig_cl_ord_id=c reduce_to_total_qty=4
+expect count 1
+expect canceled instrument=BBB order_id=5 canceled_qty=10 cum_qty=10 leaves_qty=0
+expect depth BBB bid
+# reductions allowed in Closed (GTC order survives the close)
+NEW_ORDER instrument=BBB session=alice tif=GTC cl_ord_id=g side=BUY qty=20 price=99
+SET_PHASE instrument=BBB phase=CLOSED
+expect count 1
+expect phase_changed old_phase=CONTINUOUS new_phase=CLOSED
+CANCEL session=alice orig_cl_ord_id=g reduce_to_total_qty=5
+expect count 1
+expect canceled order_id=7 canceled_qty=15 cum_qty=0 leaves_qty=5
+expect order session=alice cl_ord_id=g qty=5 leaves_qty=5
+expect depth BBB bid 99:5:1

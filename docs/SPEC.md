@@ -3,7 +3,7 @@
 This document defines the observable behaviour of `exsim::MatchingEngine`.
 It is precise enough that two independent implementations — the production
 engine (`src/exsim/matching_engine.cpp`) and the reference model used for
-differential testing (`tests/exsim/reference_engine.hpp`) — produce
+differential testing (`tests/exsim/reference/reference_engine.hpp`) — produce
 **identical event streams** for any command stream. Anything not specified
 here is a bug in this document.
 
@@ -40,9 +40,15 @@ market orders never survive their own command).
 `min_price`, `max_price`, `reference_price`, `initial_phase`.
 
 `add_instrument` returns 0 (rejecting the config) unless:
-`tick_size > 0`, `lot_size > 0`, `max_order_qty > 0`, `0 < min_price <= max_price`,
-`min_price % tick_size == 0`, `max_price % tick_size == 0`, the symbol is not
-already registered, and fewer than `max_instruments` exist.
+`tick_size > 0`, `lot_size > 0`, `max_order_qty >= lot_size`,
+`0 < min_price <= max_price`, `min_price % tick_size == 0`,
+`max_price % tick_size == 0`, `min_price <= reference_price <= max_price`,
+`reference_price % tick_size == 0`, `initial_phase` is a defined `Phase`, the
+symbol is not already registered, and fewer than `max_instruments` exist.
+An engine may also return 0 for a band of more price levels,
+`(max_price - min_price) / tick_size + 1`, than its layout supports; the
+production engine allows at most 2^24 levels and the reference model has no
+such limit. This is a setup-time difference only and never changes events.
 
 A limit price `p` is **valid** iff `min_price <= p <= max_price` and
 `p % tick_size == 0`.
@@ -157,7 +163,9 @@ while A.leaves > 0 and the opposite side is non-empty
 * `A.leaves == 0` → done (no further event).
 * `A` is market, IOC (or FOK — cannot happen) → emit
   `Canceled{A, ImmediateOrCancel, canceled_qty = A.leaves, was_resting = false}`.
-  A market order's TIF is ignored: it never rests.
+  A market order's TIF is ignored here: it never rests. A market FOK still
+  runs the 4.3 pre-check first, so it is killed with `FillOrKill` unless the
+  whole opposite side can fill it.
 * otherwise → rest (4.4).
 
 ## 5. CancelOrder
@@ -262,10 +270,15 @@ removing exhausted orders. **STP is not applied** in the uncross. Afterwards
 emit `AuctionSummary{price = p*, matched_qty = V(p*), match_id = next}` and set
 `last_trade_price = p*`. The resulting book is never crossed.
 
-`auction_indicative()` reports the same computation without executing (and
-`crossed = false`, price/paired=0 when not crossed; imbalance is the
-unsigned difference between total buy and sell leaves, with its surplus side). `imbalance_side` is
-`Buy` if `I(p*) > 0`, `Sell` if `I(p*) < 0`, else `None`.
+`auction_indicative()` reports the same computation without executing:
+
+* crossed: `crossed = true`, `price = p*`, `paired_qty = V(p*)`,
+  `imbalance_qty = |I(p*)|`, and `imbalance_side` is `Buy` if `I(p*) > 0`,
+  `Sell` if `I(p*) < 0`, else `None`;
+* not crossed: `crossed = false`, `price = 0`, `paired_qty = 0`,
+  `imbalance_qty` is the unsigned difference between the total buy and total
+  sell leaves of the instrument, and `imbalance_side` is the side with the
+  larger total (`None` if equal).
 
 ## 10. Event ordering summary
 
@@ -273,7 +286,7 @@ unsigned difference between total buy and sell leaves, with its surplus side). `
 |---|---|
 | NewOrder rejected | `Rejected` |
 | NewOrder accepted | `Accepted`, then [FOK: `Canceled(FillOrKill)` and stop], then per match step `Fill` / STP `Canceled`s, then one of: `Rested`, `Canceled(ImmediateOrCancel)`, nothing |
-| Cancel | `Canceled` or `Rejected` |
+| Cancel | `Canceled`, `Rejected`, or nothing (a reduction to at least the current leaves, 5) |
 | Replace | `Rejected`, or `Canceled` (qty <= cum), or `Replaced` [, `Fill`/STP `Canceled`s, then `Rested` / nothing] |
 | MassCancel | `Canceled`* (ascending OrderId), `MassCancelDone` |
 | SetPhase | per instrument: [`Fill`*, `AuctionSummary`] [`Canceled(EndOfDay)`*] `PhaseChanged` |
@@ -320,7 +333,10 @@ including ID counters, engine checks remaining capacity against the conservative
 bound above or a proven tighter read-only bound. Insufficient room returns
 HandleResult::InsufficientOutput and leaves engine AND output unchanged; no
 rejection event is emitted. Caller drains/retries with a startup-sized buffer.
-Otherwise handle returns Applied, including semantic rejections. push returns
+Otherwise handle returns Applied, including semantic rejections. A Command
+whose type is none of the five CommandType values changes no state and emits
+no events (journal readers and gateways reject unknown tags before the
+engine). push returns
 false when full and never grows: every engine must honor preflight and treat
 an unexpected push failure as an implementation defect, never silently drop it.
 The server must not dispatch or journal an unapplied command as completed.
@@ -331,10 +347,13 @@ Accepted echoes all NewOrder fields plus assigned order ID; Rested echoes the
 stored order and its remaining quantity. Fill has positive qty, next match ID,
 trade price, correct aggressor, and both complete post-fill legs (including
 owner/session). Replaced uses pre-amend old fields and post-amend new fields,
-with cum preserved. Canceled echoes stored side/price/token/session/ID and cum; leaves_qty is
-post-cancel leaves (zero except partial CancelOrder reductions),
-including the verbatim ignored market price; request token is zero except for
-Cancel/Replace/MassCancel, whose request token is echoed. Rejected always
+with cum preserved. Canceled echoes stored side/price/token/session/ID and cum, including the
+verbatim ignored price of a market order; leaves_qty is post-cancel leaves
+(zero except partial CancelOrder reductions). The request token is zero
+except on the Canceled that a Cancel, Replace (qty <= cum, 6) or MassCancel
+itself requests, which echoes the command's token. Self-trade prevention
+cancels emitted while a Replace that lost priority matches follow 4.5 and
+carry request token zero, like those of a NewOrder. Rejected always
 echoes request session, request token and target token for Cancel/Replace;
 NewOrder target/ID are zero. Unknown Cancel/Replace instrument/ID are zero;
 known Replace rejection uses target instrument/ID. SetPhase rejection echoes
