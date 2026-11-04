@@ -20,7 +20,10 @@ Updated 2026-11-05. This is a recovery checkpoint, not live delegate status. Kee
   - exchange core `a8c8e5a` (from `4948efe`); OUCH 4.2/SoupBinTCP gateway `1023f60` (from `b64057e`); ITCH 5.0/MoldUDP64 publisher, retransmission, receiver and book builder `4a8927a` (from `79dbd73`); OpenAPI research contract and Next.js research UI on a mock service `f2c0b57` (from `a5bc883`); coverage-guided fuzzing `4f44239` (from `e866bce`).
 - Checks on the integrated tree plus the 2026-11-05 review fixes (FIX checksum framing, server config limits, price overflow, scenario book lines, engine-agnostic dispatch capacity test, fuzz model without known-bug steering): macOS release 613/613, ASan/UBSan 611/611, `make all`, warning-free (`/tmp/exsim-int2-{release,debug,all}.log`); Linux g++ and clang++ release 613/613, 0 warnings (`/tmp/exsim-int2-linux.log`). Engine C fuzz: 1000 seeds x 20000 steps per profile, 40M commands, no divergence.
 - FIX 4.4 gateway merged `4a636ca` (from `d136ff6`): 76 gateway tests, macOS release 689/689 and ASan/UBSan 687/687, Linux g++ and clang++ 689/689 (`/tmp/exsim-fix-*.log`, `/tmp/exsim-int3-release.log`).
-- Not integrated yet: SBE over FIXP gateway, deterministic research runner (both resumed on Claude in their own worktrees); server binary and end-to-end tests; C++ HTTP/OpenAPI API; UI on real artifacts; final independent review.
+- SBE 1.0 over FIXP 1.0 gateway merged `340a949` (from `02b3430`); server config `protocol = fixp_sbe` and `fixp_sbe_port` `651bddf`: macOS release 738/738, ASan/UBSan 735/735, `make all`, Linux g++ and clang++ 738/738 (`/tmp/exsim-int4-*.log`). libFuzzer campaign on every target, 302,880,773 executions, 0 crashes (`1891ca6`, docs/FUZZING.md).
+- QA review fix F3: config `max_payload` uses the publisher bounds 72..65507 `eeb5b21`: release 739/739, ASan/UBSan 736/736, Linux g++ and clang++ 739/739, 0 warnings (`/tmp/exsim-f3-*.log`).
+- Deterministic research runner merged `4783f45` (from `2619a8e`): macOS release 789/789, ASan/UBSan 786/786, `make all`, Linux g++ and clang++ 789/789, 0 warnings (`/tmp/exsim-int5-*.log`).
+- Not integrated yet: server binary and end-to-end tests; C++ HTTP/OpenAPI API; UI on real artifacts; QA fixes (OUCH/core/MD, FIX); final independent review.
 
 ## Milestones
 
@@ -31,10 +34,10 @@ Updated 2026-11-05. This is a recovery checkpoint, not live delegate status. Kee
 - [x] Integrate oracle/fuzzer/scenarios/journal; validate and integrate engine B.
 - [x] Finish engines A and C, validate with the oracle, benchmark on one machine, keep the fastest correct one (C; `b874ce5`).
 - [x] Protocol sessions: OUCH 4.2/SoupBinTCP (`1023f60`) and FIX 4.4 (`4a636ca`), server and client side.
-- [ ] Third order-entry protocol: SBE over FIXP (FIX Trading Community open standards, exsim-owned schema), codec, session, gateway per SERVER.md section 2, client.
+- [x] Third order-entry protocol: SBE over FIXP (FIX Trading Community open standards, exsim-owned schema), codec, session, gateway per SERVER.md section 2, client (`340a949`, config `651bddf`).
 - [x] Market data: ITCH/MoldUDP64 publisher, retransmission server, client receiver and book builder, feed-correctness test under packet faults (`4a8927a`).
 - [ ] Server binary (reactor, gateways, MD, admin, faults, bots, journal) and end-to-end loopback tests; client tool; wire-to-wire latency benchmark.
-- [ ] Deterministic event runner with latency model and compiled baseline strategies (fixed-spread MM, inventory-aware MM, TWAP), accounting, manifests/artifacts, CLI.
+- [x] Deterministic event runner with latency model and compiled baseline strategies (fixed-spread MM, inventory-aware MM, TWAP), accounting, manifests/artifacts, CLI (`4783f45`).
 - [ ] C++ HTTP/OpenAPI research interface and generated TypeScript types.
 - [ ] Next.js experiment/compare/inspect vertical slice on real artifacts (UI and contract on a mock service merged, `f2c0b57`).
 - [ ] Independent review (correctness, causality, accounting, protocol recovery, UI); resolve findings; README/docs with measured numbers.
@@ -44,12 +47,14 @@ Updated 2026-11-05. This is a recovery checkpoint, not live delegate status. Kee
 | Task | Checkout | State |
 | --- | --- | --- |
 | FIX 4.4 gateway | `/Users/jedi/.t3/worktrees/lob/t3-49268324`, branch `t3/fix44-order-entry-gateway` | Done (`190ceb1`, `d136ff6`), merged `4a636ca`; release 689/689. Server delegate now wires it in. |
-| QA review: FIX gateway | harness worktree (task `...delegate-task%3Acf7a69b1-c24f-40c2-80fe-cdea4b6f93e5`) | Report-only review at `4a636ca`; report `/tmp/exsim-review-fix/REPORT.md`. |
-| Research runner | `/Users/jedi/.t3/worktrees/lob/t3-e1e148f1`, branch `t3/deterministic-research-runner` (`b06a276`, `e44b5c6`) | Resumed on Claude 2026-11-05. Must not commit `docs/WORK_PLAN.md`; notes go in `docs/RESEARCH_RUNNER.md`. |
-| SBE over FIXP | `/Users/jedi/.t3/worktrees/lob/t3-dd94b274`, branch `t3/add-fixp-sbe-gateway` (`f2a6a83`, `547ba68`) | Resumed on Claude 2026-11-05 (GCC constexpr fix, merge, commit). |
+| QA review: FIX gateway | harness worktree (task `...delegate-task%3Acf7a69b1-c24f-40c2-80fe-cdea4b6f93e5`) | Done. Report `/tmp/exsim-review-fix/REPORT.md`, 13 reproducers on `review/fix44-gateway-qa` `13b5a64`. R1 to the OUCH/core/MD fix delegate, the rest to the FIX fix delegate. |
+| QA fixes: FIX gateway | harness worktree (task `...delegate-task%3A8d7857c2-edba-48b5-9969-83237eaa437e`) | Running from `eeb5b21`: R2 to R13, P1, P3, P4, and the FIX-internal sink part of R1. |
+| QA fixes: OUCH, core, MD | harness worktree (task `...delegate-task%3Ace8d6fb6-4238-4a7b-af8b-012f79492edb`) | Running: F1 (drop_out as a transport cut), F2 (admission check before J), F4 (reserved deferred slot per user), F5 (publisher status), R1 (core `unbind(SessionId, ConnectionId)` and all gateway call sites). |
+| Research runner | `/Users/jedi/.t3/worktrees/lob/t3-e1e148f1`, branch `t3/deterministic-research-runner` | Done (`2619a8e`), merged `4783f45`. API differences for the HTTP adapter: docs/RESEARCH_RUNNER.md. |
+| SBE over FIXP | `/Users/jedi/.t3/worktrees/lob/t3-dd94b274`, branch `t3/add-fixp-sbe-gateway` | Done (`02b3430`), merged `340a949`. |
 | Server binary and E2E | harness worktree (task `...delegate-task%3A08e286a4-cae1-4949-b6f0-83a32243c0a3`) | Running on Claude since 2026-11-05, from `e2cdd11`. |
-| HTTP/OpenAPI API and UI | harness worktree (task `...delegate-task%3Ae28022a3-cc29-4d4a-86c4-4cfec8e4fb7b`) | Running on Claude since 2026-11-05, from `e2cdd11` plus the committed runner branch; re-check against the finished runner before merge. |
-| QA review: OUCH, MD, core | harness worktree (task `...delegate-task%3A337bf277-8344-4bed-9afb-78ff48b41a1a`) | Report-only review at `e2cdd11`; report `/tmp/exsim-review-proto/REPORT.md`. Confirmed findings go to the owner after the server delegate lands. |
+| HTTP/OpenAPI API and UI | harness worktree (task `...delegate-task%3Ae28022a3-cc29-4d4a-86c4-4cfec8e4fb7b`) | Running on Claude since 2026-11-05. Told the runner is final at `2619a8e`; must merge it and reconcile the adapter before reporting. |
+| QA review: OUCH, MD, core | harness worktree (task `...delegate-task%3A337bf277-8344-4bed-9afb-78ff48b41a1a`) | Done. Report `/tmp/exsim-review-proto/REPORT.md`, reproducers on `t3/exsim-merged-code-qa-review` `26dd524`. F3 fixed `eeb5b21`; F1, F2, F4, F5 with the fix delegate; F6 to F8 informational. |
 | Ladder engine A | `/Users/jedi/.t3/worktrees/lob/t3-eaaf2612` (`b77d206`) | Done; evaluated, not selected. |
 | Engine C integration | scratch worktree `engine-c-integration`, branch `integrate-engine-c` | Merged (`b874ce5`). |
 | Vector engine B | `/Users/jedi/.t3/worktrees/lob/t3-3500e31b` | Done, superseded by C. Untracked redundant second oracle not merged. |
@@ -75,10 +80,10 @@ For each completion record: task ID, actual branch/commit, changed scope, tests 
 
 ## Immediate next action
 
-2026-11-05: GPT hit its usage limit after merging engine C, OUCH, MD, API+UI and fuzzing; the user said "continue as claude". The orchestrator verified and committed GPT's uncommitted review fixes, then resumed FIX, runner and SBE on Claude in their own worktrees and launched two new delegates: server binary plus end-to-end tests, and the C++ HTTP/OpenAPI API with the UI on real runs (started in parallel against the committed runner).
+2026-11-05: GPT hit its usage limit after merging engine C, OUCH, MD, API+UI and fuzzing; the user said "continue as claude". All delegates now run on Claude Opus 5.5 high. FIX (`4a636ca`), SBE (`340a949`) and the research runner (`4783f45`) are merged; both QA reviews are done and their confirmed findings are with two fix delegates.
 
 Next, on completion notifications (do not poll):
-1. SBE: review, merge into `exchange-simulator`, full gate (macOS release and ASan/UBSan, Linux g++/clang++), then plug it into the server binary (FIX is merged and the server delegate is wiring it in).
-2. Runner: review and merge first; then reconcile the API delegate's adapter with the finished runner, review and merge the API and UI.
-3. Server binary: review, merge, run the E2E and wire-to-wire benchmark gates.
+1. QA fix delegates (OUCH/core/MD `ce8d6fb6`, FIX `8d7857c2`): review, bring in the review reproducers, merge, full gate (macOS release, ASan/UBSan, `make all`, Linux g++/clang++). `ce8d6fb6` changes the core unbind API, so merge it before the FIX fixes and resolve the single `ctx.unbind` line.
+2. Server binary (`08e286a4`): review, merge after the core API change, run the E2E and wire-to-wire benchmark gates; wire SBE into the server if the delegate did not.
+3. API and UI (`e28022a3`): check the adapter against the runner differences table, review, merge, run the C++ and bun gates.
 4. Final independent review (correctness, causality, accounting, protocol recovery, UI) by separate QA delegates; fix findings; README with measured numbers.
