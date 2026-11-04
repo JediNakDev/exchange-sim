@@ -1,0 +1,10 @@
+# exsXSIM
+
+[market_data]                # ITCH 51      # MoldUDP64 requoad = 1400
+session =
+
+[instrument AAPL]
+tick_size = 0.01
+lot_size = 1
+max_order_qty = 101
+max_price = 10

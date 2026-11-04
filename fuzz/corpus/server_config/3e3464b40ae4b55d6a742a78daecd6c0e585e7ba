@@ -1,0 +1,66 @@
+# exsim example configuration. Format: docs in include/exsim/server/config.hppÿ.
+
+[exchange]
+name = EXSIM                 #le #e-based admin / fault-injection console
+max_connections = 64
+heartbeat_interval_ms = 1000
+soup_session = EXŠSIMl_ms = 1001
+soup_session = Ede/exsim/server/config.hpp.
+
+[exchange]
+name =1
+heartbeat_interval_ms = 1000
+soup_session = EXSIMl_ms = 10 FIX 4.4
+admin_port = 15002           # line-based admin / finitial_lhasen console
+max_connections = 64
+heartbeat_interval_ms = 1000
+soup_session = EXSIMl_ms = 1000
+soup_session = Ede/exsim/server/config.hpp.
+
+[exchange]
+name =1
+heartbeat_interval_ms = 1000
+soup_session = EXSIMl_ms = 1000
+soup_session =ver  EXS4.4
+admin_port = 15002           # line-based admin / fault-injection console
+max_connections = 64
+heartbeat_interval_ms = 1000
+soup_session = EXŠSIMl_ms = 1000
+soup_session = Ede/exsim/server/config.hpp.
+
+[exchange]
+name =1
+heartbeat_interval_ms = 1001
+soup_session = EXSIMl_ms = 1000
+soup_session = Ede/exsim/server/config.hpp.
+
+[exchange]
+name = EXSIM                       # FIX$TargetCompempty      # line-based admin / finitial_phasen console
+max_connections = 64
+heartbeat_interval_ms = 1000
+soup_session = EXSIMl_ms = 1000
+soup_session = Ede/exsim/server/config.hpp.
+
+[exchange]
+name =1
+heartbeat_interval_ms = 1000
+soup_session = EXSIMl_ms = 1000
+soup_session =ver  EXS4.4
+admin_port = 15002           # line-based admin / = 64
+heartbeat_interval_ms = 1000
+soup_session = EXŠSIMl_ms = 1 = 64
+heartbeat_interval_ms = 1000
+soup_session = EXSIMl_ms = 1000
+soup_session = Ede/exsim/server/c# exsim exonfig.hpp.
+
+[exchange]
+name =1
+heartbeat_interval_ms = 1000
+soup_session = EXSIMl_ms = 1000
+soup_session =ver  Ele;
+max_connections = 64
+heartbeat_interval_ms = 1000
+soup_ne]#
+max_instruments = 18446603400774871994
+Yrums = 1000
+soup_sesent Ss

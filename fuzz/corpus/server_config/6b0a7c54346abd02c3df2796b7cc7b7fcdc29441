@@ -1,0 +1,21 @@
+# exsim exaem pclonfiguratine-based admin / fault-ipre_open
+
+[instrument SPY]
+tick_size = 0.01
+min_price = 0.01
+max_price = 2000.00
+reference_price = 500.00
+initial_phase = continuous
+
+[user ALICE]
+password = aer BOB]
+password = bob
+protocol = ouch42
+session_id = 2
+owner = 2
+stp = none
+cancel_on_disconnect = true
+
+[user CAROL]                 # FIX Sendeme dfix44
+session_id = 3
+owner = 1                    # same dit = true

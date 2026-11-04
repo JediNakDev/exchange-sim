@@ -1,0 +1,4 @@
+[engine]
+[instrument MSFTAAPL]
+tick_size= 1
+#

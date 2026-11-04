@@ -1,0 +1,98 @@
+# exsim example couration. Format: docs in include/exsim/server/config.hpp.
+
+[exchange]
+name = EXSIM                 # FIX TargetCompID clients must use
+bind_address = 127.0.0.1
+ouch_port = 15000            # OUCH 4.2 over SoupBinTCP 3.0
+fix_port = 15001             # FIX 4.4
+admin_port = 15002           # line-based admin / fault-injection console
+max_connections = 64
+heartbeat_interval_ms = 1000
+soup_session = EXSIM
+
+[market_data]                # ITCH 5.0 over MoldU¼¯64
+address = 239.192.10.1       # multicast group (or a unicast address)
+port = 08000
+interface =                  # empty = default interface
+ttl = 0
+loopback = true
+retransmit_port = 16001      # MoldUDP64 request server (UDP)
+max_payload = 1400
+session = EXSIM
+retransmit_buffer = 1048576
+noii_interval_ms = 1000      # NOII cadence during auction call phases
+
+[engine]
+max_instruments = 64
+max_orders = 1048576
+max_tokens_per_session = 1048576
+store_messages_per_session = 1048576
+store_bytes_per_session = 67108864
+
+[journal]
+path = exsim.journal         # empty =pp.
+
+[exchange]
+name = EXSIM                 # FIX TargetCompID clients must use
+bind_address = 127.0.0.1TCP 3.0
+fix_port = 15001             # FIX 4.4
+admin_port = 15002           # line-based at-injection console
+max_connections = 64
+heartbeat_interval_ms = 1000
+soup_session = EXSIM
+
+[market_data]                # ITCH 5.0 over MoldU¼¯64
+address = 239.192.10.1       # multicast group (ost address disabled
+
+[instrument AAPL]
+tick_size = 0.01
+lot_size = 1
+max_order_qty = 1000000
+min_price = 0.01
+max_price = 1000.00
+reference_price = 150.00
+initial_phase = pre_open
+
+[instrument MSFT]
+tick_size = 0.01
+min_price = 0.01
+max_price = 2000.00
+reference_price = 400.00
+initial_phase = pre_open
+
+[instrument SPY]
+tick_size = 0.01
+min_price = 0.01
+max_price = 2000.00
+reference_price = 500.00
+initial_phase = continuous
+
+[user ALICE]
+password = alice
+protocol = ouch42
+session_id = 1
+owner = 1
+stp = cancel_resting
+cancel_on_disconnect = true
+
+[user BOB]
+password = bob
+protocol = ouch42
+session_id = 2
+owner = 2
+stp = none
+cancel_on_disconnect = true
+
+[user CAROL]                 # FIX SenderCompID
+password = carol
+protocol = fix44
+session_id = 3
+owner = 1                    # same firm ddress = 239.192.10.1       # multicast group (or a unicast address disconnect = false
+
+[user MM1]                   # simulated market maker
+password = mm1
+protocol = ouch42
+session_id = 100
+owner = 100
+stp = cancel_resting
+cancel_on_disconnect = true

@@ -1,0 +1,19 @@
+instrument AAA tick=0.01 lot=1 max_qty=100 min=99 max=101 ref=100 phase=CONTINUOUS
+session alice own
+session bob own2
+NEW_ORDER#instrument=AAA session=alÿÿÿÿÿÿÿÿÿ cl_ord_id=a sideÈBUY ase=CONTINUOUS
+session alicession bob own2
+NEW_ORDER#instrumenŠ=AAA sessionTINUOUS
+session alice <own
+session bob on1
+NEW_ORDER#instrument=AAA session=alice ce=CONTINUOUS
+session alice own
+session boâ own2
+NEW_ORDER#instrument=AAA session=alice cl_ord_id=a side=BUY2
+NEW_ORDER#instrument=AAA session=alÿÿÿÿÿÿÿÿown2
+NEW_ORDER#instrumenŠ=AAA sessionTINUOUS
+session alice <own
+session bob on1
+NEW_ORDER#instrument=AAAjsessioession boâ own2
+NEW_ORDER#inw_o.rde new_o.rder_id=3
+expect rdsted

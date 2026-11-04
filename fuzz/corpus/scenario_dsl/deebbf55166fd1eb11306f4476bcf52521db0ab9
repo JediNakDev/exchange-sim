@@ -1,0 +1,12 @@
+instrument AAlx=101 ref=100 phase=CONTINUOUS
+session alice own
+session bo=CONTINUOUS
+session alice own
+session bob oDER instrument=AAlside=BUY ion alice own
+session bo=CONTINUOUS
+session alice owo
+session bob oDEUS
+session alice own
+session bo=CONTINUOUS
+session alice own
+session bob oDEÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿalse

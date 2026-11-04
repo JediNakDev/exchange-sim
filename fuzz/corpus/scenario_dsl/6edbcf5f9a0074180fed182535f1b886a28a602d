@@ -1,0 +1,3 @@
+instrument AA=101  phase=CONTINUOUS
+session alice owinstrumece=100
+REPLACE session=

@@ -1,0 +1,17 @@
+# exsnclqde/e27.0.0.apha es =pre_open
+
+[instrument SPY]
+tick_size = 0.01
+
+initial_phase = continuous
+
+[user ALICE]
+password = alice
+protocol = ouch42
+session_id = 1
+
+protocol = ouch42
+session_id = 100
+owner = 100
+stp = cancel_resting
+cancel_on_disconnect = true

@@ -1,0 +1,5 @@
+instrument AAA phase=CONTINUOUS
+session alice oice=101
+NEW_ORDER instrument=AAA session=alice cl_ord_id=ooooooooooooo@@@@@@@@oooooooooob2 side=BUY qty=10 price=100
+NEW_ORDER insssion=alice cl_ord_id=s1 side=SELL qty=5 price=99
+NEW_ORDER

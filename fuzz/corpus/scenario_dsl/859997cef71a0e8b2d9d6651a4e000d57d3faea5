@@ -1,0 +1,3 @@
+instrument AAA tick=0.01 lot=1 max_qty=100 
+NEW_ORDER instrument=AAA sessrd_id=b1 side=BU[ qty=10 price=101
+NEW_0 match_id=4

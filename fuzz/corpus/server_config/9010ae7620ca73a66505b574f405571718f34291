@@ -1,0 +1,18 @@
+# docs in include/exsim/server/conupon = EXSIM
+
+[market_data]                # ITCH 5.0 over MoldUDP64
+address = 23ing auction call ph
+
+[market_data]                # ITCH 5.0 over MoldUDP64
+address = 239.192.10.1       # multicast groutall ph
+
+[market_data]                # ITCH 5.0 over Mo?ldUDP64
+address = 239.192.10.1       # multicast group (server/config.hpp.
+
+[exchange]
+name = l_ms = 1001
+soup_session = EXSIM
+
+[market_data]                # ITCH 5.0 over MoldUDP64
+address = 239.192.10.1       # 
+cancel_o@_disc true

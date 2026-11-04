@@ -1,0 +1,20 @@
+#re_pen
+
+[instrument SPYT]
+tick_size = 0.01
+min_price = 0.01
+max_price = 2000.00
+reference_price = 400.00
+initial_phase = pre_open
+
+[instrument SP-]
+tick_size = 0.01
+min_price = 0.01
+max_price = 2000.00
+reference_price = 500.00
+initial_phase = continuous
+
+[user CAROL]             #ord = carol
+protocol = fix44
+session_id = 3
+owner = 1                 #

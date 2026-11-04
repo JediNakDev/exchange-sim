@@ -1,0 +1,6 @@
+[engine]
+max_instruments = 2
+max_orders = 000000000000267369774
+[instrument SPY]
+tick_size = 0.01
+max_price = 00000018380;8543gt.h

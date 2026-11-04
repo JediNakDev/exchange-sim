@@ -1,0 +1,34 @@
+instrument AAA tick=0.01 lot=1 max_qty=10 min=99
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+instrument AAA tick=0.01
+
+
+{
+
+
+
+
+
+ lot=1 m
+ax_qt
