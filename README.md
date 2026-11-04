@@ -11,23 +11,25 @@ time for execution and market-making research.
 It grew out of `lob`, a single-instrument limit order book. That history and
 its benchmarks are in [docs/LOB_HISTORY.md](docs/LOB_HISTORY.md).
 
-## Status (2026-11-03)
+## Status (2026-11-05)
 
 Only rows marked **integrated** are on this branch and tested. Everything else
-is in progress or planned and must not be read as working.
+is in progress and must not be read as working.
 
 | Component | State |
 | --- | --- |
 | Matching engine: price-time priority, phases and auctions, market/IOC/FOK, post-only, STP, replace and partial cancel, mass cancel, expiry | **integrated** (`src/exsim/matching_engine.cpp`, index arena with hot/cold split; see [engine variants](docs/engine-variants/)) |
 | Independent reference oracle, differential fuzzer with shrinker, scenario DSL, canonical journal and replay | **integrated** |
-| Wire codecs: OUCH 4.2, SoupBinTCP 3.0, FIX 4.4, ITCH 5.0, MoldUDP64 | **integrated** (codec level, no sessions yet) |
+| Order entry: OUCH 4.2 over SoupBinTCP 3.0, FIX 4.4, and SBE 1.0 over FIXP 1.0 (exsim schema, [FIXP_SBE.md](docs/protocols/FIXP_SBE.md)); server and client side of each, with sequencing, recovery and cancel-on-disconnect | **integrated** as gateway libraries driven by tests (`include/exsim/gateway/`) |
+| Market data: ITCH 5.0 over MoldUDP64 publisher, retransmission server, client receiver and book builder, checked under packet loss, reordering and duplication | **integrated** |
+| Exchange core: submit and dispatch, admin console and fault injection, background bots, journal, trading day; server config for all three protocols | **integrated** as a library (`include/exsim/server/`) |
 | Networking: kqueue/epoll poller, TCP server and client, UDP and multicast | **integrated** |
-| Admin command parser, server config, background bots (market maker, noise taker), position ledger | **integrated** as components, not yet wired into a server |
-| Legacy `lob` fixes: per-symbol books per shard, bounded fill output, client mapping reclamation | **integrated** |
-| OUCH and FIX gateways, ITCH publisher and feed handler, exchange core, research runner | in progress |
+| Deterministic research runner: simulated time, latency model, fixed-spread and inventory-aware market makers, TWAP, accounting, risk limits, manifests, seed sweeps, paired comparison, replay verification (`exsim_research`) | **integrated** ([RESEARCH_RUNNER.md](docs/RESEARCH_RUNNER.md)) |
+| Coverage-guided fuzzing: 15 libFuzzer targets for every decoder and text parser, committed corpora replayed by `make test` | **integrated** ([FUZZING.md](docs/FUZZING.md)) |
+| Research API contract (OpenAPI 3.1) and Next.js research UI | **integrated on a mock service**; the UI does not read real runs yet |
 | Three engine layouts compared on one machine (A tick ladder, B sorted vectors, C index arena), independent review of C, SPEC conformance audit | **done** ([engine variants](docs/engine-variants/), [SPEC_CONFORMANCE.md](docs/SPEC_CONFORMANCE.md)) |
-| Coverage-guided fuzzing, SBE over FIXP order entry, research API contract and UI | in progress or queued |
-| Server binary, end-to-end loopback tests, wire-to-wire latency benchmark, C++ HTTP/OpenAPI research API, final independent review | planned |
+| Independent QA reviews of OUCH, ITCH/MoldUDP64, the core and FIX | **done**; confirmed findings are being fixed (one config finding fixed so far) |
+| Server binary, end-to-end loopback tests, wire-to-wire latency benchmark, C++ HTTP/OpenAPI research API, UI on real runs, final independent review | in progress |
 
 Live work, task IDs and verification logs: [docs/WORK_PLAN.md](docs/WORK_PLAN.md).
 
@@ -41,12 +43,22 @@ make test                                     # release build, all tests
 make test MODE=debug                          # ASan + UBSan
 make test MODE=tsan                           # ThreadSanitizer
 make test FILTER=Journal                      # substring filter on test names
-make tools                                    # exsim_bench, exsim_fuzz, exsim_replay, exsim_scenario, itch_replay
+make tools                                    # exsim_bench, exsim_fuzz, exsim_research, exsim_replay, exsim_scenario, exsim_md_client, itch_replay
 
 ./build/release/exsim_scenario tests/scenarios/fifo.scn
 ./build/release/exsim_fuzz --profile mixed --seeds 200 --steps 10000
 make tools MODE=perf && ./build/perf/exsim_bench --ops 2000000
+
+# research: two market-making configs over the same five seeds, then a paired comparison
+./build/release/exsim_research run config/research/fixed_spread_narrow.conf --out /tmp/narrow --seeds 1..5
+./build/release/exsim_research run config/research/fixed_spread_wide.conf --out /tmp/wide --seeds 1..5
+./build/release/exsim_research compare /tmp/narrow /tmp/wide
 ```
+
+Each research run replays its own journal independently and refuses to report
+success unless the replay matches. A five-seed sweep of about 23,000 events per
+seed takes 0.64 s of wall time on an M-series Mac (release build), and
+repeating it gives byte-identical event files.
 
 CI (`.github/workflows/ci.yml`) builds and tests with `-Werror` on Linux g++
 and clang++ (release and debug), Linux clang++ TSan, and macOS clang (release
@@ -58,6 +70,7 @@ and debug), then runs a zero-allocation benchmark smoke test.
             order entry (TCP)                          market data (UDP)
   client -- OUCH 4.2 / SoupBinTCP --+              +-- ITCH 5.0 / MoldUDP64 --> subscribers
   client -- FIX 4.4 ----------------+              |
+  client -- SBE 1.0 / FIXP 1.0 -----+              |
                                     v              |
                           +------------------+     |
                           |  gateway layer   |  decode wire -> Command
@@ -94,12 +107,13 @@ Normative documents: [SPEC.md](docs/SPEC.md) (matching semantics),
 
 | Layer | What it checks |
 | --- | --- |
-| Unit and contract tests (`tests/`) | about 350 test cases: codecs, networking, engine contracts, journal, bots, ledger, legacy book |
+| Unit and contract tests (`tests/`) | 789 tests: codecs, networking, engine contracts, gateways and session recovery, market data under packet faults, exchange core, research runner, journal, bots, ledger, legacy book |
 | Reference oracle (`tests/exsim/reference/`) | a deliberately simple second implementation of SPEC.md, written independently of the production engine |
 | Differential fuzzer (`tools/exsim_fuzz`) | random command streams through engine and oracle, compared event by event, with a shrinker for minimal reproducers |
 | Scenarios (`tests/scenarios/*.scn`) | 39 hand-written exchange situations with expected events (16 derived line by line from the spec), run against both implementations; a failure names the file, line and field |
 | Journal and replay | canonical serialization, corruption and truncation detection, bit-identical replay |
 | Allocation guards | per-thread counting of every `operator new` form inside `run_tests`; the engine, journal, networking and bot hot paths must report zero |
+| Coverage-guided fuzzing (`fuzz/`) | 15 libFuzzer targets with ASan/UBSan and property checks; the 2026-11-05 campaign ran 302,880,773 executions with no crash, and the committed corpora (6,190 files) replay in every `make test` |
 | Sanitizers | the full suite under ASan/UBSan and TSan |
 
 Engine validation so far: 1000 seeds x 20000 steps for each fuzz profile
