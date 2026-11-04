@@ -317,6 +317,42 @@ TEST_CASE(arena_phase, end_of_day_expires_day_orders_in_ascending_order_id) {
     CHECK_EQ(fixture.only_event().type, EventType::PhaseChanged);
 }
 
+// Expiry and the indicative imbalance walk one instrument's orders only, so
+// orders of other instruments interleaved by OrderId must neither expire nor
+// count, including after a priority-losing Replace moves an order to the end.
+TEST_CASE(arena_phase, end_of_day_and_imbalance_see_only_their_instrument) {
+    ArenaEngineFixture fixture(Phase::PreOpen, 3);
+    fixture.apply(limit_order(kAliceSession, 1, Side::BUY, 90, 5, 2));                                // 1
+    fixture.apply(limit_order(kAliceSession, 2, Side::BUY, 90, 7, 1));                                // 2
+    fixture.apply(with_tif(limit_order(kBobSession, 1, Side::SELL, 150, 4, 2), TimeInForce::GTC));    // 3
+    fixture.apply(limit_order(kBobSession, 2, Side::SELL, 150, 3, 3));                                // 4
+    fixture.apply(limit_order(kCarolSession, 1, Side::BUY, 80, 2, 2));                                // 5
+    fixture.apply(limit_order(kCarolSession, 2, Side::SELL, 160, 9, 1));                              // 6
+    fixture.apply(ReplaceOrder{7, kAliceSession, 1, 3, 100, 5, false});                               // 1 becomes 7
+
+    CHECK_EQ(fixture.engine.auction_indicative(1).imbalance_qty, std::uint64_t{2});
+    CHECK_EQ(fixture.engine.auction_indicative(1).imbalance_side, Aggressor::Sell);
+    CHECK_EQ(fixture.engine.auction_indicative(2).imbalance_qty, std::uint64_t{3});
+    CHECK_EQ(fixture.engine.auction_indicative(2).imbalance_side, Aggressor::Buy);
+    CHECK_EQ(fixture.engine.auction_indicative(3).imbalance_qty, std::uint64_t{3});
+    CHECK_EQ(fixture.engine.auction_indicative(3).imbalance_side, Aggressor::Sell);
+
+    fixture.apply(SetPhase{8, 2, Phase::Closed});
+    CHECK_EQ(order_ids_of_events(fixture.events, EventType::Canceled), (std::vector<OrderId>{5, 7}));
+    for (const Event& event : fixture.events) CHECK_EQ(event.instrument, InstrumentId{2});
+    CHECK_EQ(fixture.engine.auction_indicative(2).imbalance_qty, std::uint64_t{4});
+    CHECK_EQ(fixture.engine.auction_indicative(2).imbalance_side, Aggressor::Sell);
+
+    fixture.apply(SetPhase{9, 0, Phase::Closed});
+    CHECK_EQ(order_ids_of_events(fixture.events, EventType::Canceled), (std::vector<OrderId>{2, 6, 4}));
+    CHECK_EQ(fixture.engine.live_order_count(), std::size_t{1});
+    CHECK(fixture.engine.find_order(OrderId{3}).has_value());
+    for (InstrumentId instrument : {InstrumentId{1}, InstrumentId{3}}) {
+        CHECK_EQ(fixture.engine.auction_indicative(instrument).imbalance_qty, std::uint64_t{0});
+    }
+    check_book_invariants(fixture.engine);
+}
+
 TEST_CASE(arena_mass_cancel, cancels_one_session_in_ascending_order_id) {
     ArenaEngineFixture fixture(Phase::Continuous, 2);
     fixture.apply(limit_order(kAliceSession, 1, Side::BUY, 100, 5, 1));   // 1

@@ -14,9 +14,11 @@
 //               sized for max_orders at <= 50% load, growth disabled. There
 //               is no OrderId map: find_order(OrderId) is a query and walks
 //               the ascending-OrderId list instead.
-//   ordering    an engine-wide and a per-session intrusive list in ascending
-//               OrderId order (append on rest; OrderIds are monotonic), used
-//               by MassCancel, EndOfDay expiry and for_each_order.
+//   ordering    engine-wide, per-session and per-instrument intrusive lists
+//               in ascending OrderId order (append on rest; OrderIds are
+//               monotonic). for_each_order walks the engine-wide list,
+//               MassCancel the session list, EndOfDay expiry and the
+//               indicative imbalance the instrument list.
 
 #include <exsim/matching_engine.hpp>
 
@@ -42,6 +44,7 @@ namespace {
 using engine::cl_ord_id_of;
 using engine::FixedArray;
 using engine::InstrumentBook;
+using engine::InstrumentListLinks;
 using engine::kNilOrder;
 using engine::kNoAskTick;
 using engine::kNoBidTick;
@@ -150,8 +153,10 @@ struct MatchingEngine::Impl {
     OrderIndex free_head = kNilOrder;
     std::uint32_t live_count = 0;
     lob::FlatHashMap<std::uint32_t> order_by_session_token;
-    FixedArray<OrderListEnds> orders_by_session;  // per SessionId, ascending OrderId
-    OrderListEnds all_orders{};                   // engine-wide, ascending OrderId
+    FixedArray<OrderListEnds> orders_by_session;         // per SessionId, ascending OrderId
+    FixedArray<InstrumentListLinks> instrument_links;    // per order, threads orders_by_instrument
+    FixedArray<OrderListEnds> orders_by_instrument;      // per InstrumentId, ascending OrderId
+    OrderListEnds all_orders{};                          // engine-wide, ascending OrderId
     OrderId next_order_id = 1;
     MatchId next_match_id = 1;
 
@@ -201,6 +206,8 @@ struct MatchingEngine::Impl {
     void list_unlink_by_order_id(OrderIndex index) noexcept;
     void list_append_in_session(SessionId session, OrderIndex index) noexcept;
     void list_unlink_in_session(SessionId session, OrderIndex index) noexcept;
+    void list_append_in_instrument(InstrumentId instrument, OrderIndex index) noexcept;
+    void list_unlink_in_instrument(InstrumentId instrument, OrderIndex index) noexcept;
 
     [[nodiscard]] UncrossPlan plan_uncross(const InstrumentBook& book) const noexcept;
     void uncross(InstrumentBook& book, Timestamp ts, EventBuffer& out);
@@ -220,7 +227,9 @@ MatchingEngine::Impl::Impl(const EngineConfig& config)
       hot(std::size_t{max_orders} + 1),
       cold(std::size_t{max_orders} + 1),
       order_by_session_token(max_orders),
-      orders_by_session(kSessionSlots) {
+      orders_by_session(kSessionSlots),
+      instrument_links(std::size_t{max_orders} + 1),
+      orders_by_instrument(max_instruments + 1) {
     books.reserve(max_instruments);
     // Free-index stack: 1, 2, ..., max_orders (first allocations are sequential).
     for (std::uint32_t i = 1; i < max_orders; ++i) {
@@ -364,6 +373,34 @@ void MatchingEngine::Impl::list_unlink_in_session(SessionId session, OrderIndex 
     }
 }
 
+void MatchingEngine::Impl::list_append_in_instrument(InstrumentId instrument, OrderIndex index) noexcept {
+    OrderListEnds& list = orders_by_instrument[instrument];
+    InstrumentListLinks& links = instrument_links[index];
+    links.next = kNilOrder;
+    links.prev = list.tail;
+    if (list.tail != kNilOrder) {
+        instrument_links[list.tail].next = index;
+    } else {
+        list.head = index;
+    }
+    list.tail = index;
+}
+
+void MatchingEngine::Impl::list_unlink_in_instrument(InstrumentId instrument, OrderIndex index) noexcept {
+    OrderListEnds& list = orders_by_instrument[instrument];
+    const InstrumentListLinks& links = instrument_links[index];
+    if (links.prev != kNilOrder) {
+        instrument_links[links.prev].next = links.next;
+    } else {
+        list.head = links.next;
+    }
+    if (links.next != kNilOrder) {
+        instrument_links[links.next].prev = links.prev;
+    } else {
+        list.tail = links.prev;
+    }
+}
+
 // ===========================================================================
 // Book maintenance
 // ===========================================================================
@@ -394,6 +431,7 @@ void MatchingEngine::Impl::retire(OrderIndex index) {
     const SessionId session = session_of(order_hot.session_token);
     list_unlink_by_order_id(index);
     list_unlink_in_session(session, index);
+    list_unlink_in_instrument(cold[index].instrument, index);
     const bool erased = order_by_session_token.erase(order_hot.session_token);
     assert(erased);
     (void)erased;
@@ -484,6 +522,7 @@ void MatchingEngine::Impl::rest(InstrumentBook& book, const IncomingOrder& order
 
     list_append_by_order_id(index);
     list_append_in_session(order.session, index);
+    list_append_in_instrument(order.instrument, index);
     const bool inserted = order_by_session_token.insert(order_hot.session_token, index);
     assert(inserted);
     (void)inserted;
@@ -1037,11 +1076,10 @@ void MatchingEngine::Impl::uncross(InstrumentBook& book, Timestamp ts, EventBuff
 }
 
 void MatchingEngine::Impl::expire_day_orders(InstrumentBook& book, Timestamp ts, EventBuffer& out) {
-    OrderIndex index = all_orders.head;
+    OrderIndex index = orders_by_instrument[book.id].head;
     while (index != kNilOrder) {
-        const OrderCold& order_cold = cold[index];
-        const OrderIndex next = order_cold.next_by_order_id;
-        if (order_cold.instrument == book.id && order_cold.tif == TimeInForce::Day) {
+        const OrderIndex next = instrument_links[index].next;
+        if (cold[index].tif == TimeInForce::Day) {
             emit_resting_canceled(book, index, CancelReason::EndOfDay, 0, ts, out);
             remove_resting(index);
         }
@@ -1309,8 +1347,7 @@ AuctionIndicative MatchingEngine::auction_indicative(InstrumentId id) const noex
     const UncrossPlan plan = impl_->plan_uncross(*book);
     if (!plan.crossed) {
         std::uint64_t buy = 0, sell = 0;
-        for (OrderIndex i = impl_->all_orders.head; i != kNilOrder; i = impl_->cold[i].next_by_order_id) {
-            if (impl_->cold[i].instrument != id) continue;
+        for (OrderIndex i = impl_->orders_by_instrument[id].head; i != kNilOrder; i = impl_->instrument_links[i].next) {
             (impl_->cold[i].side == Side::BUY ? buy : sell) += impl_->hot[i].leaves_qty;
         }
         indicative.imbalance_qty = buy >= sell ? buy - sell : sell - buy;

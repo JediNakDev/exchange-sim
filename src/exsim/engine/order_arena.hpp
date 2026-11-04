@@ -71,11 +71,19 @@ struct OrderCold {
 };
 static_assert(sizeof(OrderCold) == 32, "two cold records per cache line");
 
-// Head and tail of an intrusive doubly linked list threaded through OrderCold.
+// Head and tail of an intrusive doubly linked list of orders.
 struct OrderListEnds {
     OrderIndex head;
     OrderIndex tail;
 };
+
+// Per-instrument list links, kept apart from OrderCold (which is full at 32
+// bytes) and touched only on add and remove.
+struct InstrumentListLinks {
+    OrderIndex next;  // per-instrument list, ascending OrderId
+    OrderIndex prev;
+};
+static_assert(sizeof(InstrumentListLinks) == 8, "eight instrument links per cache line");
 
 }  // namespace exsim::engine
 

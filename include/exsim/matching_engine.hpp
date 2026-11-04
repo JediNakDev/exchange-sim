@@ -11,6 +11,12 @@
 // EngineConfig). When capacity is exhausted orders are rejected with
 // RejectReason::CapacityExceeded rather than growing.
 //
+// Setup cost: the constructor and add_instrument allocate and zero-fill all
+// of their storage up front. If it does not fit they throw std::bad_alloc or
+// std::length_error rather than returning, so size max_orders and price bands
+// for physical memory (per-order and per-tick costs of the production engine:
+// docs/engine-variants/C_INDEX_ARENA.md).
+//
 // Semantics are specified in docs/SPEC.md.
 
 #include "command.hpp"
@@ -91,8 +97,9 @@ public:
     MatchingEngine& operator=(MatchingEngine&&) = delete;
 
     // Setup-time only (allocates the instrument's price ladders).
-    // Returns the new InstrumentId (1, 2, ...) or 0 if the config is invalid
-    // or max_instruments is reached.
+    // Returns the new InstrumentId (1, 2, ...) or 0 if the config is invalid,
+    // the band exceeds the engine's tick limit, the symbol is taken or
+    // max_instruments is reached. Throws if the ladders cannot be allocated.
     [[nodiscard]] InstrumentId add_instrument(const InstrumentConfig& config);
 
     // Before ANY mutation (including counters), require remaining output >=

@@ -23,8 +23,19 @@ did not change, so callers are unaffected.
 - One fixed `lob::FlatHashMap` keyed by `(session << 48) | cl_ord_id`, which
   is exact because SPEC limits `ClOrdId` to 48 bits and `SessionId` is 16 bits.
   Sized at construction, at most half full, never grown.
-- Engine-wide and per-session intrusive lists in ascending `OrderId` order
-  serve MassCancel, EndOfDay expiry and `for_each_order` without sorting.
+- Engine-wide, per-session and per-instrument intrusive lists in ascending
+  `OrderId` order, so no query or command sorts: `for_each_order` walks the
+  engine-wide list, MassCancel the session list, and EndOfDay expiry and the
+  non-crossed indicative imbalance the instrument list. The per-instrument
+  links live in their own 8 byte array (`InstrumentListLinks`) because the
+  cold record is full.
+- Memory: 72 bytes per order slot (hot, cold, instrument links) plus the
+  hash map at 16 bytes per slot with at least twice `max_orders` slots
+  rounded up to a power of two, so roughly 104 to 136 bytes per order.
+  Each instrument needs 48 bytes per tick (one level per side) plus the
+  bitmaps, so a maximum 2^24-tick band costs about 770 MiB. Everything is
+  allocated and zero-filled at setup; an allocation that does not fit
+  throws from the constructor or `add_instrument`.
 - The only prefetch kept is the next resting order in the level FIFO while
   filling. Cold-record prefetch on cancel and a reworked list removal were
   measured within noise and reverted.
@@ -50,6 +61,26 @@ resting orders needs 10 free slots and emits 9 events. The contract only promise
 - Differential fuzz against the oracle: 1000 seeds x 20000 steps on each of
   the `mixed` and `tiny` profiles (40M commands), no divergence. The variant's
   own session had already run 20 seeds x 200k steps on both (8M commands).
+
+## Independent review (2026-11-04)
+
+A separate reviewer (task `38045dc3`, report `/tmp/exsim-c-review/REPORT.md`)
+found no correctness, memory-safety, undefined-behaviour or preflight defect.
+It reran the preflight bounds under a 26M-command fuzz with exact output
+sizing, checked integer edges, compared the occupancy bitmap against
+`std::set`, and confirmed zero allocations. Its findings and what was done:
+
+| # | Severity | Finding | Resolution |
+| --- | --- | --- | --- |
+| 1 | medium | EndOfDay expiry walked the engine-wide order list once per instrument, so `SetPhase{0, Closed}` cost instruments x live orders inside `handle()` | Fixed: per-instrument order lists. With 1M GTC orders on one instrument, `SetPhase{0, Closed}` went from 905 ms to 1.4 ms at 1000 instruments and from 7984 ms to 1.1 ms at 8000 (`/tmp/exsim-c-eod-fix.log`). Test `arena_phase.end_of_day_and_imbalance_see_only_their_instrument`. |
+| 2 | low | `max_orders` is accepted up to `UINT32_MAX`, which cannot be allocated | Kept the shared `required_event_capacity` bound; construction throws when the arrays do not fit. Documented in the header and the memory note above. |
+| 3 | low | `add_instrument` throws `std::bad_alloc` instead of returning 0 | Documented: 0 means a rejected config, an allocation failure throws. |
+| 4 | note | `find_order(OrderId)` is O(live orders); the non-crossed indicative imbalance was O(live orders) | `find_order(OrderId)` stays a list walk (no OrderId map on the hot path). The imbalance now walks only its instrument's list. |
+
+The extra list costs one 8 byte link record per add and remove. Five
+interleaved rounds of `exsim_bench --ops 2000000` before and after the change
+moved the medians by -3% to +26% per workload, inside this machine's
+round-to-round spread of 10 to 17 Mops/s (`/tmp/exsim-c-eod-bench.log`).
 
 ## Foundation review gates owned by the engine
 
