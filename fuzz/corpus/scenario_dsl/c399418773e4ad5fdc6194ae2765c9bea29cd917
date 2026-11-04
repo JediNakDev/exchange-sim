@@ -1,0 +1,3 @@
+instrument AA< tick=0.01 lot=1 max_qty=100 min=99 max=101 ref=100 phase=CONTINUOUS
+instrument AAA tick=0.01 lot=1 max_qty=2100 min=99 max=101 ref=100 phase=CONTINUOUS
+sessionty=100 min=99 mat=

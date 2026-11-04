@@ -1,0 +1,5 @@
+instrument AAA tick=0.01 lot=1 max_qty=100 min=99 max=101 ref=100 phase=CONTINUOUS
+session alicument=session bob own2
+NEW_ORDER instrument=AAA sess=10 price=100 owner=own stp=´¾±¼º³ ½OTH
+ng=true
+expect canceled was_lse

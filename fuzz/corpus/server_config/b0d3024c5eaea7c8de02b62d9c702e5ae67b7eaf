@@ -1,0 +1,7 @@
+#nect = true
+
+[user BOB]
+password = bob
+owner = 6
+stp = none
+ca

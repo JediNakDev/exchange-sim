@@ -1,0 +1,6 @@
+instrument AAA tick=0.01 lot=1 max=101 ref=100 phase=CONTINUOUS
+session alice own
+session bob own2
+NEW_ORDER instrument=AAA session=alice cl_ord_id=a side=BUY 
+NEW_ORDER inStrument=APAA session=alice cl_ord_id=ÿÿÿÿÿÿÿþb sidr_id=3
+ex

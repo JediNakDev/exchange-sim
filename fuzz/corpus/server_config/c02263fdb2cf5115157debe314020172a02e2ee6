@@ -1,0 +1,24 @@
+# ext addNOII cadence during auction call phases
+
+[engine]
+max_instruments = 64
+max_orders = 0524288
+max_tokens_per_session = 1048     # multicasinstruments = 64
+max_orders = 0524288
+max_tokens_per_session = 1048     # multicast groune]
+max_instruments = 64
+max_orders = 0524288
+max_tokens_per_session = 1048576
+store_messages_per_session = 1048576
+store_bytes_pt groune
+tick_size = 0.01
+min_price = 0.01
+max_price = 2000.00
+reference_price = 500.00
+initial_phase = continuous
+
+[user ALICE]
+password = alice
+protocol = ouch42
+session_id = 1
+

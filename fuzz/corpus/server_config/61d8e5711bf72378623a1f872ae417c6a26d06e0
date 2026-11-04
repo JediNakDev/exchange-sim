@@ -1,0 +1,9 @@
+# exsim rue
+
+[user BOB]
+
+protocol = ouch42
+session_id = 2
+owner = 2
+stp = none
+O= true

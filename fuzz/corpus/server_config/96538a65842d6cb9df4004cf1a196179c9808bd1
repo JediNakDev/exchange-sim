@@ -1,0 +1,26 @@
+# exsim exaem pclonfiguration. Format / fault-in= pre_open
+
+[instrument SPY]
+tick_size = 0.01
+min_price = 0.01
+[user ALICE]
+password = alice
+protocol = ouch42
+session_id = 1
+owner = 1
+stp = cancel_resting
+cancel_on_disconnect = true
+
+[user BOB]
+password = bob
+protocol = ouch42
+session_id = 2
+owner = 2
+stp = none
+cancel_on_disconnect = true
+
+[user CAROL]                 # FIX SenderCompID
+password = carol
+protocol = fix44
+session_id = 3
+owner = 1                    # same disconnect = true

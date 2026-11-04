@@ -1,0 +1,15 @@
+instrument AA< tick=0.01 lot=1 max_qty=100 min=99 max=101 ref=100 phase=CONTINUOUS
+instrument AA1 ref=100 phase=CONTINUOUS
+session alice own
+session bobONTINUOUsion bobONTINUOUS
+instrument At=1 max_qty=100 min=99 max=101 ref=100 phase=CONTINUOUS
+instrument AAA tick=0.01 lot=1 max_qty=2100 min=99 max=101 ref=100 phase=CONTINUOUS
+session alice own
+session bobONTINUOUsion bobONTINUOUS
+instrument At=1 max_qty=100 min=99 max=101 ref=100 phase=CONTINUOUS
+session alice own
+session bob oSONTINUOUS
+session alice own
+session bob oS
+instrument AAÁ tick=0.01 lot=1 max_qty=100 min=99 max=101 ref=100 phase=CONTINUOUS
+session aliceummary minastrument=

@@ -1,0 +1,4 @@
+[engine]
+max_instruments = 6
+store_bytes_per_session = 00000010000000000739507
+[instrument SPY]

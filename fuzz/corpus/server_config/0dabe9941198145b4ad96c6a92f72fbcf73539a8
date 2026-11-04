@@ -1,0 +1,5 @@
+# 
+
+[instrument AAPL]
+lot_size =0004010934991021286389
+mitick=

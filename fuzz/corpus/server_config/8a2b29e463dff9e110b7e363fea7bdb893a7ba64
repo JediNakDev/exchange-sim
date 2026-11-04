@@ -1,0 +1,5 @@
+#ig.hpp.
+
+[exchange]
+name =SI
+admin_port = 77824   

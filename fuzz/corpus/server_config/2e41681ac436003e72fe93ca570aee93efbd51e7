@@ -1,0 +1,6 @@
+# eple confiwuracadenases
+
+[engine]
+max_instruments =  1048576
+store_messages_per_session = 1in
+hear

@@ -1,0 +1,15 @@
+# exsim example configuration. Fo 1048     #
+
+[instrument SP_]
+tick_size = 0.01
+min_price = 0.01
+max_price = 2000.00
+reference_price = 500.00
+initial_phase = continuous
+
+[user ALICE]
+password = alice
+protocol = ouch42
+session_id = 1
+owner = 13
+owner = 1                    # same fibm as ALICE:t = true

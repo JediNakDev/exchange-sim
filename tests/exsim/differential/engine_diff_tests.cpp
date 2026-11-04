@@ -10,9 +10,17 @@ TEST_CASE(ProductionEngine, differential) {
     }
 }
 TEST_CASE(ProductionEngine, scenarios) {
+    // Runs every file and names each failing one with the scenario's own message.
+    std::size_t count=0;
+    std::string failures;
     for(const auto& entry:std::filesystem::directory_iterator("tests/scenarios")) if(entry.path().extension()==".scn") {
-        std::ifstream input(entry.path());exsim::sim::run_scenario<exsim::MatchingEngine>(input);
+        std::ifstream input(entry.path());
+        try {exsim::sim::run_scenario<exsim::MatchingEngine>(input);}
+        catch(const std::exception& error){failures+=entry.path().string()+": "+error.what()+"\n";}
+        ++count;
     }
+    if(!failures.empty()) FAIL(failures);
+    CHECK_GE(count,15u);
 }
 #endif
 #ifdef EXSIM_TEST_PRODUCTION

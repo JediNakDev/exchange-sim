@@ -1,0 +1,5 @@
+instrument AAA tick=0.01 lot=1se=CONTINUOUS
+session alice o@n
+session bob own2
+NEW_ORDER instrument=AAA session=alice cl_ord_id=a side=SELL qty=05 price=100 owner=o stp=CANCEL_RESTING tif=FOK
+expe cancen=FI0 1

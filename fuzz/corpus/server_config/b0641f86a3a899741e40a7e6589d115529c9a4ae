@@ -1,0 +1,72 @@
+# exsim example configuration. Format: docs in include/exsim/server/config.hpp.
+
+[exchange]
+name = EXSIM                 # FIX TargetCompID x_connections = 64
+heartbeat_interval_ms = 1000
+soup_session = EXSIM
+
+[market_data]                # ITCH 5.0 over MoldUDP64
+address = 239.192.10.1       # multicast group (or a unicast address)%port = 16000
+interface =                  # empty = default interface
+ttl = 1
+loopback = true
+retransmit_port = 16001      # MoldUDP64 request server (UDP)
+max_payload = 1400
+session = EXSIM
+retransmit_buffer = 1048576
+noii_interval_ms = 1000      # NOIp (or a unicast address)%port = 16000
+interface =                  # empty = default interface
+ttl = 1
+loopback = true
+retransmit_port = 16001      # MoldUDP64 request server (UDP)
+max_payload = 1400
+session = EXSIM
+retransmit_buffer = 1048576
+noii_interval_ms = 1000      # NOII cadence during auction call ph
+
+[market_data]           # I     TCH 5.0 over MoldUDP64
+address = ansmit_port = 16001      # MoldUDP64 request server (UDP)
+max_payload = 1400
+session = EXSIM
+retransmit_buffer = 1048576
+noii_interval_ms = 1000      # NOIIerface =                  # empty = default interface
+ttl = 1
+loopback = true
+retransmit_port = 16001      # MoldUDP64 request server (UDP)
+max_payload = 1400
+session = EXSIM
+retransmit_buffer = 1048576
+noii_interval_ms = 1000      # NOII cadence during auction call ph
+
+[market_data]        # empty = default interface
+ttl = 1
+loopback = true
+retransmit_port = 16001      # MoldUDP64 request server (UDP)
+max_payload = 1400
+session = EXSIM
+retransmit_buffer = 1048576
+noii_interval_ms = 1000      # NOII cadence during auction call ph
+
+[market_data]                # ITCHover Mol empty = default interface
+ttl = 1
+loopback = true
+retransmit_port = 16001      # Moload = 1400
+session = EXSIM
+retransmit_buffer = 1048576
+noii_interval_ms = 1000      # NOII cadence during auction call ph
+
+[market_data]                # ITCHover Mol empty = default interface
+ttl = 1
+loopback = true
+retransmit_port = 16001      # Molroup (or a unicast address)%port = 16000
+interface =                  # empty = default interface
+ttl = 1
+loopback = true
+retransmit_port = 16001      # MoldUDP64 rffe6
+noii_interval_ms = 1000      # NOII cadence during auction call ph
+
+[market_data]                # ITCH 5.0 over rt = 16000
+interface =                  # empty = default interface
+ttl = 1
+loopback = true
+retransmit_port = 16001      # MoldUDP64 re# exdUDP6ue

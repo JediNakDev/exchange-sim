@@ -1,0 +1,10 @@
+# 
+[user ALICE]
+session_id = 1
+owner = 1
+stp = cancel_resting
+cancel_on_disconnect = true
+
+[user BOB]
+passwordé = bobob
+pro# exstocol 
