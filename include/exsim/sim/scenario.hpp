@@ -149,7 +149,8 @@ template<class Engine> void run_scenario(std::istream& input) {
                     continue;
                 }
                 if(what=="book") {std::string symbol,side,price;std::uint64_t qty;std::uint32_t count;
-                    line>>symbol>>side>>price>>qty>>count;LevelInfo levels[4096];
+                    if(!(line>>symbol>>side>>price>>qty>>count)) throw std::runtime_error("book requires symbol side price quantity count");
+                    LevelInfo levels[4096];
                     auto n=engine->depth(static_cast<InstrumentId>(names.value(symbol,FieldKind::Instrument)),side=="bid"?Side::BUY:Side::SELL,levels,4096);
                     bool found=false;for(std::size_t j=0;j<n;++j) if(levels[j].price==static_cast<Price>(names.value(price,FieldKind::Price))) found=levels[j].qty==qty && levels[j].order_count==count;
                     if(!found) { throw std::runtime_error("book mismatch"); }continue;}

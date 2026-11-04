@@ -212,7 +212,7 @@ public:
       return status;
     if (size != p.size())
       return Status::invalid_length;
-    if (size < 7 || std::string_view(p.data() + size - 7, 3) != "10=" ||
+    if (size < 8 || p[size - 8] != soh || std::string_view(p.data() + size - 7, 3) != "10=" ||
         p.back() != soh)
       return Status::invalid_length;
     std::uint64_t expected;
@@ -305,7 +305,7 @@ public:
   explicit Builder(std::span<char> b) noexcept
       : buffer_(b), good_(b.size() >= 14) {}
   bool field(unsigned tag, std::string_view value) noexcept {
-    if (!good_ || finished_ || value.find(soh) != std::string_view::npos) {
+    if (!good_ || finished_ || tag == 0 || value.find(soh) != std::string_view::npos) {
       good_ = false;
       return false;
     }

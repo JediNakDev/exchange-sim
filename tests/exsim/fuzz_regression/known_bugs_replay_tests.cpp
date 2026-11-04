@@ -1,13 +1,5 @@
-// Reproducers for open bugs in code outside the fuzzing work (see
-// fuzz/targets/known_bugs.hpp and docs/FUZZING.md "Open findings").
-//
-// Disabled by default: the targets steer around these triggers so campaigns
-// and `make test` stay green. Once the owner has fixed a bug, run
-//
-//   make test EXTRA_CXXFLAGS=-DEXSIM_FUZZ_ENFORCE_KNOWN_BUGS FILTER=fuzz_known_bugs
-//
-// (with MODE=debug for the undefined behaviour ones) and it must pass.
-#ifdef EXSIM_FUZZ_ENFORCE_KNOWN_BUGS
+// Historical parser-bug reproducers are always replayed in the integrated
+// tree. They are ordinary regression tests, including in sanitizer builds.
 
 #include "corpus_replay.hpp"
 #include "fuzz/targets/fix44_message.hpp"
@@ -25,5 +17,3 @@ TEST_CASE(fuzz_known_bugs, fix44_checksum_field_without_separator) {
 TEST_CASE(fuzz_known_bugs, server_config_price_overflow_and_engine_bounds) {
     REQUIRE(::fuzz_regression::replay_corpus("known_bugs/server_config", &::exsim::fuzz::fuzz_server_config) > 0);
 }
-
-#endif

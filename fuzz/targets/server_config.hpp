@@ -12,7 +12,6 @@
 //    a configuration that renders identically.
 
 #include "fuzz_support.hpp"
-#include "known_bugs.hpp"
 
 #include <exsim/matching_engine.hpp>
 #include <exsim/server/config.hpp>
@@ -118,20 +117,6 @@ inline bool printable_without_space(std::string_view text) {
     return true;
 }
 
-// Known gap: [engine] max_instruments and max_orders are only checked for > 0,
-// so parse_config accepts values the engine constructor rejects
-// (required_event_capacity: max_instruments <= 65535, max_orders <= 2^32-1).
-inline bool engine_section_outside_engine_bounds(const ServerConfig& config) {
-    return config.engine.engine.max_instruments > std::numeric_limits<InstrumentId>::max() ||
-           config.engine.engine.max_orders > std::numeric_limits<std::uint32_t>::max();
-}
-
-// Known bug: server::parse_price overflows on 922337203685477.5808 and above
-// (see price_text.hpp). Every such text contains this digit run.
-inline bool may_trigger_server_price_overflow(std::string_view text) {
-    return text.find("922337203685477") != std::string_view::npos;
-}
-
 inline void check_accepted_config(const ServerConfig& config) {
     EXSIM_FUZZ_REQUIRE(config.exchange.soup_session.size() <= 10 &&
                            printable_without_space(config.exchange.soup_session),
@@ -144,7 +129,7 @@ inline void check_accepted_config(const ServerConfig& config) {
                        "max_payload fits one UDP datagram");
     EXSIM_FUZZ_REQUIRE(!config.instruments.empty() && config.instruments.size() <= config.engine.engine.max_instruments,
                        "1..max_instruments instruments");
-    if (!(kSteerAroundKnownBugs && engine_section_outside_engine_bounds(config))) {
+    {
         bool engine_accepts = true;
         try {
             (void)required_event_capacity(config.engine.engine);
@@ -197,7 +182,6 @@ inline void check_error_format(std::string_view error, std::string_view text) {
 inline int fuzz_server_config(const std::uint8_t* data, std::size_t size) {
     using namespace server_config_fuzz;
     const std::string_view text = as_text(data, size);
-    if (kSteerAroundKnownBugs && may_trigger_server_price_overflow(text)) return 0;
 
     ServerConfig parsed{};
     parsed.journal_path = "sentinel: must survive a rejected parse";

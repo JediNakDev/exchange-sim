@@ -32,7 +32,7 @@ Metric values carry an `exactness` of `exact_fixed_point` or `derived_float`. Th
 ### Accounting and marks
 
 - `cash = initialCash - sum(buy price x qty) + sum(sell price x qty) - sum(fees)`. Fees are `feePerShare x qty`. A negative fee is a maker rebate.
-- `equity = cash + position x mark`, and `netPnl = equity - initialCash = grossRealizedPnl + unrealizedPnl - netFees`. The realized/unrealized split uses average cost.
+- `equity = cash + position x mark`, and `netPnl = equity - initialCash = grossRealizedPnl + unrealizedPnl - netFees`. The realized/unrealized split uses FIFO cost basis, matching the C++ position ledger and mock artifacts.
 - **Mark convention `exchange_mid`:** the mark is the last two-sided exchange mid at or before the mark time. A one-sided book does not clear the mark. The mark, and anything derived from it (equity, unrealized P&L, markouts), is `null` with an `unavailableReason` only when no two-sided book has existed yet. A missing mark never becomes zero. The raw `exchange_mid` series is not carried forward: it reports `null` while the book is one-sided.
 - **Markouts:** a buy is `mid(t + h) - price` and a sell is `price - mid(t + h)`, both per share and times quantity for totals. A markout whose horizon passes the observable end (the run end, or the simulation time of the last processed event for a partial summary) has status `censored_past_run_end`. It is excluded from totals and counted in `censoredFillCount`. It is never reported as zero.
 - `spreadCaptureTotal` is the same formula with the mid at the fill time.

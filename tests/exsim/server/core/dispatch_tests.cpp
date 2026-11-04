@@ -164,35 +164,39 @@ TEST_CASE(server_core_dispatch, output_capacity_failure_applies_nothing_and_core
     const std::size_t capacity = h.core.event_buffer_capacity();
     REQUIRE(capacity >= 4u);
     REQUIRE(capacity < 64u);
-    // NewOrder needs live_orders + 2 slots: fill the book to capacity - 1 orders.
-    for (ClOrdId token = 1; token + 1 < capacity; ++token) {
-        REQUIRE_EQ(h.core.submit(limit_order(1, token, kAapl, Side::BUY, 1'000'000 + static_cast<Price>(token) * 100, 1)),
-                   SubmitResult::Applied);
+    // Engines may use different proven preflight bounds. Reach the tiny
+    // buffer's limit without baking one engine's headroom into this core test.
+    ClOrdId refused_token = 0;
+    for (ClOrdId token = 1; token <= capacity + 1; ++token) {
+        const auto live_before = h.core.engine().live_order_count();
+        const auto batches_before = h.recorder.batch_count();
+        const auto journaled_before = h.core.counters().journal_records;
+        const auto timestamp_before = h.core.last_command_timestamp();
+        h.clock.day += kSecond;
+        const auto result = h.core.submit(limit_order(1, token, kAapl, Side::BUY,
+                                                    1'000'000 + static_cast<Price>(token) * 100, 1));
+        if (result == SubmitResult::Applied) continue;
+        REQUIRE_EQ(result, SubmitResult::OutputCapacityExceeded);
+        CHECK_EQ(h.core.engine().live_order_count(), live_before);
+        CHECK_EQ(h.recorder.batch_count(), batches_before);
+        CHECK_EQ(h.core.counters().journal_records, journaled_before);
+        CHECK_EQ(h.core.last_command_timestamp(), timestamp_before);
+        refused_token = token;
+        break;
     }
-    const std::size_t live = h.core.engine().live_order_count();
-    REQUIRE_EQ(live, capacity - 2);
-    REQUIRE_EQ(h.core.submit(limit_order(1, 500, kAapl, Side::BUY, 1'200'000, 1)), SubmitResult::Applied);
-    const std::size_t batches = h.recorder.batch_count();
-    const std::uint64_t journaled = h.core.counters().journal_records;
-    const Timestamp last_ts = h.core.last_command_timestamp();
-
-    h.clock.day += kSecond;
-    CHECK_EQ(h.core.submit(limit_order(2, 1, kAapl, Side::SELL, 2'000'000, 1)), SubmitResult::OutputCapacityExceeded);
-    CHECK_EQ(h.core.engine().live_order_count(), live + 1);
-    CHECK_EQ(h.recorder.batch_count(), batches);
-    CHECK_EQ(h.core.counters().journal_records, journaled);
+    REQUIRE(refused_token > 1);
     CHECK_EQ(h.core.counters().output_capacity_failures, 1u);
-    CHECK_EQ(h.core.last_command_timestamp(), last_ts);
 
     // A cancel needs one slot; afterwards the refused order fits and gets
     // the next OrderId: the failed attempt consumed nothing.
     CancelOrder cancel{};
     cancel.session = 1;
-    cancel.orig_cl_ord_id = 500;
+    cancel.orig_cl_ord_id = refused_token - 1;
     REQUIRE_EQ(h.core.submit(Command{cancel}), SubmitResult::Applied);
-    REQUIRE_EQ(h.core.submit(limit_order(2, 1, kAapl, Side::SELL, 2'000'000, 1)), SubmitResult::Applied);
+    REQUIRE_EQ(h.core.submit(limit_order(1, refused_token, kAapl, Side::BUY,
+                                       1'000'000 + static_cast<Price>(refused_token) * 100, 1)), SubmitResult::Applied);
     const auto batch = h.recorder.batch(h.recorder.batch_count() - 1);
     REQUIRE(batch[0].type == EventType::Accepted);
-    CHECK_EQ(batch[0].accepted.order_id, static_cast<OrderId>(live + 2));
+    CHECK_EQ(batch[0].accepted.order_id, static_cast<OrderId>(refused_token));
     ::unlink(config.journal_path.c_str());
 }

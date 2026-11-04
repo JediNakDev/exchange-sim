@@ -2,6 +2,13 @@
 #include <exsim/protocol/fix44.hpp>
 #include <random>
 using namespace exsim::protocol::fix44;
+TEST_CASE(proto_fix, builder_rejects_zero_tag) {
+  char buffer[64];
+  Builder builder(buffer);
+  CHECK(!builder.field(0, "invalid"));
+  CHECK_EQ(builder.finish(), 0u);
+}
+
 TEST_CASE(proto_fix, decimal_boundaries) {
   exsim::Price p{};
   CHECK(parse_price("0.0001", p));

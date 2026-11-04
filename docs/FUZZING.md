@@ -15,11 +15,10 @@ contracts), so a fuzzer finds logic bugs as well as memory errors.
 |---|---|
 | `fuzz/targets/<name>.hpp` | Target body: `int fuzz_<name>(const std::uint8_t*, std::size_t)`. Plain header, no libFuzzer dependency. |
 | `fuzz/targets/fuzz_support.hpp` | `EXSIM_FUZZ_REQUIRE`, `FuzzByteReader` (structured values from fuzz bytes). |
-| `fuzz/targets/known_bugs.hpp` | Steering switch for open bugs (see [Open findings](#open-findings)). |
 | `fuzz/libfuzzer_entry.cpp` | The one `LLVMFuzzerTestOneInput`, compiled once per target. |
 | `fuzz/seed_generator.cpp` | Deterministic seeds from the real encoders, `config/exsim.conf` and `tests/scenarios/*.scn`. |
 | `fuzz/corpus/<name>/` | Committed corpus: the seeds merged and minimized with every campaign's findings. |
-| `fuzz/corpus/known_bugs/<name>/` | Minimized reproducers of open bugs (kept out of the campaign directories). |
+| `fuzz/corpus/known_bugs/<name>/` | Historical minimized bug reproducers, always replayed by regression tests. |
 | `fuzz/Makefile` | Build, campaign, merge, replay. Separate from the top-level Makefile. |
 | `tests/exsim/fuzz_regression/` | Replays every committed corpus file in the normal test suite. |
 | `docker/Dockerfile` | Debian trixie image with clang, libFuzzer and the sanitizer runtimes. |
@@ -163,6 +162,13 @@ The committed corpora (6,190 files, 1.5 MB) replay in about 0.2 s in
 `make test` and 0.5 s in `make test MODE=debug` on an M-series Mac.
 
 ## Open findings
+
+Integration update (2026-11-04): all three defects described below are now
+repaired, as are the scenario `expect book` uninitialized-read issue and
+Builder tag-zero mismatch. The original findings below are retained as
+historical evidence. Their reproducers run by default in `fuzz_known_bugs.*`;
+input steering is disabled, including for `INT64_MIN` price round trips.
+No special enforcement macro is needed in the integrated tree.
 
 Bugs in code the fuzzing work does not own are reported, not fixed here. While
 open, the targets steer around their triggers (`kSteerAroundKnownBugs` in
