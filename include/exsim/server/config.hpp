@@ -95,7 +95,7 @@ struct MarketDataSection {
     std::uint8_t ttl = 1;
     bool loopback = true;
     std::uint16_t retransmit_port = 0;  // MoldUDP64 request server
-    std::uint32_t max_payload = 1400;   // bytes per MoldUDP64 packet incl. header
+    std::uint32_t max_payload = 1400;   // bytes per MoldUDP64 packet incl. header; 72..65507 (md::kMinimumMaxPayload)
     std::string session = "EXSIM";      // MoldUDP64 session (<= 10 chars)
     std::uint32_t retransmit_buffer = 1u << 20;  // messages kept for retransmission
     std::uint32_t noii_interval_ms = 1000;

@@ -14,6 +14,7 @@
 #include "fuzz_support.hpp"
 
 #include <exsim/matching_engine.hpp>
+#include <exsim/md/feed_common.hpp>
 #include <exsim/server/config.hpp>
 #include <limits>
 #include <set>
@@ -125,7 +126,8 @@ inline void check_accepted_config(const ServerConfig& config) {
                        "MoldUDP64 session is at most 10 printable characters");
     EXSIM_FUZZ_REQUIRE(!config.exchange.name.empty() && !config.market_data.address.empty(),
                        "name and address are required");
-    EXSIM_FUZZ_REQUIRE(config.market_data.max_payload >= 64 && config.market_data.max_payload <= 65507,
+    EXSIM_FUZZ_REQUIRE(config.market_data.max_payload >= exsim::md::kMinimumMaxPayload &&
+                           config.market_data.max_payload <= exsim::md::kMaximumMaxPayload,
                        "max_payload fits one UDP datagram");
     EXSIM_FUZZ_REQUIRE(!config.instruments.empty() && config.instruments.size() <= config.engine.engine.max_instruments,
                        "1..max_instruments instruments");

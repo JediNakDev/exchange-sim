@@ -1,3 +1,4 @@
+#include "exsim/md/publisher.hpp"
 #include "exsim/server/config.hpp"
 #include "../../framework/test.hpp"
 
@@ -355,4 +356,28 @@ TEST_CASE(server_config, fixp_sbe_users_and_port) {
     CHECK(to_string(Protocol::FixpSbe) == "fixp_sbe");
     CHECK(to_string(Protocol::Fix44) == "fix44");
     CHECK(to_string(Protocol::Ouch42) == "ouch42");
+}
+
+// The publisher needs room for its largest ITCH message in one packet, so the
+// parser must reject anything the publisher would refuse (QA review F3).
+TEST_CASE(server_config, max_payload_matches_the_publisher_minimum) {
+    auto parses = [](std::uint32_t max_payload) {
+        ServerConfig cfg;
+        std::string err;
+        return parse_config(std::string(kMinimal) + "[market_data]\nmax_payload = " + std::to_string(max_payload) + "\n",
+                            cfg, err);
+    };
+    CHECK(!parses(64));
+    CHECK(!parses(static_cast<std::uint32_t>(md::kMinimumMaxPayload) - 1));
+    CHECK(parses(static_cast<std::uint32_t>(md::kMinimumMaxPayload)));
+    CHECK(parses(static_cast<std::uint32_t>(md::kMaximumMaxPayload)));
+    CHECK(!parses(static_cast<std::uint32_t>(md::kMaximumMaxPayload) + 1));
+
+    ServerConfig cfg;
+    std::string err;
+    REQUIRE(parse_config(std::string(kMinimal) + "[market_data]\nmax_payload = 72\n", cfg, err));
+    md::PublisherConfig publisher_config;
+    publisher_config.session = cfg.market_data.session;
+    publisher_config.max_payload = cfg.market_data.max_payload;
+    CHECK(md::validate_publisher_config(publisher_config) == md::PublishStatus::Ok);
 }

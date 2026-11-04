@@ -1,5 +1,7 @@
 #include "exsim/server/config.hpp"
 
+#include "exsim/md/feed_common.hpp"
+
 #include <algorithm>
 #include <charconv>
 #include <cstdio>
@@ -273,7 +275,7 @@ struct Parser {
         if (k == "ttl") return parse_uint(v, m.ttl) || bad_value(k, v);
         if (k == "loopback") return parse_bool(v, m.loopback) || bad_value(k, v);
         if (k == "retransmit_port") return parse_uint(v, m.retransmit_port) || bad_value(k, v);
-        if (k == "max_payload") return (parse_uint(v, m.max_payload) && m.max_payload >= 64 && m.max_payload <= 65507) || bad_value(k, v);
+        if (k == "max_payload") return (parse_uint(v, m.max_payload) && m.max_payload >= md::kMinimumMaxPayload && m.max_payload <= md::kMaximumMaxPayload) || bad_value(k, v);
         if (k == "session") { m.session = std::string(v); return true; }
         if (k == "retransmit_buffer") return (parse_uint(v, m.retransmit_buffer) && m.retransmit_buffer > 0) || bad_value(k, v);
         if (k == "noii_interval_ms") return parse_uint(v, m.noii_interval_ms) || bad_value(k, v);
