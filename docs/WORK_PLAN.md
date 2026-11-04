@@ -47,6 +47,7 @@ Updated 2026-11-05. This is a recovery checkpoint, not live delegate status. Kee
 | SBE over FIXP | `/Users/jedi/.t3/worktrees/lob/t3-dd94b274`, branch `t3/add-fixp-sbe-gateway` (`f2a6a83`, `547ba68`) | Resumed on Claude 2026-11-05 (GCC constexpr fix, merge, commit). |
 | Server binary and E2E | harness worktree (task `...delegate-task%3A08e286a4-cae1-4949-b6f0-83a32243c0a3`) | Running on Claude since 2026-11-05, from `e2cdd11`. |
 | HTTP/OpenAPI API and UI | harness worktree (task `...delegate-task%3Ae28022a3-cc29-4d4a-86c4-4cfec8e4fb7b`) | Running on Claude since 2026-11-05, from `e2cdd11` plus the committed runner branch; re-check against the finished runner before merge. |
+| QA review: OUCH, MD, core | harness worktree (task `...delegate-task%3A337bf277-8344-4bed-9afb-78ff48b41a1a`) | Report-only review at `e2cdd11`; report `/tmp/exsim-review-proto/REPORT.md`. Confirmed findings go to the owner after the server delegate lands. |
 | Ladder engine A | `/Users/jedi/.t3/worktrees/lob/t3-eaaf2612` (`b77d206`) | Done; evaluated, not selected. |
 | Engine C integration | scratch worktree `engine-c-integration`, branch `integrate-engine-c` | Merged (`b874ce5`). |
 | Vector engine B | `/Users/jedi/.t3/worktrees/lob/t3-3500e31b` | Done, superseded by C. Untracked redundant second oracle not merged. |

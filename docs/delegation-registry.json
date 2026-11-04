@@ -349,6 +349,17 @@
       "link": "<t3-thread://v2/28299d02-72aa-499f-95da-f2289df17826/thread:delegated-task:command%3Amcp%3A4bcebf24-eb39-4dca-8805-e9fc91cd70ec%3Adelegate-task%3Ae28022a3-cc29-4d4a-86c4-4cfec8e4fb7b>",
       "recoveryState": "launched 2026-11-05 from e2cdd11 in a harness worktree; builds on committed runner branch (b06a276, e44b5c6) behind an adapter; re-check against the finished runner before merge",
       "taskId": "node:delegated-task:command%3Amcp%3A4bcebf24-eb39-4dca-8805-e9fc91cd70ec%3Adelegate-task%3Ae28022a3-cc29-4d4a-86c4-4cfec8e4fb7b"
+    },
+    {
+      "threadId": "thread:delegated-task:command%3Amcp%3A4bcebf24-eb39-4dca-8805-e9fc91cd70ec%3Adelegate-task%3A337bf277-8344-4bed-9afb-78ff48b41a1a",
+      "title": "QA review: OUCH, ITCH/MoldUDP64 and exchange core",
+      "status": "running",
+      "provider": "claudeAgent",
+      "model": "claude-opus-5-5",
+      "reasoningEffort": "high",
+      "link": "<t3-thread://v2/28299d02-72aa-499f-95da-f2289df17826/thread:delegated-task:command%3Amcp%3A4bcebf24-eb39-4dca-8805-e9fc91cd70ec%3Adelegate-task%3A337bf277-8344-4bed-9afb-78ff48b41a1a>",
+      "recoveryState": "launched 2026-11-05 at e2cdd11; report-only, report /tmp/exsim-review-proto/REPORT.md",
+      "taskId": "node:delegated-task:command%3Amcp%3A4bcebf24-eb39-4dca-8805-e9fc91cd70ec%3Adelegate-task%3A337bf277-8344-4bed-9afb-78ff48b41a1a"
     }
   ]
 }
