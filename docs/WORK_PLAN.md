@@ -50,6 +50,8 @@ Updated 2026-11-05. This is a recovery checkpoint, not live delegate status. Kee
 | QA review: FIX gateway | harness worktree (task `...delegate-task%3Acf7a69b1-c24f-40c2-80fe-cdea4b6f93e5`) | Done. Report `/tmp/exsim-review-fix/REPORT.md`, 13 reproducers on `review/fix44-gateway-qa` `13b5a64`. R1 to the OUCH/core/MD fix delegate, the rest to the FIX fix delegate. |
 | QA fixes: FIX gateway | harness worktree (task `...delegate-task%3A8d7857c2-edba-48b5-9969-83237eaa437e`) | Running from `eeb5b21`: R2 to R13, P1, P3, P4, and the FIX-internal sink part of R1. |
 | QA fixes: OUCH, core, MD | harness worktree (task `...delegate-task%3Ace8d6fb6-4238-4a7b-af8b-012f79492edb`) | Running: F1 (drop_out as a transport cut), F2 (admission check before J), F4 (reserved deferred slot per user), F5 (publisher status), R1 (core `unbind(SessionId, ConnectionId)` and all gateway call sites). |
+| Final review: research runner | harness worktree (task `...delegate-task%3Af427d42a-2817-4b65-8bff-27669983ccc9`) | Report-only at `813f074`: causality, accounting, determinism; report `/tmp/exsim-review-runner/REPORT.md`. |
+| Final review: SBE over FIXP | harness worktree (task `...delegate-task%3A00a1bebd-409d-4a92-babe-cc3034f3bd7c`) | Report-only at `813f074`: FIXP session, SBE framing, recovery; report `/tmp/exsim-review-sbe/REPORT.md`. |
 | Research runner | `/Users/jedi/.t3/worktrees/lob/t3-e1e148f1`, branch `t3/deterministic-research-runner` | Done (`2619a8e`), merged `4783f45`. API differences for the HTTP adapter: docs/RESEARCH_RUNNER.md. |
 | SBE over FIXP | `/Users/jedi/.t3/worktrees/lob/t3-dd94b274`, branch `t3/add-fixp-sbe-gateway` | Done (`02b3430`), merged `340a949`. |
 | Server binary and E2E | harness worktree (task `...delegate-task%3A08e286a4-cae1-4949-b6f0-83a32243c0a3`) | Running on Claude since 2026-11-05, from `e2cdd11`. |
@@ -86,4 +88,4 @@ Next, on completion notifications (do not poll):
 1. QA fix delegates (OUCH/core/MD `ce8d6fb6`, FIX `8d7857c2`): review, bring in the review reproducers, merge, full gate (macOS release, ASan/UBSan, `make all`, Linux g++/clang++). `ce8d6fb6` changes the core unbind API, so merge it before the FIX fixes and resolve the single `ctx.unbind` line.
 2. Server binary (`08e286a4`): review, merge after the core API change, run the E2E and wire-to-wire benchmark gates; wire SBE into the server if the delegate did not.
 3. API and UI (`e28022a3`): check the adapter against the runner differences table, review, merge, run the C++ and bun gates.
-4. Final independent review (correctness, causality, accounting, protocol recovery, UI) by separate QA delegates; fix findings; README with measured numbers.
+4. Final independent review: runner (causality, accounting) and SBE/FIXP reviews are running; after the server and API/UI merges, review the server end to end (all three protocols plus market data) and the UI on real runs; fix findings; README with wire-to-wire numbers (README status refreshed `813f074`).

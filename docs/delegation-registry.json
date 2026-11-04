@@ -410,6 +410,38 @@
         "FIX parts of docs/GATEWAYS.md"
       ],
       "recoveryState": "launched 2026-11-05 in a harness worktree from eeb5b21; R2-R13, P1, P3, P4 and the FIX-internal part of R1; reproducers from 13b5a64"
+    },
+    {
+      "threadId": "thread:delegated-task:command%3Amcp%3A33cc22c4-1a5f-4cc2-85e3-235b5934450a%3Adelegate-task%3Af427d42a-2817-4b65-8bff-27669983ccc9",
+      "title": "QA review: research runner causality and accounting",
+      "status": "running",
+      "provider": "claudeAgent",
+      "model": "claude-opus-5-5",
+      "reasoningEffort": "high",
+      "link": "<t3-thread://v2/28299d02-72aa-499f-95da-f2289df17826/thread:delegated-task:command%3Amcp%3A33cc22c4-1a5f-4cc2-85e3-235b5934450a%3Adelegate-task%3Af427d42a-2817-4b65-8bff-27669983ccc9>",
+      "parentThreadId": "a4344aba-ffd8-4132-bf6d-ea93d8fe68e8",
+      "taskId": "node:delegated-task:command%3Amcp%3A33cc22c4-1a5f-4cc2-85e3-235b5934450a%3Adelegate-task%3Af427d42a-2817-4b65-8bff-27669983ccc9",
+      "ownership": [
+        "tests/exsim/research/research_review_tests.cpp",
+        "/tmp/exsim-review-runner/"
+      ],
+      "recoveryState": "launched 2026-11-05 at 813f074; report-only, branch review/research-runner-qa, report /tmp/exsim-review-runner/REPORT.md"
+    },
+    {
+      "threadId": "thread:delegated-task:command%3Amcp%3A33cc22c4-1a5f-4cc2-85e3-235b5934450a%3Adelegate-task%3A00a1bebd-409d-4a92-babe-cc3034f3bd7c",
+      "title": "QA review: SBE over FIXP gateway",
+      "status": "running",
+      "provider": "claudeAgent",
+      "model": "claude-opus-5-5",
+      "reasoningEffort": "high",
+      "link": "<t3-thread://v2/28299d02-72aa-499f-95da-f2289df17826/thread:delegated-task:command%3Amcp%3A33cc22c4-1a5f-4cc2-85e3-235b5934450a%3Adelegate-task%3A00a1bebd-409d-4a92-babe-cc3034f3bd7c>",
+      "parentThreadId": "a4344aba-ffd8-4132-bf6d-ea93d8fe68e8",
+      "taskId": "node:delegated-task:command%3Amcp%3A33cc22c4-1a5f-4cc2-85e3-235b5934450a%3Adelegate-task%3A00a1bebd-409d-4a92-babe-cc3034f3bd7c",
+      "ownership": [
+        "tests/exsim/gateway/fixp_sbe/fixp_sbe_review_tests.cpp",
+        "/tmp/exsim-review-sbe/"
+      ],
+      "recoveryState": "launched 2026-11-05 at 813f074; report-only, branch review/fixp-sbe-gateway-qa, report /tmp/exsim-review-sbe/REPORT.md"
     }
   ]
 }
