@@ -194,3 +194,73 @@ TEST_CASE(fixp_sbe, reconnect_client_and_cancel_on_disconnect) {
     CHECK_EQ(handler.delivered,3u);
     CHECK_EQ(client.next_expected_server_sequence_number(),4u);
 }
+TEST_CASE(fixp_sbe, engine_rejects_no_effect_and_replace_to_cumulative) {
+    EngineTestContext context; auto instrument=context.add_instrument("AAPL");
+    context.add_user("alice","secret",1); ServerConnectionHarness server(context); server.log_in();
+    server.send(limit_order(1,sbe::SideCode::Buy,10001,100));
+    auto frames=server.take_output(); REQUIRE_EQ(count_frames(frames,sbe::TemplateId::ExecutionReportReject),1u);
+    CHECK_EQ(frames[0].as<sbe::ExecutionReportReject>().cl_ord_id,1u);
+    server.send(limit_order(2,sbe::SideCode::Buy,10000,100)); static_cast<void>(server.take_output());
+    server.send(cancel_request(3,2,100)); frames=server.take_output();
+    REQUIRE_EQ(count_frames(frames,sbe::TemplateId::OrderCancelReject),1u);
+    context.submit_resting_order(instrument,2,1,exsim::Side::SELL,10000,30); static_cast<void>(server.take_output());
+    server.send(replace_request(4,2,10000,20)); frames=server.take_output();
+    REQUIRE_EQ(count_frames(frames,sbe::TemplateId::ExecutionReportCancel),1u);
+    auto canceled=frames[0].as<sbe::ExecutionReportCancel>();
+    CHECK_EQ(canceled.cl_ord_id,4u); CHECK_EQ(canceled.orig_cl_ord_id,2u); CHECK_EQ(canceled.leaves_qty,0u);
+}
+TEST_CASE(fixp_sbe, bounded_uuid_history_does_not_forget_ids) {
+    EngineTestContext context; context.add_user("alice","secret",1,0,exsim::StpMode::None,false);
+    for(unsigned index=0; index<64; ++index) {
+        ServerConnectionHarness server(context);
+        auto uuid=fixp::version4_uuid_from_random_bits(index,100);
+        server.negotiate(uuid);
+        REQUIRE(server.connection().state()==fixp::FixpSbeConnectionState::Negotiated);
+    }
+    { ServerConnectionHarness server(context);
+      server.negotiate(fixp::version4_uuid_from_random_bits(65,100));
+      CHECK(server.connection().close_reason()==fixp::FixpSbeCloseReason::NegotiationRejected); }
+    { ServerConnectionHarness server(context);
+      server.negotiate(fixp::version4_uuid_from_random_bits(0,100));
+      auto frames=server.take_output(); REQUIRE_EQ(frames.size(),1u);
+      CHECK(frames[0].as<sbe::NegotiationReject>().code==sbe::NegotiationRejectCode::DuplicateId); }
+}
+TEST_CASE(fixp_sbe, retransmit_out_of_range_and_server_heartbeat) {
+    EngineTestContext context; context.add_user("alice","secret",1);
+    ServerConnectionHarness server(context); server.log_in(); context.advance_ms(1000);
+    server.connection().on_timer(context); auto frames=server.take_output();
+    REQUIRE_EQ(count_frames(frames,sbe::TemplateId::Sequence),1u);
+    CHECK_EQ(frames[0].as<sbe::Sequence>().next_seq_no,1u);
+    sbe::RetransmitRequest request; request.session_id=kFirstSessionUuid;
+    request.timestamp_ns=context.realtime_ns(); request.from_seq_no=1; request.count=1;
+    server.send(request);
+    CHECK(server.connection().close_reason()==fixp::FixpSbeCloseReason::RetransmitOutOfBounds);
+}
+TEST_CASE(fixp_sbe, client_rejects_wrong_handshake_echo) {
+    MemoryBuffer outbound; CountingHandler handler;
+    fixp::FixpSbeClientSettings settings; settings.credentials="alice:secret";
+    fixp::FixpSbeClient client(MemorySink(&outbound),handler,settings);
+    REQUIRE(client.negotiate(kFirstSessionUuid,EngineTestContext::kRealtimeOriginUnixNs));
+    sbe::NegotiationResponse response; response.session_id=kFirstSessionUuid;
+    response.request_timestamp_ns=EngineTestContext::kRealtimeOriginUnixNs+1;
+    auto bytes=encode_frame(response);
+    client.on_data(bytes,EngineTestContext::kRealtimeOriginUnixNs+1);
+    CHECK(client.failure()==fixp::FixpSbeClientFailure::ProtocolViolation);
+}
+TEST_CASE(fixp_sbe, client_keepalive_timeout) {
+    MemoryBuffer outbound; CountingHandler handler;
+    fixp::FixpSbeClientSettings settings; settings.credentials="alice:secret";
+    fixp::FixpSbeClient client(MemorySink(&outbound),handler,settings);
+    constexpr auto now=EngineTestContext::kRealtimeOriginUnixNs;
+    REQUIRE(client.negotiate(kFirstSessionUuid,now));
+    sbe::NegotiationResponse response; response.session_id=kFirstSessionUuid; response.request_timestamp_ns=now;
+    auto bytes=encode_frame(response); client.on_data(bytes,now);
+    REQUIRE(client.establish(now));
+    sbe::EstablishmentAck ack; ack.session_id=kFirstSessionUuid; ack.request_timestamp_ns=now;
+    ack.next_seq_no=1; ack.keepalive_interval_ms=1000;
+    bytes=encode_frame(ack); client.on_data(bytes,now); outbound.clear();
+    client.on_timer(now+1'000'000'000ull);
+    CHECK_EQ(count_frames(parse_frames(outbound.bytes()),sbe::TemplateId::Sequence),1u);
+    client.on_timer(now+2'000'000'001ull);
+    CHECK(client.failure()==fixp::FixpSbeClientFailure::KeepaliveExpired);
+}

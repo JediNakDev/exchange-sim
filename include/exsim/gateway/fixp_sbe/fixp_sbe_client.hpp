@@ -268,6 +268,10 @@ private:
             case sbe::TemplateId::NegotiationReject: {
                 sbe::NegotiationReject reject;
                 if (!decode_or_fail(view, reject, now_unix_ns)) return;
+                if (state_ != FixpSbeClientState::AwaitingNegotiationResponse ||
+                    reject.session_id != session_uuid_ || reject.request_timestamp_ns != negotiation_timestamp_ns_) {
+                    return fail(FixpSbeClientFailure::ProtocolViolation, "unexpected NegotiationReject", now_unix_ns);
+                }
                 state_ = FixpSbeClientState::Terminated;
                 failure_ = FixpSbeClientFailure::NegotiationRejected;
                 if constexpr (requires { handler_.on_negotiation_reject(reject); }) handler_.on_negotiation_reject(reject);
@@ -292,6 +296,10 @@ private:
             case sbe::TemplateId::EstablishmentReject: {
                 sbe::EstablishmentReject reject;
                 if (!decode_or_fail(view, reject, now_unix_ns)) return;
+                if (state_ != FixpSbeClientState::AwaitingEstablishmentAck ||
+                    reject.session_id != session_uuid_ || reject.request_timestamp_ns != establishment_timestamp_ns_) {
+                    return fail(FixpSbeClientFailure::ProtocolViolation, "unexpected EstablishmentReject", now_unix_ns);
+                }
                 state_ = FixpSbeClientState::Terminated;
                 failure_ = FixpSbeClientFailure::EstablishmentRejected;
                 if constexpr (requires { handler_.on_establishment_reject(reject); }) handler_.on_establishment_reject(reject);
@@ -326,6 +334,10 @@ private:
             case sbe::TemplateId::RetransmitReject: {
                 sbe::RetransmitReject reject;
                 if (!decode_or_fail(view, reject, now_unix_ns)) return;
+                if (!retransmit_request_in_flight_ || reject.session_id != session_uuid_ ||
+                    reject.request_timestamp_ns != retransmit_timestamp_ns_) {
+                    return fail(FixpSbeClientFailure::ProtocolViolation, "unexpected RetransmitReject", now_unix_ns);
+                }
                 retransmit_request_in_flight_ = false;
                 if constexpr (requires { handler_.on_retransmit_reject(reject); }) handler_.on_retransmit_reject(reject);
                 return;
@@ -333,6 +345,9 @@ private:
             case sbe::TemplateId::Terminate: {
                 sbe::Terminate terminate;
                 if (!decode_or_fail(view, terminate, now_unix_ns)) return;
+                if (terminate.session_id != session_uuid_) {
+                    return fail(FixpSbeClientFailure::ProtocolViolation, "Terminate SessionId mismatch", now_unix_ns);
+                }
                 if (state_ != FixpSbeClientState::TerminateSent) {
                     failure_ = FixpSbeClientFailure::ServerTerminated;
                     send_terminate(sbe::TerminationCode::Finished, "terminate acknowledged", now_unix_ns);
@@ -354,7 +369,8 @@ private:
     // Sequence or EstablishmentAck: the next real-time message carries
     // next_server_sequence_number (FIXP 4.5).
     void restate_server_sequence(std::uint64_t next_server_sequence_number, std::uint64_t now_unix_ns) noexcept {
-        if (next_server_sequence_number < next_expected_server_sequence_number_) {
+        if (next_server_sequence_number == sbe::kNullSequenceNumber ||
+            next_server_sequence_number < next_expected_server_sequence_number_) {
             return fail(FixpSbeClientFailure::SequenceRegression, "NextSeqNo below the expected sequence number",
                         now_unix_ns);
         }

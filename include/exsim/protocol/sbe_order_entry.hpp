@@ -142,7 +142,7 @@ using WireSymbol = std::array<char, 8>;  // NUL padded (SBE 4.7.2)
 }
 
 // exsim symbols are space padded; the wire form is NUL padded.
-[[nodiscard]] constexpr WireSymbol wire_symbol_from(const Symbol& symbol) noexcept {
+[[nodiscard]] inline WireSymbol wire_symbol_from(const Symbol& symbol) noexcept {
     WireSymbol wire{};
     const std::string_view text = symbol.view();
     for (std::size_t index = 0; index < text.size(); ++index) wire[index] = text[index];

@@ -948,6 +948,10 @@ private:
             case sbe::TemplateId::Terminate: {
                 sbe::Terminate terminate;
                 if (!decode_or_violate(view, terminate, now)) return;
+                if (terminate.session_id != session_uuid_) {
+                    protocol_violation("Terminate SessionId mismatch", now);
+                    return;
+                }
                 // FIXP 4.4.1: the receiver must answer Terminate with Terminate.
                 if (state_ == FixpSbeConnectionState::Established) {
                     send_terminate(sbe::TerminationCode::Finished, "terminate acknowledged", now);
