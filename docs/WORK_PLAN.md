@@ -20,7 +20,7 @@ Updated 2026-11-05. This is a recovery checkpoint, not live delegate status. Kee
   - exchange core `a8c8e5a` (from `4948efe`); OUCH 4.2/SoupBinTCP gateway `1023f60` (from `b64057e`); ITCH 5.0/MoldUDP64 publisher, retransmission, receiver and book builder `4a8927a` (from `79dbd73`); OpenAPI research contract and Next.js research UI on a mock service `f2c0b57` (from `a5bc883`); coverage-guided fuzzing `4f44239` (from `e866bce`).
 - Checks on the integrated tree plus the 2026-11-05 review fixes (FIX checksum framing, server config limits, price overflow, scenario book lines, engine-agnostic dispatch capacity test, fuzz model without known-bug steering): macOS release 613/613, ASan/UBSan 611/611, `make all`, warning-free (`/tmp/exsim-int2-{release,debug,all}.log`); Linux g++ and clang++ release 613/613, 0 warnings (`/tmp/exsim-int2-linux.log`). Engine C fuzz: 1000 seeds x 20000 steps per profile, 40M commands, no divergence.
 - FIX 4.4 gateway merged `4a636ca` (from `d136ff6`): 76 gateway tests, macOS release 689/689 and ASan/UBSan 687/687, Linux g++ and clang++ 689/689 (`/tmp/exsim-fix-*.log`, `/tmp/exsim-int3-release.log`).
-- Not integrated yet: SBE over FIXP gateway, deterministic research runner (all three resumed on Claude in their own worktrees); server binary and end-to-end tests; C++ HTTP/OpenAPI API; UI on real artifacts; final independent review.
+- Not integrated yet: SBE over FIXP gateway, deterministic research runner (both resumed on Claude in their own worktrees); server binary and end-to-end tests; C++ HTTP/OpenAPI API; UI on real artifacts; final independent review.
 
 ## Milestones
 
