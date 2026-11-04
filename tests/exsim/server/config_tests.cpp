@@ -47,6 +47,30 @@ TEST_CASE(server_config, prices) {
     CHECK(format_price(0) == "0");
 }
 
+TEST_CASE(server_config, price_int64_limits_and_transactional_overflow) {
+    Price price = 0;
+    REQUIRE(parse_price("922337203685477.5807", price));
+    CHECK_EQ(price, INT64_MAX);
+    REQUIRE(parse_price("-922337203685477.5808", price));
+    CHECK_EQ(price, INT64_MIN);
+    CHECK_EQ(format_price(price), "-922337203685477.5808");
+    for (const auto text : {"922337203685477.5808", "-922337203685477.5809",
+                            "-922337203685477.587.", "922337203685478", "--1"}) {
+        price = 123;
+        CHECK(!parse_price(text, price));
+        CHECK_EQ(price, 123);
+    }
+}
+
+TEST_CASE(server_config, engine_limit_errors_identify_the_source_line) {
+    for (const auto key : {"max_instruments = 65536", "max_orders = 4294967296"}) {
+        ServerConfig config;
+        std::string error;
+        CHECK(!parse_config(std::string("[engine]\n") + key + "\n" + kMinimal, config, error));
+        CHECK(error.starts_with("2:"));
+    }
+}
+
 TEST_CASE(server_config, minimal_uses_defaults) {
     ServerConfig cfg;
     std::string err;

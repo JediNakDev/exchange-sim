@@ -280,8 +280,10 @@ struct Parser {
 
     bool engine_key(const std::string& k, std::string_view v) {
         EngineSection& e = cfg.engine;
-        if (k == "max_instruments") return (parse_uint(v, e.engine.max_instruments) && e.engine.max_instruments > 0) || bad_value(k, v);
-        if (k == "max_orders") return (parse_uint(v, e.engine.max_orders) && e.engine.max_orders > 0) || bad_value(k, v);
+        if (k == "max_instruments") return (parse_uint(v, e.engine.max_instruments) && e.engine.max_instruments > 0 &&
+            e.engine.max_instruments <= std::numeric_limits<InstrumentId>::max()) || bad_value(k, v);
+        if (k == "max_orders") return (parse_uint(v, e.engine.max_orders) && e.engine.max_orders > 0 &&
+            e.engine.max_orders <= std::numeric_limits<std::uint32_t>::max()) || bad_value(k, v);
         if (k == "max_tokens_per_session") return (parse_uint(v, e.max_tokens_per_session) && e.max_tokens_per_session > 0) || bad_value(k, v);
         if (k == "store_messages_per_session") return (parse_uint(v, e.store_messages_per_session) && e.store_messages_per_session > 0) || bad_value(k, v);
         if (k == "store_bytes_per_session") return (parse_uint(v, e.store_bytes_per_session) && e.store_bytes_per_session > 0) || bad_value(k, v);
@@ -494,30 +496,34 @@ bool parse_price(std::string_view text, Price& out) noexcept {
     if ((whole.empty() && frac.empty()) || frac.size() > 4 || (dot != std::string_view::npos && frac.empty())) {
         return false;
     }
-    constexpr Price kMax = std::numeric_limits<Price>::max();
-    Price value = 0;
+    constexpr auto maximum = static_cast<std::uint64_t>(std::numeric_limits<Price>::max());
+    const std::uint64_t limit = negative ? maximum + 1 : maximum;
+    std::uint64_t value = 0;
     for (char c : whole) {
         if (c < '0' || c > '9') {
             return false;
         }
-        if (value > (kMax - (c - '0')) / 10) {
+        if (value > (limit - static_cast<unsigned>(c - '0')) / 10) {
             return false;
         }
-        value = value * 10 + (c - '0');
+        value = value * 10 + static_cast<unsigned>(c - '0');
     }
-    if (value > kMax / kPriceScale) {
+    if (value > limit / kPriceScale) {
         return false;
     }
     value *= kPriceScale;
-    Price scale = kPriceScale / 10;
+    std::uint64_t scale = kPriceScale / 10;
     for (char c : frac) {
         if (c < '0' || c > '9') {
             return false;
         }
-        value += (c - '0') * scale;
+        const auto fraction_units = static_cast<unsigned>(c - '0') * scale;
+        if (value > limit - fraction_units) return false;
+        value += fraction_units;
         scale /= 10;
     }
-    out = negative ? -value : value;
+    out = negative && value == maximum + 1 ? std::numeric_limits<Price>::min()
+        : negative ? -static_cast<Price>(value) : static_cast<Price>(value);
     return true;
 }
 
