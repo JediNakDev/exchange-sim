@@ -23,9 +23,11 @@ unchanged. The caller must fail a research run if an already-executed fill
 cannot be recorded. It must not discard the fill or call this an exchange
 rejection. Position magnitudes and arithmetic intermediates must fit int64.
 
-Run `make test FILTER=position_ledger` and the debug equivalent for fixed
-examples and a 20000-fill accounting-identity check. Run
-`sh tests/exsim/research/check_ledger_allocations.sh` for the isolated C++
-allocation guard, including scalar/aligned guard self-tests, capacity failure,
-crossing through flat, valuation, and ring reuse. It does not intercept C
-allocation functions. Detailed generated logs belong under gitignored `logs/`.
+Run `make -j4 test FILTER=position_ledger` and the debug equivalent for fixed
+examples and a 20000-fill accounting-identity check. The allocation guarantee
+for the ledger (capacity failure, crossing through flat, valuation, ring reuse)
+and for the run loop of every compiled strategy is the `research_allocations`
+suite: `make -j4 test FILTER=research_allocations`. It uses the shared
+`testfw::AllocationScope` and is skipped where allocation counting is
+unavailable (sanitizer builds), so the release build enforces it. Direct C
+allocation functions are not intercepted.
