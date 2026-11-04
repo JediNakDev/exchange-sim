@@ -153,6 +153,20 @@ scenario DSL; `ambiguous` = the spec text admits two readings (see findings).
 No finding is a confirmed spec violation by an implementation. Severity
 reflects the risk to the project if left alone.
 
+### Resolutions (2026-11-04, after engine C became production)
+
+| Finding | Resolution |
+| --- | --- |
+| H1 | `ProductionEngine.scenarios` runs every file and fails with `path: line N: event field ...` for each failing one. Checked with the repro below. |
+| A1 | SPEC 4.6 states that a market FOK runs the 4.3 pre-check (reading 1). |
+| A2 | SPEC 9 lists the crossed and not-crossed `auction_indicative` fields separately (reading 1). |
+| A3 | SPEC 12: only the Canceled that a Cancel, Replace or MassCancel itself requests echoes the token; STP cancels during a Replace carry zero (reading 1). |
+| A5 | SPEC 12: an unknown CommandType changes nothing and emits nothing. Engine C and the oracle already behave this way; engine B is no longer production. |
+| D1, D2, D3 | Fixed in SPEC 2, 10 and 12. SPEC 2 also notes the production engine's 2^24 price-level limit at setup. |
+| E1 | Applied to engine B; engine C had the same cost and now keeps per-instrument order lists (`docs/engine-variants/C_INDEX_ARENA.md`). |
+| E2 | Engine B only. Engine C's `blank_event` starts the lifetime of the correct union member before any field is written. |
+| E3, H2, H3 | Informational; unchanged. |
+
 ### Medium
 
 **H1. Production scenario test hides which scenario failed.**

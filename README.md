@@ -25,7 +25,8 @@ is in progress or planned and must not be read as working.
 | Admin command parser, server config, background bots (market maker, noise taker), position ledger | **integrated** as components, not yet wired into a server |
 | Legacy `lob` fixes: per-symbol books per shard, bounded fill output, client mapping reclamation | **integrated** |
 | OUCH and FIX gateways, ITCH publisher and feed handler, exchange core, research runner | in progress |
-| Alternative engine layouts (tick ladder with bitmap, index arena), coverage-guided fuzzing, SPEC conformance audit, SBE over FIXP order entry, research API contract and UI | in progress or queued |
+| Three engine layouts compared on one machine (A tick ladder, B sorted vectors, C index arena), independent review of C, SPEC conformance audit | **done** ([engine variants](docs/engine-variants/), [SPEC_CONFORMANCE.md](docs/SPEC_CONFORMANCE.md)) |
+| Coverage-guided fuzzing, SBE over FIXP order entry, research API contract and UI | in progress or queued |
 | Server binary, end-to-end loopback tests, wire-to-wire latency benchmark, C++ HTTP/OpenAPI research API, final independent review | planned |
 
 Live work, task IDs and verification logs: [docs/WORK_PLAN.md](docs/WORK_PLAN.md).
@@ -96,15 +97,19 @@ Normative documents: [SPEC.md](docs/SPEC.md) (matching semantics),
 | Unit and contract tests (`tests/`) | about 350 test cases: codecs, networking, engine contracts, journal, bots, ledger, legacy book |
 | Reference oracle (`tests/exsim/reference/`) | a deliberately simple second implementation of SPEC.md, written independently of the production engine |
 | Differential fuzzer (`tools/exsim_fuzz`) | random command streams through engine and oracle, compared event by event, with a shrinker for minimal reproducers |
-| Scenarios (`tests/scenarios/*.scn`) | 23 hand-written exchange situations with exact expected events, run against both implementations |
+| Scenarios (`tests/scenarios/*.scn`) | 39 hand-written exchange situations with expected events (16 derived line by line from the spec), run against both implementations; a failure names the file, line and field |
 | Journal and replay | canonical serialization, corruption and truncation detection, bit-identical replay |
 | Allocation guards | per-thread counting of every `operator new` form inside `run_tests`; the engine, journal, networking and bot hot paths must report zero |
 | Sanitizers | the full suite under ASan/UBSan and TSan |
 
 Engine validation so far: 1000 seeds x 20000 steps for each fuzz profile
 (40M commands) with no divergence between the production engine and the
-oracle, run separately for the current engine and the one it replaced. Differential agreement does not prove both match the spec, which is
-why a separate hand-derived SPEC conformance audit is queued.
+oracle, run separately for the current engine and the one it replaced.
+Differential agreement does not prove both match the spec, so a separate
+hand-derived SPEC conformance audit checked 82 rules against both engines and
+the oracle and added 16 scenarios ([SPEC_CONFORMANCE.md](docs/SPEC_CONFORMANCE.md));
+it found no conformance failure, and its ambiguities are now settled in the
+spec text.
 
 ## Performance
 
@@ -122,8 +127,11 @@ comparison is fair but the absolute numbers are pessimistic. Median of three:
 | mixed | 13.11 | 76 | 333 | 7.23 | 1.81x |
 
 On a quieter machine the variant author measured 15.9, 9.0, 16.6 and 17.5
-Mops/s for C. Layouts, measurements and rejected optimizations are recorded
-in [docs/engine-variants/](docs/engine-variants/). Wire-to-wire latency
+Mops/s for C. A third variant (A, tick ladder) was also benchmarked against C
+over seven alternating rounds: C was 1.10x to 1.19x faster on passive,
+aggressive and mixed flow and A about 5% faster on pure cancels. Layouts,
+measurements and rejected optimizations are recorded in
+[docs/engine-variants/](docs/engine-variants/). Wire-to-wire latency
 through the gateways will be measured once the server binary exists.
 
 ## Repository layout
