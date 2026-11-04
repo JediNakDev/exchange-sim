@@ -25,6 +25,14 @@ clock, and covers:
 The only shared value the branch invents is the placeholder
 `fixp::kProposedFixpSbeProtocol = static_cast<server::Protocol>(2)`.
 
+Status (orchestrator, 2026-11-05): section 1 is applied except the optional
+`exchange.fixp_sbe_*` timeout keys (the protocol value, its parser aliases
+`fixp_sbe` and `sbe`, and `exchange.fixp_sbe_port`); section 2 is merged into
+`docs/GATEWAYS.md` section 5. Section 3 goes to the server binary. Answers to
+section 4: store exhaustion stays a terminate (documented); 64 session UUIDs
+per user per day is enough for the planned scenarios; FIXP finalization is not
+needed for end of day, where Terminate is sent.
+
 ## 1. config.hpp and the config parser
 
 ```cpp

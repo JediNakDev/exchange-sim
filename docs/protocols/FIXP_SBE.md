@@ -182,7 +182,7 @@ Submit outcomes map as follows:
 core, including admin faults, cancel on disconnect and a zero allocation
 check of the steady state order path.
 
-The shared changes still needed (a `Protocol::FixpSbe` enumerator, config
-parsing, a listener port and a Sessions router next to OUCH and FIX) are
-proposed in `docs/proposals/SBE_FIXP.md`. Until they land the gateway uses the
-placeholder `kProposedFixpSbeProtocol` (value 2).
+Configuration: `protocol = fixp_sbe` (alias `sbe`) in a `[user]` section and
+`exchange.fixp_sbe_port` select this gateway (`server::Protocol::FixpSbe`).
+The Sessions router and listener wiring for the server binary are described
+in `docs/proposals/SBE_FIXP.md` section 3.

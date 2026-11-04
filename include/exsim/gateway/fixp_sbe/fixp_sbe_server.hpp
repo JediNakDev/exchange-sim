@@ -82,11 +82,9 @@ inline constexpr std::size_t kMaxApplicationFrameSize =
     sbe::kFramePrefixSize + sbe::ExecutionReportReplace::kBlockLength;
 // Session UUIDs remembered per user to answer a reused id with DuplicateId.
 inline constexpr std::size_t kRememberedSessionUuidsPerUser = 64;
-// Placeholder until server::Protocol gains FixpSbe (see docs/protocols/FIXP_SBE.md).
-inline constexpr server::Protocol kProposedFixpSbeProtocol = static_cast<server::Protocol>(2);
 
 struct FixpSbeSessionSettings {
-    server::Protocol authentication_protocol = kProposedFixpSbeProtocol;
+    server::Protocol authentication_protocol = server::Protocol::FixpSbe;
     // EstablishmentAck.KeepaliveInterval: the server sends Sequence after this
     // much outbound silence (FIXP 4.5).
     std::uint32_t server_keepalive_interval_ms = 1000;
@@ -806,7 +804,7 @@ public:
     // One user state per configured user of `protocol` that no bot drives (a
     // bot owns its session exclusively, so it never logs in over FIXP).
     FixpSbeUserStateDirectory(const server::ServerConfig& config, const FixpSbeUserStateSettings& settings,
-                              server::Protocol protocol = kProposedFixpSbeProtocol) {
+                              server::Protocol protocol = server::Protocol::FixpSbe) {
         for (const server::UserConfig& user : config.users) {
             if (user.protocol != protocol || user.session_id == 0 || is_bot_user(user, config)) continue;
             add_user(user, settings);

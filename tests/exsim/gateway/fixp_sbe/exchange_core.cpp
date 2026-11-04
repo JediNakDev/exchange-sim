@@ -102,7 +102,7 @@ exsim::server::ServerConfig parse_core_config() {
     REQUIRE(parsed);
     for (exsim::server::UserConfig& user : config.users) {
         if (user.username == "ALICE" || user.username == "BOB" || user.username == "MM1") {
-            user.protocol = fixp::kProposedFixpSbeProtocol;
+            user.protocol = exsim::server::Protocol::FixpSbe;
         }
     }
     return config;

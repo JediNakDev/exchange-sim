@@ -155,6 +155,41 @@ matching; tolerant of crossed books during auctions) must reproduce the
 engine's depth for every instrument after all packets of a command batch.
 Per-packet checks instead require state reconstructed from the matching event prefix.
 
+## 5. SBE 1.0 over FIXP 1.0
+
+`protocol = fixp_sbe` users connect to `exchange.fixp_sbe_port`. The
+transport is TCP with SOFH framing; the client flow is Idempotent and the
+server flow Recoverable (FIXP Appendix A 7.1.3); the exsim SBE schema is id
+22597 version 1 (`docs/protocols/exsim_order_entry_sbe.xml`). The business
+mapping follows the FIX 4.4 tables in section 3, with numeric uint64 ClOrdIds
+in place of FIX text tokens. Wire details, deviations from the FIXP
+specification and the session state machine are in
+[protocols/FIXP_SBE.md](protocols/FIXP_SBE.md).
+
+One `FixpSbeUserState` per configured user lives for the whole trading day
+inside a `FixpSbeUserStateDirectory`, which is a `server::ExchangeCore`
+Sessions policy. It holds the token table, per-order metadata and the
+sequenced store, so a reconnect resumes the server flow at the next sequence
+number. A `FixpSbeConnection` lives for one transport. Engine events reach the
+user state through `on_events` whether or not a transport is bound.
+
+| `SubmitResult` | Answer |
+| --- | --- |
+| Applied, Deferred | nothing now; reports follow |
+| OutsideTradingDay | reject with MarketClosed |
+| OutputCapacityExceeded, DeferredQueueFull | reject with CapacityExceeded |
+| void submit, no message answered the request | reject with RequestHadNoEffect |
+
+Faults: `reject` applies to new orders only. With `drop_out` the business
+report is stored and sequenced but not sent; the next live message is
+preceded by a Sequence message, so the client sees the gap and requests
+retransmission. Store exhaustion terminates the session and refuses normal
+reconnects for the rest of the day, because later reports could not be
+recovered; size `engine.store_messages_per_session` and
+`engine.store_bytes_per_session` for the whole day. FIXP finalization
+(FinishedSending, FinishedReceiving) is not implemented; at shutdown the
+server sends Terminate on every live connection.
+
 ## Supported simulator profile and deterministic output
 
 OUCH X with positive shares <= cum performs a full CancelOrder; zero also

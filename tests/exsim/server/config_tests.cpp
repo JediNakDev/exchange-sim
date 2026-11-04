@@ -98,6 +98,7 @@ TEST_CASE(server_config, example_file_parses) {
     CHECK_EQ(cfg.instruments.size(), 3u);
     CHECK_EQ(cfg.users.size(), 5u);
     CHECK_EQ(cfg.exchange.ouch_port, 15000);
+    CHECK_EQ(cfg.exchange.fixp_sbe_port, 15003);
     CHECK_EQ(cfg.market_data.port, 16000);
     CHECK(cfg.market_data.interface_address.empty());
     CHECK(cfg.instruments[0].initial_phase == Phase::PreOpen);
@@ -333,4 +334,25 @@ TEST_CASE(server_config, day_times_parse_and_format) {
     CHECK(format_day_time(kNanosecondsPerDay) == "24:00:00");
     CHECK(format_day_time((9 * 3600 + 30 * 60) * 1'000'000'000ull + 250'000'000ull) == "09:30:00.25");
     CHECK(format_day_time(kNanosecondsPerDay - 1) == "23:59:59.999999999");
+}
+
+TEST_CASE(server_config, fixp_sbe_users_and_port) {
+    ServerConfig cfg;
+    std::string err;
+    const std::string text = std::string("[exchange]\nfixp_sbe_port = 15003\n") + kMinimal +
+                             "[user SBEUSER1]\nprotocol = fixp_sbe\nsession_id = 7\n"
+                             "[user SBEUSER2]\nprotocol = sbe\nsession_id = 8\n";
+    const bool ok = parse_config(text, cfg, err);
+    if (!ok) testfw::report_failure(__FILE__, __LINE__, err);
+    REQUIRE(ok);
+    CHECK_EQ(cfg.exchange.fixp_sbe_port, 15003);
+    const UserConfig* first = cfg.find_user("SBEUSER1");
+    const UserConfig* second = cfg.find_user("SBEUSER2");
+    REQUIRE(first != nullptr);
+    REQUIRE(second != nullptr);
+    CHECK(first->protocol == Protocol::FixpSbe);
+    CHECK(second->protocol == Protocol::FixpSbe);
+    CHECK(to_string(Protocol::FixpSbe) == "fixp_sbe");
+    CHECK(to_string(Protocol::Fix44) == "fix44");
+    CHECK(to_string(Protocol::Ouch42) == "ouch42");
 }

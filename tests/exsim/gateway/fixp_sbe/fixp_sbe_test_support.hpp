@@ -183,7 +183,7 @@ public:
         auto entry = std::make_unique<UserEntry>();
         entry->config.username = std::move(username);
         entry->config.password = std::move(password);
-        entry->config.protocol = fixp::kProposedFixpSbeProtocol;
+        entry->config.protocol = exsim::server::Protocol::FixpSbe;
         entry->config.session_id = session_id;
         entry->config.owner = owner;
         entry->config.stp = default_stp;

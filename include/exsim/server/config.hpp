@@ -7,7 +7,7 @@
 // Format: INI-style sections, `key = value`, `#` or `;` comments.
 //
 //   [exchange]                 name, bind_address, ouch_port, fix_port,
-//                              admin_port, max_connections,
+//                              fixp_sbe_port, admin_port, max_connections,
 //                              heartbeat_interval_ms, soup_session,
 //                              trading_day_start, trading_day_end
 //   [market_data]              address, port, interface, ttl, loopback,
@@ -47,15 +47,22 @@
 
 namespace exsim::server {
 
-enum class Protocol : std::uint8_t { Ouch42 = 0, Fix44 = 1 };
+// Order-entry protocol of a configured user: OUCH 4.2 over SoupBinTCP, FIX
+// 4.4, or SBE over FIXP (docs/protocols/FIXP_SBE.md).
+enum class Protocol : std::uint8_t { Ouch42 = 0, Fix44 = 1, FixpSbe = 2 };
 
-constexpr std::string_view to_string(Protocol p) noexcept {
-    return p == Protocol::Ouch42 ? "ouch42" : "fix44";
+constexpr std::string_view to_string(Protocol protocol) noexcept {
+    switch (protocol) {
+        case Protocol::Ouch42: return "ouch42";
+        case Protocol::Fix44: return "fix44";
+        case Protocol::FixpSbe: return "fixp_sbe";
+    }
+    return "unknown";
 }
 
 struct UserConfig {
-    std::string username;  // SoupBinTCP username (<= 6 chars) or FIX SenderCompID
-    std::string password;  // SoupBinTCP password (<= 10 chars) or FIX Password(554); empty = none
+    std::string username;  // SoupBinTCP username (<= 6 chars), FIX SenderCompID or FIXP credentials user
+    std::string password;  // SoupBinTCP password (<= 10 chars), FIX Password(554) or FIXP credentials; empty = none
     Protocol protocol = Protocol::Ouch42;
     SessionId session_id = 0;  // unique, non-zero
     OwnerId owner = 0;         // STP group; 0 = none
@@ -70,6 +77,7 @@ struct ExchangeSection {
     std::string bind_address = "127.0.0.1";
     std::uint16_t ouch_port = 0;   // 0 = OS-assigned (logged at startup)
     std::uint16_t fix_port = 0;
+    std::uint16_t fixp_sbe_port = 0;
     std::uint16_t admin_port = 0;
     std::uint32_t max_connections = 64;
     std::uint32_t heartbeat_interval_ms = 1000;  // SoupBinTCP server heartbeat

@@ -83,6 +83,7 @@ bool parse_protocol(std::string_view v, Protocol& out) {
     const std::string s = lower(v);
     if (s == "ouch42" || s == "ouch") out = Protocol::Ouch42;
     else if (s == "fix44" || s == "fix") out = Protocol::Fix44;
+    else if (s == "fixp_sbe" || s == "sbe") out = Protocol::FixpSbe;
     else return false;
     return true;
 }
@@ -254,6 +255,7 @@ struct Parser {
         if (k == "bind_address") { x.bind_address = std::string(v); return true; }
         if (k == "ouch_port") return parse_uint(v, x.ouch_port) || bad_value(k, v);
         if (k == "fix_port") return parse_uint(v, x.fix_port) || bad_value(k, v);
+        if (k == "fixp_sbe_port") return parse_uint(v, x.fixp_sbe_port) || bad_value(k, v);
         if (k == "admin_port") return parse_uint(v, x.admin_port) || bad_value(k, v);
         if (k == "max_connections") return (parse_uint(v, x.max_connections) && x.max_connections > 0) || bad_value(k, v);
         if (k == "heartbeat_interval_ms") return (parse_uint(v, x.heartbeat_interval_ms) && x.heartbeat_interval_ms > 0) || bad_value(k, v);
