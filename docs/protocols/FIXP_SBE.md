@@ -23,9 +23,7 @@ The authoritative FIX Trading Community sources consulted are:
   sections “Encoding of the Simple Open Framing Header”, “Message_Length”
   and “Encoding_Type”.
 
-The downloaded sources from the interrupted implementation were reused at
-`/private/tmp/claude-501/-Users-jedi--t3-worktrees-lob-t3-dd94b274/8de07f72-d147-4927-b999-5503e0365659/scratchpad/specs/`.
-The XML validates against that SBE 1.0 `sbe.xsd`.
+The XML validates against the `sbe.xsd` published with SBE 1.0.
 
 Each frame is SOFH (6 bytes) + SBE header (12 bytes) + root block + variable
 data. SOFH contains a big-endian uint32 total length, including itself, and
@@ -159,28 +157,32 @@ FIX mappings in GATEWAYS.md. FIXP sequencing replaces FIX MsgSeqNum handling.
 - Client recovery is in-memory within the client object's lifetime. Crash
   persistence and application retry scheduling are caller responsibilities.
 
-## Integration additions for the parent
+## Integration with the server
 
-Proposed GATEWAYS.md additions (not applied to the shared file):
+`FixpSbeUserStateDirectory<ByteSink>` holds one `FixpSbeUserState` per
+configured FIXP/SBE user for the whole trading day and is a
+`server::ExchangeCore` `Sessions` policy: the core calls
+`on_events(session, batch, core)` for every session in an event batch, bound
+or not. `server::ExchangeCore` satisfies `FixpSbeServerContext`, so a
+`FixpSbeConnection` built with the directory runs directly on the core. The
+driving contract (on_data, on_timer, close_requested, on_disconnect,
+end_session) is in the header comment of
+`include/exsim/gateway/fixp_sbe/fixp_sbe_server.hpp`.
 
-> Add protocol `fixp_sbe`, with the Idempotent-client/Recoverable-server TCP
-> profile and exsim schema 22597 version 1 defined in protocols/FIXP_SBE.md.
-> Own a FixpSbeUserState per user for the entire day and FixpSbeConnection per
-> transport. Extend Context with fixp_sbe_user_state(SessionId). Dispatch
-> on_events once per distinct session, including disconnected users. Drive
-> on_timer and on_disconnect as documented in the header. Preserve the token
-> table and sequenced store across transport loss.
+Submit outcomes map as follows:
 
-Proposed SERVER.md/config additions (not applied to shared files):
+| SubmitResult | Gateway answer |
+|---|---|
+| Applied, Deferred | nothing extra; reports follow from engine events |
+| OutsideTradingDay | reject with MarketClosed |
+| OutputCapacityExceeded, DeferredQueueFull | reject with CapacityExceeded |
+| void submit, no message answered the request | reject with RequestHadNoEffect |
 
-> Add server::Protocol::FixpSbe with value 2, parse `protocol = fixp_sbe`, and
-> add an optional `exchange.fixp_sbe_port` listener. Pass that enumerator in
-> FixpSbeSessionSettings.authentication_protocol. The current standalone
-> gateway uses an explicitly documented value-2 placeholder until integration.
-> Reuse heartbeat_interval_ms, max_tokens_per_session,
-> store_messages_per_session and store_bytes_per_session. Expose establishment
-> timeout, accepted keepalive range and retransmission batch size if needed.
-> Construct byte sinks over the existing prepare/commit send-buffer adapter.
-> The server owns socket closure, event dispatch and cancel-on-disconnect.
+`tests/exsim/gateway/fixp_sbe/exchange_core.cpp` runs the gateway on the real
+core, including admin faults, cancel on disconnect and a zero allocation
+check of the steady state order path.
 
-No server listener or config parser integration is claimed by this branch.
+The shared changes still needed (a `Protocol::FixpSbe` enumerator, config
+parsing, a listener port and a Sessions router next to OUCH and FIX) are
+proposed in `docs/proposals/SBE_FIXP.md`. Until they land the gateway uses the
+placeholder `kProposedFixpSbeProtocol` (value 2).

@@ -85,6 +85,7 @@ static_assert(fixp::FixpSbeByteSink<MemorySink>);
 
 using UserState = fixp::FixpSbeUserState<MemorySink>;
 using Connection = fixp::FixpSbeConnection<MemorySink>;
+using UserStateDirectory = fixp::FixpSbeUserStateDirectory<MemorySink>;
 
 // ---------------------------------------------------------------------------
 // Frames
@@ -187,9 +188,9 @@ public:
         entry->config.owner = owner;
         entry->config.stp = default_stp;
         entry->config.cancel_on_disconnect = cancel_on_disconnect;
-        entry->state = std::make_unique<UserState>(entry->config, settings);
+        UserState& user_state = user_states_.add_user(entry->config, settings);
         users_.push_back(std::move(entry));
-        return *users_.back()->state;
+        return user_state;
     }
 
     // ---- Context (SERVER.md 2.1) --------------------------------------------
@@ -205,7 +206,7 @@ public:
         return nullptr;
     }
 
-    bool bind(exsim::SessionId session_id, exsim::net::ConnectionId connection_id) noexcept {
+    bool bind(exsim::SessionId session_id, exsim::server::ConnectionId connection_id) noexcept {
         UserEntry* entry = find_user(session_id);
         if (entry == nullptr || entry->bound) return false;
         entry->bound = true;
@@ -260,7 +261,7 @@ public:
                 if (dispatched_sessions[index] == session_id) return;
             }
             if (dispatched_count < dispatched_sessions.size()) dispatched_sessions[dispatched_count++] = session_id;
-            if (UserState* user_state = fixp_sbe_user_state(session_id)) user_state->on_events(batch, *this);
+            user_states_.on_events(session_id, batch, *this);
         };
         for (const exsim::Event& event : batch) {
             switch (event.type) {
@@ -283,10 +284,7 @@ public:
     exsim::Timestamp now() const noexcept { return now_ns; }
     std::uint64_t realtime_ns() const noexcept { return kRealtimeOriginUnixNs + now_ns; }
 
-    UserState* fixp_sbe_user_state(exsim::SessionId session_id) noexcept {
-        UserEntry* entry = find_user(session_id);
-        return entry == nullptr ? nullptr : entry->state.get();
-    }
+    [[nodiscard]] UserStateDirectory& user_states() noexcept { return user_states_; }
 
     // Fault hooks (SERVER.md 4), consumed one message at a time.
     bool consume_injected_reject(exsim::SessionId session_id) noexcept {
@@ -335,9 +333,8 @@ public:
 private:
     struct UserEntry {
         exsim::server::UserConfig config;
-        std::unique_ptr<UserState> state;
         bool bound = false;
-        exsim::net::ConnectionId connection_id{};
+        exsim::server::ConnectionId connection_id{};
         unsigned injected_rejects_remaining = 0;
         unsigned drop_outs_remaining = 0;
     };
@@ -361,11 +358,12 @@ private:
     exsim::EngineConfig engine_config_;
     exsim::MatchingEngine engine_;
     exsim::EventBuffer events_;
+    UserStateDirectory user_states_;
     std::vector<std::unique_ptr<UserEntry>> users_;
     std::vector<InstrumentEntry> instruments_;
 };
 
-static_assert(fixp::FixpSbeServerContext<EngineTestContext, MemorySink>);
+static_assert(fixp::FixpSbeServerContext<EngineTestContext>);
 
 // ---------------------------------------------------------------------------
 // One server connection driven with raw client frames.
@@ -380,7 +378,7 @@ public:
     explicit ServerConnectionHarness(EngineTestContext& context, std::uint32_t connection_slot = 1,
                                      const fixp::FixpSbeSessionSettings& settings = fixp::FixpSbeSessionSettings{})
         : context_(context),
-          connection_(MemorySink(&output_), exsim::net::ConnectionId{connection_slot, 1}, settings, context.now()) {}
+          connection_(MemorySink(&output_), context.user_states(), exsim::server::ConnectionId{connection_slot}, settings, context.now()) {}
 
     ~ServerConnectionHarness() { connection_.on_disconnect(context_); }
 

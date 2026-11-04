@@ -286,12 +286,12 @@
         <field name="Code" id="12" type="EstablishmentRejectCode" offset="24"/>
         <data name="Reason" id="8" type="CharacterString"/>
     </sbe:message>
-    <sbe:message name="Sequence" id="8" blockLength="8" description="FIXP 4.6.1; sequence forming and keepalive">
+    <sbe:message name="Sequence" id="8" blockLength="8" description="FIXP 3.5.1 and 4.5; sequence forming and keepalive">
         <field name="NextSeqNo" id="11" type="ordinal" offset="0"/>
     </sbe:message>
     <sbe:message name="UnsequencedHeartbeat" id="10" blockLength="0"
-                 description="FIXP 4.6.1; defined for completeness, rejected on the idempotent flow"/>
-    <sbe:message name="RetransmitRequest" id="11" blockLength="36" description="FIXP 4.6.2; client to server">
+                 description="FIXP 4.5; defined for completeness, rejected on the idempotent flow"/>
+    <sbe:message name="RetransmitRequest" id="11" blockLength="36" description="FIXP 4.6.1; client to server">
         <field name="SessionId" id="1" type="UUID" offset="0"/>
         <field name="Timestamp" id="2" type="nanotime" offset="16"/>
         <field name="FromSeqNo" id="13" type="ordinal" offset="24"/>
@@ -303,13 +303,13 @@
         <field name="NextSeqNo" id="11" type="ordinal" offset="24"/>
         <field name="Count" id="14" type="cardinal" offset="32"/>
     </sbe:message>
-    <sbe:message name="RetransmitReject" id="13" blockLength="25" description="FIXP 4.6.2">
+    <sbe:message name="RetransmitReject" id="13" blockLength="25" description="FIXP 4.6.2.3">
         <field name="SessionId" id="1" type="UUID" offset="0"/>
         <field name="RequestTimestamp" id="5" type="nanotime" offset="16"/>
         <field name="Code" id="15" type="RetransmitRejectCode" offset="24"/>
         <data name="Reason" id="8" type="CharacterString"/>
     </sbe:message>
-    <sbe:message name="Terminate" id="14" blockLength="17" description="FIXP 4.7">
+    <sbe:message name="Terminate" id="14" blockLength="17" description="FIXP 4.4">
         <field name="SessionId" id="1" type="UUID" offset="0"/>
         <field name="Code" id="16" type="TerminationCode" offset="16"/>
         <data name="Reason" id="8" type="CharacterString"/>

@@ -11,6 +11,9 @@
 //                            server flow), the idempotent client flow high-water
 //                            mark, the current FIXP logical session and the
 //                            application mapping both ways.
+//   FixpSbeUserStateDirectory<Sink>
+//                            every FIXP/SBE user's state by session; also a
+//                            server::ExchangeCore `Sessions` policy.
 //   FixpSbeConnection<Sink>  one per TCP connection: SOFH framing, Negotiate and
 //                            Establish, implicit sequencing, keepalive,
 //                            retransmission, Terminate.
@@ -20,15 +23,19 @@
 // stored at SequencedStore sequence (base + s), where base is the store size
 // when the session was negotiated.
 //
-// Both classes are templated on the byte sink and their entry points on the
-// server Context (FixpSbeServerContext below). No virtual dispatch, no
-// exceptions, no std::string and no heap allocation after construction.
+// All are templated on the byte sink and their entry points on the server
+// Context (FixpSbeServerContext below), which server::ExchangeCore satisfies.
+// No virtual dispatch, no exceptions, no std::string and no heap allocation
+// after construction.
 //
 // Driving contract for the server integrator (same as the OUCH gateway):
-//   * connection.on_data(bytes, ctx) consumes whole frames and returns the
-//     number of bytes consumed; the remainder stays in the receive buffer.
-//   * after engine.handle, call user_state.on_events(batch, ctx) once for every
-//     distinct session in the batch (SERVER.md 2.3).
+//   * build one FixpSbeUserStateDirectory for the day and give it to the core
+//     as its Sessions (or call its on_events from your own Sessions router).
+//     The core then calls on_events(session, batch, core) once per distinct
+//     session of each batch (SERVER.md 2.3).
+//   * per accepted TCP connection, construct a FixpSbeConnection with that
+//     directory; connection.on_data(bytes, core) consumes whole frames and
+//     returns the bytes consumed; the remainder stays in the receive buffer.
 //   * call connection.on_timer(ctx) periodically (keepalive, timeouts).
 //   * when connection.close_requested(): close the socket (after flushing if
 //     flush_before_close()) and then call connection.on_disconnect(ctx). Also
@@ -43,9 +50,9 @@
 #include "exsim/gateway/sequenced_store.hpp"
 #include "exsim/gateway/token_table.hpp"
 #include "exsim/instrument.hpp"
-#include "exsim/net/tcp_server.hpp"
 #include "exsim/protocol/sbe_order_entry.hpp"
 #include "exsim/server/config.hpp"
+#include "exsim/server/core/policies.hpp"
 #include "exsim/types.hpp"
 #include "lob/compiler.hpp"
 
@@ -57,9 +64,13 @@
 #include <cstdint>
 #include <cstring>
 #include <limits>
+#include <memory>
 #include <span>
+#include <stdexcept>
 #include <string_view>
+#include <type_traits>
 #include <utility>
+#include <vector>
 
 namespace exsim::gateway::fixp_sbe {
 
@@ -148,23 +159,26 @@ template <FixpSbeByteSink ByteSink>
 class FixpSbeUserState;
 template <FixpSbeByteSink ByteSink>
 class FixpSbeConnection;
+template <FixpSbeByteSink ByteSink>
+class FixpSbeUserStateDirectory;
 
-// What the server must provide (SERVER.md 2.1 plus the user-state lookup).
-// Optional fault hooks, used when present: consume_injected_reject(SessionId)
-// and consume_drop_out(SessionId), both returning bool.
-template <class Context, class ByteSink>
+// What the server must provide (SERVER.md 2.1). submit may return void or
+// server::SubmitResult. Optional fault hooks, used when present:
+// consume_injected_reject(SessionId) and consume_drop_out(SessionId), both
+// returning bool (server::ExchangeCore has them).
+template <class Context>
 concept FixpSbeServerContext = requires(Context& context, const Context& const_context, std::string_view text,
-                                        server::Protocol protocol, SessionId session, net::ConnectionId connection,
+                                        server::Protocol protocol, SessionId session, server::ConnectionId connection,
                                         const Symbol& symbol, InstrumentId instrument, const Command& command) {
     { context.authenticate(text, text, protocol) } -> std::same_as<const server::UserConfig*>;
     { context.bind(session, connection) } -> std::same_as<bool>;
     context.unbind(session);
     { const_context.find_instrument(symbol) } -> std::same_as<InstrumentId>;
     { const_context.instrument(instrument) } -> std::same_as<const InstrumentConfig*>;
-    context.submit(command);
+    requires std::is_void_v<decltype(context.submit(command))> ||
+                 std::same_as<decltype(context.submit(command)), server::SubmitResult>;
     { const_context.now() } -> std::same_as<Timestamp>;
     { const_context.realtime_ns() } -> std::same_as<std::uint64_t>;
-    { context.fixp_sbe_user_state(session) } -> std::same_as<FixpSbeUserState<ByteSink>*>;
 };
 
 namespace detail {
@@ -250,7 +264,7 @@ public:
     // Encodes the events of this session in batch order, stores each message
     // and writes it to the attached connection. Safe during dispatch.
     template <class Context>
-        requires FixpSbeServerContext<Context, ByteSink>
+        requires FixpSbeServerContext<Context>
     void on_events(std::span<const Event> batch, Context& context) noexcept {
         const Timestamp now = context.now();
         for (const Event& event : batch) {
@@ -534,18 +548,36 @@ private:
                free_bytes / kMaxApplicationFrameSize > store_reserve_messages_;
     }
 
-    // Every request gets a response: if the engine emitted nothing for this
-    // session (a reduction that changes nothing, or a refused submission), the
-    // gateway answers with RequestHadNoEffect.
+    // Every request gets a response. If the engine emitted nothing for this
+    // session (a reduction that changes nothing) the gateway answers with
+    // RequestHadNoEffect; a submission the core refused (SubmitResult) is
+    // answered with the matching reason.
     template <class Context, class RejectFunction>
     void submit_request(const Command& command, Context& context, const RejectFunction& reject) noexcept {
         request_in_flight_ = true;
         request_answered_ = false;
-        context.submit(command);
-        request_in_flight_ = false;
-        if (!request_answered_) {
-            reject(sbe::ExsimRejectReasonCode::RequestHadNoEffect);
+        bool reports_follow_later = false;
+        sbe::ExsimRejectReasonCode unanswered_reason = sbe::ExsimRejectReasonCode::RequestHadNoEffect;
+        if constexpr (std::same_as<decltype(context.submit(command)), server::SubmitResult>) {
+            switch (context.submit(command)) {
+                case server::SubmitResult::Applied:
+                    break;
+                case server::SubmitResult::Deferred:  // only when submitted during dispatch
+                    reports_follow_later = true;
+                    break;
+                case server::SubmitResult::OutsideTradingDay:
+                    unanswered_reason = sbe::ExsimRejectReasonCode::MarketClosed;
+                    break;
+                case server::SubmitResult::OutputCapacityExceeded:
+                case server::SubmitResult::DeferredQueueFull:
+                    unanswered_reason = sbe::ExsimRejectReasonCode::CapacityExceeded;
+                    break;
+            }
+        } else {
+            context.submit(command);
         }
+        request_in_flight_ = false;
+        if (!request_answered_ && !reports_follow_later) reject(unanswered_reason);
     }
 
     // ---- outbound application messages --------------------------------------
@@ -763,15 +795,85 @@ private:
 };
 
 // ============================================================================
+// FixpSbeUserStateDirectory
+// ============================================================================
+
+template <FixpSbeByteSink ByteSink>
+class FixpSbeUserStateDirectory {
+public:
+    FixpSbeUserStateDirectory() = default;
+
+    // One user state per configured user of `protocol` that no bot drives (a
+    // bot owns its session exclusively, so it never logs in over FIXP).
+    FixpSbeUserStateDirectory(const server::ServerConfig& config, const FixpSbeUserStateSettings& settings,
+                              server::Protocol protocol = kProposedFixpSbeProtocol) {
+        for (const server::UserConfig& user : config.users) {
+            if (user.protocol != protocol || user.session_id == 0 || is_bot_user(user, config)) continue;
+            add_user(user, settings);
+        }
+    }
+
+    explicit FixpSbeUserStateDirectory(const server::ServerConfig& config)
+        : FixpSbeUserStateDirectory(config, FixpSbeUserStateSettings::from(config.engine)) {}
+
+    // User states are referenced by connections: keep the directory in place.
+    FixpSbeUserStateDirectory(const FixpSbeUserStateDirectory&) = delete;
+    FixpSbeUserStateDirectory& operator=(const FixpSbeUserStateDirectory&) = delete;
+    FixpSbeUserStateDirectory(FixpSbeUserStateDirectory&&) = delete;
+    FixpSbeUserStateDirectory& operator=(FixpSbeUserStateDirectory&&) = delete;
+
+    // Setup only: allocates. Throws std::invalid_argument for a zero or
+    // duplicate session id.
+    FixpSbeUserState<ByteSink>& add_user(const server::UserConfig& user, const FixpSbeUserStateSettings& settings) {
+        if (user.session_id == 0 || find(user.session_id) != nullptr) {
+            throw std::invalid_argument("FIXP/SBE user " + user.username + ": session_id must be unique and non-zero");
+        }
+        user_states_.push_back(std::make_unique<FixpSbeUserState<ByteSink>>(user, settings));
+        if (user.session_id >= user_state_by_session_.size()) {
+            user_state_by_session_.resize(std::size_t{user.session_id} + 1, nullptr);
+        }
+        user_state_by_session_[user.session_id] = user_states_.back().get();
+        return *user_states_.back();
+    }
+
+    // nullptr if `session` is not a FIXP/SBE user's.
+    [[nodiscard]] FixpSbeUserState<ByteSink>* find(SessionId session) const noexcept {
+        return session < user_state_by_session_.size() ? user_state_by_session_[session] : nullptr;
+    }
+
+    // SERVER.md 2.3: once per distinct session of each batch.
+    template <class Context>
+        requires FixpSbeServerContext<Context>
+    void on_events(SessionId session, std::span<const Event> batch, Context& context) noexcept {
+        if (FixpSbeUserState<ByteSink>* user_state = find(session)) user_state->on_events(batch, context);
+    }
+
+    [[nodiscard]] std::size_t size() const noexcept { return user_states_.size(); }
+
+private:
+    [[nodiscard]] static bool is_bot_user(const server::UserConfig& user, const server::ServerConfig& config) {
+        for (const server::BotSectionConfig& bot : config.bots) {
+            if (bot.user == user.username) return true;
+        }
+        return false;
+    }
+
+    std::vector<std::unique_ptr<FixpSbeUserState<ByteSink>>> user_states_;
+    std::vector<FixpSbeUserState<ByteSink>*> user_state_by_session_;  // index = SessionId
+};
+
+// ============================================================================
 // FixpSbeConnection
 // ============================================================================
 
 template <FixpSbeByteSink ByteSink>
 class FixpSbeConnection {
 public:
-    FixpSbeConnection(ByteSink sink, net::ConnectionId connection_id, const FixpSbeSessionSettings& settings,
+    FixpSbeConnection(ByteSink sink, const FixpSbeUserStateDirectory<ByteSink>& user_states,
+                      server::ConnectionId connection_id, const FixpSbeSessionSettings& settings,
                       Timestamp connected_at) noexcept
         : sink_(std::move(sink)),
+          user_states_(&user_states),
           connection_id_(connection_id),
           settings_(settings),
           connected_at_ns_(connected_at),
@@ -793,7 +895,7 @@ public:
     // Consumes whole frames; returns the bytes consumed. After a close request
     // every byte is consumed and ignored.
     template <class Context>
-        requires FixpSbeServerContext<Context, ByteSink>
+        requires FixpSbeServerContext<Context>
     std::size_t on_data(std::span<const char> bytes, Context& context) noexcept {
         if (state_ == FixpSbeConnectionState::Closed) return bytes.size();
         const Timestamp now = context.now();
@@ -819,7 +921,7 @@ public:
 
     // Keepalive in both directions and the establishment deadline.
     template <class Context>
-        requires FixpSbeServerContext<Context, ByteSink>
+        requires FixpSbeServerContext<Context>
     void on_timer(Context& context) noexcept {
         const Timestamp now = context.now();
         switch (state_) {
@@ -850,7 +952,7 @@ public:
     // The TCP connection is gone (or the server closed it after
     // close_requested()). Detaches and unbinds the user: cancel-on-disconnect.
     template <class Context>
-        requires FixpSbeServerContext<Context, ByteSink>
+        requires FixpSbeServerContext<Context>
     void on_disconnect(Context& context) noexcept {
         if (state_ != FixpSbeConnectionState::Closed) close(FixpSbeCloseReason::TransportClosed);
         release_session(context);
@@ -858,7 +960,7 @@ public:
 
     // Server shutdown: Terminate Finished, then close.
     template <class Context>
-        requires FixpSbeServerContext<Context, ByteSink>
+        requires FixpSbeServerContext<Context>
     void end_session(Context& context) noexcept {
         if (state_ == FixpSbeConnectionState::Established) {
             send_terminate(sbe::TerminationCode::Finished, "end of session", context.now());
@@ -874,7 +976,7 @@ public:
     [[nodiscard]] bool flush_before_close() const noexcept {
         return close_reason_ != FixpSbeCloseReason::SendBufferFull && close_reason_ != FixpSbeCloseReason::TransportClosed;
     }
-    [[nodiscard]] net::ConnectionId connection_id() const noexcept { return connection_id_; }
+    [[nodiscard]] server::ConnectionId connection_id() const noexcept { return connection_id_; }
     [[nodiscard]] FixpSbeUserState<ByteSink>* user_state() const noexcept { return user_state_; }
     [[nodiscard]] std::uint32_t client_keepalive_interval_ms() const noexcept { return client_keepalive_interval_ms_; }
     [[nodiscard]] ByteSink& sink() noexcept { return sink_; }
@@ -1057,7 +1159,7 @@ private:
         const detail::CredentialParts credentials = detail::split_credentials(negotiate.credentials);
         const server::UserConfig* user =
             context.authenticate(credentials.username, credentials.password, settings_.authentication_protocol);
-        FixpSbeUserState<ByteSink>* user_state = user == nullptr ? nullptr : context.fixp_sbe_user_state(user->session_id);
+        FixpSbeUserState<ByteSink>* user_state = user == nullptr ? nullptr : user_states_->find(user->session_id);
         if (user_state == nullptr) return reject(sbe::NegotiationRejectCode::Credentials, "invalid credentials");
         if (user_state->has_attached_connection()) {
             return reject(sbe::NegotiationRejectCode::Unspecified, "user has an established session");
@@ -1113,7 +1215,7 @@ private:
         } else if (user == nullptr) {
             return reject(sbe::EstablishmentRejectCode::Credentials, "credentials required on a new connection");
         }
-        FixpSbeUserState<ByteSink>* user_state = context.fixp_sbe_user_state(user->session_id);
+        FixpSbeUserState<ByteSink>* user_state = user_states_->find(user->session_id);
         if (user_state == nullptr) return reject(sbe::EstablishmentRejectCode::Credentials, "invalid credentials");
         if (!user_state->has_logical_session() || user_state->logical_session_uuid() != establish.session_id) {
             return reject(sbe::EstablishmentRejectCode::Unnegotiated, "SessionId was not negotiated");
@@ -1287,7 +1389,8 @@ private:
     }
 
     ByteSink sink_;
-    net::ConnectionId connection_id_;
+    const FixpSbeUserStateDirectory<ByteSink>* user_states_;
+    server::ConnectionId connection_id_;
     FixpSbeSessionSettings settings_;
     FixpSbeConnectionState state_ = FixpSbeConnectionState::AwaitingNegotiate;
     FixpSbeCloseReason close_reason_ = FixpSbeCloseReason::None;
