@@ -48,6 +48,7 @@ enum class SubmitResult : std::uint8_t {
     OutsideTradingDay = 2,       // stamped timestamp outside [trading_day_start, trading_day_end): not applied
     OutputCapacityExceeded = 3,  // EventBuffer smaller than the engine's bound (test-only sizing): not applied
     DeferredQueueFull = 4,       // re-entrant submit beyond the deferred queue: not applied
+    ExchangeShutDown = 5,        // the exchange has shut down for the day: not applied, journaled or dispatched
 };
 
 [[nodiscard]] constexpr std::string_view to_string(SubmitResult r) noexcept {
@@ -57,6 +58,7 @@ enum class SubmitResult : std::uint8_t {
         case SubmitResult::OutsideTradingDay: return "outside trading day";
         case SubmitResult::OutputCapacityExceeded: return "event buffer too small";
         case SubmitResult::DeferredQueueFull: return "deferred queue full";
+        case SubmitResult::ExchangeShutDown: return "exchange shut down";
     }
     return "?";
 }

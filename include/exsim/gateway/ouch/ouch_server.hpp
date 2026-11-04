@@ -178,7 +178,8 @@ template <class Context>
         switch (context.submit(command)) {
             case server::SubmitResult::Applied:
             case server::SubmitResult::Deferred: return kCommandApplied;
-            case server::SubmitResult::OutsideTradingDay: return kOuchRejectExchangeClosed;
+            case server::SubmitResult::OutsideTradingDay:
+            case server::SubmitResult::ExchangeShutDown: return kOuchRejectExchangeClosed;
             case server::SubmitResult::OutputCapacityExceeded:
             case server::SubmitResult::DeferredQueueFull: return kOuchRejectOther;
         }
