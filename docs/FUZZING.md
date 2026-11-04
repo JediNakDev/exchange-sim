@@ -155,33 +155,25 @@ plus the seeds.
 | `bot_options` | 4,479,447 | 791 | 10900 | 13647 | 1655 | 0 |
 
 786,446,103 executions in total, no crash, no sanitizer report and no property
-violation with the open findings below steered around. The 20-second smoke
+violation with the then-open findings below steered around. The 20-second smoke
 run before the campaign found findings 1 and 2.
+
+Re-run of 2026-11-05 on the integrated tree after the fixes, without any
+steering: each target `SECONDS=120 JOBS=2 WORKERS=2` (4 CPU-minutes per
+target), 302,880,773 executions over the 15 targets, no crash, no sanitizer
+report and no property violation (`/tmp/exsim-fuzz-campaign.log`; per-target
+libFuzzer logs in the session scratch work directory).
 
 The committed corpora (6,190 files, 1.5 MB) replay in about 0.2 s in
 `make test` and 0.5 s in `make test MODE=debug` on an M-series Mac.
 
-## Open findings
+## Fixed findings (historical)
 
-Integration update (2026-11-04): all three defects described below are now
-repaired, as are the scenario `expect book` uninitialized-read issue and
-Builder tag-zero mismatch. The original findings below are retained as
-historical evidence. Their reproducers run by default in `fuzz_known_bugs.*`;
-input steering is disabled, including for `INT64_MIN` price round trips.
-No special enforcement macro is needed in the integrated tree.
-
-Bugs in code the fuzzing work does not own are reported, not fixed here. While
-open, the targets steer around their triggers (`kSteerAroundKnownBugs` in
-`fuzz/targets/known_bugs.hpp`) so campaigns keep exploring and `make test`
-stays green. Their reproducers are replayed only on request:
-
-```sh
-make test EXTRA_CXXFLAGS=-DEXSIM_FUZZ_ENFORCE_KNOWN_BUGS FILTER=fuzz_known_bugs
-make test MODE=debug EXTRA_CXXFLAGS=-DEXSIM_FUZZ_ENFORCE_KNOWN_BUGS FILTER=fuzz_known_bugs   # UBSan for 2.
-```
-
-Today these fail, as they should. When an owner fixes one: delete its steering
-predicate, move the reproducer into `fuzz/corpus/<target>/`, delete it here.
+The fuzzers found the three defects below; all are fixed on
+`exchange-simulator` (`98c3e09`), as are the two observations at the end. Their
+minimized reproducers live in `fuzz/corpus/known_bugs/<target>/` and are
+replayed on every `make test` by `fuzz_known_bugs.*`, which now must pass. The
+targets no longer steer around any input.
 
 ### 1. FIX parser accepts a frame whose CheckSum field is not SOH-separated
 
@@ -198,7 +190,6 @@ predicate, move the reproducer into `fuzz/corpus/<target>/`, delete it here.
   false) and a garbled frame reaches the semantic layer, which would consume a
   sequence number and send a session Reject.
 - **Fix**: also require `p[size - 8] == soh` in that check.
-- **Steering**: `checksum_field_not_separated` in `fuzz/targets/fix44_message.hpp`.
 
 ### 2. `server::parse_price` signed overflow (undefined behaviour)
 
@@ -219,8 +210,6 @@ predicate, move the reproducer into `fuzz/corpus/<target>/`, delete it here.
   922337203685477 with a fraction above .5807 overflows. As a consequence
   `server::parse_price` also cannot read back `server::format_price(INT64_MIN)`.
 - **Fix**: check `value > kMax - (c - '0') * scale` before adding.
-- **Steering**: `triggers_server_price_overflow` (`fuzz/targets/price_text.hpp`)
-  and `may_trigger_server_price_overflow` (`fuzz/targets/server_config.hpp`).
 
 ### 3. `parse_config` accepts engine sizes the engine rejects
 
@@ -235,8 +224,6 @@ predicate, move the reproducer into `fuzz/corpus/<target>/`, delete it here.
   constructor calls `required_event_capacity`, which throws
   `std::invalid_argument("EngineConfig bounds")` for `max_instruments > 65535`
   or `max_orders > 4294967295`.
-- **Steering**: `engine_section_outside_engine_bounds` in
-  `fuzz/targets/server_config.hpp`.
 
 ### Observations (no reproducer, not bugs in the fuzzed contracts)
 
@@ -248,13 +235,3 @@ predicate, move the reproducer into `fuzz/corpus/<target>/`, delete it here.
 - `include/exsim/protocol/fix44.hpp:314`, `Builder::field` accepts tag 0,
   which `Parser::parse` rejects as `invalid_field`. No encoder uses tag 0, so
   `fix44_stream` keeps tags at 1 and above.
-
-To replay a reproducer under libFuzzer with the steering off, build the
-targets into a separate directory:
-
-```sh
-docker run --rm -v "$PWD":/src:ro -v "$PWD/build/fuzz-work":/work exsim-dev sh -c \
-  'rsync -a --exclude build --exclude .git /src/ /work/ && cd /work &&
-   make -C fuzz BUILD_DIRECTORY=/work/build/fuzz-enforce EXTRA_CXXFLAGS=-DEXSIM_FUZZ_ENFORCE_KNOWN_BUGS /work/build/fuzz-enforce/fix44_message &&
-   build/fuzz-enforce/fix44_message -runs=1 /src/fuzz/corpus/known_bugs/fix44_message/checksum-field-without-separator'
-```
