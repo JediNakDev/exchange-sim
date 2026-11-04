@@ -1,6 +1,6 @@
 # Working state and implementation plan
 
-Updated 2026-11-04. This is a recovery checkpoint, not live delegate status. Keep it concise; put detailed evidence in the relevant report or log.
+Updated 2026-11-05. This is a recovery checkpoint, not live delegate status. Keep it concise; put detailed evidence in the relevant report or log.
 
 ## User decisions and constraints
 
@@ -8,19 +8,18 @@ Updated 2026-11-04. This is a recovery checkpoint, not live delegate status. Kee
 - First trader workflow: **execution and market-making research**.
 - Primary research UI: **Bun + Next.js + TypeScript + Tailwind CSS + shadcn/ui**, following `/Users/jedi/AGENTS.md`. Prefer existing components and meaningful names. C++ owns simulation/backend behavior.
 - API recommendation: C++ HTTP/OpenAPI with generated TS types; omit a tRPC wrapper initially. The user asked us to assess fit after reopening tRPC, so this is a reasoned recommendation rather than an explicit final veto.
-- Resumed/new delegates use GPT/ChatGPT with high reasoning (user decision 2026-11-04, replacing the Claude-only preference after its usage limit). No Ollama while the user works here. Do not add co-author attribution to commits.
+- Resumed/new delegates use Claude Opus 5.5 with high reasoning (user decision 2026-11-05, "continue as claude", after GPT hit its usage limit; GPT was used 2026-11-04 20:45 to 2026-11-05 00:10 +08). No Ollama while the user works here. Do not add co-author attribution to commits.
 - Full product rationale, causal simulation requirements, realism assumptions, accounting, and UI workflow: [PRODUCT.md](PRODUCT.md).
 
-## Verified repository state (2026-11-03)
+## Verified repository state (2026-11-05)
 
 - Branch `exchange-simulator`. Integrated and verified on this branch:
-  - foundation + repaired contracts `9a2eaa5`; codecs `57bfe2e`; networking `2ee9b5a`; admin parser `5bd83ca`; position ledger `bacb58c`; bots `3125553`, `52b750f`;
-  - oracle, differential fuzzer, scenario DSL, canonical journal/replay `52a241f` (from `5abebec`);
-  - engine variant B (sorted level vectors) `d9cffc9` (from `66fe553`) as the current production engine.
-- Checks on `d9cffc9`: `make test EXTRA_CXXFLAGS=-DEXSIM_TEST_PRODUCTION` 271/271 release, 269/269 ASan/UBSan, warning-free; `make tools`; `exsim_fuzz` 200 seeds x 10000 steps, mixed and tiny profiles, no divergence. Logs: `/tmp/exsim-int-release.log`, `/tmp/exsim-int-debug.log`. Long campaign 1000 seeds x 20000 steps per profile (40M commands) passed with no divergence: `/tmp/exsim-fuzz-long/`.
-- `0e76769` and the following bots commit: GCC `-Werror` (CI configuration) was broken from `52a241f` by test-infra warnings; fixed and verified on Linux g++/clang++ release/debug/tsan and macOS release/debug with `-Werror` (274 release, 272 ASan/UBSan). Networking and bot zero-allocation checks now run inside `run_tests` through `testfw::AllocationScope`; only the ledger check (owned by the research runner) is still standalone. Delegates branched before `0e76769` may hit the same GCC warnings; merging resolves them.
-- Not built yet: protocol sessions (OUCH/SoupBinTCP, FIX), market-data publisher/retransmission/feed handler, server binary and end-to-end tests, deterministic research runner, manifests/artifacts, HTTP/OpenAPI API, frontend.
-- Delegates: all on Claude Opus 5.5 since 2026-11-03 (user decision). Do not add co-author lines to commits.
+  - foundation and repaired contracts `9a2eaa5`; codecs `57bfe2e`; networking `2ee9b5a`; admin parser `5bd83ca`; position ledger `bacb58c`; bots `3125553`, `52b750f`; legacy lob fixes `7035f89`;
+  - oracle, differential fuzzer, scenario DSL, canonical journal and replay `52a241f`; SPEC conformance audit and scenarios `6ee8a50` (via `integrate-engine-c`);
+  - production engine C (index arena) `b874ce5` (from `integrate-engine-c` `02f23d7`), after its independent review: per-instrument order lists fix the EndOfDay and imbalance scans; engine B is superseded and engine A (`b77d206`) was evaluated and not selected (`docs/engine-variants/A_TICK_LADDER.md`);
+  - exchange core `a8c8e5a` (from `4948efe`); OUCH 4.2/SoupBinTCP gateway `1023f60` (from `b64057e`); ITCH 5.0/MoldUDP64 publisher, retransmission, receiver and book builder `4a8927a` (from `79dbd73`); OpenAPI research contract and Next.js research UI on a mock service `f2c0b57` (from `a5bc883`); coverage-guided fuzzing `4f44239` (from `e866bce`).
+- Checks on the integrated tree plus the 2026-11-05 review fixes (FIX checksum framing, server config limits, price overflow, scenario book lines, engine-agnostic dispatch capacity test, fuzz model without known-bug steering): macOS release 613/613, ASan/UBSan 611/611, `make all`, warning-free (`/tmp/exsim-int2-{release,debug,all}.log`); Linux g++ and clang++ release 613/613, 0 warnings (`/tmp/exsim-int2-linux.log`). Engine C fuzz: 1000 seeds x 20000 steps per profile, 40M commands, no divergence.
+- Not integrated yet: FIX 4.4 gateway, SBE over FIXP gateway, deterministic research runner (all three resumed on Claude in their own worktrees); server binary and end-to-end tests; C++ HTTP/OpenAPI API; UI on real artifacts; final independent review.
 
 ## Milestones
 
@@ -29,25 +28,27 @@ Updated 2026-11-04. This is a recovery checkpoint, not live delegate status. Kee
 - [x] Repair reviewed public contracts and foundation defects (`9a2eaa5`).
 - [x] Integrate codecs, networking, admin parser, ledger, bots.
 - [x] Integrate oracle/fuzzer/scenarios/journal; validate and integrate engine B.
-- [ ] Finish engines A and C (resumed on Claude), validate with the oracle, benchmark all three on one machine/run, keep the fastest correct one.
-- [ ] Protocol sessions: OUCH 4.2/SoupBinTCP and FIX 4.4 (server and client).
+- [x] Finish engines A and C, validate with the oracle, benchmark on one machine, keep the fastest correct one (C; `b874ce5`).
+- [ ] Protocol sessions: OUCH 4.2/SoupBinTCP (done, `1023f60`) and FIX 4.4 (resumed on Claude).
 - [ ] Third order-entry protocol: SBE over FIXP (FIX Trading Community open standards, exsim-owned schema), codec, session, gateway per SERVER.md section 2, client.
-- [ ] Market data: ITCH/MoldUDP64 publisher, retransmission server, client receiver and book builder, feed-correctness test under packet faults.
+- [x] Market data: ITCH/MoldUDP64 publisher, retransmission server, client receiver and book builder, feed-correctness test under packet faults (`4a8927a`).
 - [ ] Server binary (reactor, gateways, MD, admin, faults, bots, journal) and end-to-end loopback tests; client tool; wire-to-wire latency benchmark.
 - [ ] Deterministic event runner with latency model and compiled baseline strategies (fixed-spread MM, inventory-aware MM, TWAP), accounting, manifests/artifacts, CLI.
 - [ ] C++ HTTP/OpenAPI research interface and generated TypeScript types.
-- [ ] Next.js experiment/compare/inspect vertical slice on real artifacts.
+- [ ] Next.js experiment/compare/inspect vertical slice on real artifacts (UI and contract on a mock service merged, `f2c0b57`).
 - [ ] Independent review (correctness, causality, accounting, protocol recovery, UI); resolve findings; README/docs with measured numbers.
 
 ## Existing worktrees and continuation ownership
 
 | Task | Checkout | State |
 | --- | --- | --- |
-| Ladder engine A | `/Users/jedi/.t3/worktrees/lob/t3-eaaf2612` | Resumed on Claude 2026-11-03 (gate: merge `5abebec`, production tests, fuzz, bench). |
-| Arena engine C | `/Users/jedi/.t3/worktrees/lob/t3-2d9b3f09` | Done (`cd8376d`). Integrated on branch `integrate-engine-c` (`0e9de4c`, docs `3f9dc78`) in scratch worktree `engine-c-integration`; merge into `exchange-simulator` waits for the independent review (task `...77c45547...%3Adelegate-task%3A38045dc3-642d-44fa-bf93-13252c61be81`, report `/tmp/exsim-c-review/REPORT.md`). |
-| Vector engine B | `/Users/jedi/.t3/worktrees/lob/t3-3500e31b` | Done, integrated. Untracked `tests/exsim/engine/vector_reference_model.hpp` is the redundant second oracle; not merged. |
-| Oracle/fuzzer/journal/scenarios | `/Users/jedi/.t3/worktrees/lob/t3-0fb59d8d` | Done, integrated. Disabled shim stays untracked there. |
-| Networking, codecs, bots | see registry | Done, integrated. |
+| FIX 4.4 gateway | `/Users/jedi/.t3/worktrees/lob/t3-49268324`, branch `t3/fix44-order-entry-gateway` | Resumed on Claude 2026-11-05: merge `exchange-simulator`, finish verification, commit. |
+| Research runner | `/Users/jedi/.t3/worktrees/lob/t3-e1e148f1`, branch `t3/deterministic-research-runner` (`b06a276`, `e44b5c6`) | Resumed on Claude 2026-11-05. Must not commit `docs/WORK_PLAN.md`; notes go in `docs/RESEARCH_RUNNER.md`. |
+| SBE over FIXP | `/Users/jedi/.t3/worktrees/lob/t3-dd94b274`, branch `t3/add-fixp-sbe-gateway` (`f2a6a83`, `547ba68`) | Resumed on Claude 2026-11-05 (GCC constexpr fix, merge, commit). |
+| Ladder engine A | `/Users/jedi/.t3/worktrees/lob/t3-eaaf2612` (`b77d206`) | Done; evaluated, not selected. |
+| Engine C integration | scratch worktree `engine-c-integration`, branch `integrate-engine-c` | Merged (`b874ce5`). |
+| Vector engine B | `/Users/jedi/.t3/worktrees/lob/t3-3500e31b` | Done, superseded by C. Untracked redundant second oracle not merged. |
+| Oracle, networking, codecs, bots, core, OUCH, MD, API+UI, fuzzing | see registry | Done, integrated. |
 
 Wave-2 task IDs and branches are recorded in [delegation-registry.json](delegation-registry.json) when launched.
 
@@ -69,12 +70,10 @@ For each completion record: task ID, actual branch/commit, changed scope, tests 
 
 ## Immediate next action
 
-2026-11-03 17:20 +08: engine C replaces B as the production engine on `integrate-engine-c`. Checks, all with `-Werror`: macOS release 351/351, ASan/UBSan 349/349, TSan 349/349 (`/tmp/exsim-c-{release,debug,tsan}.log`); Linux g++ and clang++ release 351/351 and debug 349/349 (`/tmp/exsim-c-linux.log`); fuzz 1000 seeds x 20000 steps on mixed and tiny, 40M commands, no divergence (`/tmp/exsim-c-fuzz-{mixed,tiny}.log`); interleaved B/C bench, C 1.25x to 1.81x faster on every workload (`/tmp/exsim-bench-b-vs-c.log`, `docs/engine-variants/C_INDEX_ARENA.md`). The Makefile now defines `EXSIM_TEST_PRODUCTION`. On review completion: fix confirmed findings, fast-forward `exchange-simulator`, tell the SPEC audit delegate the production engine is now C. When engine A lands, run the same interleaved bench against C.
+2026-11-05: GPT hit its usage limit after merging engine C, OUCH, MD, API+UI and fuzzing; the user said "continue as claude". The orchestrator verified and committed GPT's uncommitted review fixes, then resumed FIX, runner and SBE on Claude in their own worktrees and launched the server binary plus end-to-end delegate.
 
-2026-11-03 about 07:00: every running delegate stopped on the Claude API rate limit; partial work stays in each worktree (see registry). Legacy lob fixes completed and merged (`7035f89`): ShardedEngine per-symbol books, bounded fill output, client mapping reclamation (FOUNDATION_REVIEW findings 16, 36, 37).
-
-The harness auto-resumed every stopped delegate at 12:10 +08 (limit-resume), so all of them are running again with their partial work; the critical-path five also received instructions to merge `exchange-simulator` first. Priority if the limit hits again:
-1. OUCH gateway, FIX gateway, market-data publisher/feed, exchange core, research runner.
-2. Then, as slots free: API contract plus UI, engines A and C, fuzzing, SPEC conformance audit, SBE over FIXP.
-
-When gateways, publisher, and core land, launch the server binary and end-to-end tests; when the runner and contract land, launch the C++ HTTP/OpenAPI API. Do not poll running tasks.
+Next, on completion notifications (do not poll):
+1. FIX, SBE: review, merge into `exchange-simulator`, full gate (macOS release and ASan/UBSan, Linux g++/clang++), then plug them into the server binary.
+2. Runner: review, merge, then launch the C++ HTTP/OpenAPI API delegate and point the UI at it.
+3. Server binary: review, merge, run the E2E and wire-to-wire benchmark gates.
+4. Final independent review (correctness, causality, accounting, protocol recovery, UI) by separate QA delegates; fix findings; README with measured numbers.

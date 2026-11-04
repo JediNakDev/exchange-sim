@@ -15,7 +15,6 @@
 // formatted forms must parse back to the same value in every parser.
 
 #include "fuzz_support.hpp"
-#include "known_bugs.hpp"
 
 #include <exsim/protocol/fix44.hpp>
 #include <exsim/server/config.hpp>
@@ -28,9 +27,13 @@ namespace price_text_fuzz {
 
 enum class PriceGrammar { Simulation, Server, Fix };
 
+// A 128-bit model magnitude keeps the model independent of the int64
+// arithmetic it checks; __extension__ keeps -Wpedantic builds clean.
+__extension__ typedef unsigned __int128 ModelMagnitude;
+
 struct ModelPrice {
     bool negative = false;
-    unsigned __int128 magnitude = 0;  // saturates far above the int64 range
+    ModelMagnitude magnitude = 0;  // saturates far above the int64 range
 };
 
 inline std::optional<ModelPrice> model_parse_shape(std::string_view text, PriceGrammar grammar) {
@@ -61,7 +64,7 @@ inline std::optional<ModelPrice> model_parse_shape(std::string_view text, PriceG
             if (whole.empty() || (has_dot && fraction.empty())) return std::nullopt;
             break;
     }
-    constexpr unsigned __int128 saturation = static_cast<unsigned __int128>(1) << 100;
+    constexpr ModelMagnitude saturation = static_cast<ModelMagnitude>(1) << 100;
     for (const char digit : whole) {
         result.magnitude = result.magnitude * 10 + static_cast<unsigned>(digit - '0');
         if (result.magnitude > saturation) result.magnitude = saturation;
@@ -76,11 +79,9 @@ inline std::optional<ModelPrice> model_parse_shape(std::string_view text, PriceG
 inline std::optional<Price> model_parse(std::string_view text, PriceGrammar grammar) {
     const auto shape = model_parse_shape(text, grammar);
     if (!shape) return std::nullopt;
-    constexpr auto int64_max = static_cast<unsigned __int128>(INT64_MAX);
-    const bool allows_int64_min = grammar != PriceGrammar::Server;
+    constexpr auto int64_max = static_cast<ModelMagnitude>(INT64_MAX);
     if (shape->negative) {
         if (shape->magnitude == int64_max + 1) {
-            if (!allows_int64_min) return std::nullopt;
             return INT64_MIN;
         }
         if (shape->magnitude > int64_max) return std::nullopt;
@@ -88,37 +89,6 @@ inline std::optional<Price> model_parse(std::string_view text, PriceGrammar gram
     }
     if (shape->magnitude > int64_max) return std::nullopt;
     return static_cast<Price>(shape->magnitude);
-}
-
-// Known bug: server::parse_price adds each fraction digit to whole * 10^4
-// without an overflow check, so a whole part of exactly 922337203685477 (any
-// leading zeros) followed by fraction digits worth more than .5807 overflows a
-// signed 64-bit integer (undefined behaviour). The overflow happens digit by
-// digit, before a later invalid character would reject the text, so this
-// replays the parser's own steps instead of using the grammar model.
-inline bool triggers_server_price_overflow(std::string_view text) {
-    if (!text.empty() && text.front() == '-') text.remove_prefix(1);
-    const std::size_t dot = text.find('.');
-    if (dot == std::string_view::npos) return false;
-    const std::string_view whole = text.substr(0, dot);
-    const std::string_view fraction = text.substr(dot + 1);
-    if (fraction.empty() || fraction.size() > 4) return false;
-    unsigned __int128 whole_value = 0;
-    for (const char digit : whole) {
-        if (digit < '0' || digit > '9') return false;
-        whole_value = whole_value * 10 + static_cast<unsigned>(digit - '0');
-        if (whole_value > static_cast<unsigned __int128>(INT64_MAX)) return false;
-    }
-    if (whole_value != static_cast<unsigned __int128>(INT64_MAX / 10000)) return false;
-    unsigned __int128 value = whole_value * 10000;
-    unsigned scale = 1000;
-    for (const char digit : fraction) {
-        if (digit < '0' || digit > '9') return false;
-        value += static_cast<unsigned>(digit - '0') * scale;
-        if (value > static_cast<unsigned __int128>(INT64_MAX)) return true;
-        scale /= 10;
-    }
-    return false;
 }
 
 inline std::optional<Price> server_parse(std::string_view text) {
@@ -162,10 +132,8 @@ inline int fuzz_price_text(const std::uint8_t* data, std::size_t size) {
                        "sim::parse_price follows its grammar and range");
     EXSIM_FUZZ_REQUIRE(fix_parse(text) == model_parse(text, PriceGrammar::Fix),
                        "fix44::parse_price follows its grammar and range");
-    if (!(kSteerAroundKnownBugs && triggers_server_price_overflow(text))) {
-        EXSIM_FUZZ_REQUIRE(server_parse(text) == model_parse(text, PriceGrammar::Server),
-                           "server::parse_price follows its grammar and rejects overflow");
-    }
+    EXSIM_FUZZ_REQUIRE(server_parse(text) == model_parse(text, PriceGrammar::Server),
+                       "server::parse_price follows its grammar and rejects overflow");
 
     FuzzByteReader reader(data, size);
     const Price price = reader.take_interesting_int64();
@@ -182,11 +150,7 @@ inline int fuzz_price_text(const std::uint8_t* data, std::size_t size) {
 
     const std::string server_text = server::format_price(price);
     EXSIM_FUZZ_REQUIRE(server_text == fix_text, "server and fix44 formats agree");
-    if (!(kSteerAroundKnownBugs && triggers_server_price_overflow(server_text))) {
-        const auto expected = price == INT64_MIN ? std::nullopt : std::optional<Price>(price);
-        EXSIM_FUZZ_REQUIRE(server_parse(server_text) == expected,
-                           "server format round trip (INT64_MIN is outside the server grammar)");
-    }
+    EXSIM_FUZZ_REQUIRE(server_parse(server_text) == price, "server format round trip across the full int64 range");
     return 0;
 }
 

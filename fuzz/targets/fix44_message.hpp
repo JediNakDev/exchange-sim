@@ -16,7 +16,6 @@
 //    same canonical frame again.
 
 #include "fuzz_support.hpp"
-#include "known_bugs.hpp"
 
 #include <exsim/protocol/fix44.hpp>
 #include <vector>
@@ -60,15 +59,16 @@ inline void check_framing_contract(std::span<const char> input) {
     const std::size_t trailer_start = input.size() - 7;
     std::vector<char> mutated(input.begin(), input.end());
     fix::Parser<> parser;
-    // Up to 16 evenly spread body positions; each single-byte change keeps
-    // the frame extent, so only the checksum can catch it.
+    // Body changes keep the frame extent. Corrupting the final SOH is a
+    // trailer-framing error; other body changes must fail the checksum.
     const std::size_t body_size = trailer_start - body_start;
     const std::size_t step = body_size / 16 + 1;
     for (std::size_t position = body_start; position < trailer_start; position += step) {
         const char original = mutated[position];
         mutated[position] = static_cast<char>(original + 1);
-        EXSIM_FUZZ_REQUIRE(parser.parse({mutated.data(), mutated.size()}) == Status::checksum,
-                           "a changed body byte is a checksum error, not a semantic one");
+        const auto expected = position + 1 == trailer_start ? Status::invalid_length : Status::checksum;
+        EXSIM_FUZZ_REQUIRE(parser.parse({mutated.data(), mutated.size()}) == expected,
+                           "a changed body byte is a framing or checksum error, not a semantic one");
         mutated[position] = original;
     }
     mutated.push_back('\x01');
@@ -120,13 +120,6 @@ void check_typed_decode(const fix::Parser<>& parser, std::size_t input_size) {
                        "encode(decode(canonical frame)) is the same canonical frame");
 }
 
-// Known bug: Parser::parse checks that the frame ends in "10=NNN<SOH>" but not
-// that the byte before "10=" is SOH, so a last body field without its SOH
-// swallows the CheckSum field and the garbled frame parses as ok.
-inline bool checksum_field_not_separated(std::span<const char> input) {
-    return input.size() >= 8 && input[input.size() - 8] != '\x01';
-}
-
 }  // namespace fix44_message_fuzz
 
 inline int fuzz_fix44_message(const std::uint8_t* data, std::size_t size) {
@@ -140,7 +133,6 @@ inline int fuzz_fix44_message(const std::uint8_t* data, std::size_t size) {
     if (frame_status != Status::ok) {
         EXSIM_FUZZ_REQUIRE(parse_status == frame_status, "parse reports the frame_size error first");
     }
-    if (kSteerAroundKnownBugs && parse_status == Status::ok && checksum_field_not_separated(input)) return 0;
     if (parse_status != Status::ok) {
         EXSIM_FUZZ_REQUIRE(!parser.has(35) && parser.get(35).empty(), "a failed parse exposes no fields");
         return 0;

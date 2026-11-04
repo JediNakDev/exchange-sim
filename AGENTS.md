@@ -13,7 +13,7 @@
 - Frontend: Bun, Next.js, TypeScript, Tailwind CSS, shadcn/ui. Prefer existing shadcn components and meaningful names. Do not substitute another framework or package manager.
 - The tRPC choice is under evaluation. Current recommendation is an OpenAPI-described C++ HTTP API with generated TypeScript types, without a tRPC wrapper. Do not treat the global tRPC default as a final decision for this C++ backend.
 - Simulation, matching, exchange protocols, accounting, and simulated time belong in C++.
-- Use GPT/ChatGPT for resumed and new delegates with high reasoning (user decision 2026-11-04, after Claude hit its usage limit; this replaces the earlier Claude-only rule). Do not use local Ollama while the user is working on this machine.
+- Use Claude (Opus 5.5, high reasoning) for resumed and new delegates (user decision 2026-11-05, "continue as claude", after GPT hit its usage limit; this replaces the 2026-11-04 GPT rule). Do not use local Ollama while the user is working on this machine.
 - Never include a co-author attribution in commits. Avoid em dashes in responses, comments, and new prose.
 
 ## Coordination
