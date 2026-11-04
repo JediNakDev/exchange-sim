@@ -1,6 +1,6 @@
 # Working state and implementation plan
 
-Updated 2026-11-03. This is a recovery checkpoint, not live delegate status. Keep it concise; put detailed evidence in the relevant report or log.
+Updated 2026-11-04. This is a recovery checkpoint, not live delegate status. Keep it concise; put detailed evidence in the relevant report or log.
 
 ## User decisions and constraints
 
@@ -8,7 +8,7 @@ Updated 2026-11-03. This is a recovery checkpoint, not live delegate status. Kee
 - First trader workflow: **execution and market-making research**.
 - Primary research UI: **Bun + Next.js + TypeScript + Tailwind CSS + shadcn/ui**, following `/Users/jedi/AGENTS.md`. Prefer existing components and meaningful names. C++ owns simulation/backend behavior.
 - API recommendation: C++ HTTP/OpenAPI with generated TS types; omit a tRPC wrapper initially. The user asked us to assess fit after reopening tRPC, so this is a reasoned recommendation rather than an explicit final veto.
-- Resumed/new delegates use Claude Opus 5.5 and high or xhigh reasoning (user decision 2026-11-03). No Ollama while the user works here. Do not add co-author attribution to commits.
+- Resumed/new delegates use GPT/ChatGPT with high reasoning (user decision 2026-11-04, replacing the Claude-only preference after its usage limit). No Ollama while the user works here. Do not add co-author attribution to commits.
 - Full product rationale, causal simulation requirements, realism assumptions, accounting, and UI workflow: [PRODUCT.md](PRODUCT.md).
 
 ## Verified repository state (2026-11-03)

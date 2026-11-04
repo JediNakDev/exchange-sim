@@ -1,5 +1,5 @@
 {
-  "updated": "2026-11-03",
+  "updated": "2026-11-04",
   "purpose": "Recovery inventory. This snapshot is not live status. Query/read the relevant thread before acting.",
   "threads": [
     {
@@ -156,15 +156,19 @@
     {
       "threadId": "thread:delegated-task:command%3Amcp%3Ac7e221c4-df52-4581-ac42-4cf5b1dacf1a%3Adelegate-task%3A3a447464-fcef-4596-8f36-181a1cbdebb3",
       "title": "FIX 4.4 gateway (session layer + application, server + client)",
-      "status": "running",
-      "provider": "claudeAgent",
-      "model": "claude-opus-5-5",
-      "reasoningEffort": "xhigh",
+      "status": "starting",
+      "provider": "codex",
+      "model": "gpt-6.1-sol",
+      "reasoningEffort": "high",
       "parentThreadId": "a4344aba-ffd8-4132-bf6d-ea93d8fe68e8",
-      "taskId": "node:delegated-task:command%3Amcp%3Ac7e221c4-df52-4581-ac42-4cf5b1dacf1a%3Adelegate-task%3A3a447464-fcef-4596-8f36-181a1cbdebb3",
+      "taskId": "node:delegated-task:command%3Amcp%3A02a9f7c4-6753-45e7-9908-1dbd3dbdf522%3Athread-send%3A47bd93c9-7301-466c-ba07-a5ddc6c6fafe",
       "baseCommit": "67e771b",
-      "recoveryState": "wave 2, launched 2026-11-03; stopped 2026-11-03 by Claude API rate limit, partial work preserved in its worktree; resumed 2026-11-03 12:10 +08 with instructions to merge exchange-simulator (30424f4) before final verification",
-      "resumeTaskId": "node:delegated-task:limit-resume (harness auto-resume ordinal 2, armed 2026-11-03 12:10 +08) for thread thread:delegated-task:command%3Amcp%3Ac7e221c4-df52-4581-ac42-4cf5b1dacf1a%3Adelegate-task%3A3a447464-fcef-4596-8f36-181a1cbdebb3"
+      "recoveryState": "GPT continuation started 2026-11-04 in existing checkout after Claude usage limit",
+      "resumeTaskId": "node:delegated-task:limit-resume (harness auto-resume ordinal 2, armed 2026-11-03 12:10 +08) for thread thread:delegated-task:command%3Amcp%3Ac7e221c4-df52-4581-ac42-4cf5b1dacf1a%3Adelegate-task%3A3a447464-fcef-4596-8f36-181a1cbdebb3",
+      "previousProvider": "claudeAgent",
+      "previousModel": "claude-opus-5-5",
+      "runId": "run:thread:thread%3Adelegated-task%3Acommand%253Amcp%253Ac7e221c4-df52-4581-ac42-4cf5b1dacf1a%253Adelegate-task%253A3a447464-fcef-4596-8f36-181a1cbdebb3:ordinal:7",
+      "link": "<t3-thread://v2/28299d02-72aa-499f-95da-f2289df17826/thread:delegated-task:command%3Amcp%3Ac7e221c4-df52-4581-ac42-4cf5b1dacf1a%3Adelegate-task%3A3a447464-fcef-4596-8f36-181a1cbdebb3>"
     },
     {
       "threadId": "thread:delegated-task:command%3Amcp%3Ac7e221c4-df52-4581-ac42-4cf5b1dacf1a%3Adelegate-task%3A0fd6780f-e0a1-4ae3-b7fd-b126b839ea13",
@@ -182,15 +186,19 @@
     {
       "threadId": "thread:delegated-task:command%3Amcp%3Ac7e221c4-df52-4581-ac42-4cf5b1dacf1a%3Adelegate-task%3A0986273d-4c42-4f8b-83ea-6650009a16cf",
       "title": "deterministic research runner, strategies, accounting, manifests, CLI",
-      "status": "running",
-      "provider": "claudeAgent",
-      "model": "claude-opus-5-5",
-      "reasoningEffort": "xhigh",
+      "status": "starting",
+      "provider": "codex",
+      "model": "gpt-6.1-sol",
+      "reasoningEffort": "high",
       "parentThreadId": "a4344aba-ffd8-4132-bf6d-ea93d8fe68e8",
-      "taskId": "node:delegated-task:command%3Amcp%3Ac7e221c4-df52-4581-ac42-4cf5b1dacf1a%3Adelegate-task%3A0986273d-4c42-4f8b-83ea-6650009a16cf",
+      "taskId": "node:delegated-task:command%3Amcp%3A02a9f7c4-6753-45e7-9908-1dbd3dbdf522%3Athread-send%3A26f85a16-3ec5-407f-8d8b-261a7b1f974d",
       "baseCommit": "67e771b",
-      "recoveryState": "wave 2, launched 2026-11-03; stopped 2026-11-03 by Claude API rate limit, partial work preserved in its worktree; resumed 2026-11-03 12:10 +08 with instructions to merge exchange-simulator (30424f4) before final verification",
-      "resumeTaskId": "node:delegated-task:limit-resume (harness auto-resume ordinal 2, armed 2026-11-03 12:10 +08) for thread thread:delegated-task:command%3Amcp%3Ac7e221c4-df52-4581-ac42-4cf5b1dacf1a%3Adelegate-task%3A0986273d-4c42-4f8b-83ea-6650009a16cf"
+      "recoveryState": "GPT continuation started 2026-11-04 in existing checkout after Claude usage limit",
+      "resumeTaskId": "node:delegated-task:limit-resume (harness auto-resume ordinal 2, armed 2026-11-03 12:10 +08) for thread thread:delegated-task:command%3Amcp%3Ac7e221c4-df52-4581-ac42-4cf5b1dacf1a%3Adelegate-task%3A0986273d-4c42-4f8b-83ea-6650009a16cf",
+      "previousProvider": "claudeAgent",
+      "previousModel": "claude-opus-5-5",
+      "runId": "run:thread:thread%3Adelegated-task%3Acommand%253Amcp%253Ac7e221c4-df52-4581-ac42-4cf5b1dacf1a%253Adelegate-task%253A0986273d-4c42-4f8b-83ea-6650009a16cf:ordinal:7",
+      "link": "<t3-thread://v2/28299d02-72aa-499f-95da-f2289df17826/thread:delegated-task:command%3Amcp%3Ac7e221c4-df52-4581-ac42-4cf5b1dacf1a%3Adelegate-task%3A0986273d-4c42-4f8b-83ea-6650009a16cf>"
     },
     {
       "threadId": "thread:delegated-task:command%3Amcp%3Ac7e221c4-df52-4581-ac42-4cf5b1dacf1a%3Adelegate-task%3A23729171-e22e-4669-a727-f38c1b26551b",
@@ -274,12 +282,12 @@
     {
       "threadId": "thread:delegated-task:command%3Amcp%3A8d91f95b-6450-4ca0-9368-83b0a7083b89%3Adelegate-task%3A4196ad68-c39f-4002-9098-c3dea5cc5618",
       "title": "new protocol: SBE order entry over FIXP session layer (codec, session, gateway, client)",
-      "status": "running",
-      "provider": "claudeAgent",
-      "model": "claude-opus-5-5",
-      "reasoningEffort": "xhigh",
+      "status": "starting",
+      "provider": "codex",
+      "model": "gpt-6.1-sol",
+      "reasoningEffort": "high",
       "parentThreadId": "a4344aba-ffd8-4132-bf6d-ea93d8fe68e8",
-      "taskId": "node:delegated-task:command%3Amcp%3A8d91f95b-6450-4ca0-9368-83b0a7083b89%3Adelegate-task%3A4196ad68-c39f-4002-9098-c3dea5cc5618",
+      "taskId": "node:delegated-task:command%3Amcp%3A02a9f7c4-6753-45e7-9908-1dbd3dbdf522%3Athread-send%3A2ef7d338-3eb1-4d39-92d1-bbba4a88d931",
       "baseCommit": "fbc4bf7",
       "ownership": [
         "docs/protocols/",
@@ -290,7 +298,11 @@
         "tests/exsim/gateway/fixp_sbe/",
         "tests/exsim/protocol/sbe_*"
       ],
-      "recoveryState": "wave 2, launched 2026-11-03; proposes GATEWAYS.md/SERVER.md additions in its report; stopped 2026-11-03 by Claude API rate limit, partial work preserved in its worktree; auto-resumed by the harness 2026-11-03 12:10 +08 (limit-resume ordinal 2)"
+      "recoveryState": "GPT continuation started 2026-11-04 in existing checkout after Claude usage limit",
+      "previousProvider": "claudeAgent",
+      "previousModel": "claude-opus-5-5",
+      "runId": "run:thread:thread%3Adelegated-task%3Acommand%253Amcp%253A8d91f95b-6450-4ca0-9368-83b0a7083b89%253Adelegate-task%253A4196ad68-c39f-4002-9098-c3dea5cc5618:ordinal:6",
+      "link": "<t3-thread://v2/28299d02-72aa-499f-95da-f2289df17826/thread:delegated-task:command%3Amcp%3A8d91f95b-6450-4ca0-9368-83b0a7083b89%3Adelegate-task%3A4196ad68-c39f-4002-9098-c3dea5cc5618>"
     },
     {
       "threadId": "thread:delegated-task:command%3Amcp%3A77c45547-e76a-49aa-a48f-5f6f5c1020cf%3Adelegate-task%3A38045dc3-642d-44fa-bf93-13252c61be81",
