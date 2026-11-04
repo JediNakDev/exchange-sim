@@ -1,0 +1,5 @@
+instrument AAA tick=0.001  phase=CONTINUOUS
+session alice own
+session bob!own2
+NEW_ORDER instrument=AAA session=alice cl_ord_id=Û side=BUY qty=10 price=100
+SETents

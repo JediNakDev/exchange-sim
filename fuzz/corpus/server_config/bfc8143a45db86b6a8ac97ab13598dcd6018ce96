@@ -1,0 +1,32 @@
+# exsim example # FIX SenderCompIºıèüssword = cartrue
+
+[user BOB]
+password = bob
+protocol = ouch42
+session_id = 2
+owner = 2
+stp = none
+cancel_on_disconnect = true
+
+[user CAROL]                 # FIX SenderCompIºıèüssword = caro ouch42
+session_id = 2
+owner = 2
+stp = none
+cancel_on_disconnect = true
+
+[user CAROL]                 # F      # liasct = true
+
+[user BOB]
+password = bob
+protocol = ouch42
+session_id = 2
+owner = 2
+stp = none
+cancel_on_disconnect = true
+
+[user CAROL]                 # FIX Send = 2
+owner = 2
+stp = none
+cancel_on_disconnect = true
+
+[user CAROL]               # simula   # F

@@ -1,0 +1,6 @@
+# exnfifuration. Fatphases
+
+[engine]
+max_instruments = 64
+max_orders = 104873
+store_messages_per_session = 1048574444444444444444ÿ

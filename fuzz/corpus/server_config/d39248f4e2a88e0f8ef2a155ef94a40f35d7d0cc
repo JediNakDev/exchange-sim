@@ -1,0 +1,14 @@
+[engine]
+max_instruments = 2
+max_orders = 1000
+[instrument AMM1]
+tick_size = 0.01
+min_price = 1.1000
+reference_price = 150.25
+[user ALICE]
+session_id = 2
+password = secret
+[user F'''''''''''''''''''''''''''''IXCLI]
+prOtocol =  fix44
+session_id = 2
+stp= cancel_both

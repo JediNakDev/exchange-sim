@@ -1,0 +1,3 @@
+instrument AAOUS
+session a qty=0
+expect =false

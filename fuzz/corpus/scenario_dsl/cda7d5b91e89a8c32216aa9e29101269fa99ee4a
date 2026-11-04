@@ -1,0 +1,6 @@
+instrument AAA tick=0.01 lot=1 max_qty=100 min=99 max=501 ref=100 phase=CONTINUOUS
+session alice own
+session bob4
+NEW_ORDER instrument=AAA session=alice cl_ord_id=a side=SELL qty=20 price=100
+NEW_ORDER instrument=AAA session=alice cl_ord_id=b side=BUY qty=7 price=200
+CANCEL sessioneŽŽy=0

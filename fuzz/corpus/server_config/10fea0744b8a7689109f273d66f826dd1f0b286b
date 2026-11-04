@@ -1,0 +1,7 @@
+# ŒŒŒŒn
+
+[instrument SPY]
+tick_size = 0.01
+max_price = 2000.00
+reference_price =000.05 
+initial_phasE = continuous  # same firm as ALICE

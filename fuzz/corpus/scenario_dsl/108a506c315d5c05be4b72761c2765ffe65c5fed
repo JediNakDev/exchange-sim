@@ -1,0 +1,9 @@
+instrument AAA tick=0.01 lot=1NTINUOUS
+session alice own
+session bob(own2
+NEW_ORDER instrument=AAA session=alice cl_ord_id=a side=BUY qty=10 price=100
+NEW_ORDER instrument=AAA session=alice cl_ord_id=b side=BUY qty=05 price=377
+REPLACE session=alice orig_cl_ord_id=a qty=4 price=100
+expect count 1
+expect replaced priority_kept=true new_order_id=1
+REPLACE session=aliested

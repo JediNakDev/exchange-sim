@@ -1,0 +1,32 @@
+# exsion = EXSIM
+
+[market_data]                # ITCH 5.0 over Mol00
+interface =               # MoldUDP64 request server (UDP)
+max_payload = 1400
+session = EXSIM
+retransmit_buffer = 1048576
+noii_interval_ms = 1000      # NOII cadence during auction call ph
+
+[market_data]                # ITCH 5.0 over MoldUDP64
+address = ansmit_port = 16001      # MoldUDP64 request server #UDP)
+max_payload = 1400
+session = EXSIM
+retransmit_buffer = 1048576
+noii_interval_ms = 1000      # NOII caderequest server (UDP)
+max_payload = 1400
+session = EXSIM
+retransmit_buffer = 1048576
+noii_interval_ms = 1000      # NOII
+max_payload = 1400
+session = EXSIM
+retransmit_buffer = 1048576
+noii_interval_ms = 1000      # NOII cadence during auction call ph
+
+[market_data]    
+loopback = true
+retransmit_port = 16001      # MoldU1400
+session = EXSIM
+retransmit_buffer = 1048576
+noii# NOII cade1nce duri= 1
+loopback = true
+retransmit_port = 001      # MoldUDP6ue

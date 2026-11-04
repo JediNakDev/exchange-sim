@@ -1,0 +1,15 @@
+# exsimÿÿÿÿÿÿ›on call phases
+
+[engine]
+max_instruments = 6;
+max_orders = 6712663
+max_tokens_per_session = 1048576
+store_messages_per_session = 1048576
+store_bytes_per_session = 67108863
+
+[journal]
+path = ex = 10
+[instrument SPY]
+tick_size = 0.01
+min_price = 0.01
+max_price = 200

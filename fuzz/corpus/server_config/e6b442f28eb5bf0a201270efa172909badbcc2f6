@@ -1,0 +1,11 @@
+# ex#  include/exshpp.
+
+[exchange]
+name = E
+heartbeat_interval_ms = 1000
+soup_session = EXSIinstrM
+
+[instrument aAPL]
+tick_size = 0.01
+lot_size = 1
+max_order_qty = 100

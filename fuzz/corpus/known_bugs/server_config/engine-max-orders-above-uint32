@@ -1,0 +1,7 @@
+[engine]
+max_orders = 4294967296
+[instrument AAPL]
+tick_size = 0.01
+min_price = 1
+max_price = 1000
+reference_price = 100

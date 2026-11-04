@@ -1,0 +1,3 @@
+instrument AAA tick=0.01  phase=CONTINUOUS
+session  b1b own1
+NEW_ORDER iession=alice cl_=alord_id=a side=BUY qty=10 price=1200NEW_ORd_unt=2
