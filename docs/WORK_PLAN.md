@@ -45,6 +45,8 @@ Updated 2026-11-05. This is a recovery checkpoint, not live delegate status. Kee
 | FIX 4.4 gateway | `/Users/jedi/.t3/worktrees/lob/t3-49268324`, branch `t3/fix44-order-entry-gateway` | Resumed on Claude 2026-11-05: merge `exchange-simulator`, finish verification, commit. |
 | Research runner | `/Users/jedi/.t3/worktrees/lob/t3-e1e148f1`, branch `t3/deterministic-research-runner` (`b06a276`, `e44b5c6`) | Resumed on Claude 2026-11-05. Must not commit `docs/WORK_PLAN.md`; notes go in `docs/RESEARCH_RUNNER.md`. |
 | SBE over FIXP | `/Users/jedi/.t3/worktrees/lob/t3-dd94b274`, branch `t3/add-fixp-sbe-gateway` (`f2a6a83`, `547ba68`) | Resumed on Claude 2026-11-05 (GCC constexpr fix, merge, commit). |
+| Server binary and E2E | harness worktree (task `...delegate-task%3A08e286a4-cae1-4949-b6f0-83a32243c0a3`) | Running on Claude since 2026-11-05, from `e2cdd11`. |
+| HTTP/OpenAPI API and UI | harness worktree (task `...delegate-task%3Ae28022a3-cc29-4d4a-86c4-4cfec8e4fb7b`) | Running on Claude since 2026-11-05, from `e2cdd11` plus the committed runner branch; re-check against the finished runner before merge. |
 | Ladder engine A | `/Users/jedi/.t3/worktrees/lob/t3-eaaf2612` (`b77d206`) | Done; evaluated, not selected. |
 | Engine C integration | scratch worktree `engine-c-integration`, branch `integrate-engine-c` | Merged (`b874ce5`). |
 | Vector engine B | `/Users/jedi/.t3/worktrees/lob/t3-3500e31b` | Done, superseded by C. Untracked redundant second oracle not merged. |
@@ -70,10 +72,10 @@ For each completion record: task ID, actual branch/commit, changed scope, tests 
 
 ## Immediate next action
 
-2026-11-05: GPT hit its usage limit after merging engine C, OUCH, MD, API+UI and fuzzing; the user said "continue as claude". The orchestrator verified and committed GPT's uncommitted review fixes, then resumed FIX, runner and SBE on Claude in their own worktrees and launched the server binary plus end-to-end delegate.
+2026-11-05: GPT hit its usage limit after merging engine C, OUCH, MD, API+UI and fuzzing; the user said "continue as claude". The orchestrator verified and committed GPT's uncommitted review fixes, then resumed FIX, runner and SBE on Claude in their own worktrees and launched two new delegates: server binary plus end-to-end tests, and the C++ HTTP/OpenAPI API with the UI on real runs (started in parallel against the committed runner).
 
 Next, on completion notifications (do not poll):
 1. FIX, SBE: review, merge into `exchange-simulator`, full gate (macOS release and ASan/UBSan, Linux g++/clang++), then plug them into the server binary.
-2. Runner: review, merge, then launch the C++ HTTP/OpenAPI API delegate and point the UI at it.
+2. Runner: review and merge first; then reconcile the API delegate's adapter with the finished runner, review and merge the API and UI.
 3. Server binary: review, merge, run the E2E and wire-to-wire benchmark gates.
 4. Final independent review (correctness, causality, accounting, protocol recovery, UI) by separate QA delegates; fix findings; README with measured numbers.
