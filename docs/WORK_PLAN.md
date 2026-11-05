@@ -26,6 +26,7 @@ Updated 2026-11-05. This is a recovery checkpoint, not live delegate status. Kee
 - QA review fix F3: config `max_payload` uses the publisher bounds 72..65507 `eeb5b21`: release 739/739, ASan/UBSan 736/736, Linux g++ and clang++ 739/739, 0 warnings (`/tmp/exsim-f3-*.log`).
 - Deterministic research runner merged `4783f45` (from `2619a8e`): macOS release 789/789, ASan/UBSan 786/786, `make all`, Linux g++ and clang++ 789/789, 0 warnings (`/tmp/exsim-int5-*.log`).
 - SBE fuzz target `sbe_order_entry` `33b6f39`: 81,714,054 ASan/UBSan executions, 0 crashes; 1062-file corpus (36 seeds, 5 of them boundary seeds from a mutation check, plus 1026 campaign inputs) fails the replay for all 8 planted codec mutants: release 790/790, ASan/UBSan 787/787, Linux g++ and clang++ fuzz replay 16/16 (campaign logs and mutants in the session scratchpad `sbe-fuzz/`, `sbe-mutation/`).
+- Wire codec benchmark `exsim_codec_bench` `2d3b27f` (CI perf smoke, zero allocations): perf build, binary protocols 1.4 to 6.0 ns per message; FIX 228 ns to decode a NewOrderSingle and 155 ns to encode an ExecutionReport, 38 to 74 times OUCH and SBE. Linux g++ agrees within 10 ns.
 - Not integrated yet: server binary and end-to-end tests; C++ HTTP/OpenAPI API; UI on real artifacts; QA fixes (OUCH/core/MD, FIX); final independent review.
 
 ## Milestones
@@ -93,4 +94,5 @@ Next, on completion notifications (do not poll):
 2. Server binary (`08e286a4`): review, merge after the core API change, run the E2E and wire-to-wire benchmark gates; wire SBE into the server if the delegate did not.
 3. API and UI (`e28022a3`): check the adapter against the runner differences table, review, merge, run the C++ and bun gates.
 4. Fuzz corpus mutation check (`9bdb16a6`): review the seed additions, check that existing seed files are unchanged, merge, replay gates.
-5. Final independent review: runner (causality, accounting) and SBE/FIXP reviews are running; after the server and API/UI merges, review the server end to end (all three protocols plus market data) and the UI on real runs; fix findings; README with wire-to-wire numbers (README status refreshed `813f074`).
+5. FIX codec performance, after the FIX QA fixes merge (they own `fix44.hpp`): parallel variant delegates on `fix44::Parser`/`decode` and `Builder`/`encode`, judged by `exsim_codec_bench` with byte-identical encode output, the FIX fuzz targets and the gateway tests.
+6. Final independent review: runner (causality, accounting) and SBE/FIXP reviews are running; after the server and API/UI merges, review the server end to end (all three protocols plus market data) and the UI on real runs; fix findings; README with wire-to-wire numbers (README status refreshed `813f074`).
