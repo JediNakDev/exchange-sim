@@ -98,6 +98,8 @@ For each completion record: task ID, actual branch/commit, changed scope, tests 
 
 Latest 2026-11-05 continuation: all eight unfinished direct child tasks were stopped to clear queued Claude limit-resumes, configured for GPT-6.1 Sol/high, and resumed in their original checkouts. Actual new task IDs, paths and branches are in delegation-registry.json. Completed tasks were not rerun. This supersedes the older Claude auto-resume instructions below.
 
+Runtime continuation checkpoint: partial work committed as `878634b`, parent `b2e6b02` merged cleanly; protocol-selectable wire-to-wire benchmark is compiling/validating. Runtime owns no gateway files and depends on the existing SBE `end_session` API. Parent relayed that dependency to the SBE QA owner. **After merging SBE QA fixes, send the exact integrated commit IDs to the runtime owner before its final tests.** Benchmark runs will record the shared machine load.
+
 2026-11-05 evening: the QA fixes for OUCH/core/MD (`6227a51`) and FIX (`3df3527`) and the server runtime (`e9495a0`) are merged and gated. A Claude API rate limit failed the runner fix and mutation check runs; T3 resumes them automatically.
 
 Next, on completion notifications (do not poll):
