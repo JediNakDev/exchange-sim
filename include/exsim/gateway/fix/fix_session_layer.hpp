@@ -8,20 +8,26 @@
 // day-lifetime counters and store live in FixSessionDayState.
 //
 // Inbound rules (docs/GATEWAYS.md section 3):
-//   * Garbled input (bad prefix, BodyLength, CheckSum, missing MsgType) is
-//     discarded without touching sequence numbers; the stream resynchronises
-//     at the next "8=FIX.4.4<SOH>9=".
+//   * Garbled input (bad prefix, BodyLength, CheckSum, missing MsgType, or
+//     MsgType not the third field) is discarded without touching sequence
+//     numbers; the stream resynchronises at the next "8=FIX.4.4<SOH>9=".
+//   * MsgSeqNum 0 or above kMaxMsgSeqNum: Logout and disconnect (the expected
+//     sequence never wraps).
 //   * MsgSeqNum below expected without PossDupFlag: Logout and disconnect.
-//     With PossDupFlag: suppressed, except a GapFill whose NewSeqNo moves
-//     expected forward.
+//     With PossDupFlag: ignored, including a GapFill (FIX 4.4), so a held
+//     application message is never discarded by a duplicate.
+//   * PossDupFlag=Y in order: OrigSendingTime(122) is required (Reject 373=1)
+//     and must not be later than SendingTime (Reject 373=10, then Logout).
 //   * MsgSeqNum above expected: one ResendRequest(expected, 0) is sent and the
 //     message is held (or discarded when the queue is full, the open-ended
 //     resend covers it). Held messages run only when their turn comes, so an
 //     application message never runs before its predecessors. A held
 //     ResendRequest, TestRequest or matching Heartbeat is serviced on arrival
 //     and only consumes its MsgSeqNum later.
-//   * SequenceReset in reset mode (123=N) ignores MsgSeqNum: decreasing
-//     NewSeqNo gets Reject(3) 373=5, increasing NewSeqNo advances expected.
+//   * SequenceReset in reset mode (123=N or absent) ignores MsgSeqNum:
+//     decreasing NewSeqNo gets Reject(3) 373=5, increasing NewSeqNo advances
+//     expected. A GapFillFlag(123) other than Y or N gets Reject(3) 373=5 and
+//     leaves the sequence untouched.
 //   * Parseable semantic errors consume their in-order MsgSeqNum and get
 //     Reject(3) with 371/372/373.
 //
@@ -210,14 +216,20 @@ protected:
     }
 
     void end_connection() noexcept {
-        if (day_ != nullptr && sink_bound_to_day_) {
-            day_->unbind_sink();
+        if (day_ != nullptr && sink_bound_to_day_ && sink_ != nullptr) {
+            day_->unbind_sink(*sink_);
         }
         sink_bound_to_day_ = false;
         day_ = nullptr;
         sink_ = nullptr;
         phase_ = FixConnectionPhase::Idle;
         held_messages_.clear();
+    }
+
+    // True while the day state still transmits through this connection's sink,
+    // that is no newer connection of the same user has bound since.
+    [[nodiscard]] bool day_state_bound_to_this_connection() const noexcept {
+        return day_ != nullptr && sink_ != nullptr && sink_bound_to_day_ && day_->is_bound_to(*sink_);
     }
 
     void enter_active(std::uint64_t heartbeat_interval_seconds) noexcept {
@@ -407,13 +419,17 @@ private:
             send_logout_and_disconnect("MsgSeqNum(34) missing or invalid");
             return true;
         }
+        if (frame.sequence > kMaxMsgSeqNum) {
+            send_logout_and_disconnect("MsgSeqNum(34) out of range");
+            return true;
+        }
         handle_sequenced(frame);
         return true;
     }
 
     bool classify(std::span<const char> bytes, FixInboundFrame& frame) noexcept {
         const Status status = parser_.parse(bytes);
-        if (status == Status::checksum || status == Status::invalid_length) {
+        if (status == Status::checksum || status == Status::invalid_length || !msg_type_is_third_field(bytes)) {
             return false;
         }
         frame.bytes = bytes;
@@ -441,9 +457,17 @@ private:
             send_logout_and_disconnect("CompID problem");
             return;
         }
-        if (frame.message_type == "4" && frame.parse_status == Status::ok && frame.parser->get(123) != "Y") {
-            handle_sequence_reset(frame);
-            return;
+        if (frame.message_type == "4" && frame.parse_status == Status::ok) {
+            const std::string_view gap_fill_flag = frame.parser->get(123);
+            if (frame.parser->has(123) && gap_fill_flag != "Y" && gap_fill_flag != "N") {
+                send_session_reject(frame.sequence, 123, frame.message_type, SessionRejectReason::ValueIsIncorrect,
+                                    "GapFillFlag(123) must be Y or N");
+                return;
+            }
+            if (gap_fill_flag != "Y") {
+                handle_sequence_reset(frame);
+                return;
+            }
         }
         const std::uint64_t expected = day_->expected_inbound_seq();
         if (frame.sequence < expected) {
@@ -458,17 +482,13 @@ private:
         drain_held_messages();
     }
 
+    // A low PossDup message, a GapFill included, is ignored (FIX 4.4): letting
+    // a duplicate GapFill advance expected could discard held application
+    // messages that really were received.
     void handle_low_sequence(const FixInboundFrame& frame, std::uint64_t expected) noexcept {
         if (!frame.possible_duplicate) {
             std::array<char, 96> text_buffer{};
             send_logout_and_disconnect(format_sequence_too_low(text_buffer, expected, frame.sequence));
-            return;
-        }
-        std::uint64_t new_sequence = 0;
-        if (frame.message_type == "4" && frame.parse_status == Status::ok &&
-            frame.parser->get_uint(36, new_sequence) && new_sequence > frame.sequence && new_sequence > expected) {
-            day_->set_expected_inbound_seq(new_sequence);
-            drain_held_messages();
             return;
         }
         ++counters_.duplicates_suppressed;
@@ -491,6 +511,12 @@ private:
                 send_logout_and_disconnect("unexpected Logon");
                 return;
             }
+        }
+        if (held_messages_.find(frame.sequence) >= 0) {
+            // A repeat of a held message is not serviced again.
+            ++counters_.duplicates_suppressed;
+            request_resend_for_gap();
+            return;
         }
         const bool serviced = frame.parse_status == Status::ok && service_early(frame);
         switch (held_messages_.hold(frame.sequence, frame.bytes, serviced)) {
@@ -571,9 +597,12 @@ private:
             return;
         }
         day_->set_expected_inbound_seq(frame.sequence + 1);
-        reader.required_timestamp(52);
+        const std::uint64_t sending_time = reader.required_timestamp(52);
         if (!reader.ok()) {
             send_session_reject(frame, reader.problem());
+            return;
+        }
+        if (frame.possible_duplicate && !validate_original_sending_time(frame, reader, sending_time)) {
             return;
         }
         if (frame.message_type.size() != 1) {
@@ -634,6 +663,26 @@ private:
                 derived().on_application_message(frame);
                 return;
         }
+    }
+
+    // PossDupFlag=Y: OrigSendingTime(122) must be present (else Reject 373=1,
+    // the message is ignored) and not later than SendingTime (else Reject
+    // 373=10 and Logout). Returns true when the message may be processed.
+    bool validate_original_sending_time(const FixInboundFrame& frame, FixFieldReader& reader,
+                                        std::uint64_t sending_time) noexcept {
+        const std::uint64_t original_sending_time = reader.required_timestamp(122);
+        if (!reader.ok()) {
+            send_session_reject(frame, reader.problem());
+            return false;
+        }
+        if (original_sending_time > sending_time) {
+            send_session_reject(frame.sequence, 52, frame.message_type,
+                                SessionRejectReason::SendingTimeAccuracyProblem,
+                                "OrigSendingTime(122) later than SendingTime(52)");
+            send_logout_and_disconnect("SendingTime accuracy problem");
+            return false;
+        }
+        return true;
     }
 
     // SequenceReset-Reset (123=N): MsgSeqNum is ignored.

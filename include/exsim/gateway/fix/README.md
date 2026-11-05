@@ -19,7 +19,10 @@ Include `exsim/gateway/fix/fix_gateway.hpp`. All types are in
 - `on_data(span<const char>, ctx)` returns consumed bytes; retain incomplete tails.
 - `on_timer(ctx)` drives injected-clock session timers.
 - `wants_disconnect()` tells the server to flush/close, then call `on_disconnected(ctx)`.
-- Always call `on_disconnected` before reusing/destroying a bound connection.
+- Always call `on_disconnected` before destroying a bound connection; the
+  destructor asserts it. `start` on a still-bound connection releases the
+  binding first (`on_disconnected`). A stale connection never unbinds the sink
+  of a newer connection for the same user.
 - `begin_logout(text, ctx)` starts the exchange-initiated Logout handshake.
 - Context supplies authenticate, bind/unbind, instrument lookups, submit, now/realtime_ns.
 - Connection IDs use `server::ConnectionId`, with packing from net IDs owned by the server.
@@ -34,7 +37,8 @@ Include `exsim/gateway/fix/fix_gateway.hpp`. All types are in
 - Typed `send_new_order_single`, `send_order_cancel_request`,
   `send_order_cancel_replace_request`, `send_order_mass_cancel_request` return success.
 - Handler receives on_logon, on_execution_report, on_order_cancel_reject,
-  on_order_mass_cancel_report, on_session_reject and on_logout callbacks.
+  on_order_mass_cancel_report, on_session_reject and on_logout callbacks, and
+  on_business_message_reject when the handler defines it.
 - Callback text borrows input storage; copy it if it must survive the callback.
 
 ## Policy and limits
@@ -52,13 +56,16 @@ AvgPx rounds to nearest price unit (four decimal places). Replacements use total
 quantity, carry fill notional/cumulative quantity, and reserve new day-used tokens.
 Authenticated sequence reset clears the resend store and both sequence counters,
 but preserves tokens, order records and ExecIDs. Duplicate low non-PossDup messages
-log out; duplicate overlapping PossDup GapFill can advance expected sequence.
+log out; a low PossDup message, GapFill included, is ignored and never advances
+expected sequence. A duplicate early ResendRequest already held is serviced once.
+MsgSeqNum above 2^64 - 2 is refused with Logout so expected never wraps.
 
 Output sink overflow disconnects while stored reports remain recoverable. Resend
 store exhaustion instead latches `store_exhausted()`, increments
 `messages_not_stored()`, and disconnects without transmitting or gap-filling the
-unstored report. Normal reconnect is refused. Provision the store for the whole
-day, including session messages. The server must treat exhaustion as a fatal
+unstored report. Normal reconnect is refused. Only application messages take
+store slots; session messages are gap-filled on resend. Provision the store for
+the whole day's application messages. The server must treat exhaustion as a fatal
 capacity incident: reports from that point cannot be recovered. An explicit
 new authenticated reset may restart sequence storage but cannot restore those
 reports. No ring eviction or token reclamation occurs during the day.

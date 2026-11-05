@@ -112,7 +112,8 @@ public:
           events_(exsim::required_event_capacity(engine_config_)),
           users_(std::move(users)),
           directory_(users_, "EXSIM", limits),
-          bound_sessions_(std::size_t{1} << 16, false) {
+          bound_sessions_(std::size_t{1} << 16, false),
+          bound_connection_by_session_(std::size_t{1} << 16, 0) {
         for (std::string_view symbol : {std::string_view("AAPL"), std::string_view("MSFT")}) {
             exsim::InstrumentConfig instrument;
             instrument.symbol = exsim::Symbol(symbol);
@@ -134,15 +135,16 @@ public:
         }
         return nullptr;
     }
-    bool bind(exsim::SessionId session, exsim::server::ConnectionId) noexcept {
+    bool bind(exsim::SessionId session, exsim::server::ConnectionId connection) noexcept {
         if (bound_sessions_[session]) {
             return false;
         }
         bound_sessions_[session] = true;
+        bound_connection_by_session_[session] = connection;
         return true;
     }
-    void unbind(exsim::SessionId session) noexcept {
-        if (!bound_sessions_[session]) {
+    void unbind(exsim::SessionId session, exsim::server::ConnectionId connection) noexcept {
+        if (!bound_sessions_[session] || bound_connection_by_session_[session] != connection) {
             return;
         }
         bound_sessions_[session] = false;
@@ -220,6 +222,7 @@ private:
     std::vector<exsim::server::UserConfig> users_;
     fix::FixUserDirectory<TestByteSink> directory_;
     std::vector<bool> bound_sessions_;
+    std::vector<exsim::server::ConnectionId> bound_connection_by_session_;
     exsim::Timestamp now_ns_ = kSessionStartNs;
 };
 
@@ -320,6 +323,10 @@ public:
         : exchange_(exchange), sender_(std::move(sender)), connection_(exchange.directory(), settings) {
         connection_.start(sink_, ++generation_, exchange_);
     }
+    // A bound FixConnection must be released before it is destroyed.
+    ~FixTestConnection() { connection_.on_disconnected(exchange_); }
+    FixTestConnection(const FixTestConnection&) = delete;
+    FixTestConnection& operator=(const FixTestConnection&) = delete;
 
     std::size_t feed(std::string_view bytes) { return connection_.on_data({bytes.data(), bytes.size()}, exchange_); }
 
@@ -377,7 +384,9 @@ private:
     std::string sender_;
     TestByteSink sink_;
     ExchangeConnection connection_;
-    std::uint32_t generation_ = 0;
+    // Shared by every test connection, as a server never reuses a live
+    // ConnectionId: a stale and a newer connection must differ.
+    static inline std::uint32_t generation_ = 0;
 };
 
 // A FixClient wired to an exchange-side FixConnection through two in-memory
@@ -391,6 +400,10 @@ public:
     FixClientWire(FixTestExchange& exchange, Handler& handler, const fix::FixClientSettings& client_settings,
                   const fix::FixSessionSettings& exchange_settings = {})
         : exchange_(exchange), connection_(exchange.directory(), exchange_settings), client_(handler, client_settings) {}
+    // A bound FixConnection must be released before it is destroyed.
+    ~FixClientWire() { connection_.on_disconnected(exchange_); }
+    FixClientWire(const FixClientWire&) = delete;
+    FixClientWire& operator=(const FixClientWire&) = delete;
 
     void connect(bool reset_sequence_numbers) {
         client_to_exchange_.clear();

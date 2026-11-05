@@ -329,52 +329,107 @@ TEST_CASE(gateway_ouch_session, cancel_on_disconnect_on_logout) {
     CHECK_EQ(exchange.unbind_count(), 1u);
 }
 
-TEST_CASE(gateway_ouch_session, store_admission_reserve_rejects_new_requests) {
+TEST_CASE(gateway_ouch_session, store_admission_reserve_closes_instead_of_storing) {
     TestExchangeConfig config = TestExchangeConfig::standard();
     config.limits.store_messages = 8;
     config.limits.store_reserve_messages = 3;
     TestExchange exchange(config);
-    RawSession alice(exchange);
-    REQUIRE(alice.login("alice", "alicepw"));  // 1: S
+    RawSession bob(exchange);                // no cancel-on-disconnect
+    REQUIRE(bob.login("bob", "bobpw"));      // 1: S
     for (int index = 1; index <= 4; ++index) {
-        alice.send_message(enter_order("BID" + std::to_string(index), 'B', 10, "AAPL", kHundredDollars));
+        bob.send_message(enter_order("BID" + std::to_string(index), 'B', 10, "AAPL", kHundredDollars));
     }
-    CHECK_EQ(alice.take_types(), "SAAAA");  // 5 stored, 3 free: at the reserve
-    alice.send_message(enter_order("BID5", 'B', 10, "AAPL", kHundredDollars));
-    alice.send_message(replace_order("BID1", "BID1R", 20, kHundredDollars));
-    std::vector<std::string> frames = alice.take_frames();
-    REQUIRE_EQ(sequenced_types(frames), "JJ");
-    CHECK_EQ(decode_ouch<ouch42::OrderRejected>(frames[0]).reason, 'O');
-    CHECK_EQ(token_text(decode_ouch<ouch42::OrderRejected>(frames[1]).token), "BID1R");
+    CHECK_EQ(bob.take_types(), "SAAAA");  // 5 stored, 3 free: at the reserve
+    // A new order at the reserve stores nothing (no J): the connection closes.
+    bob.send_message(enter_order("BID5", 'B', 10, "AAPL", kHundredDollars));
+    CHECK(bob.take_frames().empty());
+    CHECK(bob.connection().close_reason() == OuchCloseReason::StoreReserveReached);
+    CHECK(bob.connection().flush_before_close());
+    CHECK_EQ(exchange.user_state(2).store().last_seq(), 5u);
+    CHECK_EQ(exchange.user_state(2).statistics().requests_refused_at_store_reserve, 1u);
+    CHECK_EQ(exchange.user_state(2).find_cl_ord_id(padded_token("BID5")), 0u);  // not interned: may be sent later
+    bob.disconnect();
+
+    // Normal reconnect; a replace at the reserve closes the same way.
+    RawSession again(exchange);
+    REQUIRE(again.login("bob", "bobpw", 6));
+    CHECK(again.take_frames().size() == 1u);  // Login Accepted only
+    again.send_message(replace_order("BID1", "BID1R", 20, kHundredDollars));
+    CHECK(again.take_frames().empty());
+    CHECK(again.connection().close_reason() == OuchCloseReason::StoreReserveReached);
+    CHECK_EQ(exchange.user_state(2).statistics().requests_refused_at_store_reserve, 2u);
     CHECK_EQ(exchange.submitted_command_count(), 4u);
-    // Cancels of live orders are still accepted.
-    alice.send_message(cancel_order("BID1", 0));
-    CHECK_EQ(alice.take_types(), "C");  // message 8: the store is now full
-    CHECK(alice.connection().state() == OuchConnectionState::LoggedIn);
+    again.disconnect();
+
+    // Cancels of live orders use the reserve.
+    RawSession bob_third(exchange);
+    REQUIRE(bob_third.login("bob", "bobpw", 6));
+    bob_third.take_frames();
+    for (const char* token : {"BID1", "BID2", "BID3"}) bob_third.send_message(cancel_order(token, 0));
+    CHECK_EQ(bob_third.take_types(), "CCC");  // messages 6 to 8: the store is now full
+    CHECK(bob_third.connection().state() == OuchConnectionState::LoggedIn);
 
     // Hard overflow: the report is lost, the session ends for the day.
-    alice.send_message(cancel_order("BID2", 0));
-    frames = alice.take_frames();
+    bob_third.send_message(cancel_order("BID4", 0));
+    const std::vector<std::string> frames = bob_third.take_frames();
     REQUIRE_EQ(frames.size(), 1u);
     CHECK(frames[0] == control_frame<'Z'>());
-    CHECK(alice.connection().close_reason() == OuchCloseReason::StoreFull);
-    CHECK(alice.connection().flush_before_close());
-    CHECK(exchange.user_state(1).store_overflowed());
-    // The cancel and the cancel-on-disconnect of BID3 and BID4 are counted as lost.
-    CHECK_EQ(exchange.user_state(1).statistics().messages_lost_to_store_overflow, 3u);
+    CHECK(bob_third.connection().close_reason() == OuchCloseReason::StoreFull);
+    CHECK(bob_third.connection().flush_before_close());
+    CHECK(exchange.user_state(2).store_overflowed());
+    CHECK_EQ(exchange.user_state(2).statistics().messages_lost_to_store_overflow, 1u);
     CHECK_EQ(exchange.engine().live_order_count(), 0u);
 
-    RawSession again(exchange);
-    CHECK(!again.login("alice", "alicepw", 1));
-    CHECK(again.take_frames().front() == Golden().byte('S').soup('J'));
+    RawSession after_overflow(exchange);
+    CHECK(!after_overflow.login("bob", "bobpw", 1));
+    CHECK(after_overflow.take_frames().front() == Golden().byte('S').soup('J'));
 
-    // Next trading day.
-    again.disconnect();
-    alice.disconnect();
-    exchange.user_state(1).reset_for_new_trading_day();
+    // Next trading day: statistics are per day too.
+    after_overflow.disconnect();
+    bob_third.disconnect();
+    exchange.user_state(2).reset_for_new_trading_day();
+    CHECK_EQ(exchange.user_state(2).statistics().requests_refused_at_store_reserve, 0u);
+    CHECK_EQ(exchange.user_state(2).statistics().messages_lost_to_store_overflow, 0u);
     RawSession next_day(exchange);
-    CHECK(next_day.login("alice", "alicepw", 1));
+    CHECK(next_day.login("bob", "bobpw", 1));
     CHECK_EQ(next_day.take_types(), "S");
+}
+
+// Admission comes before any gateway J: the token-table-full, unknown-stock
+// and injected rejects stop at the reserve too.
+TEST_CASE(gateway_ouch_session, store_admission_precedes_every_gateway_reject) {
+    TestExchangeConfig config = TestExchangeConfig::standard();
+    config.limits.max_tokens = 1;
+    config.limits.store_messages = 6;
+    config.limits.store_reserve_messages = 2;
+    TestExchange exchange(config);
+    RawSession bob(exchange);
+    REQUIRE(bob.login("bob", "bobpw"));                                       // 1: S
+    bob.send_message(enter_order("ASK", 'S', 10, "AAPL", kHundredDollars));  // 2: A, the only token
+    bob.send_message(enter_order("FULL1", 'B', 1, "AAPL", kHundredDollars)); // 3: J, token table full
+    bob.send_message(enter_order("FULL2", 'B', 1, "AAPL", kHundredDollars)); // 4: J, 2 free: at the reserve
+    bob.send_message(enter_order("FULL3", 'B', 1, "AAPL", kHundredDollars)); // nothing stored, closed
+    CHECK_EQ(bob.take_types(), "SAJJ");
+    CHECK(bob.connection().close_reason() == OuchCloseReason::StoreReserveReached);
+    CHECK_EQ(exchange.user_state(2).statistics().gateway_rejects, 2u);
+    bob.disconnect();
+
+    exchange.inject_gateway_rejects(2, 5);
+    RawSession again(exchange);
+    REQUIRE(again.login("bob", "bobpw", 5));
+    again.send_message(enter_order("ZZZ", 'B', 1, "ZZZZ", kHundredDollars));
+    CHECK(again.take_frames().size() == 1u);  // Login Accepted only
+    CHECK(again.connection().close_reason() == OuchCloseReason::StoreReserveReached);
+    CHECK_EQ(exchange.user_state(2).store().last_seq(), 4u);
+    again.disconnect();
+
+    // The two reserved slots still carry the execution of the live ASK.
+    RawSession alice(exchange);
+    REQUIRE(alice.login("alice", "alicepw"));
+    alice.send_message(enter_order("BID", 'B', 10, "AAPL", kHundredDollars));
+    CHECK_EQ(exchange.user_state(2).store().last_seq(), 5u);
+    CHECK_EQ(ouch_type(stored_frames(exchange.user_state(2)).back()), 'E');
+    CHECK(!exchange.user_state(2).store_overflowed());
 }
 
 TEST_CASE(gateway_ouch_session, store_admission_counts_bytes_too) {
@@ -387,8 +442,9 @@ TEST_CASE(gateway_ouch_session, store_admission_counts_bytes_too) {
     REQUIRE(alice.login("alice", "alicepw"));  // S: 13 bytes, 319 free
     alice.send_message(enter_order("BID1", 'B', 10, "AAPL", kHundredDollars));  // 250 free afterwards
     alice.send_message(enter_order("BID2", 'B', 10, "AAPL", kHundredDollars));  // admitted (250 / 83 = 3)
-    alice.send_message(enter_order("BID3", 'B', 10, "AAPL", kHundredDollars));  // 181 / 83 = 2: rejected
-    CHECK_EQ(alice.take_types(), "SAAJ");
+    alice.send_message(enter_order("BID3", 'B', 10, "AAPL", kHundredDollars));  // 181 / 83 = 2: refused
+    CHECK_EQ(alice.take_types(), "SAA");
+    CHECK(alice.connection().close_reason() == OuchCloseReason::StoreReserveReached);
 }
 
 TEST_CASE(gateway_ouch_session, fault_hooks_reject_and_drop) {
@@ -405,24 +461,61 @@ TEST_CASE(gateway_ouch_session, fault_hooks_reject_and_drop) {
     CHECK_EQ(decode_ouch<ouch42::OrderRejected>(frames[0]).reason, 'O');
     CHECK_EQ(exchange.submitted_command_count(), 1u);
 
+    // drop_out 1: message 5 is stored, never written, and the link is cut
+    // after it (SoupBinTCP numbers messages implicitly).
     exchange.drop_next_outbound_messages(1, 1);
     alice.send_message(enter_order("BID4", 'B', 10, "AAPL", kHundredDollars));
-    CHECK(alice.take_frames().empty());  // stored as message 5, never written
-    alice.send_message(enter_order("BID5", 'B', 10, "AAPL", kHundredDollars));
-    frames = alice.take_frames();
-    REQUIRE_EQ(frames.size(), 1u);
-    CHECK_EQ(token_text(decode_ouch<ouch42::OrderAccepted>(frames[0]).token), "BID5");
+    CHECK(alice.take_frames().empty());
+    CHECK(alice.connection().close_reason() == OuchCloseReason::FaultDropOut);
+    CHECK(alice.connection().flush_before_close());
     CHECK_EQ(exchange.user_state(1).statistics().outbound_messages_dropped_by_fault, 1u);
     alice.disconnect();
 
-    // Replay is never affected by the drop fault and recovers the message.
+    // The client saw 4 messages and asks for 5. Replay is never affected by
+    // the drop fault and recovers the message.
     exchange.drop_next_outbound_messages(1, 5);
     RawSession recovered(exchange);
     REQUIRE(recovered.login("alice", "alicepw", 5));
     frames = recovered.take_frames();
-    // BID4 (dropped live), BID5, then the cancel-on-disconnect of BID3, BID4 and BID5.
-    REQUIRE_EQ(sequenced_types(frames), "AACCC");
+    // BID4 (dropped live), then the cancel-on-disconnect of BID3 and BID4.
+    REQUIRE_EQ(sequenced_types(frames), "ACC");
     CHECK_EQ(token_text(decode_ouch<ouch42::OrderAccepted>(frames[1]).token), "BID4");
+    CHECK(recovered.connection().state() == OuchConnectionState::LoggedIn);
+}
+
+// A drop_out cut never writes past a gap: clearing the fault mid-cut closes
+// the connection at the next message instead of sending it.
+TEST_CASE(gateway_ouch_session, drop_out_cleared_mid_cut_still_closes) {
+    TestExchange exchange;
+    RawSession bob(exchange);
+    REQUIRE(bob.login("bob", "bobpw"));  // 1: S
+    bob.take_frames();
+    exchange.drop_next_outbound_messages(2, 2);
+    bob.send_message(enter_order("BID1", 'B', 10, "AAPL", kHundredDollars));  // 2: dropped
+    CHECK(bob.connection().state() == OuchConnectionState::LoggedIn);
+    exchange.drop_next_outbound_messages(2, 0);  // `fault user BOB off`
+    bob.send_message(enter_order("BID2", 'B', 10, "AAPL", kHundredDollars));  // 3: not written
+    CHECK(bob.take_frames().empty());
+    CHECK(bob.connection().close_reason() == OuchCloseReason::FaultDropOut);
+    bob.disconnect();
+
+    RawSession recovered(exchange);
+    REQUIRE(recovered.login("bob", "bobpw", 2));  // the client saw message 1
+    CHECK_EQ(recovered.take_types(), "AA");
+}
+
+// End of Session during a cut would tell the client not to reconnect while
+// it is missing messages: the cut closes the connection without it.
+TEST_CASE(gateway_ouch_session, end_session_during_a_drop_out_cut_sends_no_end_of_session) {
+    TestExchange exchange;
+    RawSession bob(exchange);
+    REQUIRE(bob.login("bob", "bobpw"));
+    bob.take_frames();
+    exchange.drop_next_outbound_messages(2, 3);
+    bob.send_message(enter_order("BID1", 'B', 10, "AAPL", kHundredDollars));  // dropped, two left
+    bob.connection().end_session(exchange);
+    CHECK(bob.take_frames().empty());  // no 'Z'
+    CHECK(bob.connection().close_reason() == OuchCloseReason::FaultDropOut);
 }
 
 TEST_CASE(gateway_ouch_session, trading_day_lifecycle) {

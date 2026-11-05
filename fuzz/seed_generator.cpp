@@ -12,6 +12,7 @@
 #include <exsim/protocol/itch50.hpp>
 #include <exsim/protocol/moldudp64.hpp>
 #include <exsim/protocol/ouch42.hpp>
+#include <exsim/protocol/sbe_order_entry.hpp>
 #include <exsim/protocol/soupbintcp.hpp>
 #include <exsim/sim/journal.hpp>
 
@@ -34,6 +35,7 @@ namespace fix = exsim::protocol::fix44;
 namespace itch = exsim::protocol::itch50;
 namespace mold = exsim::protocol::moldudp64;
 namespace ouch = exsim::protocol::ouch42;
+namespace sbe = exsim::protocol::sbe_order_entry;
 namespace soup = exsim::protocol::soupbintcp;
 
 using SeedBytes = std::string;
@@ -184,6 +186,119 @@ void add_protocol_seeds() {
     add_seed("wire_text_fields", std::string(32, ' '));
 }
 
+template <typename Message>
+std::string sbe_frame(const Message& message) {
+    std::array<char, sbe::kMaxEncodedFrameSize> buffer{};
+    const std::size_t size = sbe::encode(message, buffer.data(), buffer.size());
+    return {buffer.data(), size};
+}
+
+// SBE over SOFH: one frame of every message type, a client session's frames
+// back to back, a later schema version with an appended root block field,
+// and frames broken in each header field.
+void add_sbe_seeds() {
+    const sbe::SessionUuid uuid{0x6f, 0x1c, 0x2a, 0x10, 0x55, 0x3b, 0x4e, 0x21,
+                                0x9a, 0x77, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06};
+    const sbe::WireSymbol symbol{'A', 'A', 'P', 'L', 0, 0, 0, 0};
+    sbe::Negotiate negotiate{uuid, 1'000, sbe::FlowType::Idempotent, "ALICE:alice"};
+    sbe::Establish establish{uuid, 2'000, 1'000, 1, "ALICE:alice"};
+    sbe::NewOrderSingle new_order{};
+    new_order.cl_ord_id = 1;
+    new_order.price_mantissa = 1'502'500;
+    new_order.order_qty = 100;
+    new_order.symbol = symbol;
+    sbe::OrderCancelReplaceRequest replace{2, 1, 1'503'000, 150, sbe::BooleanCode::True};
+    sbe::OrderMassCancelRequest mass_cancel{3, symbol, sbe::MassCancelRequestTypeCode::CancelOrdersForSecurity};
+    sbe::ExecutionReportTrade trade{};
+    trade.order_id = 7;
+    trade.cl_ord_id = 1;
+    trade.last_px_mantissa = 1'502'500;
+    trade.last_qty = 40;
+    trade.leaves_qty = 60;
+    trade.cum_qty = 40;
+    trade.symbol = symbol;
+    sbe::OrderMassCancelReport mass_cancel_report{};
+    mass_cancel_report.symbol = symbol;
+
+    const std::string frames[] = {
+        sbe_frame(negotiate),
+        sbe_frame(sbe::NegotiationResponse{uuid, 1'000, sbe::FlowType::Recoverable, ""}),
+        sbe_frame(sbe::NegotiationReject{uuid, 1'000, sbe::NegotiationRejectCode::Credentials, "bad credentials"}),
+        sbe_frame(establish),
+        sbe_frame(sbe::EstablishmentAck{uuid, 2'000, 1'000, 1}),
+        sbe_frame(sbe::EstablishmentReject{uuid, 2'000, sbe::EstablishmentRejectCode{}, "rejected"}),
+        sbe_frame(sbe::Sequence{5}),
+        sbe_frame(sbe::UnsequencedHeartbeat{}),
+        sbe_frame(sbe::RetransmitRequest{uuid, 3'000, 2, 3}),
+        sbe_frame(sbe::Retransmission{uuid, 3'000, 2, 3}),
+        sbe_frame(sbe::RetransmitReject{uuid, 3'000, sbe::RetransmitRejectCode::OutOfRange, "out of range"}),
+        sbe_frame(sbe::Terminate{uuid, sbe::TerminationCode::Finished, "bye"}),
+        sbe_frame(sbe::NotApplied{4, 2}),
+        sbe_frame(new_order),
+        sbe_frame(sbe::OrderCancelRequest{4, 1, 0}),
+        sbe_frame(replace),
+        sbe_frame(mass_cancel),
+        sbe_frame(sbe::ExecutionReportNew{}),
+        sbe_frame(trade),
+        sbe_frame(sbe::ExecutionReportCancel{}),
+        sbe_frame(sbe::ExecutionReportReplace{}),
+        sbe_frame(sbe::ExecutionReportReject{}),
+        sbe_frame(sbe::OrderCancelReject{}),
+        sbe_frame(mass_cancel_report),
+        sbe_frame(sbe::BusinessMessageReject{9, 100, sbe::BusinessRejectReasonCode::UnsupportedMessageType}),
+    };
+    for (const std::string& frame : frames) add_seed("sbe_order_entry", frame);
+    add_seed("sbe_order_entry", frames[0] + frames[3] + frames[13] + frames[14] + frames[15] + frames[16] + frames[11]);
+
+    // Version 2 NewOrderSingle: four appended root block bytes, then one extra variable length field.
+    std::string later_version = frames[13];
+    later_version.append("\x01\x02\x03\x04", 4);
+    later_version[6] = static_cast<char>(sbe::NewOrderSingle::kBlockLength + 4);  // blockLength, little-endian
+    later_version[12] = 2;                                                       // version
+    later_version.append("\x03\x00xyz", 5);
+    later_version[17] = 1;  // numVarDataFields
+    const std::string frame_size = big_endian(later_version.size(), 4);
+    later_version.replace(0, 4, frame_size);
+    add_seed("sbe_order_entry", later_version);
+
+    std::string broken = frames[13];
+    broken[4] = 0x00;  // encoding type
+    add_seed("sbe_order_entry", broken);
+    broken = frames[13];
+    broken[10] = 0x00;  // schema id
+    add_seed("sbe_order_entry", broken);
+    broken = frames[13];
+    broken[14] = 0x01;  // numGroups
+    add_seed("sbe_order_entry", broken);
+    add_seed("sbe_order_entry", frames[3].substr(0, frames[3].size() - 3));  // truncated
+
+    // Variable length field at the limit (accepted) and one byte over it (VariableLengthFieldTooLong).
+    const std::string longest_reason(sbe::kMaxVariableLengthFieldBytes, 'r');
+    const std::string longest = sbe_frame(sbe::Terminate{uuid, sbe::TerminationCode::Finished, longest_reason});
+    add_seed("sbe_order_entry", longest);
+    std::string too_long = longest + "r";
+    const std::size_t length_offset = sbe::kFramePrefixSize + sbe::Terminate::kBlockLength;
+    too_long[length_offset] = static_cast<char>(sbe::kMaxVariableLengthFieldBytes + 1);  // little-endian low byte
+    too_long.replace(0, 4, big_endian(too_long.size(), 4));
+    add_seed("sbe_order_entry", too_long);
+
+    // Version 2 NewOrderSingle padded to the largest accepted frame, and one byte past it (FrameLengthTooLarge).
+    for (const std::size_t frame_length : {sbe::kMaxAcceptedFrameSize, sbe::kMaxAcceptedFrameSize + 1}) {
+        std::string padded = frames[13];
+        const std::size_t block_length = frame_length - sbe::kFramePrefixSize;
+        padded.resize(frame_length, '\0');
+        padded[6] = static_cast<char>(block_length & 0xff);  // blockLength, little-endian
+        padded[7] = static_cast<char>(block_length >> 8);
+        padded[12] = 2;  // version
+        padded.replace(0, 4, big_endian(frame_length, 4));
+        add_seed("sbe_order_entry", padded);
+    }
+    // blockLength one byte longer than the frame holds (BlockExceedsFrame).
+    broken = frames[13];
+    broken[6] = static_cast<char>(sbe::NewOrderSingle::kBlockLength + 1);
+    add_seed("sbe_order_entry", broken);
+}
+
 void add_text_seeds(const std::filesystem::path& repository_root) {
     // Stream buffers: capacities, then opcodes with arguments.
     add_seed("stream_buffers", bytes_of({16, 16, 0, 0, 0, 0, 8}) + "hello123" + bytes_of({1, 0, 0, 0, 3}));
@@ -285,6 +400,7 @@ int main(int argc, char** argv) {
     const std::filesystem::path repository_root = argv[1];
     const std::filesystem::path output_directory = argv[2];
     add_protocol_seeds();
+    add_sbe_seeds();
     add_text_seeds(repository_root);
     add_simulation_seeds(repository_root);
     for (const auto& [target, seeds] : seeds_by_target) {

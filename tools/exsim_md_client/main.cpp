@@ -7,7 +7,9 @@
 //                   [--retransmit 127.0.0.1:31002] [--mode messages|book]
 //                   [--levels 5] [--late-join] [--count N] [--timeout-ms N]
 //
-// Without --retransmit, gap requests have nowhere to go: missing messages are
+// Retransmission-socket datagrams are accepted only from the exact
+// --retransmit endpoint (the server must answer from that address); others
+// are ignored and counted. Without --retransmit, gap requests have nowhere to go: missing messages are
 // reported as lost after the retry limit and delivery continues (a book is
 // then stale). Exit status 0 after End of Session, --count messages or
 // --timeout-ms of silence; 1 on bad arguments or socket errors.
@@ -18,6 +20,8 @@
 #include <exsim/net/clocks.hpp>
 #include <exsim/net/poller.hpp>
 #include <exsim/net/udp.hpp>
+
+#include "retransmission_source.hpp"
 
 #include <array>
 #include <cerrno>
@@ -402,6 +406,7 @@ int main(int argc, char** argv) {
 
     std::array<char, 65536> datagram{};
     std::uint64_t last_packet_ns = net::monotonic_ns();
+    std::uint64_t foreign_retransmission_datagrams_ignored = 0;
     for (;;) {
         if (poller.wait(10) < 0 && errno != EINTR) {
             std::fprintf(stderr, "poll: %s\n", std::strerror(errno));
@@ -415,6 +420,12 @@ int main(int argc, char** argv) {
                     if (!net::is_would_block(errno) && errno != EMSGSIZE)
                         std::fprintf(stderr, "receive: %s\n", std::strerror(errno));
                     if (errno != EMSGSIZE) break;
+                    continue;
+                }
+                if (socket == &retransmission_socket &&
+                    !tools::md_client::is_configured_retransmission_source(options.retransmission_server, peer)) {
+                    if (foreign_retransmission_datagrams_ignored++ == 0)
+                        std::fprintf(stderr, "ignoring retransmission-socket datagrams not from --retransmit\n");
                     continue;
                 }
                 last_packet_ns = net::monotonic_ns();
@@ -437,8 +448,8 @@ int main(int argc, char** argv) {
     const md::ReceiverStats& stats = receiver.stats();
     std::fprintf(stderr,
                  "packets=%" PRIu64 " delivered=%" PRIu64 " duplicates=%" PRIu64 " requests=%" PRIu64
-                 " lost=%" PRIu64 "\n",
+                 " lost=%" PRIu64 " foreign_retransmissions_ignored=%" PRIu64 "\n",
                  stats.packets, stats.messages_delivered, stats.duplicate_messages, stats.requests_sent,
-                 stats.messages_lost);
+                 stats.messages_lost, foreign_retransmission_datagrams_ignored);
     return 0;
 }

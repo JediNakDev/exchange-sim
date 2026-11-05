@@ -102,12 +102,12 @@ TEST_CASE(gateway_fix_application, avgpx_and_cum_leaves_through_partial_fills_an
     CHECK_EQ(record->order_status, '2');
     CHECK_EQ(clients.exchange.user(1).order_record("B1")->order_status, '4');
 
-    // Cancel of the completed order: engine UnknownOrder -> 9 with 102=1.
+    // Cancel of the filled order: too late to cancel, 102=0 paired with 39=2.
     clients.buyer.send("F", cancel_fields("B1R", "C1"));
     buyer_messages = clients.buyer.drain();
     REQUIRE_EQ(buyer_messages.size(), std::size_t{1});
     check_golden(buyer_messages[0], "9", 7,
-                 "37=" + new_order_id + "|11=C1|41=B1R|39=2|434=1|102=1|58=UNKNOWN_ORDER|", "CLIENT1");
+                 "37=" + new_order_id + "|11=C1|41=B1R|39=2|434=1|102=0|58=UNKNOWN_ORDER|", "CLIENT1");
 }
 
 TEST_CASE(gateway_fix_application, avgpx_rounds_to_nearest_ten_thousandth) {
@@ -141,7 +141,9 @@ TEST_CASE(gateway_fix_application, cancel_and_replace_goldens) {
                  "CLIENT1");
 }
 
-TEST_CASE(gateway_fix_application, replace_to_quantity_at_or_below_cum_cancels) {
+// A replace to a quantity at or below CumQty leaves nothing open: the order is
+// reported Replaced and Filled at its CumQty, never Canceled.
+TEST_CASE(gateway_fix_application, replace_to_quantity_at_or_below_cum_reports_filled) {
     TwoClients clients;
     clients.buyer.send("D", new_order_fields("B1", "1", 100, "150"));
     clients.seller.send("D", new_order_fields("S1", "2", 60, "150"));
@@ -149,14 +151,50 @@ TEST_CASE(gateway_fix_application, replace_to_quantity_at_or_below_cum_cancels) 
     clients.buyer.send("G", replace_fields("B1", "B1R", 50, "150"));
     const auto messages = clients.buyer.drain();
     REQUIRE_EQ(messages.size(), std::size_t{1});
-    CHECK_EQ(messages[0].get(150), std::string("4"));
-    CHECK_EQ(messages[0].get(39), std::string("4"));
+    CHECK_EQ(messages[0].get(150), std::string("5"));
+    CHECK_EQ(messages[0].get(39), std::string("2"));
+    CHECK_EQ(messages[0].get(38), std::string("60"));
     CHECK_EQ(messages[0].get(11), std::string("B1R"));
     CHECK_EQ(messages[0].get(41), std::string("B1"));
     CHECK_EQ(messages[0].get(14), std::string("60"));
     CHECK_EQ(messages[0].get(151), std::string("0"));
     CHECK_EQ(messages[0].get(6), std::string("150"));
     CHECK(!messages[0].has(58));
+    const auto* replaced_record = clients.exchange.user(1).order_record("B1R");
+    REQUIRE(replaced_record != nullptr);
+    CHECK_EQ(replaced_record->order_status, '2');
+    CHECK_EQ(replaced_record->order_qty, 60u);
+
+    // A cancel of the filled order is too late: 102=0 with 39=2.
+    clients.buyer.send("F", cancel_fields("B1R", "C1"));
+    const auto cancel_messages = clients.buyer.drain();
+    REQUIRE_EQ(cancel_messages.size(), std::size_t{1});
+    CHECK_EQ(cancel_messages[0].get(35), std::string("9"));
+    CHECK_EQ(cancel_messages[0].get(102), std::string("0"));
+    CHECK_EQ(cancel_messages[0].get(39), std::string("2"));
+}
+
+// A DAY order expiring at the close is reported Expired (150=C 39=C), not
+// Canceled; a later cancel of it is too late (102=0) and reports 39=C.
+TEST_CASE(gateway_fix_application, day_order_expiry_reports_expired) {
+    TwoClients clients;
+    clients.buyer.send("D", new_order_fields("B1", "1", 100, "149"));
+    clients.buyer.drain();
+    clients.exchange.submit(exsim::SetPhase{clients.exchange.now(), 0, exsim::Phase::Closed});
+    auto messages = clients.buyer.drain();
+    REQUIRE_EQ(messages.size(), std::size_t{1});
+    CHECK_EQ(messages[0].get(150), std::string("C"));
+    CHECK_EQ(messages[0].get(39), std::string("C"));
+    CHECK_EQ(messages[0].get(11), std::string("B1"));
+    CHECK_EQ(messages[0].get(151), std::string("0"));
+    CHECK_EQ(clients.exchange.user(1).order_record("B1")->order_status, 'C');
+
+    clients.buyer.send("F", cancel_fields("B1", "C1"));
+    messages = clients.buyer.drain();
+    REQUIRE_EQ(messages.size(), std::size_t{1});
+    CHECK_EQ(messages[0].get(35), std::string("9"));
+    CHECK_EQ(messages[0].get(102), std::string("0"));
+    CHECK_EQ(messages[0].get(39), std::string("C"));
 }
 
 TEST_CASE(gateway_fix_application, cancel_reject_and_replace_reject_434_102) {
@@ -241,7 +279,9 @@ TEST_CASE(gateway_fix_application, market_order_and_flags) {
     clients.buyer.send("D", "11=M1|55=AAPL|54=1|38=30|40=1|59=3|60=20261103-09:30:00.000|");
     auto messages = clients.buyer.drain();
     REQUIRE_EQ(messages.size(), std::size_t{2});
-    CHECK_EQ(messages[0].get(44), std::string("0"));
+    // A market order has no limit price: Price(44) is omitted.
+    CHECK(!messages[0].has(44));
+    CHECK(!messages[1].has(44));
     CHECK_EQ(messages[1].get(150), std::string("F"));
     CHECK_EQ(messages[1].get(31), std::string("150"));
     // Post-only that would cross is rejected by the engine.
@@ -291,8 +331,9 @@ TEST_CASE(gateway_fix_application, mass_cancel_reports) {
     messages = clients.buyer.drain();
     REQUIRE_EQ(messages.size(), std::size_t{4});
     check_golden(messages[0], "r", 10, "11=MC3|37=9|530=7|531=7|533=0|", "CLIENT1");
-    check_golden(messages[1], "r", 11, "11=MC4|37=10|530=1|531=0|533=0|", "CLIENT1");
-    check_golden(messages[2], "r", 12, "11=MC1|37=11|530=7|531=0|533=0|", "CLIENT1");
+    // Unknown symbol: 532=1. Duplicate ClOrdID: 532=99.
+    check_golden(messages[1], "r", 11, "11=MC4|37=10|530=1|531=0|532=1|533=0|", "CLIENT1");
+    check_golden(messages[2], "r", 12, "11=MC1|37=11|530=7|531=0|532=99|533=0|", "CLIENT1");
     CHECK_EQ(messages[3].type(), std::string("3"));
     CHECK_EQ(messages[3].get(371), std::string("55"));
     CHECK_EQ(engine_command_tokens(clients.exchange, 1),
@@ -386,9 +427,11 @@ TEST_CASE(gateway_fix_application, cancel_on_disconnect_is_stored_for_recovery) 
     with_cod.disconnect();
     without_cod.disconnect();
     CHECK(!exchange.is_bound(1));
-    // The cancel was sequenced and stored at 3 while no connection was bound.
-    CHECK_EQ(exchange.user(1).session_day_state().store().last_seq(), 3u);
-    CHECK_EQ(exchange.user(3).session_day_state().store().last_seq(), 2u);
+    // The cancel was sequenced at 3 and stored while no connection was bound.
+    // Only application messages take store slots: the Logon at 1 does not.
+    CHECK_EQ(exchange.user(1).session_day_state().store().last_seq(), 2u);
+    CHECK(!exchange.user(1).session_day_state().stored_message(3).bytes.empty());
+    CHECK_EQ(exchange.user(3).session_day_state().store().last_seq(), 1u);
     CHECK(!exchange.engine().find_order(1, 1).has_value());
     CHECK(exchange.engine().find_order(3, 1).has_value());
 

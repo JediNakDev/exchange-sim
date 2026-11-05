@@ -37,7 +37,8 @@
 //   * on_events never calls back into submit/bind/unbind, so it is safe to run
 //     during dispatch; closes it causes are completed by the caller later.
 //   * fault injection is read from the Context (consume_injected_reject,
-//     consume_drop_out); `fault user X delay` belongs to the server loop.
+//     consume_drop_out, has_pending_drop_out); `fault user X delay` belongs
+//     to the server loop.
 
 #include "exsim/command.hpp"
 #include "exsim/event.hpp"
@@ -99,9 +100,10 @@ struct OuchUserStateLimits {
     std::uint32_t max_tokens = 1u << 20;              // day-used tokens (O + replacement tokens)
     std::size_t store_messages = 1u << 20;            // sequenced messages kept for the day
     std::size_t store_bytes = std::size_t{64} << 20;  // their framed bytes
-    // New O/U requests are rejected at the gateway (J 'O') once the store has
-    // this many or fewer free messages (or bytes for that many maximal
-    // messages), keeping room for reports on orders that are already live.
+    // Once the store has this many or fewer free messages (or bytes for that
+    // many maximal messages), a new O/U/M request stores nothing (not even a
+    // J): the connection is closed instead (StoreReserveReached), keeping
+    // room for reports on orders that are already live.
     std::size_t store_reserve_messages = 1024;
 
     [[nodiscard]] static OuchUserStateLimits from(const server::EngineSection& engine) noexcept {
@@ -122,6 +124,7 @@ struct OuchUserStatistics {
     std::uint64_t messages_lost_to_store_overflow = 0;
     std::uint64_t outbound_encode_failures = 0;
     std::uint64_t outbound_messages_dropped_by_fault = 0;
+    std::uint64_t requests_refused_at_store_reserve = 0;  // O/U/M that closed the connection instead
 };
 
 enum class OuchConnectionState : std::uint8_t { AwaitingLogin, LoggedIn, Closed };
@@ -134,6 +137,8 @@ enum class OuchCloseReason : std::uint8_t {
     ClientIdleTimeout,  // nothing received for client_idle_timeout_ns
     SendBufferFull,     // sink.prepare failed for live output (SERVER.md 2.4)
     StoreFull,          // the user's sequenced store overflowed; End of Session sent
+    StoreReserveReached,  // O/U/M received with the store at its reserve; nothing stored, reconnect allowed
+    FaultDropOut,         // `fault user X drop_out n`: n messages stored, not written, then the link is cut
     EndOfSession,       // end_session(): End of Session sent
     TransportClosed,    // on_disconnect() without an earlier close request
 };
@@ -154,7 +159,7 @@ concept OuchServerContext = requires(Context& context, const Context& const_cont
                                      InstrumentId instrument, const Command& command) {
     { context.authenticate(text, text, server::Protocol::Ouch42) } -> std::same_as<const server::UserConfig*>;
     { context.bind(session, connection) } -> std::same_as<bool>;
-    context.unbind(session);
+    context.unbind(session, connection);
     { const_context.find_instrument(symbol) } -> std::same_as<InstrumentId>;
     { const_context.instrument(instrument) } -> std::same_as<const InstrumentConfig*>;
     requires std::is_void_v<decltype(context.submit(command))> ||
@@ -162,6 +167,7 @@ concept OuchServerContext = requires(Context& context, const Context& const_cont
     { const_context.now() } -> std::same_as<Timestamp>;
     { context.consume_injected_reject(session) } -> std::same_as<bool>;
     { context.consume_drop_out(session) } -> std::same_as<bool>;
+    { const_context.has_pending_drop_out(session) } -> std::same_as<bool>;
 };
 
 // No gateway reject: the command reached the engine (or will, if deferred).
@@ -178,7 +184,8 @@ template <class Context>
         switch (context.submit(command)) {
             case server::SubmitResult::Applied:
             case server::SubmitResult::Deferred: return kCommandApplied;
-            case server::SubmitResult::OutsideTradingDay: return kOuchRejectExchangeClosed;
+            case server::SubmitResult::OutsideTradingDay:
+            case server::SubmitResult::ExchangeShutDown: return kOuchRejectExchangeClosed;
             case server::SubmitResult::OutputCapacityExceeded:
             case server::SubmitResult::DeferredQueueFull: return kOuchRejectOther;
         }
@@ -268,12 +275,15 @@ public:
         append_system_event(kOuchSystemEventEndOfDay, end_of_day, context);
     }
 
-    // Start of a new trading day: forget tokens, instructions and messages.
+    // Start of a new trading day: forget tokens, messages and per-day
+    // statistics. Instructions need no clearing: an entry is rewritten
+    // whenever its token is interned, before it is read.
     // Precondition: no connection attached.
     void reset_for_new_trading_day() noexcept {
         assert(attached_connection_ == nullptr);
         tokens_.clear();
         store_.clear();
+        statistics_ = {};
         start_of_day_sent_ = false;
         store_overflowed_ = false;
     }
@@ -342,6 +352,7 @@ private:
             ++statistics_.malformed_messages_ignored;
             return;
         }
+        if (refuse_request_at_store_reserve()) return;
         const TokenTable::InternResult reservation = tokens_.intern(token_view(request.token));
         if (reservation.status == TokenTable::InternStatus::Existing) {
             ++statistics_.duplicate_tokens_ignored;  // day-unique tokens: reuse is suppressed silently
@@ -356,10 +367,6 @@ private:
             return;
         }
         if (context.consume_injected_reject(session_id_)) {  // `fault user X reject n`
-            reject_at_gateway(request.token, kOuchRejectOther, context);
-            return;
-        }
-        if (!store_admits_new_requests()) {
             reject_at_gateway(request.token, kOuchRejectOther, context);
             return;
         }
@@ -399,6 +406,7 @@ private:
             ++statistics_.malformed_messages_ignored;
             return;
         }
+        if (refuse_request_at_store_reserve()) return;
         const ClOrdId existing_id = tokens_.find(token_view(request.existing_token));
         const TokenTable::InternResult reservation = tokens_.intern(token_view(request.replacement_token));
         if (reservation.status == TokenTable::InternStatus::Existing) {
@@ -411,10 +419,6 @@ private:
         }
         if (existing_id == 0) {
             ++statistics_.unknown_token_requests_ignored;  // OUCH ignores replaces of unknown orders
-            return;
-        }
-        if (!store_admits_new_requests()) {
-            reject_at_gateway(request.replacement_token, kOuchRejectOther, context);
             return;
         }
         const OuchOrderInstructions& existing = instructions_by_cl_ord_id_[existing_id];
@@ -467,6 +471,7 @@ private:
             ++statistics_.malformed_messages_ignored;
             return;
         }
+        if (refuse_request_at_store_reserve()) return;
         reject_at_gateway(request.token, kOuchRejectOther, context);  // Modify is not supported
     }
 
@@ -478,6 +483,18 @@ private:
         message.token = token;
         message.reason = reason;
         append_sequenced(message, context);
+    }
+
+    // Admission for every request that may store a gateway J or a new
+    // order's reports (O, U, M), checked before anything is stored. At the
+    // reserve the request stores nothing: the connection closes and the
+    // client may reconnect and replay. The reserve stays for reports on live
+    // orders (X, fills, cancel-on-disconnect, end of day).
+    [[nodiscard]] bool refuse_request_at_store_reserve() noexcept {
+        if (LOB_LIKELY(store_admits_new_requests())) return false;
+        ++statistics_.requests_refused_at_store_reserve;
+        if (attached_connection_ != nullptr) attached_connection_->close(OuchCloseReason::StoreReserveReached);
+        return true;
     }
 
     [[nodiscard]] bool store_admits_new_requests() const noexcept {
@@ -851,8 +868,11 @@ public:
     template <class Context>
         requires OuchServerContext<Context>
     void end_session(Context& context) noexcept {
+        if (state_ == OuchConnectionState::LoggedIn) deliver_stored_messages(context);
+        // During a drop_out cut the client is missing messages: no End of
+        // Session (it would say "do not reconnect"), just the cut.
+        if (state_ == OuchConnectionState::LoggedIn && outbound_cut_by_drop_out_) close(OuchCloseReason::FaultDropOut);
         if (state_ == OuchConnectionState::LoggedIn) {
-            deliver_stored_messages(context);
             write_unsequenced(protocol::soupbintcp::EndOfSession{}, context.now());
         }
         if (state_ != OuchConnectionState::Closed) close(OuchCloseReason::EndOfSession);
@@ -968,9 +988,23 @@ private:
         const Timestamp now = context.now();
         const SequencedStore& store = user_state_->store();
         while (next_sequence_to_send_ <= store.last_seq()) {
+            // `fault user X drop_out n` is a transport cut. SoupBinTCP numbers
+            // sequenced messages implicitly, so a gap in a live stream could
+            // never be detected: the n messages stay stored, nothing after
+            // them is written, and the connection closes after the n-th. A
+            // client reconnecting with its own count + 1 replays them all.
             if (!replaying_ && user_state_->consume_outbound_drop(context)) {
                 ++next_sequence_to_send_;
+                outbound_cut_by_drop_out_ = true;
+                if (!context.has_pending_drop_out(user_state_->session_id())) {
+                    close(OuchCloseReason::FaultDropOut);
+                    return;
+                }
                 continue;
+            }
+            if (LOB_UNLIKELY(outbound_cut_by_drop_out_)) {  // the fault was cleared mid-cut: never write past a gap
+                close(OuchCloseReason::FaultDropOut);
+                return;
             }
             const SequencedStore::Message message = store.get(next_sequence_to_send_);
             char* destination = sink_.prepare(message.bytes.size());
@@ -1017,7 +1051,7 @@ private:
         OuchUserState<ByteSink>* user_state = user_state_;
         user_state_ = nullptr;
         user_state->detach_connection(this);
-        context.unbind(user_state->session_id());
+        context.unbind(user_state->session_id(), connection_id_);
     }
 
     [[nodiscard]] static Timestamp elapsed(Timestamp since, Timestamp now) noexcept {
@@ -1037,6 +1071,7 @@ private:
     OuchConnectionState state_ = OuchConnectionState::AwaitingLogin;
     OuchCloseReason close_reason_ = OuchCloseReason::None;
     bool replaying_ = false;
+    bool outbound_cut_by_drop_out_ = false;  // a live message was dropped: nothing sequenced is written after it
 };
 
 }  // namespace exsim::gateway::ouch

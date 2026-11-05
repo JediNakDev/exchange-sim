@@ -35,7 +35,7 @@ CPPFLAGS := -I $(REPOSITORY_ROOT)/include -I $(REPOSITORY_ROOT) -MMD -MP
 
 TARGETS := ouch42_inbound ouch42_outbound itch50 soupbintcp moldudp64 fix44_message fix44_stream \
            wire_text_fields stream_buffers admin_command server_config price_text journal_reader \
-           scenario_dsl bot_options
+           scenario_dsl bot_options sbe_order_entry
 
 LIBRARY_SOURCES := $(shell cd $(REPOSITORY_ROOT) && find src -name '*.cpp' | sort)
 LIBRARY_OBJECTS := $(patsubst %.cpp,$(BUILD_DIRECTORY)/obj/%.o,$(LIBRARY_SOURCES))

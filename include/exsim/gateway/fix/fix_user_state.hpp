@@ -42,7 +42,8 @@ struct FixUserLimits {
 };
 
 // Indexed by the ClOrdID token id. A replace copies the record to the new
-// token, so AvgPx and CumQty continue across the chain.
+// token, so AvgPx and CumQty continue across the chain; the previous token's
+// record is then marked superseded.
 struct FixOrderRecord {
     FixFillNotional fill_notional;  // sum of LastPx * LastQty in price units
     Price limit_price;
@@ -51,7 +52,25 @@ struct FixOrderRecord {
     Quantity cum_qty;
     InstrumentId instrument;
     Side side;
-    char order_status;  // OrdStatus(39): '0' '1' '2' '4' '8'
+    char order_status;            // OrdStatus(39): '0' '1' '2' '4' '8' 'C'
+    char reserving_message_type;  // MsgType(35) that reserved this ClOrdID: 'D' 'F' 'G' 'q'
+    bool market_order;            // OrdType(40)=1: ExecutionReports omit Price(44)
+    bool superseded_by_replace;   // a later ClOrdID of the replace chain identifies the order now
+};
+
+// MassCancelRejectReason(532) values the gateway emits.
+enum class MassCancelRejectReason : std::uint8_t {
+    MassCancelNotSupported = 0,
+    InvalidOrUnknownSecurity = 1,
+    Other = 99,
+};
+
+// CxlRejReason(102) values the gateway emits.
+enum class CancelRejectReason : std::uint8_t {
+    TooLateToCancel = 0,
+    UnknownOrder = 1,
+    DuplicateClOrdId = 6,
+    Other = 99,
 };
 
 struct FixNewOrderRequest {
@@ -83,7 +102,7 @@ struct FixReplaceRequest {
 
 struct FixMassCancelRequest {
     std::string_view client_order_id{};
-    char request_type = '7';  // MassCancelRequestType(530): '1' symbol, '7' all
+    char request_type = '7';  // MassCancelRequestType(530) '1'..'7'; '1' symbol and '7' all are supported
     std::string_view symbol{};
 };
 
@@ -149,7 +168,8 @@ public:
             case TokenTable::InternStatus::Inserted:
                 break;
         }
-        FixOrderRecord& record = initialize_record(interned.id);
+        FixOrderRecord& record = initialize_record(interned.id, 'D');
+        record.market_order = request.order_type_code == '1';
         record.side = request.side;
         record.limit_price = request.has_price ? request.price : 0;
         record.order_qty = request.order_qty <= UINT32_MAX ? static_cast<Quantity>(request.order_qty) : 0;
@@ -200,12 +220,13 @@ public:
         }
         const ClOrdId original_token_id = tokens_.find(request.original_client_order_id);
         if (original_token_id == 0 || original_token_id == request_token_id) {
-            return send_cancel_reject(request.client_order_id, request.original_client_order_id, '1', 1,
-                                      "unknown order", now, ctx);
+            return send_cancel_reject(request.client_order_id, request.original_client_order_id, '1',
+                                      CancelRejectReason::UnknownOrder, "unknown order", now, ctx);
         }
         const auto failure = submit_command(ctx, CancelOrder{now.monotonic_ns, session_id_, original_token_id, request_token_id, 0});
         if (!failure.empty()) {
-            send_cancel_reject(request.client_order_id, request.original_client_order_id, '1', 99, failure, now, ctx);
+            send_cancel_reject(request.client_order_id, request.original_client_order_id, '1',
+                               CancelRejectReason::Other, failure, now, ctx);
         }
     }
 
@@ -219,21 +240,22 @@ public:
         }
         const ClOrdId original_token_id = tokens_.find(request.original_client_order_id);
         if (original_token_id == 0 || original_token_id == new_token_id) {
-            return send_cancel_reject(request.client_order_id, request.original_client_order_id, '2', 1,
-                                      "unknown order", now, ctx);
+            return send_cancel_reject(request.client_order_id, request.original_client_order_id, '2',
+                                      CancelRejectReason::UnknownOrder, "unknown order", now, ctx);
         }
         if (request.order_type_code != '2') {
-            return send_cancel_reject(request.client_order_id, request.original_client_order_id, '2', 99,
-                                      "replace supports OrdType 2 (limit) only", now, ctx);
+            return send_cancel_reject(request.client_order_id, request.original_client_order_id, '2',
+                                      CancelRejectReason::Other, "replace supports OrdType 2 (limit) only", now, ctx);
         }
         if (request.order_qty > UINT32_MAX) {
-            return send_cancel_reject(request.client_order_id, request.original_client_order_id, '2', 99,
-                                      "INVALID_QUANTITY", now, ctx);
+            return send_cancel_reject(request.client_order_id, request.original_client_order_id, '2',
+                                      CancelRejectReason::Other, "INVALID_QUANTITY", now, ctx);
         }
         const auto failure = submit_command(ctx, ReplaceOrder{now.monotonic_ns, session_id_, original_token_id, new_token_id, request.price,
                                 static_cast<Quantity>(request.order_qty), false});
         if (!failure.empty()) {
-            send_cancel_reject(request.client_order_id, request.original_client_order_id, '2', 99, failure, now, ctx);
+            send_cancel_reject(request.client_order_id, request.original_client_order_id, '2',
+                               CancelRejectReason::Other, failure, now, ctx);
         }
     }
 
@@ -242,19 +264,26 @@ public:
         const FixTime now{ctx.now(), ctx.realtime_ns()};
         const TokenTable::InternResult interned = tokens_.intern(request.client_order_id);
         if (interned.status != TokenTable::InternStatus::Inserted) {
-            return send_mass_cancel_report(request.client_order_id, request.request_type, '0', 0, now, ctx);
+            return send_mass_cancel_rejection(request.client_order_id, request.request_type,
+                                              MassCancelRejectReason::Other, now, ctx);
         }
-        initialize_record(interned.id);
+        initialize_record(interned.id, 'q');
+        if (request.request_type != '1' && request.request_type != '7') {
+            return send_mass_cancel_rejection(request.client_order_id, request.request_type,
+                                              MassCancelRejectReason::MassCancelNotSupported, now, ctx);
+        }
         InstrumentId instrument = 0;
         if (request.request_type == '1') {
             instrument = request.symbol.size() <= 8 ? ctx.find_instrument(Symbol(request.symbol)) : InstrumentId{0};
             if (instrument == 0) {
-                return send_mass_cancel_report(request.client_order_id, request.request_type, '0', 0, now, ctx);
+                return send_mass_cancel_rejection(request.client_order_id, request.request_type,
+                                                  MassCancelRejectReason::InvalidOrUnknownSecurity, now, ctx);
             }
         }
         const auto failure = submit_command(ctx, MassCancel{now.monotonic_ns, session_id_, instrument, interned.id, false});
         if (!failure.empty()) {
-            send_mass_cancel_report(request.client_order_id, request.request_type, '0', 0, now, ctx);
+            send_mass_cancel_rejection(request.client_order_id, request.request_type, MassCancelRejectReason::Other,
+                                       now, ctx);
         }
     }
 
@@ -298,7 +327,7 @@ public:
                         event.mass_cancel_done.request_cl_ord_id != 0) {
                         send_mass_cancel_report(tokens_.token(event.mass_cancel_done.request_cl_ord_id),
                                                 event.instrument != 0 ? '1' : '7', event.instrument != 0 ? '1' : '7',
-                                                event.mass_cancel_done.canceled_count, now, ctx);
+                                                event.mass_cancel_done.canceled_count, nullptr, now, ctx);
                     }
                     break;
                 default:
@@ -355,10 +384,18 @@ private:
         return config != nullptr ? config->symbol.view() : std::string_view("?");
     }
 
-    FixOrderRecord& initialize_record(ClOrdId token_id) noexcept {
+    FixOrderRecord& initialize_record(ClOrdId token_id, char reserving_message_type) noexcept {
         FixOrderRecord& record = records_[token_id];
-        record = FixOrderRecord{0, 0, 0, 0, 0, 0, Side::BUY, '8'};
+        record = FixOrderRecord{0, 0, 0, 0, 0, 0, Side::BUY, '8', reserving_message_type, false, false};
         return record;
+    }
+
+    // OrdStatus(39) of an OrderCancelReject: the order's current status when
+    // OrigClOrdID identifies it now, otherwise 8 (unknown or superseded ClOrdID).
+    [[nodiscard]] static char cancel_reject_order_status(const FixOrderRecord* original) noexcept {
+        return original != nullptr && original->order_id != 0 && !original->superseded_by_replace
+                   ? original->order_status
+                   : '8';
     }
 
     [[nodiscard]] FixOrderRecord* record_for(ClOrdId token_id) noexcept {
@@ -373,19 +410,19 @@ private:
         const TokenTable::InternResult interned = tokens_.intern(client_order_id);
         switch (interned.status) {
             case TokenTable::InternStatus::Inserted:
-                initialize_record(interned.id);
+                initialize_record(interned.id, response_to == '1' ? 'F' : 'G');
                 token_id = interned.id;
                 return true;
             case TokenTable::InternStatus::Existing:
-                send_cancel_reject(client_order_id, original_client_order_id, response_to, 6, "duplicate ClOrdID",
-                                   now, ctx);
+                send_cancel_reject(client_order_id, original_client_order_id, response_to,
+                                   CancelRejectReason::DuplicateClOrdId, "duplicate ClOrdID", now, ctx);
                 return false;
             case TokenTable::InternStatus::Invalid:
-                send_cancel_reject(client_order_id, original_client_order_id, response_to, 99,
+                send_cancel_reject(client_order_id, original_client_order_id, response_to, CancelRejectReason::Other,
                                    "ClOrdID longer than 20 characters", now, ctx);
                 return false;
             case TokenTable::InternStatus::Full:
-                send_cancel_reject(client_order_id, original_client_order_id, response_to, 99,
+                send_cancel_reject(client_order_id, original_client_order_id, response_to, CancelRejectReason::Other,
                                    "ClOrdID capacity exhausted", now, ctx);
                 return false;
         }
@@ -416,7 +453,8 @@ private:
         report.symbol.borrow(request.symbol);
         report.side = request.side;
         report.quantity = request.order_qty <= UINT32_MAX ? static_cast<Quantity>(request.order_qty) : 0;
-        report.price = request.has_price ? request.price : 0;
+        report.has_price = request.has_price && request.order_type_code != '1';
+        report.price = report.has_price ? request.price : 0;
         report.has_reject_reason = true;
         report.reject_reason = reason_code;
         report.has_text = true;
@@ -424,20 +462,24 @@ private:
         send_execution_report(report, now, ctx);
     }
 
+    // OrdStatus(39) follows the order the OrigClOrdID identifies now: an
+    // unknown or superseded ClOrdID reports 8, never the status of a stale
+    // record (a live replaced order is not reported Canceled).
     template <class Context>
     void send_cancel_reject(std::string_view client_order_id, std::string_view original_client_order_id,
-                            char response_to, std::uint64_t reason_code, std::string_view text,
+                            char response_to, CancelRejectReason reason, std::string_view text,
                             FixTime now, Context& ctx) noexcept {
         const FixOrderRecord* original = order_record(original_client_order_id);
-        const DecimalText order_id(original != nullptr ? original->order_id : 0);
+        const char order_status = cancel_reject_order_status(original);
+        const bool order_known = order_status != '8';
+        const DecimalText order_id(order_known ? original->order_id : 0);
         fix44::OrderCancelReject reject;
-        reject.order_id.borrow(original != nullptr && original->order_id != 0 ? order_id.view()
-                                                                             : std::string_view("NONE"));
+        reject.order_id.borrow(order_known ? order_id.view() : std::string_view("NONE"));
         reject.client_order_id.borrow(client_order_id);
         reject.original_client_order_id.borrow(original_client_order_id);
-        reject.order_status = original != nullptr ? original->order_status : '8';
+        reject.order_status = order_status;
         reject.response_to = response_to;
-        reject.reason = reason_code;
+        reject.reason = static_cast<std::uint64_t>(reason);
         reject.has_text = !text.empty();
         reject.text.borrow(text);
         prepare_application_fault(ctx);
@@ -448,15 +490,26 @@ private:
             now);
     }
 
+    // MassCancelResponse(531)=0 with MassCancelRejectReason(532).
+    template <class Context>
+    void send_mass_cancel_rejection(std::string_view client_order_id, char request_type,
+                                    MassCancelRejectReason reason, FixTime now, Context& ctx) noexcept {
+        send_mass_cancel_report(client_order_id, request_type, '0', 0, &reason, now, ctx);
+    }
+
+    // `reject_reason` is null for an accepted request.
     template <class Context>
     void send_mass_cancel_report(std::string_view client_order_id, char request_type, char response,
-                                 std::uint64_t affected_orders, FixTime now, Context& ctx) noexcept {
+                                 std::uint64_t affected_orders, const MassCancelRejectReason* reject_reason,
+                                 FixTime now, Context& ctx) noexcept {
         const DecimalText report_id(next_execution_id_++);
         fix44::OrderMassCancelReport report;
         report.client_order_id.borrow(client_order_id);
         report.order_id.borrow(report_id.view());
         report.request_type = request_type;
         report.response = response;
+        report.has_reject_reason = reject_reason != nullptr;
+        report.reject_reason = reject_reason != nullptr ? static_cast<std::uint64_t>(*reject_reason) : 0;
         report.total_affected_orders = affected_orders;
         prepare_application_fault(ctx);
         day_.send_application_message(
@@ -474,7 +527,7 @@ private:
             return;
         }
         *record = FixOrderRecord{0, accepted.price, accepted.order_id, accepted.qty, 0, event.instrument,
-                                 accepted.side, '0'};
+                                 accepted.side, '0', 'D', accepted.ord_type == OrdType::Market, false};
         const DecimalText order_id(accepted.order_id);
         fix44::ExecutionReport report;
         report.order_id.borrow(order_id.view());
@@ -484,6 +537,7 @@ private:
         report.symbol.borrow(symbol_of(ctx, event.instrument));
         report.side = accepted.side;
         report.quantity = accepted.qty;
+        report.has_price = !record->market_order;
         report.price = accepted.price;
         report.leaves_quantity = accepted.qty;
         send_execution_report(report, now, ctx);
@@ -506,6 +560,7 @@ private:
             report.symbol.borrow(symbol_of(ctx, record->instrument));
             report.side = record->side;
             report.quantity = record->order_qty;
+            report.has_price = !record->market_order;
             report.price = record->limit_price;
             report.has_reject_reason = true;
             report.reject_reason = order_reject_reason_code(rejected.reason);
@@ -517,14 +572,30 @@ private:
         if (rejected.cmd == CommandType::Cancel || rejected.cmd == CommandType::Replace) {
             send_cancel_reject(tokens_.token(rejected.cl_ord_id), tokens_.token(rejected.orig_cl_ord_id),
                                rejected.cmd == CommandType::Cancel ? '1' : '2',
-                               rejected.reason == RejectReason::UnknownOrder ? 1 : 99, to_string(rejected.reason),
-                               now, ctx);
+                               cancel_reject_reason(rejected.reason, record_for(rejected.orig_cl_ord_id)),
+                               to_string(rejected.reason), now, ctx);
             return;
         }
         if (rejected.cmd == CommandType::MassCancel) {
-            send_mass_cancel_report(tokens_.token(rejected.cl_ord_id), event.instrument != 0 ? '1' : '7', '0', 0,
-                                    now, ctx);
+            send_mass_cancel_rejection(tokens_.token(rejected.cl_ord_id), event.instrument != 0 ? '1' : '7',
+                                       rejected.reason == RejectReason::UnknownInstrument
+                                           ? MassCancelRejectReason::InvalidOrUnknownSecurity
+                                           : MassCancelRejectReason::Other,
+                                       now, ctx);
         }
+    }
+
+    // The engine reports an order it no longer holds as UnknownOrder. When the
+    // OrigClOrdID identifies a completed order (filled, canceled or expired)
+    // the request was too late (102=0); otherwise the order is unknown (102=1).
+    [[nodiscard]] static CancelRejectReason cancel_reject_reason(RejectReason reason,
+                                                                 const FixOrderRecord* original) noexcept {
+        if (reason != RejectReason::UnknownOrder) {
+            return CancelRejectReason::Other;
+        }
+        const char order_status = cancel_reject_order_status(original);
+        return order_status == '2' || order_status == '4' || order_status == 'C' ? CancelRejectReason::TooLateToCancel
+                                                                                 : CancelRejectReason::UnknownOrder;
     }
 
     template <class Context>
@@ -545,6 +616,7 @@ private:
         report.symbol.borrow(symbol_of(ctx, event.instrument));
         report.side = record->side;
         report.quantity = record->order_qty;
+        report.has_price = !record->market_order;
         report.price = record->limit_price;
         report.last_quantity = event.fill.qty;
         report.last_price = event.fill.price;
@@ -561,9 +633,15 @@ private:
         if (record == nullptr) {
             return;
         }
+        FixOrderRecord* request = record_for(canceled.request_cl_ord_id);
+        if (request != nullptr && request->reserving_message_type == 'G' && canceled.leaves_qty == 0 &&
+            canceled.reason == CancelReason::UserRequested) {
+            return report_replaced_to_filled(event, *record, *request, ctx, now);
+        }
+        const bool expired = canceled.reason == CancelReason::EndOfDay;
         record->cum_qty = canceled.cum_qty;
         if (canceled.leaves_qty == 0) {
-            record->order_status = '4';
+            record->order_status = expired ? 'C' : '4';
         }
         const DecimalText order_id(canceled.order_id);
         fix44::ExecutionReport report;
@@ -575,11 +653,12 @@ private:
         } else {
             report.client_order_id.borrow(tokens_.token(canceled.cl_ord_id));
         }
-        report.execution_type = '4';
-        report.order_status = '4';
+        report.execution_type = expired ? 'C' : '4';
+        report.order_status = expired ? 'C' : '4';
         report.symbol.borrow(symbol_of(ctx, event.instrument));
         report.side = canceled.side;
         report.quantity = record->order_qty;
+        report.has_price = !record->market_order;
         report.price = canceled.price;
         report.leaves_quantity = canceled.leaves_qty;
         report.cumulative_quantity = canceled.cum_qty;
@@ -588,6 +667,40 @@ private:
             report.has_text = true;
             report.text.borrow(to_string(canceled.reason));
         }
+        send_execution_report(report, now, ctx);
+    }
+
+    // A replace to a quantity at or below CumQty: the engine cancels the
+    // remainder and the order is done as filled. FIX 4.4 reports the accepted
+    // replace, 150=5 39=2, with OrderQty(38) = CumQty and LeavesQty 0; the new
+    // ClOrdID now identifies the (complete) order.
+    template <class Context>
+    void report_replaced_to_filled(const Event& event, FixOrderRecord& previous, FixOrderRecord& current,
+                                   Context& ctx, FixTime now) noexcept {
+        const CanceledEvent& canceled = event.canceled;
+        current = previous;
+        current.reserving_message_type = 'G';
+        current.cum_qty = canceled.cum_qty;
+        current.order_qty = canceled.cum_qty;
+        current.order_status = '2';
+        previous.order_status = '2';
+        previous.superseded_by_replace = true;
+        const DecimalText order_id(canceled.order_id);
+        fix44::ExecutionReport report;
+        report.order_id.borrow(order_id.view());
+        report.client_order_id.borrow(tokens_.token(canceled.request_cl_ord_id));
+        report.has_original_client_order_id = true;
+        report.original_client_order_id.borrow(tokens_.token(canceled.cl_ord_id));
+        report.execution_type = '5';
+        report.order_status = '2';
+        report.symbol.borrow(symbol_of(ctx, event.instrument));
+        report.side = canceled.side;
+        report.quantity = current.order_qty;
+        report.has_price = !current.market_order;
+        report.price = canceled.price;
+        report.leaves_quantity = 0;
+        report.cumulative_quantity = canceled.cum_qty;
+        report.average_price = average_price(current);
         send_execution_report(report, now, ctx);
     }
 
@@ -601,7 +714,10 @@ private:
         }
         if (current != previous) {
             *current = *previous;
+            current->reserving_message_type = 'G';
+            current->market_order = false;  // replacements are limit orders
             previous->order_status = '4';
+            previous->superseded_by_replace = true;
         }
         current->order_id = replaced.new_order_id;
         current->limit_price = replaced.price;

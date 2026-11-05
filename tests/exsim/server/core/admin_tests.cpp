@@ -128,7 +128,7 @@ TEST_CASE(server_core_admin, status_reports_every_part_of_the_core) {
     CHECK(contains(reply, "bot maker type=market_maker user=MM1 instrument=AAPL enabled=yes inventory=0"));
     CHECK(contains(reply, "bot taker type=noise_taker user=NT1 instrument=AAPL enabled=yes"));
     CHECK(contains(reply, "journal state=disabled records=0 failures=0 on_failure=shutdown\n"));
-    CHECK(contains(reply, "commands applied=1 outside_trading_day=0 output_capacity_failures=0 deferred=0 "
+    CHECK(contains(reply, "commands applied=1 outside_trading_day=0 after_shutdown=0 output_capacity_failures=0 deferred=0 "
                           "deferred_overflows=0\n"));
     CHECK(ends_with_ok(reply));
 }

@@ -32,7 +32,7 @@ crash; in the test suite the replay fails with the input's path.
 ## Regression replay on every `make test`
 
 `make test` (and `make test MODE=debug`, which adds ASan and UBSan) runs
-`fuzz_regression.<target>` for all 15 targets. Each one replays every file in
+`fuzz_regression.<target>` for all 16 targets. Each one replays every file in
 `fuzz/corpus/<target>/` through the same target body libFuzzer runs, on macOS
 and Linux, without libFuzzer, and requires the directory to be non-empty.
 
@@ -109,6 +109,7 @@ make test MODE=debug FILTER=fuzz_regression.<target>
 | `journal_reader` | `sim::JournalReader` / `JournalWriter` | arbitrary file bytes are rejected with an exception or accepted; an accepted journal is canonical (rewriting it reproduces every byte); a second mode rebuilds the checksums so mutations reach the semantic checks |
 | `scenario_dsl` | `sim::run_scenario<MatchingEngine>` | every failure is a `std::exception` naming its line; runs are deterministic |
 | `bot_options` | `sim::bots::apply_bot_option` | transactional on rejection; accepted options keep the documented ranges and are idempotent; rendered options rebuild the configuration |
+| `sbe_order_entry` | `protocol/sbe_order_entry.hpp` (SBE 1.0 over SOFH, schema 22597) | `decode_frame` equals a model of the SOFH and message header rules; all 25 message types decode every accepted frame with the status of a template, block length, group and variable-length-field model; canonical version 1 frames re-encode to their input bytes, later-version frames normalize to a canonical frame that round trips, and every re-encoded frame fits `kMaxEncodedFrameSize`; back-to-back frames walk the input |
 
 ### Not fuzzed, and why
 
@@ -164,8 +165,27 @@ target), 302,880,773 executions over the 15 targets, no crash, no sanitizer
 report and no property violation (`/tmp/exsim-fuzz-campaign.log`; per-target
 libFuzzer logs in the session scratch work directory).
 
-The committed corpora (6,190 files, 1.5 MB) replay in about 0.2 s in
-`make test` and 0.5 s in `make test MODE=debug` on an M-series Mac.
+`sbe_order_entry` was added on 2026-11-05 after these runs. Its first
+campaign, Docker `exsim-dev` (clang 19, ASan and UBSan), was
+`make -C fuzz run TARGET=sbe_order_entry SECONDS=300 JOBS=4 WORKERS=4` (20
+CPU-minutes) from the 31 generated seeds: 81,714,054 executions, cov 1398, ft
+14533, campaign corpus 2566 to 2678 per job, no crash, no sanitizer report and
+no property violation. `make merge` kept 1026 inputs, committed with the seeds.
+
+A mutation check then planted eight bugs in a copy of the codec (a dropped root
+block field, the trailing byte check removed, the later-version field count
+loosened, ignored repeating groups, and off-by-one errors in the 1024-byte
+frame limit, the 128-byte variable length field limit, and the block length
+checks against the frame and the root block) and replayed the committed corpus
+through each. Three of the off-by-one mutants survived because no input sat
+exactly on the limit, so the generator gained five boundary seeds: a 128-byte
+and a 129-byte variable length field, 1024-byte and 1025-byte frames, and a
+blockLength one byte past the frame. With them the corpus (36 seeds plus 1026
+campaign inputs, 1062 files, 4.1 MB) catches all eight.
+
+The committed corpora of the original 15 targets (6,190 files, 1.5 MB) replay
+in about 0.2 s in `make test` and 0.5 s in `make test MODE=debug` on an
+M-series Mac.
 
 ## Fixed findings (historical)
 

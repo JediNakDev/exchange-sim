@@ -11,7 +11,9 @@
 // reconnects of the same object.
 //
 // Handler callbacks receive codec structs whose text fields borrow the input
-// buffer: copy what must outlive the callback.
+// buffer: copy what must outlive the callback. A handler may also provide
+// on_business_message_reject(const fix44::BusinessMessageReject&, info);
+// without it a BusinessMessageReject(j) is accepted and ignored.
 
 #include "exsim/gateway/fix/fix_common.hpp"
 #include "exsim/gateway/fix/fix_session_day_state.hpp"
@@ -169,7 +171,7 @@ private:
         const std::string_view target = reader.required_text(56, kMaxCompIdLength);
         reader.required_timestamp(52);
         reader.required_uint(108);
-        if (frame.message_type != "A" || !reader.ok() || frame.sequence == 0 ||
+        if (frame.message_type != "A" || !reader.ok() || frame.sequence == 0 || frame.sequence > kMaxMsgSeqNum ||
             sender != day_state_.peer_comp_id() || target != day_state_.own_comp_id()) {
             this->request_disconnect();
             return;
@@ -205,6 +207,14 @@ private:
             status = fix44::decode(*frame.parser, report);
             if (status == Status::ok) {
                 handler_.on_order_mass_cancel_report(report, info);
+            }
+        } else if (frame.message_type == "j") {
+            fix44::BusinessMessageReject reject;
+            status = fix44::decode(*frame.parser, reject);
+            if constexpr (requires { handler_.on_business_message_reject(reject, info); }) {
+                if (status == Status::ok) {
+                    handler_.on_business_message_reject(reject, info);
+                }
             }
         } else {
             this->send_session_reject(frame.sequence, 35, frame.message_type, SessionRejectReason::InvalidMsgType,

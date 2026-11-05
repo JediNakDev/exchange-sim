@@ -106,6 +106,36 @@ TEST_CASE(sim_packet_faults, flush_releases_in_arrival_order) {
     CHECK(rec.seen == (std::vector<int>{4, 1, 2, 3}));
 }
 
+TEST_CASE(sim_packet_faults, clear_faults_stops_new_faults_and_flush_releases_held) {
+    PacketFaultInjector inj(64, 4);
+    PacketFaultConfig cfg;
+    cfg.drop_ppm = 1'000'000;
+    cfg.reorder_delay = 100;
+    cfg.seed = 9;
+    inj.configure(cfg);
+    Recorder rec;
+    inj.reorder_next(1);
+    inj.duplicate_next(5);
+    send(inj, rec, 1);  // dropped by the rate
+    inj.drop_next(0);
+    inj.configure([] {
+        PacketFaultConfig held_cfg;
+        held_cfg.reorder_delay = 100;
+        return held_cfg;
+    }());
+    send(inj, rec, 2);  // held by the pending one-shot reorder
+    inj.drop_next(3);
+    CHECK(!inj.idle());
+    inj.clear_faults();
+    CHECK_EQ(inj.config().reorder_delay, 100u);
+    CHECK_EQ(inj.held(), 1u);
+    CHECK(!inj.idle());  // something is still held
+    send(inj, rec, 3);   // no drop, no duplicate
+    inj.flush(rec);
+    CHECK(inj.idle());
+    CHECK(rec.seen == (std::vector<int>{3, 2}));
+}
+
 TEST_CASE(sim_packet_faults, cannot_hold_falls_back_to_delivery) {
     PacketFaultInjector inj(2, 1);  // slot too small for an int, one slot
     Recorder rec;

@@ -52,7 +52,23 @@ optional, detected with requires-expressions:
   md.reset_packet_faults()             used by `fault md off` when present
   md.on_shutdown(Timestamp)            end of system hours / end of session
   s.on_shutdown(Timestamp, Core&)      OUCH / FIX end-of-day messages
+  md.on_events / on_timer / on_shutdown returning md::PublishStatus
+                                       observed by the core (below)
+  md.state() -> md::PublisherState, md.stop_reason() -> md::PublishStatus
+                                       shown by `status`
 ```
+
+**Market-data status.** The real `md::MarketDataPublisher` reports failures
+as `md::PublishStatus` and stops publishing after an invalid batch (state
+`Stopped`). When a MarketData hook returns `md::PublishStatus` instead of
+void, the core observes it: every `on_events` result other than `Ok` counts
+in `CoreCounters::market_data_failed_batches` (a batch that did not reach the
+feed), and the last non-Ok result of `on_events`, `on_timer` or
+`on_shutdown` is kept in `CoreCounters::market_data_last_failure`. Matching
+and journaling go on; the feed outage is visible in `status`
+(`md state=stopped stop_reason=... failed_batches=N last_failure=...`) and the
+operator decides. Policies stay compile-time: the core detects the return
+type and the optional `state()`/`stop_reason()` with requires-expressions.
 
 `Sessions::on_events` receives the core so a gateway can look up instruments,
 read `now()`, or call `unbind`/`submit` (those are deferred, section 5).
@@ -62,8 +78,8 @@ read `now()`, or call `unbind`/`submit` (those are deferred, section 5).
 | Call | Behaviour |
 | --- | --- |
 | `authenticate(user, password, protocol)` | `const UserConfig*` or `nullptr` for an unknown user, wrong protocol, wrong password or a user driven by a bot. An empty configured password accepts any password. Names are case sensitive. |
-| `bind(session, connection)` | `false` for an unknown session, a bot session, or a session that is already bound (second login). At most one live binding per session. |
-| `unbind(session)` | No-op when not bound. Clears a pending disconnect request. When the user has `cancel_on_disconnect`, submits `MassCancel{session, instrument 0, cancel_on_disconnect = true}` through the normal path (journaled, dispatched). |
+| `bind(session, connection)` | `false` for an unknown session, a bot session, a session that is already bound (second login), or a call from inside a dispatch callback (section 5). At most one live binding per session. |
+| `unbind(session, connection)` | No-op unless `session` is bound to `connection`, so a late release from an older connection never unbinds a newer login or cancels its orders. Clears a pending disconnect request. When the user has `cancel_on_disconnect`, submits `MassCancel{session, instrument 0, cancel_on_disconnect = true}` through the normal path (journaled, dispatched). After shutdown that MassCancel either is refused (`OutsideTradingDay`, past the end of the trading day) or finds nothing to cancel: an unbind after shutdown relies on the end-of-day close, which has already cancelled every order. |
 | `find_instrument(symbol)`, `instrument(id)` | Engine lookups. |
 | `submit(command)` | Section 4. |
 | `now()` | ns since local midnight: the clock, never earlier than a value already returned or a command already stamped. |
@@ -100,7 +116,7 @@ Queries for tests and status: `user`, `is_bound`, `connection`,
    then every bot's `on_events`. Empty batches are not dispatched.
 
 Results: `Applied`, `Deferred`, `OutsideTradingDay`, `OutputCapacityExceeded`,
-`DeferredQueueFull`. When `submit` returns `Applied`, the command and every
+`DeferredQueueFull`, `ExchangeShutDown` (section 13). When `submit` returns `Applied`, the command and every
 command deferred meanwhile have been fully dispatched.
 
 The dispatch set is a 65536-bit seen set plus a fixed list of every possible
@@ -117,6 +133,14 @@ re-enters the engine: such commands go to a fixed ring
 own stamp and batch, right after the current batch reaches market data and
 bots. `submit` returns `Deferred`, or `DeferredQueueFull` (counted) when the
 ring is full. A pending shutdown runs after the deferred commands.
+
+Cancel-on-disconnect is never dropped. The ring holds `2 * users + 64`
+commands: ordinary deferred submits may fill only `users + 64` of them, and
+the remaining `users` slots are reserved for the MassCancel of `unbind`.
+`bind` is refused during dispatch (logins come from inbound data, never from
+a dispatch callback), so between two drains each user unbinds at most once
+and every unbind MassCancel fits. `server_core_review.unbind_during_full_deferred_queue_keeps_cancel_on_disconnect`
+fills every ordinary slot and then unbinds.
 
 ## 6. Timer
 
@@ -156,7 +180,7 @@ Every reply is `\n`-terminated lines ending with `OK` or a single
 | Command | Reply lines before `OK` | Errors |
 | --- | --- | --- |
 | `help` | usage text | |
-| `status` | exchange, trading day, connections, one line per user (bound, connection, faults), live orders, one line per instrument (phase, bid, ask, last), md sequence, md faults, bots, one line per bot, journal, command counters | |
+| `status` | exchange, trading day, connections, one line per user (bound, connection, faults), live orders, one line per instrument (phase, bid, ask, last), md sequence, md faults, md state (publisher state and stop reason, or `unavailable`; failed batches; last failure), bots, one line per bot, journal, command counters | |
 | `phase SYM\|* PHASE` | `SYM OLD -> NEW` per instrument; applied through `submit` | unknown instrument, `phase not applied: <reason>`, `exchange is shut down` |
 | `book SYM [n]` | `book SYM phase=P`, asks from deepest to best, bids from best down (`ask 150.01 qty=150 orders=2`), or `(empty)`; at most 1000 levels | unknown instrument |
 | `fault md drop\|dup N`, `fault md reorder N [D]`, `fault md rate ...`, `fault md off` | `md faults ...` (config, held, stats) | `market data exposes no packet fault injector` |
@@ -180,8 +204,9 @@ consumed by gateways and the loop:
 | --- | --- | --- |
 | `consume_injected_reject(session)` | gateway, per inbound new order | `true`: reject it yourself (OUCH J, FIX 39=8 Text "injected"), do not submit. Consumes one. |
 | `inbound_delay_ns(session)` | loop or gateway | hold each inbound application message this long (a setting, not consumed) |
-| `consume_drop_out(session)` | gateway, per sequenced outbound message | `true`: store it but do not transmit. Consumes one. |
-| `has_disconnect_requests()`, `take_disconnect_requests(span)` | loop | sessions to close now, config order; the loop closes them and calls `unbind` (cancel-on-disconnect applies) |
+| `consume_drop_out(session)` | gateway, per sequenced outbound application (business) message | `true`: store it but do not transmit. Consumes one. Session-level messages (logon, heartbeats, logout, resend replies) are never dropped. |
+| `has_pending_drop_out(session)` | OUCH gateway, after a drop | `true` while drop counts remain (not consumed); OUCH closes the connection after the last dropped message |
+| `has_disconnect_requests()`, `take_disconnect_requests(span)` | loop | sessions to close now, config order; the loop closes each one's connection and tells its gateway (`on_disconnected`), whose disconnect handler calls `unbind(session, connection)` (cancel-on-disconnect applies); the loop does not unbind itself |
 | `user_faults(session)` | status, tests | the whole state |
 
 A new `reject`/`drop_out`/`delay` replaces the previous value (counts start at
@@ -243,7 +268,7 @@ Sized once at construction, never grown:
 | EventBuffer | `(2 * max_orders + 2 * max_instruments + 4) * sizeof(Event)`; `sizeof(Event)` is 104 B, so the defaults (1,048,576 orders, 64 instruments) reserve 2,097,284 events, about 208 MiB of virtual memory. Pages are touched only as far as the largest batch reaches; ordinary batches touch a few KiB. |
 | Dispatch set | 8 KiB seen bits inline + 128 KiB session list |
 | Session index | 128 KiB (`uint16` per possible `SessionId`) |
-| Deferred queue | `(users + 64) * 56 B` |
+| Deferred queue | `(2 * users + 64) * 56 B` (`users` slots reserved for unbind MassCancels) |
 | Bots | `BotSet<32>` 23 KiB inline, plus each bot's own-order table (`order_capacity` entries) |
 | Journal writer | 35 KiB (128-record buffer) |
 | Core object | 68 KiB inline (mostly bots and journal); the engine sizes itself from `[engine]` |
@@ -259,15 +284,37 @@ command and error, each MarketData shape), faults, bots (deterministic
 bot-to-bot and bot-to-client trading), journal (replay equality, periodic
 flush, both failure policies via `RLIMIT_FSIZE`) and allocation (zero heap
 allocations in steady state with bots, journal, churn and fault queries, via
-`testfw::AllocationScope`).
+`testfw::AllocationScope`). `server_core_review` covers the QA review fixes:
+unbind MassCancel under a full deferred queue, bind refused during dispatch,
+stale `unbind` from an older connection, and publisher failures in counters
+and `status` (with the real `md::MarketDataPublisher`).
 
-## 13. Open questions
+## 13. Decisions (formerly open questions)
 
-* Should `submit` refuse commands after shutdown instead of letting the
-  engine reject them in `Closed`? The loop is expected to stop first.
-* Should cancel-on-disconnect `MassCancel` events be dispatched to the
-  unbound session's gateway (today: yes, the gateway decides)?
-* `fault md off` without a reset hook cannot clear one-shot faults or held
-  packets; the MD publisher should provide `reset_packet_faults()`.
-* Trading-day times are local time since midnight; days crossing midnight
-  are not supported.
+Resolved with the server runtime (docs/SERVER_RUNTIME.md):
+
+* **Commands after shutdown.** `submit` refuses every command once
+  shutdown has run and returns `SubmitResult::ExchangeShutDown`
+  (`CoreCounters::commands_after_shutdown`, shown by `status`). Nothing is
+  journaled or sent to the engine. The OUCH gateway answers an Enter Order
+  with `J` reason `C` (exchange closed), the FIXP/SBE gateway rejects with
+  `MarketClosed`, and FIX rejects with the text `exchange shut down`. Test:
+  `submit_after_admin_shutdown_is_refused_and_not_journaled`.
+* **Cancel-on-disconnect events of an unbound session.** They are
+  dispatched to the session's gateway like any other event. OUCH and FIX
+  store them in the session's outbound store while no connection is bound
+  and replay them when the user logs in again (OUCH: Login Request
+  sequence number; FIX: ResendRequest). Tests:
+  `server_e2e_faults.admin_disconnect_closes_the_session_and_cancels_on_disconnect`,
+  `server_e2e_sessions.cancel_on_disconnect_follows_the_user_setting`.
+* **`fault md off`.** `PacketFaultInjector::clear_faults()` zeroes the
+  random rates and one-shot counters (seed and delay settings are kept);
+  the MD runtime's `reset_packet_faults()` calls it and then flushes
+  packets already held for reordering, so nothing is left behind. The
+  runtime also does this at end of day so End of Session always reaches
+  receivers. Tests: `clear_faults_stops_new_faults_and_flush_releases_held`,
+  `server_e2e_md.feed_rebuilds_the_engine_book_through_packet_faults_and_retransmission`.
+* **Trading days crossing midnight.** Rejected when the configuration is
+  parsed: `exchange.trading_day_start` must be before
+  `exchange.trading_day_end`, and the error says that days crossing midnight
+  are not supported. Times stay local time since midnight.
