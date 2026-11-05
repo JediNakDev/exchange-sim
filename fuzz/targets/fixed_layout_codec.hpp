@@ -9,6 +9,8 @@
 
 #include <array>
 #include <exsim/protocol/wire.hpp>
+#include <initializer_list>
+#include <string_view>
 #include <exsim/types.hpp>
 
 namespace exsim::fuzz {
@@ -19,11 +21,20 @@ inline bool fits_unsigned_32_bit_price(Price price) noexcept {
     return price >= 0 && static_cast<std::uint64_t>(price) <= 0xffffffffULL;
 }
 
+// A one-byte field whose value must be one of `allowed_codes` (side, event
+// code, order state). decode() rejects a message with invalid_field exactly
+// when one of its enumerated fields holds another byte.
+struct EnumeratedField {
+    std::size_t offset;
+    std::string_view allowed_codes;
+};
+
 // decode(arbitrary bytes): the status follows the documented length/type
 // order, and a successful decode re-encodes to exactly the input bytes
 // (every field is fixed width, so the wire form is already canonical).
 template <typename Message>
-void check_fixed_layout_decode(std::span<const char> input) {
+void check_fixed_layout_decode(std::span<const char> input,
+                               std::initializer_list<EnumeratedField> enumerated_fields) {
     Message decoded{};
     const Status status = decode(input.data(), input.size(), decoded);
     if (input.size() < Message::wire_size) {
@@ -38,8 +49,13 @@ void check_fixed_layout_decode(std::span<const char> input) {
         EXSIM_FUZZ_REQUIRE(status == Status::invalid_type, "foreign type byte must be invalid_type");
         return;
     }
-    EXSIM_FUZZ_REQUIRE(status == Status::ok || status == Status::invalid_field,
-                       "exact-size message decodes or rejects one enumerated field");
+    bool enumerated_fields_valid = true;
+    for (const EnumeratedField& field : enumerated_fields) {
+        enumerated_fields_valid = enumerated_fields_valid &&
+                                  field.allowed_codes.find(input[field.offset]) != std::string_view::npos;
+    }
+    EXSIM_FUZZ_REQUIRE(status == (enumerated_fields_valid ? Status::ok : Status::invalid_field),
+                       "exact-size message decodes unless an enumerated field holds an unknown code");
     if (status != Status::ok) return;
 
     // Two differently pre-filled buffers catch any byte encode() leaves unwritten.

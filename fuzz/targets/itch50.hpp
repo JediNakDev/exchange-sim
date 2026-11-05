@@ -13,19 +13,19 @@ namespace exsim::fuzz {
 inline int fuzz_itch50(const std::uint8_t* data, std::size_t size) {
     namespace itch = protocol::itch50;
     const std::span<const char> input = as_chars(data, size);
-    check_fixed_layout_decode<itch::SystemEvent>(input);
-    check_fixed_layout_decode<itch::StockDirectory>(input);
-    check_fixed_layout_decode<itch::StockTradingAction>(input);
-    check_fixed_layout_decode<itch::AddOrder>(input);
-    check_fixed_layout_decode<itch::AddOrderMPID>(input);
-    check_fixed_layout_decode<itch::OrderExecuted>(input);
-    check_fixed_layout_decode<itch::OrderExecutedWithPrice>(input);
-    check_fixed_layout_decode<itch::OrderCancel>(input);
-    check_fixed_layout_decode<itch::OrderDelete>(input);
-    check_fixed_layout_decode<itch::OrderReplace>(input);
-    check_fixed_layout_decode<itch::Trade>(input);
-    check_fixed_layout_decode<itch::CrossTrade>(input);
-    check_fixed_layout_decode<itch::NetOrderImbalance>(input);
+    check_fixed_layout_decode<itch::SystemEvent>(input, {{11, "OSQMEC"}});
+    check_fixed_layout_decode<itch::StockDirectory>(input, {});
+    check_fixed_layout_decode<itch::StockTradingAction>(input, {});
+    check_fixed_layout_decode<itch::AddOrder>(input, {{19, "BS"}});
+    check_fixed_layout_decode<itch::AddOrderMPID>(input, {{19, "BS"}});
+    check_fixed_layout_decode<itch::OrderExecuted>(input, {});
+    check_fixed_layout_decode<itch::OrderExecutedWithPrice>(input, {});
+    check_fixed_layout_decode<itch::OrderCancel>(input, {});
+    check_fixed_layout_decode<itch::OrderDelete>(input, {});
+    check_fixed_layout_decode<itch::OrderReplace>(input, {});
+    check_fixed_layout_decode<itch::Trade>(input, {{19, "BS"}});
+    check_fixed_layout_decode<itch::CrossTrade>(input, {});
+    check_fixed_layout_decode<itch::NetOrderImbalance>(input, {});
 
     FuzzByteReader reader(data, size);
     switch (reader.take_index(6)) {

@@ -13,15 +13,15 @@ namespace exsim::fuzz {
 inline int fuzz_ouch42_outbound(const std::uint8_t* data, std::size_t size) {
     namespace ouch = protocol::ouch42;
     const std::span<const char> input = as_chars(data, size);
-    check_fixed_layout_decode<ouch::SystemEvent>(input);
-    check_fixed_layout_decode<ouch::OrderAccepted>(input);
-    check_fixed_layout_decode<ouch::OrderCanceled>(input);
-    check_fixed_layout_decode<ouch::OrderExecuted>(input);
-    check_fixed_layout_decode<ouch::OrderRejected>(input);
-    check_fixed_layout_decode<ouch::CancelPending>(input);
-    check_fixed_layout_decode<ouch::CancelReject>(input);
-    check_fixed_layout_decode<ouch::OrderModified>(input);
-    check_fixed_layout_decode<ouch::OrderReplaced>(input);
+    check_fixed_layout_decode<ouch::SystemEvent>(input, {{9, "SE"}});
+    check_fixed_layout_decode<ouch::OrderAccepted>(input, {{23, "BSTE"}, {64, "LD"}});
+    check_fixed_layout_decode<ouch::OrderCanceled>(input, {});
+    check_fixed_layout_decode<ouch::OrderExecuted>(input, {});
+    check_fixed_layout_decode<ouch::OrderRejected>(input, {});
+    check_fixed_layout_decode<ouch::CancelPending>(input, {});
+    check_fixed_layout_decode<ouch::CancelReject>(input, {});
+    check_fixed_layout_decode<ouch::OrderModified>(input, {{23, "BSTE"}});
+    check_fixed_layout_decode<ouch::OrderReplaced>(input, {{23, "BSTE"}, {64, "LD"}});
 
     FuzzByteReader reader(data, size);
     switch (reader.take_index(4)) {

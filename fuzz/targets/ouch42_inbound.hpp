@@ -15,10 +15,10 @@ namespace exsim::fuzz {
 inline int fuzz_ouch42_inbound(const std::uint8_t* data, std::size_t size) {
     namespace ouch = protocol::ouch42;
     const std::span<const char> input = as_chars(data, size);
-    check_fixed_layout_decode<ouch::EnterOrder>(input);
-    check_fixed_layout_decode<ouch::ReplaceOrder>(input);
-    check_fixed_layout_decode<ouch::CancelOrder>(input);
-    check_fixed_layout_decode<ouch::ModifyOrder>(input);
+    check_fixed_layout_decode<ouch::EnterOrder>(input, {{15, "BSTE"}});
+    check_fixed_layout_decode<ouch::ReplaceOrder>(input, {});
+    check_fixed_layout_decode<ouch::CancelOrder>(input, {});
+    check_fixed_layout_decode<ouch::ModifyOrder>(input, {{15, "BSTE"}});
 
     FuzzByteReader reader(data, size);
     switch (reader.take_index(2)) {

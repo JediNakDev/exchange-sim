@@ -183,9 +183,224 @@ and a 129-byte variable length field, 1024-byte and 1025-byte frames, and a
 blockLength one byte past the frame. With them the corpus (36 seeds plus 1026
 campaign inputs, 1062 files, 4.1 MB) catches all eight.
 
-The committed corpora of the original 15 targets (6,190 files, 1.5 MB) replay
+The committed corpora of the original 15 targets (6,389 files, 1.7 MB) replay
 in about 0.2 s in `make test` and 0.5 s in `make test MODE=debug` on an
 M-series Mac.
+
+### Mutation check
+
+On 2026-11-05, 103 single-line bugs were planted, one at a time, in a copy of
+the code under test for ten of the original targets. Each mutant was replayed
+through its target's committed corpus with ASan and UBSan, so a sanitizer
+report also counts as a kill. A FIX mutant counts as killed when either FIX
+corpus kills it, because `fix44_message` and `fix44_stream` share the codec.
+Survivors were then handled in one of three ways:
+
+- Equivalent: no input can tell the mutant apart from the original.
+- Corpus gap: no input sits on the boundary, so a seed was added at the end of
+  the target's seed list in `fuzz/seed_generator.cpp`. Existing `seed-NNN`
+  files keep their bytes.
+- Oracle gap: the property could not see the difference, so the target was
+  strengthened.
+
+Oracle changes:
+
+- `fixed_layout_codec.hpp` (OUCH and ITCH): an exact-size message must now
+  decode `ok` exactly when every enumerated one-byte field (side, event code,
+  order state) holds a listed code, and `invalid_field` otherwise. Before, the
+  property only required "ok or invalid_field".
+- `fix44_message.hpp`:
+  - The frame must report `overflow` exactly when its declared extent passes
+    1 MiB.
+  - BodyLength has at most 20 digits.
+  - Tag 0 is never a field.
+  - The canonical re-encoding keeps the value of every field the input had,
+    up to decimal spelling and the `.000` that a 17-character UTCTimestamp
+    gains.
+
+| Target | Planted | Killed, original corpus | Killed, with new seeds | Equivalent | Seeds added |
+|---|---:|---:|---:|---:|---:|
+| `ouch42_inbound` | 11 | 7 | 10 | 1 | 26 |
+| `ouch42_outbound` | 10 | 5 | 10 | 0 | 54 |
+| `itch50` | 12 | 6 | 11 | 1 | 82 |
+| `soupbintcp` | 11 | 7 | 10 | 1 | 9 |
+| `moldudp64` | 9 | 7 | 9 | 0 | 2 |
+| `fix44_message` | 12 | 4 | 10 | 1 | 13 |
+| `fix44_stream` | 10 | 8 | 10 | 0 | 5 |
+| `wire_text_fields` | 8 | 5 | 8 | 0 | 4 |
+| `price_text` | 11 | 7 | 10 | 1 | 4 |
+| `stream_buffers` | 9 | 5 | 5 | 2 | 0 |
+| Total | 103 | 61 | 93 | 7 | 199 |
+
+Three non-equivalent mutants still survive, and the reasons are explained
+below:
+
+- F8: an oracle gap. Telling the two statuses apart needs a full reference
+  model of the field scan.
+- B4 and B8: a harness gap. The `stream_buffers` harness flushes under 64
+  bytes at a time to a peer that drains straight away, so `send` is never
+  partial and SendBuffer compaction and the `Blocked` status are never
+  reached. Covering them would need a peer with a full receive buffer.
+
+The new seeds include one 196,622-byte MoldUDP64 packet that holds 65,534
+messages.
+
+Mutants, with line numbers at commit 922cb39. The kinds of kill are:
+
+- "seed": the new seeds kill the mutant even with the old properties.
+- "seed + oracle": the mutant needs both the new seeds and the stronger
+  property.
+- "original": the original corpus already killed it.
+
+OUCH 4.2 inbound (`include/exsim/protocol/ouch42.hpp`):
+
+- I1 `:54` EnterOrder short check `n < 49` to `n < 48`: original.
+- I2 `:56` EnterOrder exact-size check `n != 49` to `n > 50`: original.
+- I3 `:62` EnterOrder side set `"BSTE"` to `"BST"`: seed + oracle.
+- I4 `:68` EnterOrder price offset `p + 28` to `p + 27`: original.
+- I5 `:32` EnterOrder encode price bound `> UINT32_MAX` to `>=`: seed.
+- I6 `:32` EnterOrder encode `price < 0` to `price < -1`: equivalent. The
+  `uint64_t` cast in the next check rejects every negative price.
+- I7 `:75` minimum quantity load replaced by `0`: original.
+- I8 `:113` ReplaceOrder short check `n < 47` to `n < 46`: original.
+- I9 `:153` CancelOrder exact-size check `n != 19` to `n > 20`: original.
+- I10 `:65` shares loaded byte-swapped: original.
+- I11 `:192` ModifyOrder side check removed: seed + oracle.
+
+OUCH 4.2 outbound (`ouch42.hpp`):
+
+- O1 `:217` SystemEvent short check `n < 10` to `n < 9`: original.
+- O2 `:281` OrderAccepted exact-size check `n != 66` to `n > 67`: original.
+- O3 `:304` OrderAccepted order state set `"LD"` to `"L"`: seed + oracle.
+- O4 `:224` SystemEvent event code check removed: seed + oracle.
+- O5 `:387` OrderExecuted match number read as `load<4>(p + 36)`: seed.
+- O6 `:551` OrderReplaced encode price bound `>` to `>=`: seed.
+- O7 `:607` OrderReplaced previous token read from `p[64 + i]`: original.
+- O8 `:475` CancelReject short check `n < 23` to `n < 22`: original.
+- O9 `:285` timestamp loaded byte-swapped: original.
+- O10 `:519` OrderModified side check removed: seed + oracle.
+
+ITCH 5.0 (`include/exsim/protocol/itch50.hpp`):
+
+- T1 `:187` AddOrder encode timestamp bound `>` to `>=`: seed.
+- T2 `:188` AddOrder encode price bound `>` to `>=`: seed.
+- T3 `:213` AddOrder side check removed: original.
+- T4 `:39` SystemEvent code set `"OSQMEC"` to `"OSQME"`: seed + oracle.
+- T5 `:97` StockDirectory exact-size check `n != 39` to `n > 40`: original.
+- T6 `:431` OrderDelete short check `n < 19` to `n < 18`: seed.
+- T7 `:653` NOII price offset `p + 40` to `p + 41`: original.
+- T8 `:615` NOII encode `near_price < 0` to `< -1`: equivalent (same reason
+  as I6).
+- T9 `:584` Cross Trade shares read as `load<4>(p + 15)`: original.
+- T10 `:366` OrderExecutedWithPrice price offset `p + 32` to `p + 31`: original.
+- T11 `:532` Trade side check accepts only `'B'`: seed + oracle.
+- T12 `:211` AddOrder timestamp read as `load<5>(p + 6)`: original.
+
+SoupBinTCP (`include/exsim/protocol/soupbintcp.hpp`):
+
+- S1 `:23` incomplete check `n < len + 2` to `n < len + 1`: seed.
+- S2 `:25` exact-size check `n != len + 2` to `n > len + 3`: original.
+- S3 `:30` LoginRequest packet size `47` to `46`: original.
+- S4 `:33` one-byte packet type set `"ROHZ"` to `"ROH"`: original.
+- S5 `:37` LoginRejected reason check removed: original.
+- S6 `:21` zero-length check disabled: original.
+- S7 `:149` reader frame limit `n > max_` to `n > max_ + 1`: seed.
+- S8 `:153` reader capacity check `>` to `>=`: original.
+- S9 `:100` LoginRequest sequence width 20 to 19: original.
+- S10 `:117` LoginAccepted sequence field shifted by one byte: seed.
+- S11 `:46` encode payload bound `> 65534` to `> 65535`: equivalent. The
+  64 KiB payload wraps its 16-bit length to 0, and encode's own decode check
+  then refuses it.
+
+MoldUDP64 (`include/exsim/protocol/moldudp64.hpp`):
+
+- M1 `:91` message length prefix check `< 2` to `< 1`: original.
+- M2 `:95` zero-length message check disabled: original.
+- M3 `:97` message length bound off by one: seed.
+- M4 `:88` decoder end-of-session count `65535` to `65534`: original.
+- M5 `:57` builder message limit `count_ >= 65534` to `>= 65533`: seed.
+- M6 `:61` builder size check `+ 2` to `+ 1`: original.
+- M7 `:51` builder end-of-session count `65535` to `65534`: original.
+- M8 `:31` message count read at `p + 17`: original.
+- M9 `:68` builder writes `count_ + 1` without incrementing: original.
+
+FIX 4.4 (`include/exsim/protocol/fix44.hpp`), checked in `fix44_message`:
+
+- F1 `:176` short frame check `< 12` to `< 11`: original.
+- F2 `:182` BodyLength digits limit `>= 20` to `>= 21`: seed + oracle.
+- F3 `:191` frame size limit off by one: seed + oracle.
+- F4 `:215` SOH before CheckSum not checked: original.
+- F5 `:219` CheckSum bound `> 255` to `> 256`: equivalent. `sum % 256` is
+  never 256.
+- F6 `:219` CheckSum digits read as `{size - 3, 2}`: original (killed by
+  `fix44_stream`).
+- F7 `:233` tag 0 accepted: seed + oracle.
+- F8 `:241` mid-body tag 10 check disabled: survives (oracle gap). The frame
+  gives `duplicate_field` where `invalid_length` was expected.
+- F9 `:151` UTCTimestamp seconds `> 59` to `> 60`: seed + oracle.
+- F10 `:157` leap year rule `y % 400 == 0` to `!= 0`: seed + oracle.
+- F11 `:847` NewOrderSingle OrderQty bound `> UINT32_MAX` to `> UINT32_MAX + 1`: seed + oracle.
+- F12 `:1269` ExecutionReport ExecType set widened to the alphanumerics:
+  original (killed by `fix44_stream`).
+
+FIX 4.4 stream (`fix44.hpp`), checked in `fix44_stream`:
+
+- G1 `:407` reader full check `used_ + 1`: original.
+- G2 `:397` reader frame limit `buffer_.size()` to `+ 1`: original.
+- G3 `:308` builder SOH-in-value check removed: original.
+- G4 `:314` builder capacity check `+ 2` to `+ 1`: seed.
+- G5 `:360` builder `finish` total check `+ 1`: original.
+- G6 `:246` field table limit `count_ == N` to `N - 1`: seed.
+- G7 `:373` CheckSum tens digit `sum / 10 % 10` to `sum / 10`: original.
+- G8 `:138` milliseconds `% 1000` to `% 100`: original.
+- G9 `:836` NewOrderSingle Side `case '2'` to `case '3'`: original.
+- G10 `:1219` ExecutionReport LeavesQty written from CumQty: original.
+
+Wire text fields (`include/exsim/protocol/wire.hpp`):
+
+- W1 `:72` numeric width check `digits > n` to `> n + 1`: original.
+- W2 `:92` overflow guard weakened to `r > UINT64_MAX / 10`: original.
+- W3 `:57` alpha width check `> n` to `> n + 1`: original.
+- W4 `:64` trailing pad trim `== ' '` to `<= ' '`: seed.
+- W5 `:50` 48-bit load masked to 40 bits: original.
+- W6 `:91` digit range `c > '9'` to `c > ':'`: seed.
+- W7 `:70` digit count `t >= 10` to `t > 10`: seed.
+- W8 `:86` numeric parse starts at 1: original.
+
+Price text (`include/exsim/sim/price_text.hpp` (SP),
+`src/exsim/server/config.cpp` (CF), `include/exsim/protocol/fix44.hpp` (FX)):
+
+- P1 SP`:62` fraction digit limit `> 4` to `> 5`: original.
+- P2 SP`:79` negative limit `1 << 63` to `(1 << 63) - 1`: original.
+- P3 SP`:67` early guard `<< 59` to `<< 62`: equivalent. The limit check at
+  `:80` rejects the same values, and the shift cannot overflow.
+- P4 CF`:515` whole part bound `limit / kPriceScale` to `+ 1`: seed.
+- P5 CF`:525` combined bound `limit - fraction_units` to `+ 1`: seed.
+- P6 FX`:43` decimals limit `> 4` to `> 5`: original.
+- P7 FX`:37` negative limit loses its extra unit (INT64_MIN rejected): original.
+- P8 FX`:88` trailing zero trim disabled: original.
+- P9 SP`:50` `fraction_digits >= 0` to `> 0`: original.
+- P10 CF`:500` empty fraction after the dot accepted: original.
+- P11 SP`:80` combined bound `(limit - fraction)` to `(limit - fraction + 1)`: seed.
+
+Stream buffers (`include/exsim/net/stream_buffers.hpp` (BH),
+`src/exsim/net/stream_buffers.cpp` (BC)):
+
+- B1 BH`:65` ReceiveBuffer compaction test `<` to `<=`: original.
+- B2 BH`:65` full-buffer clause removed: equivalent. With a capacity of 2 or
+  more, `free < capacity / 2` already holds in that state. With a capacity of
+  1, the state cannot be reached.
+- B3 BH`:56` reset on drain disabled: original.
+- B4 BH`:121` SendBuffer compaction test `<` to `<=`: survives (harness gap).
+- B5 BH`:137` overflow latch ignored: original.
+- B6 BC`:5` BufferFull check removed: original.
+- B7 BC`:23` `sent == 0` branch removed: equivalent. `send` of a nonzero
+  length never returns 0.
+- B8 BC`:29` flush always reports Complete: survives (harness gap).
+- B9 BH`:116` overflow branch disabled: original.
+
+Unmutated, the extended corpora of all ten targets replay with no property
+violation and no sanitizer report.
 
 ## Fixed findings (historical)
 
