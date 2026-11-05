@@ -82,12 +82,24 @@ tables sized from config; when full, new orders are rejected by the gateway.
   disconnect; higher application sequence → bounded-buffer or discard and send ResendRequest for the gap; never apply it before predecessors are received or validly gap-filled. Lower PossDup messages already applied are suppressed.
 * Heartbeat(0) after HeartBtInt of outbound silence; TestRequest(1) after
   1.5 × HeartBtInt of inbound silence; disconnect after 2 × HeartBtInt.
-* Garbled framing/checksum/body length: discard without advancing inbound sequence;
-  the next valid high sequence triggers recovery. Parseable semantic errors consume
-  their in-order sequence and receive session Reject(3) with reason 373.
-* GapFill (123=Y) requires NewSeqNo > its MsgSeqNum. In-order gap fills advance
-  expected to NewSeqNo; a duplicate starting below expected may advance only if
-  NewSeqNo > expected, otherwise suppress it. A high gap fill waits for its gap.
+* Garbled framing/checksum/body length, or 8, 9 and 35 not the first three
+  fields: discard without advancing inbound sequence; the next valid high
+  sequence triggers recovery. Parseable semantic errors consume their in-order
+  sequence and receive session Reject(3) with reason 373.
+* MsgSeqNum above 2^64 - 2 (the next expected value would wrap) → Logout +
+  disconnect. Expected inbound sequence is never 0.
+* PossDupFlag=Y requires OrigSendingTime(122): missing → Reject 373=1 371=122
+  and the message is not applied; later than SendingTime(52) → Reject 373=10
+  371=52, then Logout. An in-order PossDup GapFill is exempt.
+* A valid FIX 4.4 application MsgType the gateway does not support →
+  BusinessMessageReject(j) 380=3 (stored for resend); an invalid MsgType →
+  Reject 373=11.
+* GapFillFlag(123) other than Y or N → Reject 373=5 371=123 without moving the
+  sequence. GapFill (123=Y) requires NewSeqNo > its MsgSeqNum. In-order gap
+  fills advance expected to NewSeqNo. A PossDup GapFill below expected is a
+  duplicate and is ignored, so held application messages are never skipped.
+  A high gap fill waits for its gap. A duplicate early ResendRequest that is
+  already held is serviced once.
   A nonduplicate attempt to lower expected is rejected. Non-gap SequenceReset is
   disaster recovery only: reject decreasing NewSeqNo; increasing NewSeqNo advances
   expected without application delivery. Logon reset is allowed only at a newly
@@ -100,19 +112,24 @@ tables sized from config; when full, new orders are rejected by the gateway.
 | FIX | Command | Notes |
 |---|---|---|
 | `D` NewOrderSingle | `NewOrder` | 11 → `cl_ord_id`; 55 → instrument; 54 1/2; 40 1=Market 2=Limit (others → ER Rejected); 59 0=Day 1=GTC 3=IOC 4=FOK; 18 contains `6` → post_only; 7928 N/R/A/B overrides STP mode |
-| `F` OrderCancelRequest | `CancelOrder` | 41 → orig, 11 → request token |
-| `G` OrderCancelReplaceRequest | `ReplaceOrder` | 41 → orig, 11 → new token, 38 = new **total** qty, 44 |
-| `q` OrderMassCancelRequest | `MassCancel` | 530=1 with 55 → that instrument; 530=7 → all |
+| `F` OrderCancelRequest | `CancelOrder` | 41 → orig, 11 → request token, 60 required |
+| `G` OrderCancelReplaceRequest | `ReplaceOrder` | 41 → orig, 11 → new token, 38 = new **total** qty, 44, 60 required |
+| `q` OrderMassCancelRequest | `MassCancel` | 530=1 with 55 → that instrument; 530=7 → all; 530=2..6 → `r` 531=0 532=0 |
 
 | Event | FIX |
 |---|---|
 | `Accepted` | ExecutionReport 150=0 39=0 |
 | `Fill` | ER 150=F, 39=1 or 2, 32/31, 14/151, 6 AvgPx (gateway tracks notional per order) |
 | `Canceled` | ER 150=4 39=4 (11 = request token when user-requested, 41 = order token) |
+| `Canceled` EndOfDay | ER 150=C 39=C (DAY order expired at the close) |
+| `Canceled` by a replace to qty ≤ CumQty | ER 150=5 39=2, 38 = 14 = CumQty, 151=0 (11 = new token, 41 = previous token) |
 | `Replaced` | ER 150=5 39=0 or 1 (11 = new token, 41 = previous token) |
 | `Rejected` NewOrder | ER 150=8 39=8, 103 OrdRejReason (UnknownInstrument→1, InvalidQuantity/InvalidPrice/InvalidField→99 with Text, DuplicateClOrdId→6, MarketClosed→2, CapacityExceeded→99) |
-| `Rejected` Cancel/Replace | OrderCancelReject(9), 434 = 1 (cancel) / 2 (replace), 102 = 1 UnknownOrder, else 99 |
+| `Rejected` Cancel/Replace | OrderCancelReject(9), 434 = 1 (cancel) / 2 (replace). Unknown or replaced (superseded) 41 → 102=1 39=8 37=NONE; order already Filled, Canceled or Expired → 102=0 with its 39 (2, 4 or C); other reasons → 102=99 with the order's current 39 |
 | `MassCancelDone` | OrderMassCancelReport(r), 531 = 530 on success, 533 = count |
+| Mass cancel refused | `r` 531=0 with 532: 0 unsupported 530, 1 unknown symbol, 99 other |
+
+Price(44) is omitted from ExecutionReports of market orders.
 
 ExecID(17) is unique per session for the day; OrderID(37) = `OrderId`.
 
