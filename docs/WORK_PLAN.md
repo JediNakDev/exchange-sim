@@ -100,6 +100,8 @@ Latest 2026-11-05 continuation: all eight unfinished direct child tasks were sto
 
 Runtime continuation checkpoint: partial work committed as `878634b`, parent `b2e6b02` merged cleanly; protocol-selectable wire-to-wire benchmark is compiling/validating. Runtime owns no gateway files and depends on the existing SBE `end_session` API. Parent relayed that dependency to the SBE QA owner. **After merging SBE QA fixes, send the exact integrated commit IDs to the runtime owner before its final tests.** Benchmark runs will record the shared machine load.
 
+Resource checkpoint: runtime reports 845 release tests and all three protocol benchmark smokes passed, with zero rejects/loss. Comparable measurement is deferred after host load reached 90/36/16. Parent told all eight continuations to finish current gates, avoid launching additional full builds/Docker builds/benchmarks, reuse valid evidence, and continue light work. Release serial validation/measurement slots on task completion notifications; do not poll or wait in loops. Preserve raw load samples and do not publish contention-dominated numbers as protocol performance.
+
 2026-11-05 evening: the QA fixes for OUCH/core/MD (`6227a51`) and FIX (`3df3527`) and the server runtime (`e9495a0`) are merged and gated. A Claude API rate limit failed the runner fix and mutation check runs; T3 resumes them automatically.
 
 Next, on completion notifications (do not poll):
