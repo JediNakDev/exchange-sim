@@ -23,13 +23,14 @@
 //   };
 //
 // The server lists its gateways as template arguments of
-// BasicServerRuntime<Gateways...> (server_runtime.hpp). A new protocol (for
-// example SBE over FIXP, docs/proposals/SBE_FIXP.md) adds one such type and
-// one entry in that list; the loop, the delay fault, admin disconnects and
-// shutdown handling are shared.
+// BasicServerRuntime<Gateways...> (server_runtime.hpp): OUCH 4.2, FIX 4.4 and
+// SBE 1.0 over FIXP 1.0. A new protocol adds one such type and one entry in
+// that list; the loop, the delay fault, admin disconnects and shutdown
+// handling are shared.
 
 #include "exsim/event.hpp"
 #include "exsim/gateway/fix/fix_gateway.hpp"
+#include "exsim/gateway/fixp_sbe/fixp_sbe_server.hpp"
 #include "exsim/gateway/ouch/ouch_server.hpp"
 #include "exsim/server/config.hpp"
 #include "exsim/server/core/policies.hpp"
@@ -159,6 +160,62 @@ struct FixGateway {
         TcpSendSink sink_{};  // FixConnection keeps a pointer to it: the slot never moves
         gateway::fix::FixConnection<Core, TcpSendSink> session_;
         bool close_requested_by_server_ = false;
+    };
+};
+
+// ---- SBE 1.0 over FIXP 1.0 ---------------------------------------------------------
+
+struct FixpSbeGateway {
+    static constexpr std::string_view name = "fixp_sbe";
+    using UserDirectory = gateway::fixp_sbe::FixpSbeUserStateDirectory<TcpSendSink>;
+
+    // Every `protocol = fixp_sbe` user that no bot drives, sized from [engine].
+    [[nodiscard]] static std::unique_ptr<UserDirectory> make_user_directory(const ServerConfig& config) {
+        return std::make_unique<UserDirectory>(config);
+    }
+    [[nodiscard]] static std::uint16_t configured_port(const ServerConfig& config) noexcept {
+        return config.exchange.fixp_sbe_port;
+    }
+    // Reports are stored (recoverable server flow) whether or not the user
+    // has a transport; the attached connection, if any, also sends them.
+    template <class Core>
+    static void dispatch(UserDirectory& users, SessionId session, std::span<const Event> batch, Core& core) noexcept {
+        if (auto* user_state = users.find(session)) user_state->on_events(batch, core);
+    }
+    // FIXP has no end-of-day application message: the loop sends Terminate
+    // on every live connection (close_for_end_of_day).
+    template <class Core>
+    static void on_shutdown(UserDirectory&, Timestamp, Core&) noexcept {}
+
+    template <class Core>
+    class Connection {
+    public:
+        explicit Connection(UserDirectory& users) noexcept : users_(users) {}
+
+        void open(TcpSendSink sink, server::ConnectionId connection_id, Core& core) noexcept {
+            session_.emplace(sink, users_, connection_id,
+                             gateway::fixp_sbe::FixpSbeSessionSettings::from(core.config().exchange), core.now());
+        }
+        std::size_t on_data(std::span<const char> bytes, Core& core) noexcept { return session_->on_data(bytes, core); }
+        void on_timer(Core& core) noexcept { session_->on_timer(core); }
+        [[nodiscard]] bool wants_close() const noexcept { return session_->close_requested(); }
+        [[nodiscard]] bool flush_before_close() const noexcept { return session_->flush_before_close(); }
+        // FIXP Terminate (Finished) after the end-of-day reports, then close.
+        // A connection that never established just closes.
+        void close_for_end_of_day(Core& core) noexcept { session_->end_session(core); }
+        void on_closed(Core& core) noexcept {
+            session_->on_disconnect(core);
+            session_.reset();
+        }
+        // Bound (and so subject to user faults) only once established.
+        [[nodiscard]] SessionId bound_session() const noexcept {
+            const auto* user_state = session_->user_state();
+            return user_state == nullptr ? SessionId{0} : user_state->session_id();
+        }
+
+    private:
+        UserDirectory& users_;
+        std::optional<gateway::fixp_sbe::FixpSbeConnection<TcpSendSink>> session_;
     };
 };
 

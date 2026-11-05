@@ -242,8 +242,8 @@ private:
         }
     }
 
-    // End of day: OUCH End of Session and FIX Logout on every connection,
-    // then wait (bounded) for the sessions to close and flush.
+    // End of day: OUCH End of Session, FIX Logout and FIXP Terminate on every
+    // connection, then wait (bounded) for the sessions to close and flush.
     void progress_shutdown() noexcept {
         if (finished_) return;
         const std::uint64_t now = net::monotonic_ns();
@@ -302,9 +302,9 @@ private:
     std::uint64_t drain_deadline_ns_ = 0;
 };
 
-// The exsim server: OUCH 4.2 and FIX 4.4. SBE over FIXP plugs in as a third
-// gateway type (docs/SERVER_RUNTIME.md, "Adding a protocol").
-using ServerRuntime = BasicServerRuntime<runtime::OuchGateway, runtime::FixGateway>;
+// The exsim server: OUCH 4.2, FIX 4.4 and SBE 1.0 over FIXP 1.0
+// (docs/SERVER_RUNTIME.md, "Adding a protocol").
+using ServerRuntime = BasicServerRuntime<runtime::OuchGateway, runtime::FixGateway, runtime::FixpSbeGateway>;
 
 }  // namespace exsim::server
 

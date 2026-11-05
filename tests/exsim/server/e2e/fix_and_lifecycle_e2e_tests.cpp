@@ -1,5 +1,5 @@
-// FIX 4.4 order entry, end of day and journal replay through a running
-// server over loopback sockets.
+// FIX 4.4 order entry, end of day (every protocol) and journal replay
+// through a running server over loopback sockets.
 
 #include "exsim/sim/canonical.hpp"
 #include "exsim/sim/journal.hpp"
@@ -88,16 +88,22 @@ TEST_CASE(server_e2e_lifecycle, shutdown_ends_every_session_and_the_feed) {
     OuchSession alice(alice_events);
     FixRecorder carol_events;
     FixSession carol(carol_events, fix_settings("CAROL", "carol"));
+    FixpSbeRecorder erin_events;
+    FixpSbeSession erin(erin_events, fixp_sbe_settings("ERIN:erin"));
     auto pump = [&] {
         alice.poll();
         carol.poll();
+        erin.poll();
         feed.poll();
     };
     client::AdminLineClient admin;
     REQUIRE(admin.connect(server.admin()));
     REQUIRE(alice.connect_and_login(server.ouch(), {"ALICE", "alice", ""}, 0));
     REQUIRE(carol.connect_and_logon(server.fix(), false));
-    REQUIRE(wait_until([&] { return alice_events.logins_accepted == 1 && carol_events.logons == 1; }, pump));
+    REQUIRE(erin.connect_and_negotiate(server.fixp_sbe(), client::random_fixp_session_uuid()));
+    REQUIRE(wait_until([&] {
+        return alice_events.logins_accepted == 1 && carol_events.logons == 1 && erin_events.establishment_acks == 1;
+    }, pump));
     REQUIRE(alice.client().enter_order(ouch_limit_order("S1", Side::BUY, 10, 140 * kDollar), net::monotonic_ns()));
     alice.flush();
     REQUIRE(wait_until([&] { return alice_events.has_accepted("S1"); }, pump));
@@ -113,6 +119,9 @@ TEST_CASE(server_e2e_lifecycle, shutdown_ends_every_session_and_the_feed) {
     // FIX: Logout from the exchange.
     REQUIRE(wait_until([&] { return !carol_events.logout_texts.empty(); }, pump));
     CHECK_EQ(carol_events.logout_texts.back(), std::string("end of day"));
+    // SBE over FIXP: Terminate (Finished) from the exchange.
+    REQUIRE(wait_until([&] { return !erin_events.terminate_codes.empty(); }, pump));
+    CHECK(erin_events.terminate_codes.back() == sbe::TerminationCode::Finished);
     // ITCH: S 'E', S 'C', then MoldUDP64 End of Session.
     REQUIRE(wait_until([&] { return feed.end_of_session_reached(); }, pump));
     REQUIRE(feed_handler.system_events.size() >= 2u);

@@ -10,10 +10,12 @@
 //
 //   OuchTcpSession<Handler>     OUCH 4.2 over SoupBinTCP
 //   FixTcpSession<Handler>      FIX 4.4
+//   FixpSbeTcpSession<Handler>  SBE 1.0 over FIXP 1.0
 //   MarketDataFeed<Handler>     ITCH 5.0 over MoldUDP64, with gap requests
 //   AdminLineClient             admin console request/reply
 
 #include "exsim/gateway/fix/fix_client.hpp"
+#include "exsim/gateway/fixp_sbe/fixp_sbe_client.hpp"
 #include "exsim/gateway/ouch/ouch_client.hpp"
 #include "exsim/md/receiver.hpp"
 #include "exsim/net/clocks.hpp"
@@ -27,6 +29,7 @@
 #include <cerrno>
 #include <cstddef>
 #include <cstdint>
+#include <random>
 #include <span>
 #include <string>
 #include <string_view>
@@ -204,6 +207,91 @@ public:
 private:
     net::TcpClient tcp_client_{1 << 16, 1 << 20};
     TcpClientSendSink sink_{&tcp_client_};
+    Client client_;
+};
+
+// ---- SBE over FIXP --------------------------------------------------------------------
+
+// A fresh RFC 4122 version 4 UUID for FIXP Negotiate (setup path: seeds a
+// generator from std::random_device).
+[[nodiscard]] inline gateway::fixp_sbe::sbe::SessionUuid random_fixp_session_uuid() {
+    std::random_device entropy;
+    std::mt19937_64 generator((std::uint64_t{entropy()} << 32) ^ entropy());
+    const std::uint64_t high_bits = generator();
+    return gateway::fixp_sbe::version4_uuid_from_random_bits(high_bits, generator());
+}
+
+// The FIXP client runs on Unix epoch nanoseconds (Negotiate and Establish
+// timestamps); poll() establishes as soon as the NegotiationResponse arrives.
+template <class Handler>
+class FixpSbeTcpSession {
+public:
+    using Client = gateway::fixp_sbe::FixpSbeClient<TcpClientSendSink, Handler>;
+
+    FixpSbeTcpSession(Handler& handler, const gateway::fixp_sbe::FixpSbeClientSettings& settings)
+        : client_(TcpClientSendSink{&tcp_client_}, handler, settings) {}
+
+    FixpSbeTcpSession(const FixpSbeTcpSession&) = delete;
+    FixpSbeTcpSession& operator=(const FixpSbeTcpSession&) = delete;
+
+    // Connects and sends Negotiate for a new logical session; Establish
+    // follows from poll(). Both flows start at sequence number 1.
+    bool connect_and_negotiate(net::Ipv4Endpoint server, const gateway::fixp_sbe::sbe::SessionUuid& session_uuid,
+                               int timeout_ms = 2000) {
+        if (connect_with_timeout(tcp_client_, server, timeout_ms) != 0) return false;
+        if (!client_.negotiate(session_uuid, net::realtime_ns())) return false;
+        return flush();
+    }
+
+    // Reconnects the same logical session (Establish with credentials); the
+    // client recovers missed server messages through RetransmitRequest.
+    bool reconnect_and_establish(net::Ipv4Endpoint server, int timeout_ms = 2000) {
+        if (tcp_client_.connected()) tcp_client_.close();
+        if (connect_with_timeout(tcp_client_, server, timeout_ms) != 0) return false;
+        client_.reset_transport(TcpClientSendSink{&tcp_client_});
+        if (!client_.establish(net::realtime_ns())) return false;
+        return flush();
+    }
+
+    // Flushes, reads, establishes after negotiation, runs the keepalive
+    // timer. Returns false once the connection is closed: after the peer
+    // closed it, or after a Terminate exchange (the answering Terminate is
+    // flushed first).
+    bool poll() {
+        if (!tcp_client_.connected()) return false;
+        const std::uint64_t now = net::realtime_ns();
+        const PumpStatus status = pump_tcp_client(
+            tcp_client_, [&](std::span<const char> bytes) { return client_.on_data(bytes, now); });
+        if (status == PumpStatus::Open) {
+            if (client_.state() == gateway::fixp_sbe::FixpSbeClientState::Negotiated) (void)client_.establish(now);
+            client_.on_timer(now);
+        }
+        if (status == PumpStatus::Closed || client_.state() == gateway::fixp_sbe::FixpSbeClientState::Terminated) {
+            if (tcp_client_.connected()) (void)tcp_client_.flush();
+            tcp_client_.close();
+            return false;
+        }
+        if (tcp_client_.connection().send_buffer().has_pending()) (void)tcp_client_.flush();
+        return true;
+    }
+
+    bool flush() {
+        if (!tcp_client_.connected()) return false;
+        return tcp_client_.flush().status != net::FlushStatus::Error;
+    }
+
+    // Drops the transport without Terminate (the server sees the socket close).
+    void disconnect() { tcp_client_.close(); }
+
+    [[nodiscard]] Client& client() noexcept { return client_; }
+    [[nodiscard]] bool established() const noexcept {
+        return client_.state() == gateway::fixp_sbe::FixpSbeClientState::Established;
+    }
+    [[nodiscard]] bool connected() const noexcept { return tcp_client_.connected(); }
+    [[nodiscard]] int fd() const noexcept { return tcp_client_.fd(); }
+
+private:
+    net::TcpClient tcp_client_{1 << 16, 1 << 20};
     Client client_;
 };
 

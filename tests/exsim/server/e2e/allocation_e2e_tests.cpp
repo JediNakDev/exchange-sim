@@ -1,6 +1,6 @@
 // Allocation guard: after a warm-up that exercises every message path once,
-// a long stretch of OUCH and FIX order entry with bots trading and market
-// data flowing must not allocate on the server thread.
+// a long stretch of OUCH, FIX and SBE over FIXP order entry with bots trading
+// and market data flowing must not allocate on the server thread.
 
 #include <functional>
 
@@ -14,12 +14,22 @@ namespace {
 constexpr int kOrdersPerBatch = 50;
 constexpr int kOuchReplacesPerBatch = 10;  // the first orders of each batch are replaced
 constexpr int kFixOrdersPerBatch = 10;
+constexpr int kFixpOrdersPerBatch = 10;
+constexpr int kFixpReplacesPerBatch = 2;  // the first orders of each batch are replaced
+
+// SBE ClOrdIDs of one batch: orders, replacements and cancels never collide
+// (and are never 0, which the gateway rejects).
+std::uint64_t fixp_order_id(int batch, int order) { return std::uint64_t(batch + 1) * 100 + std::uint64_t(order); }
+std::uint64_t fixp_replacement_id(int batch, int order) { return fixp_order_id(batch, 40 + order); }
+std::uint64_t fixp_cancel_id(int batch, int order) { return fixp_order_id(batch, 60 + order); }
 
 struct SteadyStateTraffic {
     OuchSession& alice;
     OuchRecorder& alice_events;
     FixSession& carol;
     FixRecorder& carol_events;
+    FixpSbeSession& erin;
+    FixpSbeRecorder& erin_events;
     std::function<void()> pump;
     std::size_t round_trips = 0;
     std::string failed_step{};
@@ -33,8 +43,14 @@ struct SteadyStateTraffic {
         return carol.client().send_new_order_single(order, client::fix_time_now());
     }
 
+    template <class Message>
+    bool send_fixp(const Message& message) {
+        return erin.client().send(message, net::realtime_ns()) != 0;
+    }
+
     // One batch: OUCH enter, replace part, cancel all; FIX enter, an OUCH sell
-    // that trades with CAROL's first bid, FIX cancel all.
+    // that trades with CAROL's first bid, FIX cancel all; SBE enter, replace
+    // part, an OUCH sell that trades with ERIN's first bid, SBE cancel all.
     bool run_batch(int batch) {
         const std::string prefix = std::to_string(batch) + "_";
         const std::size_t accepted_before = alice_events.accepted.size();
@@ -135,6 +151,66 @@ struct SteadyStateTraffic {
         }
         }
         round_trips += kFixOrdersPerBatch;
+        return run_fixp_part_of_batch(batch);
+    }
+
+    // CAROL's MSFT bids at 390 are gone by now, so ALICE's sell at 391 trades
+    // with ERIN's first bid only.
+    bool run_fixp_part_of_batch(int batch) {
+        const std::size_t reports_before = erin_events.reports.size();
+        for (int order = 0; order < kFixpOrdersPerBatch; ++order) {
+            if (!send_fixp(sbe_limit_order(fixp_order_id(batch, order), Side::BUY, 10, 391 * kDollar, "MSFT"))) {
+                return fail("fixp enter send");
+            }
+        }
+        erin.flush();
+        if (!wait_until([&] { return erin_events.reports.size() == reports_before + kFixpOrdersPerBatch; }, pump)) {
+            return fail("fixp new reports");
+        }
+        round_trips += kFixpOrdersPerBatch;
+
+        // Replace the last orders (the first one is the one ALICE trades with).
+        for (int order = kFixpOrdersPerBatch - kFixpReplacesPerBatch; order < kFixpOrdersPerBatch; ++order) {
+            if (!send_fixp(sbe_replace(fixp_order_id(batch, order), fixp_replacement_id(batch, order), 8,
+                                       389 * kDollar))) {
+                return fail("fixp replace send");
+            }
+        }
+        erin.flush();
+        const std::size_t reports_after_replace = reports_before + kFixpOrdersPerBatch + kFixpReplacesPerBatch;
+        if (!wait_until([&] { return erin_events.reports.size() == reports_after_replace; }, pump)) {
+            return fail("fixp replace reports");
+        }
+        round_trips += kFixpReplacesPerBatch;
+
+        const std::string sell_token = "T" + std::to_string(batch) + "_";
+        const std::size_t executed_before = alice_events.executed.size();
+        if (!alice.client().enter_order(ouch_limit_order(sell_token, Side::SELL, 4, 391 * kDollar, "MSFT"),
+                                        net::monotonic_ns())) {
+            return fail("ouch sell to fixp send");
+        }
+        alice.flush();
+        if (!wait_until(
+                [&] {
+                    return alice_events.executed.size() == executed_before + 1 &&
+                           erin_events.reports.size() == reports_after_replace + 1;
+                },
+                pump)) {
+            return fail("fixp trade reports");
+        }
+        round_trips += 1;
+
+        for (int order = 0; order < kFixpOrdersPerBatch; ++order) {
+            const bool replaced = order >= kFixpOrdersPerBatch - kFixpReplacesPerBatch;
+            const std::uint64_t live_id = replaced ? fixp_replacement_id(batch, order) : fixp_order_id(batch, order);
+            if (!send_fixp(sbe_cancel(live_id, fixp_cancel_id(batch, order)))) return fail("fixp cancel send");
+        }
+        erin.flush();
+        if (!wait_until([&] { return erin_events.reports.size() == reports_after_replace + 1 + kFixpOrdersPerBatch; },
+                        pump)) {
+            return fail("fixp cancel reports");
+        }
+        round_trips += kFixpOrdersPerBatch;
         return true;
     }
 };
@@ -152,9 +228,12 @@ TEST_CASE(server_e2e_allocation, steady_state_order_entry_market_data_and_bots_d
     OuchSession alice(alice_events);
     FixRecorder carol_events;
     FixSession carol(carol_events, fix_settings("CAROL", "carol"));
-    SteadyStateTraffic traffic{alice, alice_events, carol, carol_events, [&] {
+    FixpSbeRecorder erin_events;
+    FixpSbeSession erin(erin_events, fixp_sbe_settings("ERIN:erin"));
+    SteadyStateTraffic traffic{alice, alice_events, carol, carol_events, erin, erin_events, [&] {
                                    alice.poll();
                                    carol.poll();
+                                   erin.poll();
                                    feed.poll();
                                }};
     client::AdminLineClient admin;
@@ -162,7 +241,10 @@ TEST_CASE(server_e2e_allocation, steady_state_order_entry_market_data_and_bots_d
     REQUIRE(reply_ok(admin.request("phase MSFT continuous")));
     REQUIRE(alice.connect_and_login(server.ouch(), {"ALICE", "alice", ""}, 0));
     REQUIRE(carol.connect_and_logon(server.fix(), false));
-    REQUIRE(wait_until([&] { return alice_events.logins_accepted == 1 && carol_events.logons == 1; }, traffic.pump));
+    REQUIRE(erin.connect_and_negotiate(server.fixp_sbe(), client::random_fixp_session_uuid()));
+    REQUIRE(wait_until([&] {
+        return alice_events.logins_accepted == 1 && carol_events.logons == 1 && erin_events.establishment_acks == 1;
+    }, traffic.pump));
 
     // Warm-up: every path once (plus a few batches so lazily sized state settles).
     for (int batch = 0; batch < 4; ++batch) REQUIRE_EQ(traffic.run_batch(batch) ? std::string() : traffic.failed_step, std::string());
@@ -171,6 +253,10 @@ TEST_CASE(server_e2e_allocation, steady_state_order_entry_market_data_and_bots_d
                                                              client::fix_time_now()));
     carol.flush();
     REQUIRE(wait_until([&] { return carol_events.cancel_rejects >= 1; }, traffic.pump));
+    // The same for SBE: order 0 of batch 0 is already canceled.
+    REQUIRE(traffic.send_fixp(sbe_cancel(fixp_order_id(0, 0), fixp_order_id(0, 99))));
+    erin.flush();
+    REQUIRE(wait_until([&] { return erin_events.cancel_rejects >= 1; }, traffic.pump));
     REQUIRE(wait_until([&] { return feed_handler.messages > 0; }, traffic.pump));
 
     const std::size_t round_trips_before = traffic.round_trips;
@@ -189,6 +275,9 @@ TEST_CASE(server_e2e_allocation, steady_state_order_entry_market_data_and_bots_d
     CHECK_GT(server.loop_iterations() - loop_iterations_before, 100u);
     CHECK_EQ(alice_events.rejected.size(), 0u);
     CHECK_EQ(carol_events.session_rejects, 0);
+    CHECK_EQ(erin_events.business_message_rejects, 0);
+    CHECK(!erin_events.has(sbe::TemplateId::ExecutionReportReject, fixp_order_id(4, 0)));
+    CHECK(erin.established());
     if (testfw::allocation_counting_available()) CHECK_EQ(allocations, 0u);
 
     // The feed (with retransmission for anything lost) still rebuilds the book.
