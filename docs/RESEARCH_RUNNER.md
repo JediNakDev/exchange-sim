@@ -795,6 +795,29 @@ provided. `LoadedRun` adds `replay_verified`, `reproduction`, and
 unchanged. Verification costs another full simulation per eligible run and
 may reject artifacts from older builds whose behavior has changed.
 
+## QA fix verification checkpoint, 2026-11-05
+
+Fix commit `ea8642b`; current parent `b2e6b02` integrated in `6ccb69a`.
+Original reviewer reproducers are unchanged. Recovered research release evidence
+is 66/66 passed; the pre-fix follow-up probes fail all eight expected cases,
+including P1-P3. Logs are under `/tmp/exsim-runnerfix-logs/`:
+
+| Gate (`-j4`, `-Werror`) | Result | Log |
+| --- | --- | --- |
+| macOS release | 856/856 | `final-release.log` |
+| macOS ASan/UBSan | 853/853 | `final-debug.log` |
+| macOS all targets | pass | `final-all.log` |
+| Linux GCC | 856/856 | `final-linux-gcc.log` |
+| Linux Clang | 856/856 | `final-linux-clang.log` |
+| Determinism script, macOS and Linux GCC/Clang | 112/112 identical | `digests-final.txt`, `digests-linux-gcc.txt`, `digests-linux-clang.txt` |
+
+Compared with the pre-fix macOS script, only the 12 lifecycle logs change,
+reflecting pre-application arrival evidence. Command/event journals, accounting,
+series, markouts and summary fixtures are unchanged. Manifests, excluded by the
+script because they include compiler identity, additionally record the effective
+flush margin. See `/tmp/exsim-runnerfix-logs/REPORT.md` for per-finding coverage,
+source locations, adapter changes and integration limits.
+
 ## Verification checkpoint, 2026-11-05
 
 Verified on the commit that adds this section, on top of the
