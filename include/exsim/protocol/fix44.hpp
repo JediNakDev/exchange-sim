@@ -942,6 +942,7 @@ struct OrderCancelRequest {
   Text<> client_order_id{};
   Text<> symbol{};
   Side side{};
+  Timestamp transact_time{};
 };
 inline std::size_t encode(const OrderCancelRequest &m, const Header &h,
                           char *buffer, std::size_t capacity) noexcept {
@@ -951,6 +952,7 @@ inline std::size_t encode(const OrderCancelRequest &m, const Header &h,
   b.field(11, m.client_order_id.view());
   b.field(55, m.symbol.view());
   b.field(54, (m.side == Side::BUY ? '1' : '2'));
+  b.timestamp_field(60, m.transact_time);
   return b.finish();
 }
 template <std::size_t N>
@@ -1000,6 +1002,12 @@ Status decode(const Parser<N> &p, OrderCancelRequest &m) noexcept {
       return Status::invalid_field;
     }
   }
+  if (!p.has(60))
+    return Status::missing_field;
+  {
+    if (!p.get_timestamp(60, m.transact_time))
+      return Status::invalid_field;
+  }
   return Status::ok;
 }
 inline Status decode(const char *p, std::size_t n,
@@ -1017,6 +1025,7 @@ struct OrderCancelReplaceRequest {
   OrdType order_type{};
   Price price{};
   bool has_price = false;
+  Timestamp transact_time{};
 };
 inline std::size_t encode(const OrderCancelReplaceRequest &m, const Header &h,
                           char *buffer, std::size_t capacity) noexcept {
@@ -1030,6 +1039,7 @@ inline std::size_t encode(const OrderCancelReplaceRequest &m, const Header &h,
   b.field(40, (m.order_type == OrdType::Market ? '1' : '2'));
   if (m.has_price)
     b.price_field(44, m.price);
+  b.timestamp_field(60, m.transact_time);
   return b.finish();
 }
 template <std::size_t N>
@@ -1107,6 +1117,12 @@ Status decode(const Parser<N> &p, OrderCancelReplaceRequest &m) noexcept {
   m.has_price = p.has(44);
   if (m.has_price) {
     if (!p.get_price(44, m.price))
+      return Status::invalid_field;
+  }
+  if (!p.has(60))
+    return Status::missing_field;
+  {
+    if (!p.get_timestamp(60, m.transact_time))
       return Status::invalid_field;
   }
   if (m.order_type == OrdType::Limit && !m.has_price)
@@ -1188,6 +1204,7 @@ struct ExecutionReport {
   Side side{};
   Quantity quantity{};
   Price price{};
+  bool has_price = true;
   Quantity last_quantity{};
   Price last_price{};
   Quantity leaves_quantity{};
@@ -1213,7 +1230,8 @@ inline std::size_t encode(const ExecutionReport &m, const Header &h,
   b.field(55, m.symbol.view());
   b.field(54, (m.side == Side::BUY ? '1' : '2'));
   b.uint_field(38, m.quantity);
-  b.price_field(44, m.price);
+  if (m.has_price)
+    b.price_field(44, m.price);
   b.uint_field(32, m.last_quantity);
   b.price_field(31, m.last_price);
   b.uint_field(151, m.leaves_quantity);
@@ -1266,7 +1284,7 @@ Status decode(const Parser<N> &p, ExecutionReport &m) noexcept {
     return Status::missing_field;
   {
     if (!p.get_char(150, m.execution_type) ||
-        std::string_view("0458F").find(m.execution_type) ==
+        std::string_view("0458FC").find(m.execution_type) ==
             std::string_view::npos)
       return Status::invalid_field;
   }
@@ -1274,7 +1292,7 @@ Status decode(const Parser<N> &p, ExecutionReport &m) noexcept {
     return Status::missing_field;
   {
     if (!p.get_char(39, m.order_status) ||
-        std::string_view("01248").find(m.order_status) ==
+        std::string_view("01248C").find(m.order_status) ==
             std::string_view::npos)
       return Status::invalid_field;
   }
@@ -1310,9 +1328,8 @@ Status decode(const Parser<N> &p, ExecutionReport &m) noexcept {
       return Status::invalid_field;
     m.quantity = static_cast<Quantity>(value);
   }
-  if (!p.has(44))
-    return Status::missing_field;
-  {
+  m.has_price = p.has(44);
+  if (m.has_price) {
     if (!p.get_price(44, m.price))
       return Status::invalid_field;
   }
@@ -1435,7 +1452,7 @@ Status decode(const Parser<N> &p, OrderCancelReject &m) noexcept {
     return Status::missing_field;
   {
     if (!p.get_char(39, m.order_status) ||
-        std::string_view("01248").find(m.order_status) ==
+        std::string_view("01248C").find(m.order_status) ==
             std::string_view::npos)
       return Status::invalid_field;
   }
@@ -1471,6 +1488,8 @@ struct OrderMassCancelReport {
   Text<> order_id{};
   char request_type{};
   char response{};
+  std::uint64_t reject_reason{};
+  bool has_reject_reason = false;
   std::uint64_t total_affected_orders{};
 };
 inline std::size_t encode(const OrderMassCancelReport &m, const Header &h,
@@ -1481,6 +1500,8 @@ inline std::size_t encode(const OrderMassCancelReport &m, const Header &h,
   b.field(37, m.order_id.view());
   b.field(530, m.request_type);
   b.field(531, m.response);
+  if (m.has_reject_reason)
+    b.uint_field(532, m.reject_reason);
   b.uint_field(533, m.total_affected_orders);
   return b.finish();
 }
@@ -1511,7 +1532,7 @@ Status decode(const Parser<N> &p, OrderMassCancelReport &m) noexcept {
     return Status::missing_field;
   {
     if (!p.get_char(530, m.request_type) ||
-        std::string_view("17").find(m.request_type) == std::string_view::npos)
+        std::string_view("1234567").find(m.request_type) == std::string_view::npos)
       return Status::invalid_field;
   }
   if (!p.has(531))
@@ -1519,6 +1540,11 @@ Status decode(const Parser<N> &p, OrderMassCancelReport &m) noexcept {
   {
     if (!p.get_char(531, m.response) ||
         std::string_view("01234567").find(m.response) == std::string_view::npos)
+      return Status::invalid_field;
+  }
+  m.has_reject_reason = p.has(532);
+  if (m.has_reject_reason) {
+    if (!p.get_uint(532, m.reject_reason))
       return Status::invalid_field;
   }
   if (!p.has(533))
@@ -1531,6 +1557,77 @@ Status decode(const Parser<N> &p, OrderMassCancelReport &m) noexcept {
 }
 inline Status decode(const char *p, std::size_t n,
                      OrderMassCancelReport &m) noexcept {
+  Parser<> parser;
+  auto s = parser.parse(p, n);
+  return s == Status::ok ? decode(parser, m) : s;
+}
+struct BusinessMessageReject {
+  std::uint64_t reference_sequence{};
+  bool has_reference_sequence = false;
+  Text<> reference_type{};
+  Text<> business_reject_reference_id{};
+  bool has_business_reject_reference_id = false;
+  std::uint64_t reason{};
+  Text<> text{};
+  bool has_text = false;
+};
+inline std::size_t encode(const BusinessMessageReject &m, const Header &h,
+                          char *buffer, std::size_t capacity) noexcept {
+  Builder b({buffer, capacity});
+  b.header('j', h);
+  if (m.has_reference_sequence)
+    b.uint_field(45, m.reference_sequence);
+  b.field(372, m.reference_type.view());
+  if (m.has_business_reject_reference_id)
+    b.field(379, m.business_reject_reference_id.view());
+  b.uint_field(380, m.reason);
+  if (m.has_text)
+    b.field(58, m.text.view());
+  return b.finish();
+}
+template <std::size_t N>
+Status decode(const Parser<N> &p, BusinessMessageReject &m) noexcept {
+  if (p.get(35) != "j")
+    return Status::invalid_type;
+  if (!p.has(49) || !p.has(56) || !p.has(34) || !p.has(52))
+    return Status::missing_field;
+  std::uint64_t header_value;
+  if (!p.get_uint(34, header_value) || !p.get_timestamp(52, header_value))
+    return Status::invalid_field;
+  m.has_reference_sequence = p.has(45);
+  if (m.has_reference_sequence) {
+    if (!p.get_uint(45, m.reference_sequence))
+      return Status::invalid_field;
+  }
+  if (!p.has(372))
+    return Status::missing_field;
+  {
+    m.reference_type.borrow(p.get(372));
+    if (m.reference_type.view().empty())
+      return Status::invalid_field;
+  }
+  m.has_business_reject_reference_id = p.has(379);
+  if (m.has_business_reject_reference_id) {
+    m.business_reject_reference_id.borrow(p.get(379));
+    if (m.business_reject_reference_id.view().empty())
+      return Status::invalid_field;
+  }
+  if (!p.has(380))
+    return Status::missing_field;
+  {
+    if (!p.get_uint(380, m.reason))
+      return Status::invalid_field;
+  }
+  m.has_text = p.has(58);
+  if (m.has_text) {
+    m.text.borrow(p.get(58));
+    if (m.text.view().empty())
+      return Status::invalid_field;
+  }
+  return Status::ok;
+}
+inline Status decode(const char *p, std::size_t n,
+                     BusinessMessageReject &m) noexcept {
   Parser<> parser;
   auto s = parser.parse(p, n);
   return s == Status::ok ? decode(parser, m) : s;

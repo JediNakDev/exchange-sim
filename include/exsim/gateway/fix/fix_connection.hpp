@@ -9,6 +9,9 @@
 //   wants_disconnect()               true: flush and close, then
 //   on_disconnected(ctx)             releases the session (ctx.unbind, which
 //                                    triggers cancel-on-disconnect)
+// A bound connection must get on_disconnected before it is destroyed (the
+// destructor cannot reach the context; debug builds assert it). start() on a
+// bound connection releases the binding first.
 // Logon: SenderCompID must be a configured FIX user (authenticated with the
 // optional Password(554)), TargetCompID the exchange CompID, EncryptMethod 0,
 // HeartBtInt <= settings.max_heartbeat_interval_seconds. A refused Logon is
@@ -23,6 +26,7 @@
 #include "exsim/server/config.hpp"
 
 #include <array>
+#include <cassert>
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
@@ -54,12 +58,18 @@ public:
     explicit FixConnection(FixUserDirectory<Sink>& directory, const FixSessionSettings& settings = {})
         : Base(settings), directory_(directory) {}
 
-    ~FixConnection() { this->end_connection(); }
+    ~FixConnection() {
+        assert(!session_bound_ && "call on_disconnected(ctx) before destroying a bound FixConnection");
+        this->end_connection();
+    }
 
     FixConnection(const FixConnection&) = delete;
     FixConnection& operator=(const FixConnection&) = delete;
 
     void start(Sink& sink, server::ConnectionId connection_id, Context& ctx) noexcept {
+        if (session_bound_) {
+            on_disconnected(ctx);
+        }
         this->end_connection();
         user_ = nullptr;
         session_bound_ = false;
@@ -93,6 +103,9 @@ public:
     // The transport is closed. Stops transmission first, so messages produced
     // by cancel-on-disconnect are stored for the next login, then unbinds.
     void on_disconnected(Context& ctx) noexcept {
+        // A newer connection of the same user has bound the day state, so the
+        // server already released this connection's binding: keep the new one.
+        session_bound_ = session_bound_ && this->day_state_bound_to_this_connection();
         this->end_connection();
         if (session_bound_ && user_ != nullptr) {
             session_bound_ = false;
@@ -124,6 +137,9 @@ private:
         }
         if (sequence == 0) {
             return refuse_logon(sender, "MsgSeqNum(34) must be positive");
+        }
+        if (sequence > kMaxMsgSeqNum) {
+            return refuse_logon(sender, "MsgSeqNum(34) out of range");
         }
         if (encrypt_method != 0) {
             return refuse_logon(sender, "EncryptMethod(98) must be 0");
@@ -203,8 +219,29 @@ private:
         if (type == "q") {
             return decode_mass_cancel(frame);
         }
+        if (is_fix44_message_type(type)) {
+            return send_unsupported_message_type_reject(frame);
+        }
         this->send_session_reject(frame.sequence, 35, type, SessionRejectReason::InvalidMsgType,
-                                  "unsupported MsgType");
+                                  "invalid MsgType");
+    }
+
+    // A valid FIX 4.4 application MsgType this gateway does not support:
+    // BusinessMessageReject(j) 380=3 (an application message, stored for resend).
+    void send_unsupported_message_type_reject(const FixInboundFrame& frame) noexcept {
+        constexpr std::uint64_t kUnsupportedMessageType = 3;
+        fix44::BusinessMessageReject reject;
+        reject.has_reference_sequence = true;
+        reject.reference_sequence = frame.sequence;
+        reject.reference_type.borrow(frame.message_type);
+        reject.reason = kUnsupportedMessageType;
+        reject.has_text = true;
+        reject.text.borrow("unsupported MsgType");
+        this->day_->send_application_message(
+            [&](const fix44::Header& header, std::span<char> buffer) {
+                return fix44::encode(reject, header, buffer.data(), buffer.size());
+            },
+            this->now_);
     }
 
     void on_session_reject_received(const FixInboundFrame&) noexcept {}
@@ -252,6 +289,7 @@ private:
         request.client_order_id = reader.required_text(11);
         reader.required_text(55);
         reader.required_char(54, "12");
+        reader.required_timestamp(60);
         if (!reader.ok()) {
             return this->send_session_reject(frame, reader.problem());
         }
@@ -265,6 +303,7 @@ private:
         request.client_order_id = reader.required_text(11);
         reader.required_text(55);
         reader.required_char(54, "12");
+        reader.required_timestamp(60);
         request.order_qty = reader.required_uint(38);
         request.order_type_code = reader.required_char(40, {});
         request.has_price = reader.optional_price(44, request.price);
@@ -281,7 +320,9 @@ private:
         FixFieldReader reader(*frame.parser);
         FixMassCancelRequest request;
         request.client_order_id = reader.required_text(11);
-        request.request_type = reader.required_char(530, "17");
+        // Every FIX 4.4 MassCancelRequestType is accepted here; the user state
+        // answers the unsupported ones (2..6) with 531=0 532=0.
+        request.request_type = reader.required_char(530, "1234567");
         request.symbol = request.request_type == '1' ? reader.required_text(55) : reader.optional_text(55);
         if (!reader.ok()) {
             return this->send_session_reject(frame, reader.problem());

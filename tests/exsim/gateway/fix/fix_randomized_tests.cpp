@@ -222,11 +222,12 @@ private:
         statistics_->engine_commands += intended_.size();
         CHECK_EQ(handler_.duplicate_deliveries, 0u);
 
-        const auto& store = exchange_.user(1).session_day_state().store();
+        const auto& day_state = exchange_.user(1).session_day_state();
         std::map<std::uint64_t, std::string> stored_application_messages;
         std::set<std::string> execution_ids;
-        for (std::uint64_t sequence = 1; sequence <= store.last_seq(); ++sequence) {
-            const auto stored = store.get(sequence);
+        // Only application messages are stored; session sequence numbers are empty.
+        for (std::uint64_t sequence = 1; sequence < day_state.next_outbound_seq(); ++sequence) {
+            const auto stored = day_state.stored_message(sequence);
             if (stored.bytes.empty()) {
                 continue;
             }
@@ -247,7 +248,8 @@ private:
             }
             stored_application_messages.emplace(sequence, key);
         }
-        CHECK_EQ(exchange_.user(1).session_day_state().messages_not_stored(), 0u);
+        CHECK_EQ(day_state.messages_not_stored(), 0u);
+        CHECK_EQ(day_state.stored_message_count(), stored_application_messages.size());
         CHECK(handler_.received_by_sequence == stored_application_messages);
         statistics_->application_messages += stored_application_messages.size();
         CHECK_EQ(handler_.received_by_sequence.size(), stored_application_messages.size());

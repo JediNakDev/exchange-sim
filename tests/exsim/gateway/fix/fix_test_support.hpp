@@ -323,6 +323,10 @@ public:
         : exchange_(exchange), sender_(std::move(sender)), connection_(exchange.directory(), settings) {
         connection_.start(sink_, ++generation_, exchange_);
     }
+    // A bound FixConnection must be released before it is destroyed.
+    ~FixTestConnection() { connection_.on_disconnected(exchange_); }
+    FixTestConnection(const FixTestConnection&) = delete;
+    FixTestConnection& operator=(const FixTestConnection&) = delete;
 
     std::size_t feed(std::string_view bytes) { return connection_.on_data({bytes.data(), bytes.size()}, exchange_); }
 
@@ -380,7 +384,9 @@ private:
     std::string sender_;
     TestByteSink sink_;
     ExchangeConnection connection_;
-    std::uint32_t generation_ = 0;
+    // Shared by every test connection, as a server never reuses a live
+    // ConnectionId: a stale and a newer connection must differ.
+    static inline std::uint32_t generation_ = 0;
 };
 
 // A FixClient wired to an exchange-side FixConnection through two in-memory
@@ -394,6 +400,10 @@ public:
     FixClientWire(FixTestExchange& exchange, Handler& handler, const fix::FixClientSettings& client_settings,
                   const fix::FixSessionSettings& exchange_settings = {})
         : exchange_(exchange), connection_(exchange.directory(), exchange_settings), client_(handler, client_settings) {}
+    // A bound FixConnection must be released before it is destroyed.
+    ~FixClientWire() { connection_.on_disconnected(exchange_); }
+    FixClientWire(const FixClientWire&) = delete;
+    FixClientWire& operator=(const FixClientWire&) = delete;
 
     void connect(bool reset_sequence_numbers) {
         client_to_exchange_.clear();
