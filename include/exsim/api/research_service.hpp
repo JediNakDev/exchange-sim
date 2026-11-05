@@ -34,6 +34,7 @@ inline constexpr std::string_view kApiSchemaVersion = "exsim.api/1";
 struct ResearchServiceOptions {
     std::filesystem::path data_directory = "exsim-api-data";
     std::size_t max_live_simulations = 8;
+    std::size_t max_idempotency_keys = 100'000;
     std::uint64_t executor_slice_steps = 2048;
     std::string service_build_id = "exsim_api/1";
     bool start_executor = true;  // tests drive the executor by hand when false

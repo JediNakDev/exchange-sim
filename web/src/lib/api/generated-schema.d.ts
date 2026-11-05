@@ -842,7 +842,7 @@ export interface components {
         };
         TerminalDiagnostics: {
             /**
-             * @description Mapping from the runner's termination reason: end_time_reached and event_queue_exhausted give completed_at_simulation_bound; cancel_requested gives cancelled_by_request (or the service limit that requested it: failed_event_bound_exceeded, failed_wall_clock_limit_exceeded); event_limit_reached gives failed_event_bound_exceeded; simulation_queue_full, observation_queue_full and recorder_overflow give failed_journal_backpressure; ledger_rejected_fill gives failed_ledger_overflow; engine_output_capacity gives failed_capacity_exceeded; order_table_corrupt gives failed_internal_error. A run whose independent replay does not reproduce its event digest is failed_replay_mismatch.
+             * @description Mapping from the runner's termination reason: end_time_reached and event_queue_exhausted give completed_at_simulation_bound; cancel_requested gives cancelled_by_request (or the service limit that requested it: failed_event_bound_exceeded, failed_wall_clock_limit_exceeded); event_limit_reached gives failed_event_bound_exceeded; simulation_queue_full and observation_queue_full give failed_capacity_exceeded; recorder_overflow gives failed_journal_backpressure; ledger_rejected_fill gives failed_ledger_overflow; engine_output_capacity gives failed_capacity_exceeded; order_table_corrupt gives failed_internal_error. A run whose independent replay does not reproduce its event digest is failed_replay_mismatch.
              * @enum {string}
              */
             outcomeCode: "completed_at_simulation_bound" | "cancelled_by_request" | "failed_event_bound_exceeded" | "failed_wall_clock_limit_exceeded" | "failed_journal_backpressure" | "failed_ledger_overflow" | "failed_capacity_exceeded" | "failed_replay_mismatch" | "failed_internal_error";
@@ -2033,6 +2033,7 @@ export interface operations {
                 cursor?: components["parameters"]["Cursor"];
                 /** @description Maximum items per page. */
                 limit?: components["parameters"]["Limit"];
+                /** @description Any exchange order id the own order has had. A replace assigns the order a new exchange order id, so the result holds every fill of that order and each fill reports the id it had when it filled. */
                 orderId?: components["schemas"]["UnsignedIntegerString"];
             };
             header?: never;

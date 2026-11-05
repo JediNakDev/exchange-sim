@@ -30,8 +30,8 @@ namespace exsim::api {
 // An error response in the contract's envelope (docs/API.md, Errors).
 class ApiFailure : public std::runtime_error {
 public:
-    ApiFailure(int http_status, std::string code, const std::string& message)
-        : std::runtime_error(message), http_status(http_status), code(std::move(code)) {}
+    ApiFailure(int status_value, std::string error_code, const std::string& message)
+        : std::runtime_error(message), http_status(status_value), code(std::move(error_code)) {}
     int http_status;
     std::string code;
     std::optional<std::string> current_run_state;

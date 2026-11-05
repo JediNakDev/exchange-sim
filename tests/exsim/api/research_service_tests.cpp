@@ -55,7 +55,8 @@ struct ServiceResponse {
 
 class ServiceUnderTest {
 public:
-    explicit ServiceUnderTest(const std::filesystem::path& data_directory) : service_(options_for(data_directory)) {}
+    explicit ServiceUnderTest(const std::filesystem::path& data_directory, std::size_t max_keys = 100'000)
+        : service_(options_for(data_directory, max_keys)) {}
 
     ServiceResponse send(std::string_view method, std::string_view target, std::string_view body = {}, std::string_view idempotency_key = {},
                          std::string_view extra_headers = {}) {
@@ -88,9 +89,10 @@ public:
     std::string next_key() { return "test-key-" + std::to_string(++key_counter_); }
 
 private:
-    static ResearchServiceOptions options_for(const std::filesystem::path& data_directory) {
+    static ResearchServiceOptions options_for(const std::filesystem::path& data_directory, std::size_t max_keys) {
         ResearchServiceOptions options;
         options.data_directory = data_directory;
+        options.max_idempotency_keys = max_keys;
         options.start_executor = false;
         options.executor_slice_steps = 512;
         return options;
@@ -465,4 +467,16 @@ TEST_CASE(api_service, comparison_pairs_completed_runs_by_seed) {
     CHECK(!comparison.body.find("assumptionDifferences")->items.empty());
     CHECK_EQ(service.get("/v1/comparisons?baselineExperimentId=" + baseline_id + "&candidateExperimentId=" + baseline_id).error_code(),
              std::string("comparison_not_paired"));
+}
+
+TEST_CASE(api_service, idempotency_capacity_rejects_before_mutation_and_preserves_replay) {
+    ServiceUnderTest service(fresh_service_directory("key_capacity"), 1);
+    const std::string body = experiment_request_body(0, "capacity");
+    const ServiceResponse first = service.send("POST", "/v1/experiments", body, "capacity-first");
+    REQUIRE_EQ(first.status, 201);
+    CHECK_EQ(service.send("POST", "/v1/experiments", body, "capacity-second").status, 503);
+    const ServiceResponse replay = service.send("POST", "/v1/experiments", body, "capacity-first");
+    CHECK_EQ(replay.status, 201);
+    CHECK_EQ(replay.body_text, first.body_text);
+    CHECK_EQ(service.get("/v1/experiments").body.find("items")->items.size(), 1u);
 }

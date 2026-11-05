@@ -18,7 +18,6 @@ namespace exsim::api {
 namespace {
 
 constexpr int kMaxJsonNestingDepth = 64;
-constexpr std::size_t kMaxIdempotencyKeys = 100'000;
 
 ApiFailure validation_failure(const std::string& message, std::vector<FieldIssue> issues) {
     ApiFailure failure(422, "validation_failed", message);
@@ -957,11 +956,16 @@ HttpResponse ResearchService::route_post(const HttpRequest& request) {
             return response;
         }
     }
+    {
+        std::lock_guard lock(state_mutex_);
+        if (idempotent_responses_.size() >= options_.max_idempotency_keys)
+            throw ApiFailure(503, "service_unavailable", "idempotency key capacity reached; no mutation was executed");
+    }
     const auto [status, response_body] = execute_mutation(request, body ? &*body : nullptr);
     StoredIdempotentResponse stored{fingerprint, status, response_body};
     {
         std::lock_guard lock(state_mutex_);
-        if (idempotent_responses_.size() < kMaxIdempotencyKeys) idempotent_responses_[*key] = stored;
+        idempotent_responses_[*key] = stored;
     }
     try {
         append_idempotency_record(*key, stored);

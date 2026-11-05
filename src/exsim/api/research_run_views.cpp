@@ -603,8 +603,8 @@ std::string ResearchRun::render_order_lifecycle_json(OrderId order_id) const {
     }
     json.end_array();
 
-    // FIFO evidence: the rested position recorded by the runner, then the
-    // exchange-truth book replayed up to the order's last event.
+    // FIFO evidence from the exchange-truth book, including the initial
+    // resting state. Runner arrival evidence may describe pre-command state.
     json.key("fifoAheadEvidence").begin_array();
     std::size_t evidence_count = 0;
     const auto write_evidence = [&](std::uint64_t position, const char* reason, Price price, std::uint64_t ahead, std::uint64_t orders_ahead,
@@ -624,15 +624,13 @@ std::string ResearchRun::render_order_lifecycle_json(OrderId order_id) const {
     std::vector<OrderId> order_ids;
     for (const auto& [alias, index] : artifacts_.order_by_exchange_order_id)
         if (&artifacts_.orders[index] == order) order_ids.push_back(alias);
-    if (order->arrival_position != kNoEventPosition && events[order->arrival_position].has(kHasQueuePosition)) {
-        const CanonicalEventRecord& arrival = events[order->arrival_position];
+    if (order->arrival_position != kNoEventPosition) {
         std::uint64_t rested_position = order->arrival_position;
         for (const std::uint64_t position : order->event_positions)
             if (events[position].kind == CanonicalEventKind::OrderRested) {
                 rested_position = position;
                 break;
             }
-        write_evidence(rested_position, "rested", arrival.price, arrival.queue_shares_ahead, arrival.queue_orders_ahead, arrival.queue_level_shares);
         ExchangeTruthBook book;
         const std::uint64_t last = std::min<std::uint64_t>(order->last_position, events.size() - 1);
         for (std::uint64_t position = 0; position <= last; ++position) {
@@ -655,6 +653,11 @@ std::string ResearchRun::render_order_lifecycle_json(OrderId order_id) const {
             if (touches_order && event.kind == CanonicalEventKind::OrderCanceled)
                 write_evidence(position, "immediately_before_cancel", before.price, before.shares_ahead, before.orders_ahead, before.level_shares);
             book.apply(event);
+            if (position == rested_position && event.kind == CanonicalEventKind::OrderRested) {
+                const auto rested = book.queue_position(event.order_id);
+                if (rested.found)
+                    write_evidence(position, "rested", rested.price, rested.shares_ahead, rested.orders_ahead, rested.level_shares);
+            }
             if (tracked != 0 && !touches_order) {
                 const ExchangeTruthBook::QueuePosition after = book.queue_position(tracked);
                 if (after.found && after.shares_ahead < before.shares_ahead) {
