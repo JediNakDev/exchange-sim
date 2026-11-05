@@ -25,8 +25,14 @@
 //   md.reset_packet_faults()      used by `fault md off` when present
 //   md.on_shutdown(Timestamp)     ITCH end of system hours / end of session
 //   s.on_shutdown(Timestamp, Core&)  OUCH/FIX end-of-day messages
+//   md.on_events / on_timer / on_shutdown may return md::PublishStatus
+//                                 instead of void: the core counts and keeps
+//                                 failures (CoreCounters, `status`)
+//   md.state(), md.stop_reason()  md::PublisherState and md::PublishStatus,
+//                                 shown by `status`
 
 #include "exsim/event.hpp"
+#include "exsim/md/publisher.hpp"
 #include "exsim/sim/packet_faults.hpp"
 #include "exsim/types.hpp"
 
@@ -48,6 +54,7 @@ enum class SubmitResult : std::uint8_t {
     OutsideTradingDay = 2,       // stamped timestamp outside [trading_day_start, trading_day_end): not applied
     OutputCapacityExceeded = 3,  // EventBuffer smaller than the engine's bound (test-only sizing): not applied
     DeferredQueueFull = 4,       // re-entrant submit beyond the deferred queue: not applied
+    ExchangeShutDown = 5,        // the exchange has shut down for the day: not applied, journaled or dispatched
 };
 
 [[nodiscard]] constexpr std::string_view to_string(SubmitResult r) noexcept {
@@ -57,6 +64,7 @@ enum class SubmitResult : std::uint8_t {
         case SubmitResult::OutsideTradingDay: return "outside trading day";
         case SubmitResult::OutputCapacityExceeded: return "event buffer too small";
         case SubmitResult::DeferredQueueFull: return "deferred queue full";
+        case SubmitResult::ExchangeShutDown: return "exchange shut down";
     }
     return "?";
 }
@@ -103,6 +111,12 @@ concept MarketDataPacketFaultReset = requires(MarketData& market_data) { market_
 
 template <typename MarketData>
 concept MarketDataShutdown = requires(MarketData& market_data, Timestamp now) { market_data.on_shutdown(now); };
+
+template <typename MarketData>
+concept MarketDataPublisherState = requires(const MarketData& market_data) {
+    { market_data.state() } -> std::same_as<md::PublisherState>;
+    { market_data.stop_reason() } -> std::same_as<md::PublishStatus>;
+};
 
 template <typename Sessions, typename Core>
 concept SessionsShutdown = requires(Sessions& sessions, Timestamp now, Core& core) { sessions.on_shutdown(now, core); };

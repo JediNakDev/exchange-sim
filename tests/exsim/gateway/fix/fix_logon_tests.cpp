@@ -38,7 +38,8 @@ TEST_CASE(gateway_fix_logon, reset_flag_echoed_and_sequences_restart) {
     CHECK_EQ(response.pipes(), with_pipes(exchange_message("A", 1, "98=0|108=10|141=Y|", "CLIENT2")));
     CHECK_EQ(exchange.user(2).session_day_state().expected_inbound_seq(), 2u);
     CHECK_EQ(exchange.user(2).session_day_state().next_outbound_seq(), 2u);
-    CHECK_EQ(exchange.user(2).session_day_state().store().last_seq(), 1u);
+    // The reset Logon is a session message: it takes no store slot.
+    CHECK_EQ(exchange.user(2).session_day_state().store().last_seq(), 0u);
 }
 
 namespace {

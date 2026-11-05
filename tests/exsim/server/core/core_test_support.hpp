@@ -169,7 +169,7 @@ struct RecordingSessions {
         if (session == unbind_when_dispatching_to && unbind_target != 0) {
             const SessionId target = unbind_target;
             unbind_target = 0;
-            core.unbind(target);
+            core.unbind(target, core.connection(target).value_or(0));
         }
         if (session == storm_when_dispatching_to && storm_commands != 0) {
             const std::size_t n = storm_commands;

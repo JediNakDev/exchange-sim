@@ -147,7 +147,7 @@ TEST_CASE(server_core_journal, replay_reproduces_every_dispatched_event) {
             const auto best_ask = h.core.engine().best_ask(kAapl);
             REQUIRE(best_ask.has_value());
             REQUIRE_EQ(h.core.submit(limit_order(2, 2, kAapl, Side::BUY, *best_ask, 10)), SubmitResult::Applied);
-            h.core.unbind(1);  // cancel-on-disconnect
+            h.core.unbind(1, 11);  // cancel-on-disconnect
         }
     }
     h.core.shutdown();  // SetPhase Closed, then a journal flush
