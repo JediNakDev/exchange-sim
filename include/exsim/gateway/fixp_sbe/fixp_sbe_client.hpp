@@ -158,7 +158,8 @@ public:
     }
 
     // Sends a message again under an earlier client sequence number. The
-    // server applies it only if that number was never applied (FIXP 4.8).
+    // server drops numbers below its high-water mark, including NotApplied gaps.
+    // Retry a NotApplied request with send() under a fresh number (FIXP 4.8).
     template <class Message>
     bool resend(std::uint64_t client_sequence_number, const Message& message, std::uint64_t now_unix_ns) noexcept {
         static_assert(sbe::template_id_value(Message::kTemplateId) >= sbe::kFirstApplicationTemplateId);

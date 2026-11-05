@@ -227,7 +227,12 @@ report is stored and sequenced but not sent; the next live message is
 preceded by a Sequence message, so the client sees the gap and requests
 retransmission. Store exhaustion terminates the session and refuses normal
 reconnects for the rest of the day, because later reports could not be
-recovered; size `engine.store_messages_per_session` and
+recovered. Admission reserves terminal reports for live orders in both message
+and byte budgets; when only this reserve remains, Terminate refuses new
+requests without applying them. Passive fills may still exhaust the store;
+loss then latches a day-long refusal of both Establish and Negotiate, and
+later reports are never appended behind the hole. See the protocol document
+for exact reasons and recovery rules. Size `engine.store_messages_per_session` and
 `engine.store_bytes_per_session` for the whole day. FIXP finalization
 (FinishedSending, FinishedReceiving) is not implemented; at shutdown the
 server sends Terminate on every live connection.

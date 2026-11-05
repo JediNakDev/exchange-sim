@@ -47,80 +47,64 @@ sbe::RetransmitRequest retransmit_request(const EngineTestContext& context, std:
 // Findings (expected to FAIL on the reviewed code)
 // ============================================================================
 
-// REVIEW-SBE-01. docs/GATEWAYS.md section 5: "Store exhaustion terminates the
-// session and refuses normal reconnects for the rest of the day, because later
-// reports could not be recovered." handle_establish has no such check: after
-// reports were lost to store overflow, Establish is acknowledged and the
-// client believes it can recover the whole server flow.
+// REVIEW-SBE-01. Passive fills cannot be refused by gateway admission.
 TEST_CASE(gateway_fixp_sbe_review, establish_is_refused_after_reports_were_lost_to_store_overflow) {
     EngineTestContext context;
-    context.add_instrument("AAPL");
-    UserState& alice = context.add_user("alice", "secret", 1, 0, exsim::StpMode::None, /*cancel_on_disconnect=*/true,
-                                        store_settings(8, 8 * 128, 1));
-    {
-        ServerConnectionHarness server(context);
-        server.log_in();
-        for (std::uint64_t cl_ord_id = 1; cl_ord_id <= 6; ++cl_ord_id) {
-            server.send(limit_order(cl_ord_id, sbe::SideCode::Buy, kHundredDollars, 10));
-        }
-        REQUIRE_EQ(alice.last_server_sequence_number(), 6u);
-        REQUIRE_EQ(alice.statistics().messages_lost_to_store_overflow, 0u);
-    }  // transport lost: cancel on disconnect produces 6 cancels + 1 mass cancel report
-    REQUIRE(alice.statistics().messages_lost_to_store_overflow > 0u);
-
-    ServerConnectionHarness reconnect(context, 2);
-    reconnect.send(establish_with_credentials(context, "alice:secret"));
-    const std::vector<ParsedFrame> frames = reconnect.take_output();
-    REQUIRE_EQ(frames.size(), 1u);
-    CHECK(frames[0].is(sbe::TemplateId::EstablishmentReject));
-    CHECK(reconnect.connection().state() != fixp::FixpSbeConnectionState::Established);
-}
-
-// REVIEW-SBE-01 (impact). When the store is full by bytes, a large report is
-// lost but a later smaller report still fits and is stored at the next
-// sequence number. The recovered stream has no gap, so even a strict client
-// cannot detect the loss: here it receives a cancel that says cum_qty = 30
-// without ever receiving the fill. Either the reconnect is refused (the
-// documented behaviour) or the recovered stream must be consistent.
-TEST_CASE(gateway_fixp_sbe_review, report_lost_to_byte_store_overflow_is_not_hidden_behind_contiguous_sequence) {
-    EngineTestContext context;
-    const exsim::InstrumentId instrument = context.add_instrument("AAPL");
-    constexpr std::size_t kNewReportBytes = sbe::kFramePrefixSize + sbe::ExecutionReportNew::kBlockLength;      // 84
-    constexpr std::size_t kTradeReportBytes = sbe::kFramePrefixSize + sbe::ExecutionReportTrade::kBlockLength;  // 89
-    constexpr std::size_t kCancelReportBytes = sbe::kFramePrefixSize + sbe::ExecutionReportCancel::kBlockLength;  // 81
-    static_assert(kCancelReportBytes < kTradeReportBytes);
-    UserState& alice = context.add_user("alice", "secret", 1, 0, exsim::StpMode::None, /*cancel_on_disconnect=*/true,
-                                        store_settings(100, kNewReportBytes + kTradeReportBytes - 4, 0));
+    const auto instrument = context.add_instrument("AAPL");
+    UserState& alice = context.add_user("alice", "secret", 1, 0, exsim::StpMode::None, true,
+                                       store_settings(8, 8 * 128, 1));
     {
         ServerConnectionHarness server(context);
         server.log_in();
         server.send(limit_order(1, sbe::SideCode::Buy, kHundredDollars, 100));
-        REQUIRE_EQ(alice.last_server_sequence_number(), 1u);
-        context.submit_resting_order(instrument, 2, 1, exsim::Side::SELL, kHundredDollars, 30);  // fill report lost
+        REQUIRE_EQ(alice.live_order_count(), 1u);
+        for (std::uint32_t id = 1; id <= 8; ++id) {
+            context.submit_resting_order(instrument, 2, id, exsim::Side::SELL, kHundredDollars, 1);
+        }
         REQUIRE_EQ(alice.statistics().messages_lost_to_store_overflow, 1u);
         CHECK(server.connection().close_reason() == fixp::FixpSbeCloseReason::StoreFull);
-    }  // cancel on disconnect: the 81 byte cancel report still fits
-
+    }
+    REQUIRE(alice.store_overflowed());
+    REQUIRE_EQ(alice.last_server_sequence_number(), 8u);
     ServerConnectionHarness reconnect(context, 2);
     reconnect.send(establish_with_credentials(context, "alice:secret"));
-    std::vector<ParsedFrame> frames = reconnect.take_output();
+    auto frames = reconnect.take_output();
     REQUIRE_EQ(frames.size(), 1u);
-    if (frames[0].is(sbe::TemplateId::EstablishmentReject)) return;  // documented behaviour: nothing to recover
-    REQUIRE(frames[0].is(sbe::TemplateId::EstablishmentAck));
-    const std::uint64_t next_server_sequence_number = frames[0].as<sbe::EstablishmentAck>().next_seq_no;
-    REQUIRE(next_server_sequence_number > 1u);
-    reconnect.send(retransmit_request(context, 1, static_cast<std::uint32_t>(next_server_sequence_number - 1)));
-    frames = reconnect.take_output();
-    std::uint32_t reported_filled_quantity = 0;
-    for (const ParsedFrame& frame : frames) {
-        if (frame.is(sbe::TemplateId::ExecutionReportTrade)) {
-            reported_filled_quantity += frame.as<sbe::ExecutionReportTrade>().last_qty;
+    REQUIRE(frames[0].is(sbe::TemplateId::EstablishmentReject));
+    CHECK(frames[0].as<sbe::EstablishmentReject>().reason == fixp::kStoreOverflowedRefusal);
+    ServerConnectionHarness renegotiate(context, 3);
+    renegotiate.negotiate(kSecondSessionUuid);
+    frames = renegotiate.take_output();
+    REQUIRE_EQ(frames.size(), 1u);
+    REQUIRE(frames[0].is(sbe::TemplateId::NegotiationReject));
+    CHECK(frames[0].as<sbe::NegotiationReject>().reason == fixp::kStoreOverflowedRefusal);
+}
+
+// A large passive Trade fails while the smaller Cancel would still fit.
+// Assert the retained prefix itself, even when recovery is refused.
+TEST_CASE(gateway_fixp_sbe_review, report_lost_to_byte_store_overflow_is_not_hidden_behind_contiguous_sequence) {
+    EngineTestContext context;
+    const auto instrument = context.add_instrument("AAPL");
+    constexpr auto new_bytes = sbe::kFramePrefixSize + sbe::ExecutionReportNew::kBlockLength;
+    constexpr auto trade_bytes = sbe::kFramePrefixSize + sbe::ExecutionReportTrade::kBlockLength;
+    constexpr auto cancel_bytes = sbe::kFramePrefixSize + sbe::ExecutionReportCancel::kBlockLength;
+    static_assert(cancel_bytes < trade_bytes);
+    // Enough for admission, two fills, and a cancel, but not a third fill.
+    UserState& alice = context.add_user("alice", "secret", 1, 0, exsim::StpMode::None, true,
+                                       store_settings(100, new_bytes + 3 * trade_bytes - 4, 0));
+    {
+        ServerConnectionHarness server(context);
+        server.log_in();
+        server.send(limit_order(1, sbe::SideCode::Buy, kHundredDollars, 100));
+        for (std::uint32_t id = 1; id <= 3; ++id) {
+            context.submit_resting_order(instrument, 2, id, exsim::Side::SELL, kHundredDollars, 10);
         }
-        if (frame.is(sbe::TemplateId::ExecutionReportCancel)) {
-            const sbe::ExecutionReportCancel cancel = frame.as<sbe::ExecutionReportCancel>();
-            CHECK_EQ(cancel.cum_qty, reported_filled_quantity);  // a fill the client never saw
-        }
+        REQUIRE_EQ(alice.statistics().messages_lost_to_store_overflow, 1u);
     }
+    CHECK_EQ(alice.last_server_sequence_number(), 3u);
+    CHECK_EQ(alice.store().bytes_used(), new_bytes + 2 * trade_bytes);
+    CHECK_EQ(alice.live_order_count(), 0u);
+    CHECK_EQ(alice.statistics().messages_lost_to_store_overflow, 3u); // fill, cancel, mass cancel outcome
 }
 
 // REVIEW-SBE-02. The store reserve only gates new orders and replaces by a
@@ -177,6 +161,89 @@ TEST_CASE(gateway_fixp_sbe_review, terminate_received_while_negotiated_is_answer
     frames = server.take_output();
     REQUIRE_EQ(frames.size(), 1u);
     CHECK(frames[0].is(sbe::TemplateId::Terminate));
+}
+
+TEST_CASE(gateway_fixp_sbe_review, shutdown_while_negotiated_sends_terminate) {
+    EngineTestContext context;
+    context.add_user("alice", "secret", 1);
+    ServerConnectionHarness server(context);
+    server.negotiate(kFirstSessionUuid);
+    (void)server.take_output();
+    server.connection().end_session(context);
+    auto frames = server.take_output();
+    REQUIRE_EQ(frames.size(), 1u);
+    REQUIRE(frames[0].is(sbe::TemplateId::Terminate));
+    CHECK(frames[0].as<sbe::Terminate>().code == sbe::TerminationCode::Finished);
+    CHECK(server.connection().close_requested());
+    CHECK(server.connection().flush_before_close());
+}
+
+// REVIEW-SBE-05: a failed response must leave the earlier flow recoverable.
+TEST_CASE(gateway_fixp_sbe_review, failed_negotiation_response_does_not_burn_uuid_or_supersede_flow) {
+    EngineTestContext context;
+    context.add_instrument("AAPL");
+    auto& alice = context.add_user("alice", "secret", 1);
+    {
+        ServerConnectionHarness server(context);
+        server.log_in();
+        server.send(limit_order(1, sbe::SideCode::Buy, kHundredDollars, 10));
+    }
+    const auto last = alice.last_server_sequence_number();
+    {
+        ServerConnectionHarness failed(context, 2);
+        failed.output().refuse_writes = true;
+        failed.negotiate(kSecondSessionUuid);
+        CHECK(failed.connection().close_reason() == fixp::FixpSbeCloseReason::SendBufferFull);
+    }
+    CHECK(alice.logical_session_uuid() == kFirstSessionUuid);
+    CHECK_EQ(alice.last_server_sequence_number(), last);
+    ServerConnectionHarness retry(context, 3);
+    retry.negotiate(kSecondSessionUuid);
+    const auto frames = retry.take_output();
+    REQUIRE_EQ(frames.size(), 1u);
+    CHECK(frames[0].is(sbe::TemplateId::NegotiationResponse));
+}
+
+// Repeated rejects and forward gaps must not consume the terminal reserve.
+TEST_CASE(gateway_fixp_sbe_review, repeated_requests_preserve_terminal_store_reserve) {
+    for (const bool gap : {false, true}) {
+        EngineTestContext context;
+        context.add_instrument("AAPL");
+        auto& alice = context.add_user("alice", "secret", 1, 0, exsim::StpMode::None, true,
+                                      store_settings(12, 12 * 128, 1));
+        {
+            ServerConnectionHarness server(context);
+            server.log_in();
+            server.send(limit_order(1, sbe::SideCode::Buy, kHundredDollars, 10));
+            for (std::uint32_t id = 2; id < 30 && !server.connection().close_requested(); ++id) {
+                if (gap) server.sequence(2 * id);
+                else server.send(limit_order(id, sbe::SideCode::Buy, kHundredDollars, 10));
+            }
+            CHECK(server.connection().close_reason() == fixp::FixpSbeCloseReason::StoreReserveReached);
+            CHECK_EQ(alice.statistics().requests_refused_at_store_reserve, 1u);
+        }
+        CHECK_EQ(alice.live_order_count(), 0u);
+        CHECK_EQ(alice.statistics().messages_lost_to_store_overflow, 0u);
+        CHECK(!alice.store_overflowed());
+    }
+}
+
+TEST_CASE(gateway_fixp_sbe_review, byte_budget_reserves_terminal_reports_at_shutdown) {
+    EngineTestContext context;
+    context.add_instrument("AAPL");
+    auto& alice = context.add_user("alice", "secret", 1, 0, exsim::StpMode::None, false,
+                                  store_settings(1000, 12 * fixp::kMaxApplicationFrameSize, 1));
+    ServerConnectionHarness server(context);
+    server.log_in();
+    for (std::uint32_t id = 1; id < 30 && !server.connection().close_requested(); ++id) {
+        server.send(limit_order(id, sbe::SideCode::Buy, kHundredDollars, 10));
+    }
+    REQUIRE(alice.live_order_count() > 0u);
+    exsim::SetPhase closed;
+    closed.phase = exsim::Phase::Closed;
+    context.submit(exsim::Command(closed));
+    CHECK_EQ(alice.live_order_count(), 0u);
+    CHECK_EQ(alice.statistics().messages_lost_to_store_overflow, 0u);
 }
 
 // ============================================================================
