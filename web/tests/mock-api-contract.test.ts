@@ -8,9 +8,9 @@ const harness = createMockApiHarness();
 const { apiClient } = harness;
 const FIXTURE_RUN_ID = "run_fsw2seed303";
 
-function experimentRequestFromBaseline(name: string, quoteWidthTicks = "3"): ApiSchemas["ExperimentCreateRequest"] {
+function experimentRequestFromBaseline(name: string, halfSpreadTicks = "3"): ApiSchemas["ExperimentCreateRequest"] {
   const config = structuredClone(BASELINE_CONFIGURATIONS[0].config);
-  if (config.strategy.strategyKind === "fixed_spread_market_maker") config.strategy.quoteWidthTicks = quoteWidthTicks;
+  if (config.strategy.strategyKind === "fixed_spread_market_maker") config.strategy.halfSpreadTicks = halfSpreadTicks;
   config.seedSet = { masterSeeds: ["101", "202"] };
   config.bounds.endSimulationTimeNs = "10000000000";
   return { name, derivedFromBaselineId: BASELINE_CONFIGURATIONS[0].baselineId, parentExperimentId: "exp_fixedspreadw2", config };
@@ -99,7 +99,7 @@ describe("every read operation returns contract-conformant bodies", () => {
       200,
     );
     expect(comparison.comparable).toBe(true);
-    expect(comparison.assumptionDifferences.map((difference) => difference.fieldPath)).toContain("/strategy/quoteWidthTicks");
+    expect(comparison.assumptionDifferences.map((difference) => difference.fieldPath)).toContain("/strategy/halfSpreadTicks");
     const selfComparison = await apiClient.GET("/v1/comparisons", { params: { query: { baselineExperimentId: "exp_fixedspreadw2", candidateExperimentId: "exp_fixedspreadw2" } } });
     expect(expectContractError(harness, selfComparison, "get", "/v1/comparisons", 409).code).toBe("comparison_not_paired");
     expectContractResponse(harness, await apiClient.GET("/v1/connections"), "get", "/v1/connections", 200);
@@ -122,7 +122,7 @@ describe("experiment creation", () => {
     const preview = expectContractResponse(harness, await apiClient.POST("/v1/experiment-previews", { body: experimentRequestFromBaseline("preview") }), "post", "/v1/experiment-previews", 200);
     expect(preview.valid).toBe(true);
     const changedPaths = preview.assumptions.filter((assumption) => assumption.differsFromBaseline).map((assumption) => assumption.fieldPath);
-    expect(changedPaths).toContain("/strategy/quoteWidthTicks");
+    expect(changedPaths).toContain("/strategy/halfSpreadTicks");
     expect(changedPaths).toContain("/bounds/endSimulationTimeNs");
     expect(preview.assumptions.some((assumption) => assumption.fieldPath === "/latency/cancelLatencyNs")).toBe(true);
   });

@@ -114,6 +114,7 @@ function BookLadder({ bookView, title }: { bookView: ApiSchemas["BookView"] | nu
             <>
               {humanizeEnumValue(bookView.source)}
               {bookView.lastDeliveredSourceEventPosition !== null ? `, last delivered update from event ${bookView.lastDeliveredSourceEventPosition}` : ""}
+              {bookView.view === "strategy_visible" && bookView.bids.every((bookLevel) => bookLevel.orderCount === null) ? ". The feed delivers top of book only, without order counts" : ""}
             </>
           ) : (
             "Loading..."
@@ -134,16 +135,16 @@ function BookLadder({ bookView, title }: { bookView: ApiSchemas["BookView"] | nu
             <TableBody>
               {[...bookView.asks].reverse().map((bookLevel) => (
                 <TableRow key={`ask-${bookLevel.price}`}>
-                  <TableCell className="text-right font-mono tabular-nums">{bookLevel.ownShares === "0" ? "" : bookLevel.ownShares}</TableCell>
-                  <TableCell className="text-right font-mono tabular-nums">{bookLevel.orderCount}</TableCell>
+                  <TableCell className="text-right font-mono tabular-nums">{bookLevel.ownShares === "0" ? "" : (bookLevel.ownShares ?? "n/a")}</TableCell>
+                  <TableCell className="text-right font-mono tabular-nums">{bookLevel.orderCount ?? "n/a"}</TableCell>
                   <TableCell className="text-right font-mono tabular-nums">{formatIntegerText(bookLevel.totalShares)}</TableCell>
                   <TableCell className="text-right font-mono text-red-700 tabular-nums dark:text-red-400">{bookLevel.price}</TableCell>
                 </TableRow>
               ))}
               {bookView.bids.map((bookLevel) => (
                 <TableRow key={`bid-${bookLevel.price}`}>
-                  <TableCell className="text-right font-mono tabular-nums">{bookLevel.ownShares === "0" ? "" : bookLevel.ownShares}</TableCell>
-                  <TableCell className="text-right font-mono tabular-nums">{bookLevel.orderCount}</TableCell>
+                  <TableCell className="text-right font-mono tabular-nums">{bookLevel.ownShares === "0" ? "" : (bookLevel.ownShares ?? "n/a")}</TableCell>
+                  <TableCell className="text-right font-mono tabular-nums">{bookLevel.orderCount ?? "n/a"}</TableCell>
                   <TableCell className="text-right font-mono tabular-nums">{formatIntegerText(bookLevel.totalShares)}</TableCell>
                   <TableCell className="text-right font-mono text-green-700 tabular-nums dark:text-green-400">{bookLevel.price}</TableCell>
                 </TableRow>

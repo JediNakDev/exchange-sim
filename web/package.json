@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "bun scripts/run-development-servers.ts",
+    "dev:mock": "bun scripts/run-development-servers.ts --mock",
     "dev:next": "next dev",
     "mock-server": "bun mock-server/start-mock-server.ts",
     "build": "next build",
@@ -11,6 +12,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "bun test",
+    "test:e2e": "make -C .. MODE=release build/release/exsim_api && bun test ./e2e/exsim-api-binary.e2e.ts",
     "generate-api-types": "openapi-typescript ../docs/api/openapi.yaml -o src/lib/api/generated-schema.d.ts"
   },
   "dependencies": {

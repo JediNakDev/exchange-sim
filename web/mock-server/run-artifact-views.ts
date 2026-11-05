@@ -226,6 +226,7 @@ export function buildRunSummary(runId: string, config: ExperimentConfig, artifac
   const markoutSummaries: Schemas["MarkoutHorizonSummary"][] = config.markoutHorizonsNs.map((horizonText) => {
     let availableFillCount = 0;
     let censoredFillCount = 0;
+    let unavailableFillCount = 0;
     let totalTenthUnits = 0n;
     let availableShares = 0n;
     for (const fill of includedFills) {
@@ -235,10 +236,12 @@ export function buildRunSummary(runId: string, config: ExperimentConfig, artifac
         availableShares += fill.quantity;
         totalTenthUnits += parseScaledDecimal(markout.markoutTotal, MID_SCALE_DIGITS);
       } else if (markout.status === "censored_past_run_end") censoredFillCount++;
+      else if (markout.status === "unavailable_no_mark") unavailableFillCount++;
     }
     return {
       horizonNs: horizonText,
       availableFillCount: String(availableFillCount),
+      unavailableFillCount: String(unavailableFillCount),
       censoredFillCount: String(censoredFillCount),
       totalMarkout: formatMid(totalTenthUnits),
       meanMarkoutPerShare: availableShares === 0n ? null : formatDerivedStatistic(Number(totalTenthUnits) / Number(availableShares) / 100_000),

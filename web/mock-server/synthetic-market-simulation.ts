@@ -319,10 +319,13 @@ export function simulateSyntheticMarketRun(config: ExperimentConfig, masterSeedT
   const referencePriceUnits = parseScaledDecimal(config.instrument.referencePrice, PRICE_SCALE_DIGITS);
   const endTimeNs = BigInt(config.bounds.endSimulationTimeNs);
   const maxCanonicalEventCount = Number(config.bounds.maxCanonicalEventCount);
-  const quoteWidthTicks = BigInt(config.strategy.quoteWidthTicks);
+  // The mock approximates the runner's timer-driven requoting: it requotes on every
+  // strategy-visible mid change, at most once per requoteIntervalNs. Its fixtures do not
+  // depend on requoteThresholdTicks or postOnly.
+  const quoteWidthTicks = 2n * BigInt(config.strategy.halfSpreadTicks);
   const quoteQuantity = BigInt(config.strategy.quoteQuantity);
-  const requoteOnVisibleMidChange = config.strategy.requoteOnVisibleMidChange;
-  const minimumRequoteIntervalNs = BigInt(config.strategy.minimumRequoteIntervalNs);
+  const requoteOnVisibleMidChange = true;
+  const minimumRequoteIntervalNs = BigInt(config.strategy.requoteIntervalNs);
   const makerFeePerShareUnits = parseScaledDecimal(config.fees.makerFeePerShare, PRICE_SCALE_DIGITS);
   const takerFeePerShareUnits = parseScaledDecimal(config.fees.takerFeePerShare, PRICE_SCALE_DIGITS);
   const maxAbsolutePositionShares = BigInt(config.risk.maxAbsolutePositionShares);
