@@ -39,6 +39,11 @@ struct RecordingHandler {
         events.push_back("3:" + std::to_string(info.sequence) + ":" + std::to_string(reject.reference_tag) + ":" +
                          std::to_string(reject.reason));
     }
+    void on_business_message_reject(const fix44::BusinessMessageReject& reject,
+                                    const fix::FixInboundMessageInfo& info) {
+        events.push_back("j:" + std::to_string(info.sequence) + ":" + std::string(reject.reference_type.view()) +
+                         ":" + std::to_string(reject.reason));
+    }
     void on_logout(std::string_view text) {
         last_logout_text = std::string(text);
         events.push_back("5");
@@ -222,6 +227,16 @@ TEST_CASE(gateway_fix_client, logout_handshake) {
     CHECK(connected.wire.client().wants_disconnect());
     CHECK(connected.wire.connection().wants_disconnect());
     CHECK_EQ(connected.handler.events, (Strings{"A:1", "5"}));
+}
+
+TEST_CASE(gateway_fix_client, business_message_reject_reaches_handler) {
+    ConnectedClient connected;
+    auto& client = connected.wire.client();
+    const std::string business_reject = exchange_message("j", 2, "45=7|372=AF|380=3|58=unsupported MsgType|");
+    client.on_data({business_reject.data(), business_reject.size()}, connected.exchange.fix_time());
+    CHECK_EQ(connected.handler.events, (Strings{"A:1", "j:2:AF:3"}));
+    CHECK(connected.wire.client_to_exchange().bytes().empty());
+    CHECK_EQ(client.session_day_state().expected_inbound_seq(), 3u);
 }
 
 TEST_CASE(gateway_fix_client, unsupported_and_undecodable_messages_are_rejected) {

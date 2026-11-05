@@ -51,6 +51,9 @@ inline constexpr std::size_t kMaxOutboundMessageBytes = 2048;
 // A PossDup resend adds 43=Y and 122=<timestamp> to a stored message.
 inline constexpr std::size_t kMaxResentMessageBytes = kMaxOutboundMessageBytes + 64;
 inline constexpr std::size_t kParserFieldCapacity = 64;
+// Highest MsgSeqNum(34) a session accepts: consuming it sets the expected
+// sequence to kMaxMsgSeqNum + 1, which must not wrap to 0.
+inline constexpr std::uint64_t kMaxMsgSeqNum = UINT64_MAX - 1;
 
 using FixParser = fix44::Parser<kParserFieldCapacity>;
 
@@ -71,6 +74,7 @@ enum class SessionRejectReason : std::uint8_t {
     ValueIsIncorrect = 5,
     IncorrectDataFormat = 6,
     CompIdProblem = 9,
+    SendingTimeAccuracyProblem = 10,
     InvalidMsgType = 11,
     TagAppearsMoreThanOnce = 13,
     Other = 99,
@@ -314,6 +318,32 @@ private:
 
 // "8=FIX.4.4<SOH>9=", the only valid start of a FIX 4.4 frame.
 inline constexpr std::string_view kFrameStartPattern{"8=FIX.4.4\001" "9=", 12};
+
+// True when MsgType(35) is the third field, right after BeginString(8) and
+// BodyLength(9). `frame` must start with kFrameStartPattern.
+[[nodiscard]] inline bool msg_type_is_third_field(std::span<const char> frame) noexcept {
+    const std::string_view text(frame.data(), frame.size());
+    const std::size_t body_length_end = text.find(fix44::soh, kFrameStartPattern.size());
+    return body_length_end != std::string_view::npos && text.substr(body_length_end + 1, 3) == "35=";
+}
+
+// True for every MsgType(35) the FIX 4.4 specification defines (whether or
+// not this gateway supports it) and for user-defined types ("U" followed by
+// at least one character). Anything else is an invalid MsgType (373=11).
+[[nodiscard]] inline bool is_fix44_message_type(std::string_view type) noexcept {
+    if (type.size() == 1) {
+        const char code = type[0];
+        return (code >= '0' && code <= '9') || (code >= 'a' && code <= 'z') ||
+               (code >= 'A' && code <= 'Z' && code != 'I' && code != 'O' && code != 'U');
+    }
+    if (type.size() == 2 && type[0] == 'A') {
+        return type[1] >= 'A' && type[1] <= 'Z';
+    }
+    if (type.size() == 2 && type[0] == 'B') {
+        return type[1] >= 'A' && type[1] <= 'H';
+    }
+    return type.size() >= 2 && type[0] == 'U';
+}
 
 // First position >= from where a frame may start: a full pattern match, or a
 // partial match that runs into the end of `bytes` (more input may complete

@@ -100,8 +100,8 @@ TEST_CASE(gateway_fix_core, refused_submissions_receive_application_responses) {
     h.drain();
     h.clock.day = h.settings.exchange.trading_day_end_ns;
     h.send("D", new_order_fields("LATE", "1", 100, "150"));
-    h.send("F", "41=ORDER|11=CANCEL|55=AAPL|54=1|");
-    h.send("G", "41=ORDER|11=REPLACE|55=AAPL|54=1|38=90|40=2|44=150|");
+    h.send("F", "41=ORDER|11=CANCEL|55=AAPL|54=1|60=20261103-09:30:00.000|");
+    h.send("G", "41=ORDER|11=REPLACE|55=AAPL|54=1|60=20261103-09:30:00.000|38=90|40=2|44=150|");
     h.send("q", "11=MASS|530=7|");
     const auto frames = h.drain();
     REQUIRE_EQ(frames.size(), 4u);
@@ -126,7 +126,7 @@ TEST_CASE(gateway_fix_core, undersized_core_output_is_reported) {
 TEST_CASE(gateway_fix_core, steady_state_allocates_nothing) {
     Harness h;
     const auto order = client_message("D", 2, new_order_fields("ORDER", "1", 100, "150"));
-    const auto cancel = client_message("F", 3, "41=ORDER|11=CANCEL|55=AAPL|54=1|");
+    const auto cancel = client_message("F", 3, "41=ORDER|11=CANCEL|55=AAPL|54=1|60=20261103-09:30:00.000|");
     std::size_t allocations = 0;
     {
         testfw::AllocationScope scope;
