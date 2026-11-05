@@ -342,10 +342,12 @@ int main(int argc, char** argv) {
             session.poll();
             feed.poll();
             if (cancels_sent < recorder.orders_to_cancel.size()) {
+                // A cancel that does not fit in the send buffer is retried
+                // on the next iteration, after the flush.
                 for (; cancels_sent < recorder.orders_to_cancel.size(); ++cancels_sent) {
                     write_token(cancel.token, recorder.orders_to_cancel[cancels_sent]);
                     cancel.shares = 0;
-                    (void)session.client().cancel_order(cancel, net::monotonic_ns());
+                    if (!session.client().cancel_order(cancel, net::monotonic_ns())) break;
                 }
                 session.flush();
             }

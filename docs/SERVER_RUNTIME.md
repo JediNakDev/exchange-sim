@@ -257,6 +257,9 @@ Reading the numbers:
   flight, latency is queueing (32 / 76000 per second is about 420 us). The
   single-threaded client (one `write` per order, then reads) is likely the
   limit there; the server was not saturated.
-* These are not Linux numbers. On Linux, `--cpu` pinning for the server
-  and `--server-cpu` / `--client-cpu` for the bench apply; they have not
-  been measured here.
+* These are not Linux numbers. A smoke run in a Linux container (OrbStack
+  VM on the same Mac, g++, `--rate 5000 --orders 5000 --warmup 500
+  --server-cpu 0 --client-cpu 1`) confirmed that pinning works
+  (`Cpus_allowed_list: 0` for `exsim_server --cpu 0`) and gave ouch accept
+  p50 12041, p90 15250, p99 616626 ns; a VM sharing a busy host is not a
+  latency reference, so tuned Linux numbers are still to be measured.

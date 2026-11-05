@@ -303,7 +303,7 @@ private:
 };
 
 // The exsim server: OUCH 4.2 and FIX 4.4. SBE over FIXP plugs in as a third
-// gateway type (docs/SERVER_RUNTIME.md, "Adding a gateway").
+// gateway type (docs/SERVER_RUNTIME.md, "Adding a protocol").
 using ServerRuntime = BasicServerRuntime<runtime::OuchGateway, runtime::FixGateway>;
 
 }  // namespace exsim::server
