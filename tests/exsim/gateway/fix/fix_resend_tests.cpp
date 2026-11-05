@@ -127,7 +127,8 @@ TEST_CASE(gateway_fix_resend, resend_after_orders_complete_and_reconnect) {
 
 TEST_CASE(gateway_fix_resend, store_capacity_exhaustion_fails_closed) {
     fix::FixUserLimits limits = small_limits();
-    limits.store_max_messages = 3;
+    // Session messages take no slot: two ExecutionReports fill the store.
+    limits.store_max_messages = 2;
     FixTestExchange exchange(limits);
     FixTestConnection client(exchange, "CLIENT1");
     client.logon();
@@ -157,7 +158,8 @@ TEST_CASE(gateway_fix_resend, output_overflow_requests_disconnect) {
     CHECK(client.connection().wants_disconnect());
     // The message was sequenced and stored; it is recoverable after reconnect.
     client.sink().set_refuse_prepare(false);
-    CHECK_EQ(exchange.user(1).session_day_state().store().last_seq(), 2u);
+    CHECK_EQ(exchange.user(1).session_day_state().store().last_seq(), 1u);
+    CHECK(!exchange.user(1).session_day_state().stored_message(2).bytes.empty());
     client.reconnect();
     client.logon();
     client.send("2", "7=2|16=2|");
@@ -178,7 +180,7 @@ TEST_CASE(gateway_fix_resend, byte_capacity_exhaustion_is_explicit) {
     CHECK(client.connection().wants_disconnect());
     CHECK(exchange.user(1).session_day_state().store_exhausted());
     CHECK_EQ(exchange.user(1).session_day_state().messages_not_stored(), 1u);
-    CHECK_EQ(exchange.user(1).session_day_state().store().last_seq(), 1u);
+    CHECK_EQ(exchange.user(1).session_day_state().store().last_seq(), 0u);
 }
 
 TEST_CASE(gateway_fix_resend, token_capacity_and_reset_preserve_day_identity) {
@@ -188,7 +190,7 @@ TEST_CASE(gateway_fix_resend, token_capacity_and_reset_preserve_day_identity) {
     FixTestConnection client(exchange, "CLIENT1");
     client.logon();
     client.send("D", new_order_fields("ORDER", "1", 100, "150"));
-    client.send("F", "41=ORDER|11=CANCEL|55=AAPL|54=1|");
+    client.send("F", "41=ORDER|11=CANCEL|55=AAPL|54=1|60=20261103-09:30:00.000|");
     client.send("D", new_order_fields("OVERFLOW", "1", 100, "150"));
     auto frames = client.drain();
     REQUIRE_EQ(frames.size(), 3u);

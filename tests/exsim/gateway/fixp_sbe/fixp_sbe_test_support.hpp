@@ -215,9 +215,9 @@ public:
         return true;
     }
 
-    void unbind(exsim::SessionId session_id) noexcept {
+    void unbind(exsim::SessionId session_id, exsim::server::ConnectionId connection_id) noexcept {
         UserEntry* entry = find_user(session_id);
-        if (entry == nullptr || !entry->bound) return;
+        if (entry == nullptr || !entry->bound || entry->connection_id != connection_id) return;
         entry->bound = false;
         ++unbind_calls;
         if (entry->config.cancel_on_disconnect) {

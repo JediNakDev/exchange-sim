@@ -8,7 +8,7 @@ Updated 2026-11-05. This is a recovery checkpoint, not live delegate status. Kee
 - First trader workflow: **execution and market-making research**.
 - Primary research UI: **Bun + Next.js + TypeScript + Tailwind CSS + shadcn/ui**, following `/Users/jedi/AGENTS.md`. Prefer existing components and meaningful names. C++ owns simulation/backend behavior.
 - API recommendation: C++ HTTP/OpenAPI with generated TS types; omit a tRPC wrapper initially. The user asked us to assess fit after reopening tRPC, so this is a reasoned recommendation rather than an explicit final veto.
-- Resumed/new delegates use Claude Opus 5.5 with high reasoning (user decision 2026-11-05, "continue as claude", after GPT hit its usage limit; GPT was used 2026-11-04 20:45 to 2026-11-05 00:10 +08). No Ollama while the user works here. Do not add co-author attribution to commits.
+- Resumed/new delegates use GPT/ChatGPT with high reasoning (latest user decision 2026-11-05, "continue and turn all subagent to chatgpt", replacing the earlier Claude-only rule). No Ollama while the user works here. Do not add co-author attribution to commits.
 - Full product rationale, causal simulation requirements, realism assumptions, accounting, and UI workflow: [PRODUCT.md](PRODUCT.md).
 
 ## Verified repository state (2026-11-05)
@@ -27,7 +27,10 @@ Updated 2026-11-05. This is a recovery checkpoint, not live delegate status. Kee
 - Deterministic research runner merged `4783f45` (from `2619a8e`): macOS release 789/789, ASan/UBSan 786/786, `make all`, Linux g++ and clang++ 789/789, 0 warnings (`/tmp/exsim-int5-*.log`).
 - SBE fuzz target `sbe_order_entry` `33b6f39`: 81,714,054 ASan/UBSan executions, 0 crashes; 1062-file corpus (36 seeds, 5 of them boundary seeds from a mutation check, plus 1026 campaign inputs) fails the replay for all 8 planted codec mutants: release 790/790, ASan/UBSan 787/787, Linux g++ and clang++ fuzz replay 16/16 (campaign logs and mutants in the session scratchpad `sbe-fuzz/`, `sbe-mutation/`).
 - Wire codec benchmark `exsim_codec_bench` `2d3b27f` (CI perf smoke, zero allocations): perf build, binary protocols 1.4 to 6.0 ns per message; FIX 228 ns to decode a NewOrderSingle and 155 ns to encode an ExecutionReport, 38 to 74 times OUCH and SBE. Linux g++ agrees within 10 ns.
-- Not integrated yet: server binary and end-to-end tests; C++ HTTP/OpenAPI API; UI on real artifacts; QA fixes (OUCH/core/MD, FIX); final independent review.
+- QA fixes for OUCH, the core and market data merged `6227a51` (from `c71acb3`: F1, F2, F4, F5, F6, F8, R1 with the connection-aware `ExchangeCore::unbind(SessionId, ConnectionId)`): release 806/806, ASan/UBSan 803/803.
+- FIX 4.4 gateway QA fixes merged `3df3527` (from `3c82c87`: R1 to R13, P1, P3, P4): release 825/825, ASan/UBSan 822/822.
+- Server runtime merged `e9495a0` (from `1d6c40c`): `exsim_server` (OUCH, FIX, ITCH/MoldUDP64 with faults and retransmission, admin, bots, journal on one poller thread), `exsim_client`, `exsim_w2w_bench`, 12 loopback E2E tests, wire-to-wire numbers in docs/SERVER_RUNTIME.md section 5 and the README. The merge added the SBE answer to `SubmitResult::ExchangeShutDown` (MarketClosed) with a mutant-checked test. macOS release 840/840, ASan/UBSan 837/837, TSan 837/837, `make all`, perf tools, Linux g++ and clang++ 840/840, all `-Werror` (session scratchpad `merge3-*.log`); README quick start (server, client, admin shutdown) and a w2w smoke run checked by hand.
+- Not integrated yet: SBE in the server runtime; SBE and research runner QA fixes; FIX codec speed-up; C++ HTTP/OpenAPI API; UI on real artifacts; final independent review.
 
 ## Milestones
 
@@ -40,7 +43,7 @@ Updated 2026-11-05. This is a recovery checkpoint, not live delegate status. Kee
 - [x] Protocol sessions: OUCH 4.2/SoupBinTCP (`1023f60`) and FIX 4.4 (`4a636ca`), server and client side.
 - [x] Third order-entry protocol: SBE over FIXP (FIX Trading Community open standards, exsim-owned schema), codec, session, gateway per SERVER.md section 2, client (`340a949`, config `651bddf`).
 - [x] Market data: ITCH/MoldUDP64 publisher, retransmission server, client receiver and book builder, feed-correctness test under packet faults (`4a8927a`).
-- [ ] Server binary (reactor, gateways, MD, admin, faults, bots, journal) and end-to-end loopback tests; client tool; wire-to-wire latency benchmark.
+- [x] Server binary (reactor, OUCH and FIX gateways, MD, admin, faults, bots, journal) and end-to-end loopback tests; client tool; wire-to-wire latency benchmark (`e9495a0`). SBE in the runtime: delegate `8764c2d4`.
 - [x] Deterministic event runner with latency model and compiled baseline strategies (fixed-spread MM, inventory-aware MM, TWAP), accounting, manifests/artifacts, CLI (`4783f45`).
 - [ ] C++ HTTP/OpenAPI research interface and generated TypeScript types.
 - [ ] Next.js experiment/compare/inspect vertical slice on real artifacts (UI and contract on a mock service merged, `f2c0b57`).
@@ -52,15 +55,21 @@ Updated 2026-11-05. This is a recovery checkpoint, not live delegate status. Kee
 | --- | --- | --- |
 | FIX 4.4 gateway | `/Users/jedi/.t3/worktrees/lob/t3-49268324`, branch `t3/fix44-order-entry-gateway` | Done (`190ceb1`, `d136ff6`), merged `4a636ca`; release 689/689. Server delegate now wires it in. |
 | QA review: FIX gateway | harness worktree (task `...delegate-task%3Acf7a69b1-c24f-40c2-80fe-cdea4b6f93e5`) | Done. Report `/tmp/exsim-review-fix/REPORT.md`, 13 reproducers on `review/fix44-gateway-qa` `13b5a64`. R1 to the OUCH/core/MD fix delegate, the rest to the FIX fix delegate. |
-| QA fixes: FIX gateway | harness worktree (task `...delegate-task%3A8d7857c2-edba-48b5-9969-83237eaa437e`) | Running from `eeb5b21`: R2 to R13, P1, P3, P4, and the FIX-internal sink part of R1. |
-| QA fixes: OUCH, core, MD | harness worktree (task `...delegate-task%3Ace8d6fb6-4238-4a7b-af8b-012f79492edb`) | Running: F1 (drop_out as a transport cut), F2 (admission check before J), F4 (reserved deferred slot per user), F5 (publisher status), R1 (core `unbind(SessionId, ConnectionId)` and all gateway call sites). |
-| Final review: research runner | harness worktree (task `...delegate-task%3Af427d42a-2817-4b65-8bff-27669983ccc9`) | Report-only at `813f074`: causality, accounting, determinism; report `/tmp/exsim-review-runner/REPORT.md`. |
-| Final review: SBE over FIXP | harness worktree (task `...delegate-task%3A00a1bebd-409d-4a92-babe-cc3034f3bd7c`) | Report-only at `813f074`: FIXP session, SBE framing, recovery; report `/tmp/exsim-review-sbe/REPORT.md`. |
-| Fuzz corpus mutation check | harness worktree (task `...delegate-task%3A9bdb16a6-a126-42be-92ef-f006402dacb4`) | From `922cb39`: plants codec mutants for the protocol fuzz targets, adds boundary seeds until the committed corpora catch them; seeds, corpora and FUZZING.md only. |
+| QA fixes: FIX gateway | harness worktree (task `...delegate-task%3A8d7857c2-edba-48b5-9969-83237eaa437e`) | Done (`3c82c87`), merged `3df3527`. |
+| QA fixes: OUCH, core, MD | harness worktree (task `...delegate-task%3Ace8d6fb6-4238-4a7b-af8b-012f79492edb`) | Done (`c71acb3`), merged `6227a51`. |
+| QA review: research runner | harness worktree (task `...delegate-task%3Af427d42a-2817-4b65-8bff-27669983ccc9`) | Done. Report `/tmp/exsim-review-runner/REPORT.md`; R1 to R7, P1 to P3 with fix delegate `45a51fdd`. |
+| QA review: SBE over FIXP | harness worktree (task `...delegate-task%3A00a1bebd-409d-4a92-babe-cc3034f3bd7c`) | Done. Report `/tmp/exsim-review-sbe/REPORT.md`, reproducers `review/fixp-sbe-gateway-qa` `7ab2ab8`; findings with fix delegate `a8748a28`. |
+| Fuzz corpus mutation check | harness worktree (task `...delegate-task%3A9bdb16a6-a126-42be-92ef-f006402dacb4`) | Resumed on GPT/high in the original checkout. Recovered 103 mutants, 199 new seeds, 93 killed, 7 equivalent, 3 documented oracle/harness gaps; integrating parent before final checks. Parent relayed strengthened FIX-target requirements to both performance owners. |
+| QA fixes: research runner | harness worktree (task `...delegate-task%3A45a51fdd-c193-4e8b-b5b9-c6e7a81285c0`) | Resumed on GPT/high in the original checkout, preserving completed fixes and 66-case research test evidence. Final verification and report pending. |
+| QA fixes: SBE over FIXP | harness worktree (task `...delegate-task%3Aa8748a28-76ae-477b-a78c-34faf7eed31c`) | Running from `e9495a0`: SBE-01 to 03, evaluate 04 to 06; owns `include/exsim/gateway/fixp_sbe/*`. |
+| SBE in the server runtime | harness worktree (task `...delegate-task%3A8764c2d4-02f0-40c6-ba0f-7682e846f89a`) | Running from `e9495a0`: `FixpSbeGateway`, SBE E2E tests, `exsim_w2w_bench --protocol`, per-protocol wire-to-wire table; owns `include/exsim/server/runtime/*`, E2E tests, tools, SERVER_RUNTIME.md. |
+| Final review: server runtime | harness worktree (task `...delegate-task%3A41fe1043-80cb-4c29-ad21-db85d863e8ac`) | Report-only from `12a349d`: OUCH, FIX, MD, admin, faults, shutdown, journal, allocations, w2w method, flakiness; report `/tmp/exsim-review-server/REPORT.md`. |
+| FIX decode performance | harness worktree (task `...delegate-task%3A0c6c66ed-9f41-4389-93f4-3edff5c709c7`) | Running from `3df3527`: decode side of `fix44.hpp`, frozen reference decoder differential test. |
+| FIX encode performance | harness worktree (task `...delegate-task%3Ac96ec3e0-a18a-4ff3-a654-a1e12f47f1a4`) | Running from `3df3527`: encode side of `fix44.hpp`, byte-identical versus a frozen reference encoder. |
 | Research runner | `/Users/jedi/.t3/worktrees/lob/t3-e1e148f1`, branch `t3/deterministic-research-runner` | Done (`2619a8e`), merged `4783f45`. API differences for the HTTP adapter: docs/RESEARCH_RUNNER.md. |
 | SBE over FIXP | `/Users/jedi/.t3/worktrees/lob/t3-dd94b274`, branch `t3/add-fixp-sbe-gateway` | Done (`02b3430`), merged `340a949`. |
-| Server binary and E2E | harness worktree (task `...delegate-task%3A08e286a4-cae1-4949-b6f0-83a32243c0a3`) | Running on Claude since 2026-11-05, from `e2cdd11`. |
-| HTTP/OpenAPI API and UI | harness worktree (task `...delegate-task%3Ae28022a3-cc29-4d4a-86c4-4cfec8e4fb7b`) | Running on Claude since 2026-11-05. Told the runner is final at `2619a8e`; must merge it and reconcile the adapter before reporting. |
+| Server binary and E2E | harness worktree (task `...delegate-task%3A08e286a4-cae1-4949-b6f0-83a32243c0a3`) | Done (`1d6c40c`), merged `e9495a0`. |
+| HTTP/OpenAPI API and UI | harness worktree (task `...delegate-task%3Ae28022a3-cc29-4d4a-86c4-4cfec8e4fb7b`) | Resumed on GPT/high in the original checkout, preserving the HTTP/UI implementation. Must reconcile its adapter with the runner QA fixes before final integration. |
 | QA review: OUCH, MD, core | harness worktree (task `...delegate-task%3A337bf277-8344-4bed-9afb-78ff48b41a1a`) | Done. Report `/tmp/exsim-review-proto/REPORT.md`, reproducers on `t3/exsim-merged-code-qa-review` `26dd524`. F3 fixed `eeb5b21`, F6 fixed `5ee5097`; F1, F2, F4, F5 with the fix delegate; F7, F8 informational. |
 | Ladder engine A | `/Users/jedi/.t3/worktrees/lob/t3-eaaf2612` (`b77d206`) | Done; evaluated, not selected. |
 | Engine C integration | scratch worktree `engine-c-integration`, branch `integrate-engine-c` | Merged (`b874ce5`). |
@@ -74,7 +83,7 @@ Wave-2 task IDs and branches are recorded in [delegation-registry.json](delegati
 | Capability | Use here |
 | --- | --- |
 | Incremental thread reads and individual-item reads | Retrieve specific briefs/final findings with small limits; do not reload whole tool transcripts. |
-| Provider/model configuration | Migrate existing failed children to Claude Opus 5.5 in their actual checkouts, preserving partial files. |
+| Provider/model configuration | Resume existing interrupted children with the user's current provider choice (GPT/high as of the latest 2026-11-05 instruction), preserving their actual checkouts and partial files. |
 | App-owned delegate tasks and isolated worktrees | Independent scopes and concise completion reports; new worktrees only via the harness. |
 | Completion notifications | Resume dependent work on completion; no polling loops or scheduled status checks. |
 | Native plan/checklist plus repository checkpoint | Short live milestones in the plan; durable decisions/dependencies/task pointers in these files survive context and provider changes. No separate T3 todo tool was exposed in the inventory. |
@@ -87,12 +96,13 @@ For each completion record: task ID, actual branch/commit, changed scope, tests 
 
 ## Immediate next action
 
-2026-11-05: GPT hit its usage limit after merging engine C, OUCH, MD, API+UI and fuzzing; the user said "continue as claude". All delegates now run on Claude Opus 5.5 high. FIX (`4a636ca`), SBE (`340a949`) and the research runner (`4783f45`) are merged; both QA reviews are done and their confirmed findings are with two fix delegates.
+Latest 2026-11-05 continuation: all eight unfinished direct child tasks were stopped to clear queued Claude limit-resumes, configured for GPT-6.1 Sol/high, and resumed in their original checkouts. Actual new task IDs, paths and branches are in delegation-registry.json. Completed tasks were not rerun. This supersedes the older Claude auto-resume instructions below.
+
+2026-11-05 evening: the QA fixes for OUCH/core/MD (`6227a51`) and FIX (`3df3527`) and the server runtime (`e9495a0`) are merged and gated. A Claude API rate limit failed the runner fix and mutation check runs; T3 resumes them automatically.
 
 Next, on completion notifications (do not poll):
-1. QA fix delegates (OUCH/core/MD `ce8d6fb6`, FIX `8d7857c2`): review, bring in the review reproducers, merge, full gate (macOS release, ASan/UBSan, `make all`, Linux g++/clang++). `ce8d6fb6` changes the core unbind API, so merge it before the FIX fixes and resolve the single `ctx.unbind` line.
-2. Server binary (`08e286a4`): review, merge after the core API change, run the E2E and wire-to-wire benchmark gates; wire SBE into the server if the delegate did not.
+1. SBE QA fixes (`a8748a28`) and SBE runtime wiring (`8764c2d4`): review each, merge the gateway fixes first, then the wiring; full gate (release, ASan/UBSan, TSan, `make all`, perf tools, Linux g++/clang++); README per-protocol wire-to-wire table.
+2. FIX decode (`0c6c66ed`) and encode (`c96ec3e0`): check the differential tests and the bench method, merge both (same file, disjoint functions), re-run `exsim_codec_bench`, update the README codec table.
 3. API and UI (`e28022a3`): check the adapter against the runner differences table, review, merge, run the C++ and bun gates.
-4. Fuzz corpus mutation check (`9bdb16a6`): review the seed additions, check that existing seed files are unchanged, merge, replay gates.
-5. FIX codec performance, after the FIX QA fixes merge (they own `fix44.hpp`): parallel variant delegates on `fix44::Parser`/`decode` and `Builder`/`encode`, judged by `exsim_codec_bench` with byte-identical encode output, the FIX fuzz targets and the gateway tests.
-6. Final independent review: runner (causality, accounting) and SBE/FIXP reviews are running; after the server and API/UI merges, review the server end to end (all three protocols plus market data) and the UI on real runs; fix findings; README with wire-to-wire numbers (README status refreshed `813f074`).
+4. Runner fixes (`45a51fdd`) and mutation check (`9bdb16a6`) after their GPT continuations finish: review, merge, gate. Replay the strengthened FIX properties against the integrated optimized codec.
+5. Final independent review: the server runtime review (`41fe1043`) is running; after the SBE wiring and API/UI merges, review SBE in the runtime and the UI on real runs; fix findings; final README pass.

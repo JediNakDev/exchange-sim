@@ -292,6 +292,7 @@ TEST_CASE(proto_fix_golden, OrderCancelRequest) {
     m.client_order_id.assign("VALUE");
     m.symbol.assign("VALUE");
     m.side = exsim::Side::SELL;
+    m.transact_time = 0;
     auto n = encode(m, h, b, sizeof b);
     REQUIRE(n > 0);
     Parser<> parser;
@@ -300,10 +301,11 @@ TEST_CASE(proto_fix_golden, OrderCancelRequest) {
     CHECK_EQ(parser.get(11), "VALUE");
     CHECK_EQ(parser.get(55), "VALUE");
     CHECK_EQ(parser.get(54), "2");
+    CHECK_EQ(parser.get(60), "19700101-00:00:00.000");
     REQUIRE_EQ(decode(parser, d), Status::ok);
     auto n2 = encode(d, h, again, sizeof again);
     CHECK_EQ(std::string_view(b, n), std::string_view(again, n2));
-    for (unsigned skip : {41U, 11U, 55U, 54U}) {
+    for (unsigned skip : {41U, 11U, 55U, 54U, 60U}) {
       Builder bad(again);
       bad.header('F', h);
       if (skip != 41)
@@ -314,6 +316,8 @@ TEST_CASE(proto_fix_golden, OrderCancelRequest) {
         bad.field(55, parser.get(55));
       if (skip != 54)
         bad.field(54, parser.get(54));
+      if (skip != 60)
+        bad.field(60, parser.get(60));
       auto bad_size = bad.finish();
       CHECK_EQ(decode(again, bad_size, d), Status::missing_field);
     }
@@ -333,6 +337,7 @@ TEST_CASE(proto_fix_golden, OrderCancelReplaceRequest) {
     m.order_type = exsim::OrdType::Limit;
     m.has_price = true;
     m.price = 1502500;
+    m.transact_time = 0;
     auto n = encode(m, h, b, sizeof b);
     REQUIRE(n > 0);
     Parser<> parser;
@@ -346,10 +351,11 @@ TEST_CASE(proto_fix_golden, OrderCancelReplaceRequest) {
     CHECK_EQ(value_38, m.quantity);
     CHECK_EQ(parser.get(40), "2");
     CHECK_EQ(parser.get(44), "150.25");
+    CHECK_EQ(parser.get(60), "19700101-00:00:00.000");
     REQUIRE_EQ(decode(parser, d), Status::ok);
     auto n2 = encode(d, h, again, sizeof again);
     CHECK_EQ(std::string_view(b, n), std::string_view(again, n2));
-    for (unsigned skip : {41U, 11U, 55U, 54U, 38U, 40U}) {
+    for (unsigned skip : {41U, 11U, 55U, 54U, 38U, 40U, 60U}) {
       Builder bad(again);
       bad.header('G', h);
       if (skip != 41)
@@ -366,6 +372,8 @@ TEST_CASE(proto_fix_golden, OrderCancelReplaceRequest) {
         bad.field(40, parser.get(40));
       if (skip != 44)
         bad.field(44, parser.get(44));
+      if (skip != 60)
+        bad.field(60, parser.get(60));
       auto bad_size = bad.finish();
       CHECK_EQ(decode(again, bad_size, d), Status::missing_field);
     }
@@ -467,8 +475,8 @@ TEST_CASE(proto_fix_golden, ExecutionReport) {
     REQUIRE_EQ(decode(parser, d), Status::ok);
     auto n2 = encode(d, h, again, sizeof again);
     CHECK_EQ(std::string_view(b, n), std::string_view(again, n2));
-    for (unsigned skip : {37U, 11U, 17U, 150U, 39U, 55U, 54U, 38U, 44U, 32U,
-                          31U, 151U, 14U, 6U, 60U}) {
+    for (unsigned skip : {37U, 11U, 17U, 150U, 39U, 55U, 54U, 38U, 32U, 31U,
+                          151U, 14U, 6U, 60U}) {
       Builder bad(again);
       bad.header('8', h);
       if (skip != 37)
@@ -574,6 +582,8 @@ TEST_CASE(proto_fix_golden, OrderMassCancelReport) {
     m.order_id.assign("VALUE");
     m.request_type = '1';
     m.response = '1';
+    m.has_reject_reason = true;
+    m.reject_reason = 1;
     m.total_affected_orders = random();
     auto n = encode(m, h, b, sizeof b);
     REQUIRE(n > 0);
@@ -583,6 +593,7 @@ TEST_CASE(proto_fix_golden, OrderMassCancelReport) {
     CHECK_EQ(parser.get(37), "VALUE");
     CHECK_EQ(parser.get(530), "1");
     CHECK_EQ(parser.get(531), "1");
+    CHECK_EQ(parser.get(532), "1");
     std::uint64_t value_533;
     CHECK(parser.get_uint(533, value_533));
     CHECK_EQ(value_533, m.total_affected_orders);
@@ -600,10 +611,72 @@ TEST_CASE(proto_fix_golden, OrderMassCancelReport) {
         bad.field(530, parser.get(530));
       if (skip != 531)
         bad.field(531, parser.get(531));
+      if (skip != 532)
+        bad.field(532, parser.get(532));
       if (skip != 533)
         bad.field(533, parser.get(533));
       auto bad_size = bad.finish();
       CHECK_EQ(decode(again, bad_size, d), Status::missing_field);
     }
+  }
+}
+TEST_CASE(proto_fix_golden, ExecutionReportWithoutPrice) {
+  Header h{"S", "T", 1, 0};
+  ExecutionReport m, d;
+  char b[2048], again[2048];
+  m.order_id.assign("1");
+  m.client_order_id.assign("MKT");
+  m.execution_id.assign("1");
+  m.execution_type = 'C';
+  m.order_status = 'C';
+  m.symbol.assign("AAPL");
+  m.side = exsim::Side::BUY;
+  m.quantity = 10;
+  m.has_price = false;
+  auto n = encode(m, h, b, sizeof b);
+  REQUIRE(n > 0);
+  Parser<> parser;
+  REQUIRE_EQ(parser.parse(b, n), Status::ok);
+  CHECK(!parser.has(44));
+  CHECK_EQ(parser.get(150), "C");
+  CHECK_EQ(parser.get(39), "C");
+  REQUIRE_EQ(decode(parser, d), Status::ok);
+  CHECK(!d.has_price);
+  auto n2 = encode(d, h, again, sizeof again);
+  CHECK_EQ(std::string_view(b, n), std::string_view(again, n2));
+}
+TEST_CASE(proto_fix_golden, BusinessMessageReject) {
+  Header h{"S", "T", 7, 0};
+  BusinessMessageReject m, d;
+  char b[2048], again[2048];
+  m.has_reference_sequence = true;
+  m.reference_sequence = 5;
+  m.reference_type.assign("AF");
+  m.reason = 3;
+  m.has_text = true;
+  m.text.assign("unsupported");
+  auto n = encode(m, h, b, sizeof b);
+  REQUIRE(n > 0);
+  Parser<> parser;
+  REQUIRE_EQ(parser.parse(b, n), Status::ok);
+  CHECK_EQ(parser.get(35), "j");
+  CHECK_EQ(parser.get(45), "5");
+  CHECK_EQ(parser.get(372), "AF");
+  CHECK(!parser.has(379));
+  CHECK_EQ(parser.get(380), "3");
+  CHECK_EQ(parser.get(58), "unsupported");
+  REQUIRE_EQ(decode(parser, d), Status::ok);
+  auto n2 = encode(d, h, again, sizeof again);
+  CHECK_EQ(std::string_view(b, n), std::string_view(again, n2));
+  for (unsigned skip : {372U, 380U}) {
+    Builder bad(again);
+    bad.header('j', h);
+    bad.field(45, parser.get(45));
+    if (skip != 372)
+      bad.field(372, parser.get(372));
+    if (skip != 380)
+      bad.field(380, parser.get(380));
+    auto bad_size = bad.finish();
+    CHECK_EQ(decode(again, bad_size, d), Status::missing_field);
   }
 }

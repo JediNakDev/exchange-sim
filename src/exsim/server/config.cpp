@@ -406,7 +406,10 @@ struct Parser {
             }
         }
         if (cfg.exchange.trading_day_start_ns >= cfg.exchange.trading_day_end_ns) {
-            return fail("exchange.trading_day_start must be before exchange.trading_day_end");
+            return fail("exchange.trading_day_start (" + format_day_time(cfg.exchange.trading_day_start_ns) +
+                        ") must be before exchange.trading_day_end (" +
+                        format_day_time(cfg.exchange.trading_day_end_ns) +
+                        "): trading days that cross midnight are not supported");
         }
         return validate_bots();
     }

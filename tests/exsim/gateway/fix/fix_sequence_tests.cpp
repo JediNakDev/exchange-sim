@@ -65,11 +65,13 @@ TEST_CASE(gateway_fix_sequence, gap_fill_releases_held_message) {
     // Duplicate gap fill (NewSeqNo not above expected): suppressed.
     client.send_at("4", 2, "123=Y|36=4|", true);
     CHECK_EQ(expected_inbound(exchange), 5u);
-    // Overlapping duplicate gap fill starting below expected advances to NewSeqNo.
+    // An overlapping PossDup gap fill below expected is a duplicate too: it is
+    // ignored, so it can never skip a message the client still has to send.
     client.send_at("4", 3, "123=Y|36=7|", true);
-    CHECK_EQ(expected_inbound(exchange), 7u);
-    // An in-order gap fill advances too.
-    client.send_at("4", 7, "123=Y|36=9|");
+    CHECK_EQ(expected_inbound(exchange), 5u);
+    CHECK_EQ(client.connection().counters().duplicates_suppressed, 2u);
+    // An in-order gap fill advances.
+    client.send_at("4", 5, "123=Y|36=9|");
     CHECK_EQ(expected_inbound(exchange), 9u);
     client.drain();
     client.send_at("D", 9, order("B9"));
@@ -271,7 +273,7 @@ TEST_CASE(gateway_fix_sequence, parseable_semantic_errors_consume_sequence_and_r
     // Duplicate tag.
     client.send("0", "112=A|112=B|");
     // Unsupported MsgType.
-    client.send("Z", "");
+    client.send("ZZ", "");
     // Missing required application field (Symbol).
     client.send("D", "11=X1|54=1|38=100|40=2|44=150|59=0|60=20261103-09:30:00.000|");
     // Disallowed value (Side 3).
@@ -290,7 +292,7 @@ TEST_CASE(gateway_fix_sequence, parseable_semantic_errors_consume_sequence_and_r
     REQUIRE_EQ(messages.size(), std::size_t{9});
     const char* expected[] = {
         "45=2|371=112|372=0|373=13|58=tag appears more than once|",
-        "45=3|371=35|372=Z|373=11|58=unsupported MsgType|",
+        "45=3|371=35|372=ZZ|373=11|58=invalid MsgType|",
         "45=4|371=55|372=D|373=1|58=required tag missing|",
         "45=5|371=54|372=D|373=5|58=value is incorrect for this tag|",
         "45=6|371=44|372=D|373=1|58=Price(44) required for OrdType 2|",

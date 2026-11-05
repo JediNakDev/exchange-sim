@@ -94,14 +94,40 @@ TEST_CASE(gateway_fix_core, admin_reject_drop_and_recovery) {
     CHECK_EQ(h.core.counters().commands_applied, 2u); // cancel-on-disconnect
 }
 
+// FIX QA R1: a connection's release unbinds only its own binding. If the
+// session was released early and a newer login bound it, the old
+// connection's disconnect handler must not unbind or cancel the newer one.
+TEST_CASE(gateway_fix_core, stale_connection_release_keeps_the_newer_binding) {
+    Harness h;
+    h.core.unbind(1, 123);  // released early, cancel-on-disconnect applied
+    const exsim::server::ConnectionId newer_connection = 456;
+    REQUIRE(h.core.bind(1, newer_connection));
+    exsim::NewOrder order;
+    order.instrument = 1;
+    order.session = 1;
+    order.owner = h.settings.users[0].owner;
+    order.cl_ord_id = 4242;
+    order.side = exsim::Side::BUY;
+    order.price = 1'500'000;
+    order.qty = 100;
+    REQUIRE(h.core.submit(exsim::Command{order}) == exsim::server::SubmitResult::Applied);
+    REQUIRE_EQ(h.core.engine().live_order_count(), 1u);
+
+    h.connection.on_disconnected(h.core);  // the old connection's handler runs late
+    CHECK_EQ(h.core.connection(1), newer_connection);
+    CHECK_EQ(h.core.engine().live_order_count(), 1u);
+    h.core.unbind(1, newer_connection);
+    CHECK_EQ(h.core.engine().live_order_count(), 0u);
+}
+
 TEST_CASE(gateway_fix_core, refused_submissions_receive_application_responses) {
     Harness h;
     h.send("D", new_order_fields("ORDER", "1", 100, "150"));
     h.drain();
     h.clock.day = h.settings.exchange.trading_day_end_ns;
     h.send("D", new_order_fields("LATE", "1", 100, "150"));
-    h.send("F", "41=ORDER|11=CANCEL|55=AAPL|54=1|");
-    h.send("G", "41=ORDER|11=REPLACE|55=AAPL|54=1|38=90|40=2|44=150|");
+    h.send("F", "41=ORDER|11=CANCEL|55=AAPL|54=1|60=20261103-09:30:00.000|");
+    h.send("G", "41=ORDER|11=REPLACE|55=AAPL|54=1|60=20261103-09:30:00.000|38=90|40=2|44=150|");
     h.send("q", "11=MASS|530=7|");
     const auto frames = h.drain();
     REQUIRE_EQ(frames.size(), 4u);
@@ -126,7 +152,7 @@ TEST_CASE(gateway_fix_core, undersized_core_output_is_reported) {
 TEST_CASE(gateway_fix_core, steady_state_allocates_nothing) {
     Harness h;
     const auto order = client_message("D", 2, new_order_fields("ORDER", "1", 100, "150"));
-    const auto cancel = client_message("F", 3, "41=ORDER|11=CANCEL|55=AAPL|54=1|");
+    const auto cancel = client_message("F", 3, "41=ORDER|11=CANCEL|55=AAPL|54=1|60=20261103-09:30:00.000|");
     std::size_t allocations = 0;
     {
         testfw::AllocationScope scope;

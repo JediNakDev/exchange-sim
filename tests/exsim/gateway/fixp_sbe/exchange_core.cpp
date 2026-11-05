@@ -305,6 +305,35 @@ TEST_CASE(fixp_sbe_core, admin_faults_then_cancel_on_disconnect_and_recovery) {
     CHECK_EQ(frames[4].as<sbe::Sequence>().next_seq_no, 7u);
 }
 
+// FIX QA R1: a connection's release unbinds only its own binding. If the
+// session was released early and a newer login bound it, the old
+// connection's disconnect handler must not unbind or cancel the newer one.
+TEST_CASE(fixp_sbe_core, stale_connection_release_keeps_the_newer_binding) {
+    CoreExchange exchange;
+    CoreSession alice(exchange);
+    REQUIRE(alice.log_in(kFirstSessionUuid, "ALICE:alicepw"));
+    const exsim::server::ConnectionId old_connection = alice.connection().connection_id();
+    exchange.core.unbind(1, old_connection);  // released early, cancel-on-disconnect applied
+    const exsim::server::ConnectionId newer_connection = 9999;
+    REQUIRE(exchange.core.bind(1, newer_connection));
+    exsim::NewOrder order;
+    order.instrument = 1;
+    order.session = 1;
+    order.owner = 1;
+    order.cl_ord_id = 4242;
+    order.side = exsim::Side::BUY;
+    order.price = kHundredFiftyDollars;
+    order.qty = 10;
+    REQUIRE(exchange.core.submit(exsim::Command{order}) == exsim::server::SubmitResult::Applied);
+    REQUIRE_EQ(exchange.core.engine().live_order_count(), 1u);
+
+    alice.disconnect();  // the old connection's handler runs late
+    CHECK(exchange.core.connection(1) == std::optional<exsim::server::ConnectionId>(newer_connection));
+    CHECK_EQ(exchange.core.engine().live_order_count(), 1u);
+    exchange.core.unbind(1, newer_connection);
+    CHECK_EQ(exchange.core.engine().live_order_count(), 0u);
+}
+
 TEST_CASE(fixp_sbe_core, outside_trading_day_is_answered_market_closed) {
     CoreExchange exchange;
     CoreSession alice(exchange);
@@ -316,6 +345,25 @@ TEST_CASE(fixp_sbe_core, outside_trading_day_is_answered_market_closed) {
     const sbe::ExecutionReportReject reject = frames[0].as<sbe::ExecutionReportReject>();
     CHECK(reject.exsim_reject_reason == sbe::ExsimRejectReasonCode::MarketClosed);
     CHECK(reject.ord_rej_reason == sbe::OrdRejReasonCode::ExchangeClosed);
+}
+
+// A request that arrives after shutdown but before the runtime ends the
+// session is refused by the core (ExchangeShutDown) and answered like a
+// closed market.
+TEST_CASE(fixp_sbe_core, order_after_shutdown_is_answered_market_closed) {
+    CoreExchange exchange;
+    CoreSession alice(exchange);
+    REQUIRE(alice.log_in(kFirstSessionUuid, "ALICE:alicepw"));
+    exchange.core.shutdown();
+    (void)alice.take_output();
+    alice.send(limit_order(1, sbe::SideCode::Buy, kHundredFiftyDollars, 10));
+    const std::vector<ParsedFrame> frames = alice.take_output();
+    REQUIRE_EQ(frames.size(), 1u);
+    const sbe::ExecutionReportReject reject = frames[0].as<sbe::ExecutionReportReject>();
+    CHECK(reject.exsim_reject_reason == sbe::ExsimRejectReasonCode::MarketClosed);
+    CHECK(reject.ord_rej_reason == sbe::OrdRejReasonCode::ExchangeClosed);
+    CHECK_EQ(exchange.core.counters().commands_after_shutdown, 1u);
+    CHECK_EQ(exchange.core.engine().live_order_count(), 0u);
 }
 
 #if !defined(__SANITIZE_ADDRESS__) && !defined(__SANITIZE_THREAD__)

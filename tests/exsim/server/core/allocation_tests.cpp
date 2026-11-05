@@ -32,7 +32,7 @@ struct UnbindingSessions {
         if (session == trigger_session && unbind_target != 0) {
             const SessionId target = unbind_target;
             unbind_target = 0;
-            core.unbind(target);
+            core.unbind(target, core.connection(target).value_or(0));
         }
     }
 };
@@ -90,9 +90,9 @@ struct Workload {
         sessions.unbind_target = 1;
         (void)core.submit(Command{limit_order(2, next_token++, kAapl, Side::SELL, 1'000'000, 5)});
         sessions.unbind_target = 0;
-        core.unbind(1);  // no-op if the callback already did it
+        core.unbind(1, 1001);  // no-op if the callback already did it
         (void)core.bind(3, 1003);
-        core.unbind(3);  // CAROL: no cancel-on-disconnect
+        core.unbind(3, 1003);  // CAROL: no cancel-on-disconnect
     }
 
     void fault_queries() {
@@ -103,7 +103,7 @@ struct Workload {
         std::array<SessionId, 4> to_close{};
         if (core.has_disconnect_requests()) {
             const std::size_t count = core.take_disconnect_requests(to_close);
-            for (std::size_t i = 0; i < count; ++i) core.unbind(to_close[i]);
+            for (std::size_t i = 0; i < count; ++i) core.unbind(to_close[i], core.connection(to_close[i]).value_or(0));
             disconnects_taken += count;
         }
         (void)core.flush_journal();
