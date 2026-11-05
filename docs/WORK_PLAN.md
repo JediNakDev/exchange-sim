@@ -63,6 +63,7 @@ Updated 2026-11-05. This is a recovery checkpoint, not live delegate status. Kee
 | QA fixes: research runner | harness worktree (task `...delegate-task%3A45a51fdd-c193-4e8b-b5b9-c6e7a81285c0`) | Run failed on a Claude API rate limit, T3 automatic resume pending. Preserve the worktree; resume, do not relaunch. |
 | QA fixes: SBE over FIXP | harness worktree (task `...delegate-task%3Aa8748a28-76ae-477b-a78c-34faf7eed31c`) | Running from `e9495a0`: SBE-01 to 03, evaluate 04 to 06; owns `include/exsim/gateway/fixp_sbe/*`. |
 | SBE in the server runtime | harness worktree (task `...delegate-task%3A8764c2d4-02f0-40c6-ba0f-7682e846f89a`) | Running from `e9495a0`: `FixpSbeGateway`, SBE E2E tests, `exsim_w2w_bench --protocol`, per-protocol wire-to-wire table; owns `include/exsim/server/runtime/*`, E2E tests, tools, SERVER_RUNTIME.md. |
+| Final review: server runtime | harness worktree (task `...delegate-task%3A41fe1043-80cb-4c29-ad21-db85d863e8ac`) | Report-only from `12a349d`: OUCH, FIX, MD, admin, faults, shutdown, journal, allocations, w2w method, flakiness; report `/tmp/exsim-review-server/REPORT.md`. |
 | FIX decode performance | harness worktree (task `...delegate-task%3A0c6c66ed-9f41-4389-93f4-3edff5c709c7`) | Running from `3df3527`: decode side of `fix44.hpp`, frozen reference decoder differential test. |
 | FIX encode performance | harness worktree (task `...delegate-task%3Ac96ec3e0-a18a-4ff3-a654-a1e12f47f1a4`) | Running from `3df3527`: encode side of `fix44.hpp`, byte-identical versus a frozen reference encoder. |
 | Research runner | `/Users/jedi/.t3/worktrees/lob/t3-e1e148f1`, branch `t3/deterministic-research-runner` | Done (`2619a8e`), merged `4783f45`. API differences for the HTTP adapter: docs/RESEARCH_RUNNER.md. |
@@ -102,4 +103,4 @@ Next, on completion notifications (do not poll):
 2. FIX decode (`0c6c66ed`) and encode (`c96ec3e0`): check the differential tests and the bench method, merge both (same file, disjoint functions), re-run `exsim_codec_bench`, update the README codec table.
 3. API and UI (`e28022a3`): check the adapter against the runner differences table, review, merge, run the C++ and bun gates.
 4. Runner fixes (`45a51fdd`) and mutation check (`9bdb16a6`) after their automatic resumes: review, merge, gate.
-5. Final independent review of the integrated tree: server end to end (three protocols plus market data), the UI on real runs, the research runner; fix findings; final README pass.
+5. Final independent review: the server runtime review (`41fe1043`) is running; after the SBE wiring and API/UI merges, review SBE in the runtime and the UI on real runs; fix findings; final README pass.
