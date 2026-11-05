@@ -3,15 +3,16 @@
 //
 //   exsim_w2w_bench [--rate N] [--orders N] [--warmup N] [--window N]
 //                   [--busy-poll] [--server-cpu N] [--client-cpu N]
+//                   [--protocol ouch|fix|fixp_sbe]
 //
 // The server runs in this process on its own thread (the same
-// ServerRuntime as exsim_server: OUCH, FIX, admin, ITCH feed, no bots, no
-// journal). The client thread sends OUCH Enter Orders at a fixed rate
+// ServerRuntime as exsim_server: OUCH, FIX, FIXP, admin, ITCH feed, no bots, no
+// journal). The client thread sends orders over the selected protocol at a fixed rate
 // (--rate per second; 0 = as fast as possible with at most --window orders
 // waiting for their acceptance) and cancels each order once it is accepted.
 // For every order it measures, on the client's monotonic clock:
 //
-//   ouch accept   Enter Order written to the socket -> Order Accepted read
+//   <wire> accept Enter Order written to the socket -> acknowledgement read
 //   itch add      Enter Order written to the socket -> ITCH Add Order read
 //                 from the market-data feed (UDP)
 //
@@ -37,6 +38,7 @@ namespace {
 
 using namespace exsim;
 namespace ouch42 = exsim::protocol::ouch42;
+namespace sbe = exsim::protocol::sbe_order_entry;
 
 struct BenchOptions {
     std::uint64_t orders_per_second = 20'000;
@@ -105,7 +107,8 @@ bool parse_arguments(int argc, char** argv, BenchOptions& options) {
 
 std::string bench_config_text(std::uint64_t total_orders, std::string_view protocol) {
     // Every order uses a fresh token; each produces an accept and a cancel.
-    const std::uint64_t tokens = total_orders + 1024;
+    // FIX and FIXP also reserve each cancel ClOrdID for the day.
+    const std::uint64_t tokens = total_orders * 2 + 1024;
     const std::uint64_t stored_messages = total_orders * 2 + 1024;
     const std::uint64_t stored_bytes = total_orders * 1024 + (1u << 20);
     return "[exchange]\n"
@@ -169,7 +172,10 @@ struct LatencyRecorder {
 
     void accepted(std::uint32_t index) {
         const std::uint64_t now = net::monotonic_ns();
-        if (index >= send_time_ns.size()) { ++rejected_orders; return; }
+        if (index >= send_time_ns.size()) {
+            ++rejected_orders;
+            return;
+        }
         if (index >= warmup_orders) accept_latency_ns.push_back(now - send_time_ns[index]);
         ++accepted_orders;
         last_accept_time_ns = now;
@@ -196,15 +202,15 @@ struct LatencyRecorder {
     void on_session_reject(const protocol::fix44::Reject&, const gateway::fix::FixInboundMessageInfo&) { ++rejected_orders; }
     void on_logout(std::string_view) {}
     void on_application_message(const gateway::fixp_sbe::FixpSbeReceivedMessageInfo&,
-                                const protocol::sbe::ExecutionReportNew& report) {
+                                const sbe::ExecutionReportNew& report) {
         accepted(static_cast<std::uint32_t>(report.cl_ord_id - 1));
     }
     void on_application_message(const gateway::fixp_sbe::FixpSbeReceivedMessageInfo&,
-                                const protocol::sbe::ExecutionReportCancel&) { ++canceled_orders; }
+                                const sbe::ExecutionReportCancel&) { ++canceled_orders; }
     void on_application_message(const gateway::fixp_sbe::FixpSbeReceivedMessageInfo&,
-                                const protocol::sbe::ExecutionReportReject&) { ++rejected_orders; }
+                                const sbe::ExecutionReportReject&) { ++rejected_orders; }
     void on_application_message(const gateway::fixp_sbe::FixpSbeReceivedMessageInfo&,
-                                const protocol::sbe::OrderCancelReject&) { ++rejected_orders; }
+                                const sbe::OrderCancelReject&) { ++rejected_orders; }
     void on_order_canceled(const ouch42::OrderCanceled&, std::uint64_t) { ++canceled_orders; }
     void on_order_rejected(const ouch42::OrderRejected&, std::uint64_t) { ++rejected_orders; }
 
@@ -226,18 +232,36 @@ public:
     BenchSession(LatencyRecorder& recorder, std::string_view protocol, std::uint64_t total)
         : protocol_(protocol), ouch_(recorder), fix_(recorder, fix_settings(total)), sbe_(recorder, sbe_settings()) {}
     bool connect(server::ServerRuntime& runtime) {
-        if (protocol_ == "ouch") return ouch_.connect_and_login(runtime.listen_endpoint<server::runtime::OuchGateway>(), {"W2W", "w2w", ""}, 0);
-        if (protocol_ == "fix") return fix_.connect_and_logon(runtime.listen_endpoint<server::runtime::FixGateway>(), true);
-        return sbe_.connect_and_negotiate(runtime.listen_endpoint<server::runtime::FixpSbeGateway>(), client::random_fixp_session_uuid());
+        if (protocol_ == "ouch") {
+            return ouch_.connect_and_login(runtime.listen_endpoint<server::runtime::OuchGateway>(),
+                                           {"W2W", "w2w", ""}, 0);
+        }
+        if (protocol_ == "fix") {
+            return fix_.connect_and_logon(runtime.listen_endpoint<server::runtime::FixGateway>(), true);
+        }
+        return sbe_.connect_and_negotiate(runtime.listen_endpoint<server::runtime::FixpSbeGateway>(),
+                                          client::random_fixp_session_uuid());
     }
     bool ready() {
         if (protocol_ == "ouch") return ouch_.client().state() == gateway::ouch::OuchClientState::LoggedIn;
         if (protocol_ == "fix") return fix_.client().active();
         return sbe_.established();
     }
-    bool connected() const { return protocol_ == "ouch" ? ouch_.connected() : protocol_ == "fix" ? fix_.connected() : sbe_.connected(); }
-    void poll() { if (protocol_ == "ouch") ouch_.poll(); else if (protocol_ == "fix") fix_.poll(); else sbe_.poll(); }
-    void flush() { if (protocol_ == "ouch") ouch_.flush(); else if (protocol_ == "fix") fix_.flush(); else sbe_.flush(); }
+    bool connected() const {
+        if (protocol_ == "ouch") return ouch_.connected();
+        if (protocol_ == "fix") return fix_.connected();
+        return sbe_.connected();
+    }
+    void poll() {
+        if (protocol_ == "ouch") ouch_.poll();
+        else if (protocol_ == "fix") fix_.poll();
+        else sbe_.poll();
+    }
+    void flush() {
+        if (protocol_ == "ouch") ouch_.flush();
+        else if (protocol_ == "fix") fix_.flush();
+        else sbe_.flush();
+    }
     bool enter_order(const ouch42::EnterOrder& order, std::uint64_t now) {
         if (protocol_ == "ouch") return ouch_.client().enter_order(order, now);
         if (protocol_ == "fix") {
@@ -253,12 +277,12 @@ public:
             message.transact_time = net::realtime_ns();
             return fix_.client().send_new_order_single(message, client::fix_time_now());
         }
-        protocol::sbe::NewOrderSingle message;
+        sbe::NewOrderSingle message;
         message.cl_ord_id = LatencyRecorder::order_index_from_token(order.token) + 1;
-        message.symbol = protocol::sbe::wire_symbol_from(Symbol("BENCH"));
-        message.side = protocol::sbe::SideCode::Buy;
-        message.ord_type = protocol::sbe::OrdTypeCode::Limit;
-        message.time_in_force = protocol::sbe::TimeInForceCode::Day;
+        message.symbol = sbe::wire_symbol_from(Symbol("BENCH"));
+        message.side = sbe::SideCode::Buy;
+        message.ord_type = sbe::OrdTypeCode::Limit;
+        message.time_in_force = sbe::TimeInForceCode::Day;
         message.order_qty = order.shares;
         message.price_mantissa = order.price;
         return sbe_.client().send(message, net::realtime_ns()) != 0;
@@ -275,7 +299,7 @@ public:
             message.side = Side::BUY;
             return fix_.client().send_order_cancel_request(message, client::fix_time_now());
         }
-        protocol::sbe::OrderCancelRequest message;
+        sbe::OrderCancelRequest message;
         message.orig_cl_ord_id = LatencyRecorder::order_index_from_token(order.token) + 1;
         message.cl_ord_id = message.orig_cl_ord_id + total_id_offset;
         return sbe_.client().send(message, net::realtime_ns()) != 0;
@@ -283,7 +307,7 @@ public:
     void logout() {
         if (protocol_ == "ouch") ouch_.client().logout(net::monotonic_ns());
         else if (protocol_ == "fix") fix_.client().logout("benchmark complete", client::fix_time_now());
-        else sbe_.client().terminate(protocol::sbe::TerminationCode::Finished, "benchmark complete", net::realtime_ns());
+        else sbe_.client().terminate(sbe::TerminationCode::Finished, "benchmark complete", net::realtime_ns());
         flush();
     }
 private:
@@ -492,7 +516,7 @@ int main(int argc, char** argv) {
         std::printf("feed         retransmission_requests=%" PRIu64 " messages_lost=%" PRIu64
                     " rejected_orders=%" PRIu64 "%s\n",
                     feed.stats().requests_sent, feed.stats().messages_lost, recorder.rejected_orders,
-                    exit_status == 2 ? " (run timed out or the connection dropped)" : "");
+                    exit_status == 2 ? " (run incomplete: timeout, disconnect or reject)" : "");
         session.logout();
     }
     runtime->request_shutdown();

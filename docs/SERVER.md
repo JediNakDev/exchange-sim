@@ -1,11 +1,12 @@
 # exsim server: runtime, gateway contract, admin and fault injection (normative)
 
 How the pieces (engine, codecs, gateways, network, market data, journal,
-bots) are wired into the `exsim` server binary. Read with `docs/SPEC.md`
+bots) are wired into the `exsim_server` server binary. Read with `docs/SPEC.md`
 (engine), `docs/GATEWAYS.md` (protocol mapping) and `docs/ARCHITECTURE.md`
 (coding standard).
 The implementation, how to run it and measured latency are in
-`docs/SERVER_RUNTIME.md`.
+`docs/SERVER_RUNTIME.md`. The runtime serves OUCH, FIX 4.4 and SBE over FIXP
+through compile-time gateway adapters, including FIXP Terminate on shutdown.
 
 ## 1. Process model
 

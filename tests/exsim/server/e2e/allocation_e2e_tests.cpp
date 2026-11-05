@@ -15,7 +15,7 @@ constexpr int kOrdersPerBatch = 50;
 constexpr int kOuchReplacesPerBatch = 10;  // the first orders of each batch are replaced
 constexpr int kFixOrdersPerBatch = 10;
 constexpr int kFixpOrdersPerBatch = 10;
-constexpr int kFixpReplacesPerBatch = 2;  // the first orders of each batch are replaced
+constexpr int kFixpReplacesPerBatch = 2;  // the last orders of each batch are replaced
 
 // SBE ClOrdIDs of one batch: orders, replacements and cancels never collide
 // (and are never 0, which the gateway rejects).
@@ -53,10 +53,12 @@ struct SteadyStateTraffic {
     // part, an OUCH sell that trades with ERIN's first bid, SBE cancel all.
     bool run_batch(int batch) {
         const std::string prefix = std::to_string(batch) + "_";
+        // Keep asserted order lifetimes separate from AAPL noise takers.
+        // Bots still trade on AAPL while this allocation scope is active.
         const std::size_t accepted_before = alice_events.accepted.size();
         for (int order = 0; order < kOrdersPerBatch; ++order) {
             if (!alice.client().enter_order(ouch_limit_order("A" + prefix + std::to_string(order), Side::BUY, 10,
-                                                             (100 + order % 5) * kDollar),
+                                                             (100 + order % 5) * kDollar, "MSFT"),
                                             net::monotonic_ns())) {
                 return fail("ouch enter send");
             }

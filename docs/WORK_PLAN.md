@@ -106,3 +106,11 @@ Next, on completion notifications (do not poll):
 3. API and UI (`e28022a3`): check the adapter against the runner differences table, review, merge, run the C++ and bun gates.
 4. Runner fixes (`45a51fdd`) and mutation check (`9bdb16a6`) after their GPT continuations finish: review, merge, gate. Replay the strengthened FIX properties against the integrated optimized codec.
 5. Final independent review: the server runtime review (`41fe1043`) is running; after the SBE wiring and API/UI merges, review SBE in the runtime and the UI on real runs; fix findings; final README pass.
+
+## FIXP runtime continuation checkpoint (2026-11-05)
+
+- Task `8764c2d4-02f0-40c6-ba0f-7682e846f89a`, checkout `/Users/jedi/.t3/worktrees/lob/t3-59ca89aa`, branch `t3/wire-fixp-sbe-runtime`.
+- Preserved interrupted implementation in `878634b`; merged parent `b2e6b02` with `d3fd99d`. Runtime adapter, socket client, five FIXP E2E cases, allocation traffic and benchmark protocol selection implemented. No gateway API change or gateway-owned file edits.
+- Initial release `-j4 -Werror`: 845/845; all three benchmark smokes complete with zero loss/rejects. Logs in `output/runtime-sbe/` in this checkout. Debug/Linux gates were already running at the resource coordination hold.
+- Longer smokes exposed benchmark cancel ClOrdID capacity: reserve twice total orders for every protocol. Repeat allocation run failed on iteration 9 because AAPL noise takers could consume asserted OUCH order lifetimes. Move asserted orders to bot-free MSFT, keep bots active on AAPL. These corrections need fresh validation.
+- Next: merge parent with committed SBE QA fixes, finish current debug/Linux gates, await parent's serial slot before repeat checks and 18 common-setting perf measurements. Host load reached 90/36/16 during concurrent builds; no comparable measurement claimed from those smokes.
