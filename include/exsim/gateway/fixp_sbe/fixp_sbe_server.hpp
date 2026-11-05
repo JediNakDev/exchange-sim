@@ -564,6 +564,7 @@ private:
                     reports_follow_later = true;
                     break;
                 case server::SubmitResult::OutsideTradingDay:
+                case server::SubmitResult::ExchangeShutDown:
                     unanswered_reason = sbe::ExsimRejectReasonCode::MarketClosed;
                     break;
                 case server::SubmitResult::OutputCapacityExceeded:

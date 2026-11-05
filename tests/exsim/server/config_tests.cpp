@@ -308,6 +308,16 @@ flush_interval_ms = 0
         return !parse_config(std::string(kMinimal) + extra, parsed, err);
     };
     CHECK(fails("[exchange]\ntrading_day_start = 16:00\ntrading_day_end = 09:30\n"));
+    {
+        // A day that crosses midnight is rejected at startup with a message
+        // that says so (docs/EXCHANGE_CORE.md section 13).
+        ServerConfig parsed;
+        std::string err;
+        CHECK(!parse_config(std::string(kMinimal) + "[exchange]\ntrading_day_start = 22:00\ntrading_day_end = 02:00\n",
+                            parsed, err));
+        CHECK(err.find("cross midnight") != std::string::npos);
+        CHECK(err.find("22:00:00") != std::string::npos);
+    }
     CHECK(fails("[exchange]\ntrading_day_start = 10:00\ntrading_day_end = 10:00\n"));
     CHECK(fails("[exchange]\ntrading_day_end = 24:01\n"));
     CHECK(fails("[exchange]\ntrading_day_start = 9h\n"));

@@ -68,6 +68,18 @@ public:
     void duplicate_next(std::uint32_t n) noexcept { duplicate_next_ += n; }
     void reorder_next(std::uint32_t n) noexcept { reorder_next_ += n; }
 
+    // Clears every random rate and pending one-shot fault (`fault md off`).
+    // The seed and reorder delay are kept. Held packets stay held: release
+    // them with flush() so nothing already sequenced is lost.
+    void clear_faults() noexcept {
+        cfg_.drop_ppm = 0;
+        cfg_.duplicate_ppm = 0;
+        cfg_.reorder_ppm = 0;
+        drop_next_ = 0;
+        duplicate_next_ = 0;
+        reorder_next_ = 0;
+    }
+
     // True when no fault can fire and nothing is held: callers may bypass
     // the injector entirely.
     [[nodiscard]] bool idle() const noexcept {

@@ -152,10 +152,26 @@ TEST_CASE(server_core_time, timer_at_the_day_end_closes_everything_inside_the_da
     CHECK_EQ(h.recorder.sessions_shutdown_calls, 1u);
     CHECK_EQ(h.recorder.market_data_shutdown_calls, 1u);
 
-    // Idempotent; later commands are outside the day.
+    // Idempotent; later commands are refused as after shutdown, which wins
+    // over the trading-day check.
     h.core.timer(kDayEnd + 6 * kSecond);
     CHECK_EQ(h.recorder.sessions_shutdown_calls, 1u);
-    CHECK_EQ(h.core.submit(limit_order(1, 2, kAapl, Side::BUY, 1'000'000, 10)), SubmitResult::OutsideTradingDay);
+    CHECK_EQ(h.core.submit(limit_order(1, 2, kAapl, Side::BUY, 1'000'000, 10)), SubmitResult::ExchangeShutDown);
+    CHECK_EQ(h.core.counters().commands_after_shutdown, 1u);
+}
+
+TEST_CASE(server_core_time, submit_after_admin_shutdown_is_refused_and_not_journaled) {
+    RecordingHarness h(parse_test_config());
+    h.clock.day = kDayStart + kSecond;
+    REQUIRE_EQ(h.core.submit(limit_order(1, 1, kAapl, Side::BUY, 1'000'000, 10)), SubmitResult::Applied);
+    h.core.shutdown();
+    REQUIRE(h.core.shutdown_requested());
+    const std::size_t batches_before = h.recorder.batch_count();
+    h.clock.day += kSecond;
+    CHECK_EQ(h.core.submit(limit_order(1, 2, kAapl, Side::BUY, 1'000'000, 10)), SubmitResult::ExchangeShutDown);
+    CHECK_EQ(h.recorder.batch_count(), batches_before);
+    CHECK_EQ(h.core.counters().commands_after_shutdown, 1u);
+    CHECK_EQ(server::to_string(SubmitResult::ExchangeShutDown), std::string_view("exchange shut down"));
 }
 
 TEST_CASE(server_core_time, timer_before_the_day_start_runs_no_bots) {

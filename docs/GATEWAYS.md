@@ -218,7 +218,7 @@ user state through `on_events` whether or not a transport is bound.
 | `SubmitResult` | Answer |
 | --- | --- |
 | Applied, Deferred | nothing now; reports follow |
-| OutsideTradingDay | reject with MarketClosed |
+| OutsideTradingDay, ExchangeShutDown | reject with MarketClosed |
 | OutputCapacityExceeded, DeferredQueueFull | reject with CapacityExceeded |
 | void submit, no message answered the request | reject with RequestHadNoEffect |
 

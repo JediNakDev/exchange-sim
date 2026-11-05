@@ -61,6 +61,7 @@ struct CoreOptions {
 struct CoreCounters {
     std::uint64_t commands_applied = 0;              // handed to the engine and Applied
     std::uint64_t commands_outside_trading_day = 0;  // refused by the trading-day check
+    std::uint64_t commands_after_shutdown = 0;       // refused: the exchange has shut down
     std::uint64_t output_capacity_failures = 0;      // InsufficientOutput on an empty buffer
     std::uint64_t commands_deferred = 0;             // submitted during dispatch, applied afterwards
     std::uint64_t deferred_queue_overflows = 0;      // refused: deferred queue full
@@ -581,6 +582,12 @@ private:
 
     // Steps 1-5 for one command at `stamp`.
     SubmitResult apply(Command command, Timestamp stamp) noexcept {
+        if (shutdown_) {
+            // Nothing trades after the closing batch: refuse instead of
+            // letting the engine reject in Closed (and journaling that).
+            ++counters_.commands_after_shutdown;
+            return SubmitResult::ExchangeShutDown;
+        }
         if (stamp < day_start_ || stamp >= day_end_) {
             ++counters_.commands_outside_trading_day;
             return SubmitResult::OutsideTradingDay;
@@ -899,6 +906,7 @@ private:
                                " on_failure=" + std::string(to_string(config_.journal_failure_policy)));
         append_line(reply, "commands applied=" + std::to_string(counters_.commands_applied) +
                                " outside_trading_day=" + std::to_string(counters_.commands_outside_trading_day) +
+                               " after_shutdown=" + std::to_string(counters_.commands_after_shutdown) +
                                " output_capacity_failures=" + std::to_string(counters_.output_capacity_failures) +
                                " deferred=" + std::to_string(counters_.commands_deferred) +
                                " deferred_overflows=" + std::to_string(counters_.deferred_queue_overflows));

@@ -347,6 +347,25 @@ TEST_CASE(fixp_sbe_core, outside_trading_day_is_answered_market_closed) {
     CHECK(reject.ord_rej_reason == sbe::OrdRejReasonCode::ExchangeClosed);
 }
 
+// A request that arrives after shutdown but before the runtime ends the
+// session is refused by the core (ExchangeShutDown) and answered like a
+// closed market.
+TEST_CASE(fixp_sbe_core, order_after_shutdown_is_answered_market_closed) {
+    CoreExchange exchange;
+    CoreSession alice(exchange);
+    REQUIRE(alice.log_in(kFirstSessionUuid, "ALICE:alicepw"));
+    exchange.core.shutdown();
+    (void)alice.take_output();
+    alice.send(limit_order(1, sbe::SideCode::Buy, kHundredFiftyDollars, 10));
+    const std::vector<ParsedFrame> frames = alice.take_output();
+    REQUIRE_EQ(frames.size(), 1u);
+    const sbe::ExecutionReportReject reject = frames[0].as<sbe::ExecutionReportReject>();
+    CHECK(reject.exsim_reject_reason == sbe::ExsimRejectReasonCode::MarketClosed);
+    CHECK(reject.ord_rej_reason == sbe::OrdRejReasonCode::ExchangeClosed);
+    CHECK_EQ(exchange.core.counters().commands_after_shutdown, 1u);
+    CHECK_EQ(exchange.core.engine().live_order_count(), 0u);
+}
+
 #if !defined(__SANITIZE_ADDRESS__) && !defined(__SANITIZE_THREAD__)
 #ifndef __has_feature
 #define __has_feature(x) 0

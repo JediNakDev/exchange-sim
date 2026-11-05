@@ -4,6 +4,8 @@ How the pieces (engine, codecs, gateways, network, market data, journal,
 bots) are wired into the `exsim` server binary. Read with `docs/SPEC.md`
 (engine), `docs/GATEWAYS.md` (protocol mapping) and `docs/ARCHITECTURE.md`
 (coding standard).
+The implementation, how to run it and measured latency are in
+`docs/SERVER_RUNTIME.md`.
 
 ## 1. Process model
 
@@ -164,8 +166,8 @@ Each request is one line; each reply is one or more lines ending with
 | `fault md off` | clear MD faults |
 | `fault user <USER> reject <n>` | the gateway rejects the user's next n new orders itself (OUCH `J` reason `O`, FIX ER 39=8 Text "injected"); the engine never sees them |
 | `fault user <USER> delay <us>` | hold each inbound application message of the user for `us` microseconds before decoding (orders stay in arrival order) |
-| `fault user <USER> drop_out <n>` | do not transmit the user's next n sequenced application messages (still stored): exercises client recovery. FIX and FIXP/SBE leave a gap the client detects from explicit sequence numbers; OUCH (implicit SoupBinTCP numbering) closes the connection after the n-th, and the client recovers them by replay on reconnect (GATEWAYS.md section 2) |
-| `fault user <USER> disconnect` | close the user's connection now (cancel-on-disconnect applies) |
+| `fault user <USER> drop_out <n>` | do not transmit the user's next n sequenced application messages (still stored; session-level messages are never dropped): exercises client recovery. FIX and FIXP/SBE leave a gap the client detects from explicit sequence numbers (FIX sends ResendRequest); OUCH (implicit SoupBinTCP numbering) closes the connection after the n-th, and the client recovers them by replay on reconnect (GATEWAYS.md section 2) |
+| `fault user <USER> disconnect` | close the user's connection now; the gateway is told as for any disconnect (cancel-on-disconnect applies) |
 | `fault user <USER> off` | clear the user's faults |
 | `bots <on\|off>` | start/stop simulated liquidity |
 | `shutdown` | end of day: `SetPhase Closed` for all instruments, OUCH `S`/`E`, ITCH `S`/`E` and End of Session, flush, exit |
