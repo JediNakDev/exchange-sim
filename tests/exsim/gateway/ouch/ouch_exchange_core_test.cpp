@@ -263,23 +263,54 @@ TEST_CASE(gateway_ouch_core, admin_faults_reject_and_drop_then_cancel_on_disconn
         CHECK(reply_ends_with_ok(exchange.admin("fault user ALICE drop_out 1")));
         alice.send_message(enter_order("BID3", 'B', 10, "AAPL", kHundredFiftyDollars));
         CHECK(alice.take_frames().empty());  // stored as message 4, not transmitted
-        alice.send_message(enter_order("BID4", 'B', 10, "AAPL", kHundredFiftyDollars));
-        CHECK_EQ(alice.take_types(), "A");
+        // The link is cut after the last dropped message (implicit SoupBinTCP numbering).
+        CHECK(alice.connection().close_reason() == OuchCloseReason::FaultDropOut);
         CHECK_EQ(exchange.user_states.find(1)->statistics().outbound_messages_dropped_by_fault, 1u);
-        CHECK_EQ(exchange.core.engine().live_order_count(), 3u);
+        // on_data released the closed connection: the core unbound ALICE and
+        // cancel-on-disconnect cancelled BID2 and BID3.
+        CHECK_EQ(exchange.core.engine().live_order_count(), 0u);
     }
-    // The disconnect unbinds ALICE in the core, which cancels her orders.
     CHECK(exchange.core.connection(1) == std::nullopt);
     CHECK_EQ(exchange.core.engine().live_order_count(), 0u);
     alice_messages = exchange.user_states.find(1)->store().last_seq();
-    CHECK_EQ(alice_messages, 8u);  // S J A A A C C C
+    CHECK_EQ(alice_messages, 6u);  // S J A A C C
 
+    // The client received 3 messages, so it asks for 4: the dropped one first.
     CoreSession recovered(exchange);
     REQUIRE(recovered.login("ALICE", "alicepw", 4));
     const std::vector<std::string> frames = recovered.take_frames();
-    REQUIRE_EQ(sequenced_types(frames), "AACCC");
+    REQUIRE_EQ(sequenced_types(frames), "ACC");
     CHECK_EQ(token_text(decode_ouch<ouch42::OrderAccepted>(frames[1]).token), "BID3");
-    CHECK_EQ(decode_ouch<ouch42::OrderCanceled>(frames[3]).reason, 'U');
+    CHECK_EQ(decode_ouch<ouch42::OrderCanceled>(frames[2]).reason, 'U');
+}
+
+// FIX QA R1: a connection's release unbinds only its own binding. The old
+// server loop unbound a requested disconnect itself; a newer login then bound
+// the session and the old connection's disconnect handler must not undo it.
+TEST_CASE(gateway_ouch_core, stale_connection_release_keeps_the_newer_binding) {
+    CoreExchange exchange;
+    CoreSession alice(exchange);
+    REQUIRE(alice.login("ALICE", "alicepw"));
+    const server::ConnectionId old_connection = alice.connection().connection_id();
+    exchange.core.unbind(1, old_connection);  // released early, cancel-on-disconnect applied
+    const server::ConnectionId newer_connection = 9999;
+    REQUIRE(exchange.core.bind(1, newer_connection));
+    NewOrder order;
+    order.instrument = 1;
+    order.session = 1;
+    order.owner = 1;
+    order.cl_ord_id = 4242;
+    order.side = Side::BUY;
+    order.price = kHundredFiftyDollars;
+    order.qty = 10;
+    REQUIRE(exchange.core.submit(Command{order}) == server::SubmitResult::Applied);
+    REQUIRE_EQ(exchange.core.engine().live_order_count(), 1u);
+
+    alice.disconnect();  // the old connection's handler runs late
+    CHECK(exchange.core.connection(1) == std::optional<server::ConnectionId>(newer_connection));
+    CHECK_EQ(exchange.core.engine().live_order_count(), 1u);
+    exchange.core.unbind(1, newer_connection);
+    CHECK_EQ(exchange.core.engine().live_order_count(), 0u);
 }
 
 TEST_CASE(gateway_ouch_core, orders_outside_the_trading_day_are_rejected_exchange_closed) {

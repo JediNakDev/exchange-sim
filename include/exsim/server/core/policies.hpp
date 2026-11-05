@@ -25,8 +25,14 @@
 //   md.reset_packet_faults()      used by `fault md off` when present
 //   md.on_shutdown(Timestamp)     ITCH end of system hours / end of session
 //   s.on_shutdown(Timestamp, Core&)  OUCH/FIX end-of-day messages
+//   md.on_events / on_timer / on_shutdown may return md::PublishStatus
+//                                 instead of void: the core counts and keeps
+//                                 failures (CoreCounters, `status`)
+//   md.state(), md.stop_reason()  md::PublisherState and md::PublishStatus,
+//                                 shown by `status`
 
 #include "exsim/event.hpp"
+#include "exsim/md/publisher.hpp"
 #include "exsim/sim/packet_faults.hpp"
 #include "exsim/types.hpp"
 
@@ -103,6 +109,12 @@ concept MarketDataPacketFaultReset = requires(MarketData& market_data) { market_
 
 template <typename MarketData>
 concept MarketDataShutdown = requires(MarketData& market_data, Timestamp now) { market_data.on_shutdown(now); };
+
+template <typename MarketData>
+concept MarketDataPublisherState = requires(const MarketData& market_data) {
+    { market_data.state() } -> std::same_as<md::PublisherState>;
+    { market_data.stop_reason() } -> std::same_as<md::PublishStatus>;
+};
 
 template <typename Sessions, typename Core>
 concept SessionsShutdown = requires(Sessions& sessions, Timestamp now, Core& core) { sessions.on_shutdown(now, core); };

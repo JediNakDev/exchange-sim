@@ -172,7 +172,7 @@ concept FixpSbeServerContext = requires(Context& context, const Context& const_c
                                         const Symbol& symbol, InstrumentId instrument, const Command& command) {
     { context.authenticate(text, text, protocol) } -> std::same_as<const server::UserConfig*>;
     { context.bind(session, connection) } -> std::same_as<bool>;
-    context.unbind(session);
+    context.unbind(session, connection);
     { const_context.find_instrument(symbol) } -> std::same_as<InstrumentId>;
     { const_context.instrument(instrument) } -> std::same_as<const InstrumentConfig*>;
     requires std::is_void_v<decltype(context.submit(command))> ||
@@ -1385,7 +1385,7 @@ private:
         FixpSbeUserState<ByteSink>* user_state = user_state_;
         user_state_ = nullptr;
         user_state->detach_connection(this);
-        context.unbind(user_state->session_id());
+        context.unbind(user_state->session_id(), connection_id_);
     }
 
     ByteSink sink_;

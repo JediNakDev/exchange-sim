@@ -80,7 +80,7 @@ TEST_CASE(server_core_sessions, one_live_binding_per_session) {
     CHECK(!h.core.bind(0, 81));
     CHECK_EQ(h.core.bound_connection_count(), 2u);
 
-    h.core.unbind(1);
+    h.core.unbind(1, 77);
     CHECK(!h.core.is_bound(1));
     CHECK(!h.core.connection(1).has_value());
     CHECK_EQ(h.core.bound_connection_count(), 1u);
@@ -97,7 +97,7 @@ TEST_CASE(server_core_sessions, unbind_cancels_everything_when_cancel_on_disconn
     REQUIRE_EQ(h.core.submit(limit_order(2, 1, kAapl, Side::BUY, 1'000'000, 10)), SubmitResult::Applied);
     const std::size_t before = h.recorder.batch_count();
 
-    h.core.unbind(1);
+    h.core.unbind(1, 7);
     REQUIRE_EQ(h.recorder.batch_count(), before + 1);
     const auto cancels = h.recorder.batch(before);
     REQUIRE_EQ(cancels.size(), 4u);  // three Canceled, then MassCancelDone
@@ -112,7 +112,7 @@ TEST_CASE(server_core_sessions, unbind_cancels_everything_when_cancel_on_disconn
     CHECK(h.recorder.sessions_of_batch(before) == std::vector<SessionId>{1});
     CHECK_EQ(h.core.engine().live_order_count(), 1u);  // BOB's order stays
 
-    h.core.unbind(1);  // not bound: no-op
+    h.core.unbind(1, 7);  // not bound: no-op
     CHECK_EQ(h.recorder.batch_count(), before + 1);
 }
 
@@ -121,7 +121,7 @@ TEST_CASE(server_core_sessions, unbind_keeps_orders_without_cancel_on_disconnect
     REQUIRE(h.core.bind(3, 7));
     REQUIRE_EQ(h.core.submit(limit_order(3, 1, kAapl, Side::BUY, 1'000'000, 10)), SubmitResult::Applied);
     const std::size_t before = h.recorder.batch_count();
-    h.core.unbind(3);
+    h.core.unbind(3, 7);
     CHECK(!h.core.is_bound(3));
     CHECK_EQ(h.recorder.batch_count(), before);
     CHECK_EQ(h.core.engine().live_order_count(), 1u);
@@ -130,7 +130,7 @@ TEST_CASE(server_core_sessions, unbind_keeps_orders_without_cancel_on_disconnect
 TEST_CASE(server_core_sessions, unbind_with_nothing_resting_still_reports_mass_cancel_done) {
     RecordingHarness h(parse_test_config());
     REQUIRE(h.core.bind(1, 7));
-    h.core.unbind(1);
+    h.core.unbind(1, 7);
     REQUIRE_EQ(h.recorder.batch_count(), 1u);
     const auto batch = h.recorder.batch(0);
     REQUIRE_EQ(batch.size(), 1u);

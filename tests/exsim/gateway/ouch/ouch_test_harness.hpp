@@ -168,8 +168,8 @@ public:
         return true;
     }
 
-    void unbind(SessionId session) noexcept {
-        if (!binding_by_session_[session].has_value()) return;
+    void unbind(SessionId session, server::ConnectionId connection) noexcept {
+        if (binding_by_session_[session] != connection) return;  // not bound, or bound to another connection
         binding_by_session_[session].reset();
         ++unbind_count_;
         const server::UserConfig* user = find_user(session);
@@ -204,6 +204,7 @@ public:
     // SERVER.md 4 fault queries: each true consumes one count.
     bool consume_injected_reject(SessionId session) noexcept { return consume_one(injected_rejects_by_session_[session]); }
     bool consume_drop_out(SessionId session) noexcept { return consume_one(outbound_drops_by_session_[session]); }
+    bool has_pending_drop_out(SessionId session) const noexcept { return outbound_drops_by_session_[session] != 0; }
 
     // ---- Test controls ------------------------------------------------------
 
