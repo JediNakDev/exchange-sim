@@ -275,7 +275,7 @@ std::string format_wall_clock_time(std::int64_t unix_milliseconds) {
     const std::time_t seconds = static_cast<std::time_t>(unix_milliseconds / 1000);
     std::tm utc{};
     gmtime_r(&seconds, &utc);
-    char buffer[40];
+    char buffer[128];
     std::snprintf(buffer, sizeof(buffer), "%04d-%02d-%02dT%02d:%02d:%02d.%03dZ", utc.tm_year + 1900, utc.tm_mon + 1, utc.tm_mday,
                   utc.tm_hour, utc.tm_min, utc.tm_sec, static_cast<int>(unix_milliseconds % 1000));
     return buffer;
