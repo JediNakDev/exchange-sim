@@ -143,9 +143,15 @@ std::string bench_config_text(std::uint64_t total_orders, std::string_view proto
 
 // Client-side bookkeeping, sized up front.
 struct LatencyRecorder {
-    std::vector<std::uint64_t> send_time_ns;   // per order index
+    std::vector<std::uint64_t> send_time_ns;   // before encoding and queueing
+    std::vector<std::uint64_t> intended_time_ns;  // fixed-rate deadline, per order index
     std::vector<std::uint64_t> accept_latency_ns;
     std::vector<std::uint64_t> itch_add_latency_ns;
+    std::vector<std::uint64_t> scheduled_accept_latency_ns;
+    std::vector<std::uint64_t> scheduled_itch_add_latency_ns;
+    std::uint64_t late_sends = 0;
+    std::uint64_t missed_deadlines = 0;
+    std::uint64_t max_send_lateness_ns = 0;
     std::vector<std::uint32_t> orders_to_cancel;
     std::uint64_t warmup_orders = 0;
     std::uint64_t accepted_orders = 0;
@@ -156,6 +162,9 @@ struct LatencyRecorder {
 
     explicit LatencyRecorder(std::uint64_t total_orders, std::uint64_t warmup) : warmup_orders(warmup) {
         send_time_ns.assign(total_orders, 0);
+        intended_time_ns.assign(total_orders, 0);
+        scheduled_accept_latency_ns.reserve(total_orders);
+        scheduled_itch_add_latency_ns.reserve(total_orders);
         accept_latency_ns.reserve(total_orders);
         itch_add_latency_ns.reserve(total_orders);
         orders_to_cancel.reserve(total_orders);
@@ -176,7 +185,10 @@ struct LatencyRecorder {
             ++rejected_orders;
             return;
         }
-        if (index >= warmup_orders) accept_latency_ns.push_back(now - send_time_ns[index]);
+        if (index >= warmup_orders) {
+            accept_latency_ns.push_back(now - send_time_ns[index]);
+            scheduled_accept_latency_ns.push_back(now - intended_time_ns[index]);
+        }
         ++accepted_orders;
         last_accept_time_ns = now;
         orders_to_cancel.push_back(index);
@@ -220,7 +232,9 @@ struct LatencyRecorder {
         if (message.empty() || message[0] != 'A') return;
         const std::uint64_t index = itch_add_orders++;
         if (index >= warmup_orders && index < send_time_ns.size()) {
-            itch_add_latency_ns.push_back(net::monotonic_ns() - send_time_ns[index]);
+            const std::uint64_t now = net::monotonic_ns();
+            itch_add_latency_ns.push_back(now - send_time_ns[index]);
+            scheduled_itch_add_latency_ns.push_back(now - intended_time_ns[index]);
         }
     }
     void on_end_of_session(std::uint64_t) {}
@@ -466,7 +480,7 @@ int main(int argc, char** argv) {
         std::size_t cancels_sent = 0;
         while (recorder.canceled_orders < total_orders || recorder.itch_add_orders < total_orders) {
             const std::uint64_t now = net::monotonic_ns();
-            if (now > run_deadline_ns || !session.connected() || recorder.rejected_orders != 0) {
+            if (now > run_deadline_ns || !session.connected() || recorder.rejected_orders != 0 || feed.stats().messages_lost != 0) {
                 exit_status = 2;
                 break;
             }
@@ -478,7 +492,15 @@ int main(int argc, char** argv) {
             if (may_send) {
                 write_token(order.token, sent_orders);
                 const std::uint64_t send_ns = net::monotonic_ns();
+                const std::uint64_t intended_ns = interval_ns == 0 ? send_ns : start_ns + sent_orders * interval_ns;
                 recorder.send_time_ns[sent_orders] = send_ns;
+                recorder.intended_time_ns[sent_orders] = intended_ns;
+                if (sent_orders >= options.warmup_orders && interval_ns != 0 && send_ns > intended_ns) {
+                    const std::uint64_t lateness = send_ns - intended_ns;
+                    ++recorder.late_sends;
+                    if (lateness >= interval_ns) ++recorder.missed_deadlines;
+                    recorder.max_send_lateness_ns = std::max(recorder.max_send_lateness_ns, lateness);
+                }
                 if (sent_orders == options.warmup_orders) first_measured_send_ns = send_ns;
                 if (!session.enter_order(order, send_ns)) {
                     exit_status = 2;
@@ -509,6 +531,11 @@ int main(int argc, char** argv) {
                     options.warmup_orders);
         print_summary(options.protocol == "ouch" ? "ouch accept" : options.protocol == "fix" ? "fix accept" : "sbe accept", summarize(recorder.accept_latency_ns));
         print_summary("itch add", summarize(recorder.itch_add_latency_ns));
+        print_summary("sched accept", summarize(recorder.scheduled_accept_latency_ns));
+        print_summary("sched itch", summarize(recorder.scheduled_itch_add_latency_ns));
+        std::printf("schedule     late_sends=%" PRIu64 " missed_deadlines=%" PRIu64
+                    " max_send_lateness=%" PRIu64 " ns (missed means at least one interval late)\n",
+                    recorder.late_sends, recorder.missed_deadlines, recorder.max_send_lateness_ns);
         const double measured_seconds =
             double(recorder.last_accept_time_ns - first_measured_send_ns) / 1'000'000'000.0;
         std::printf("throughput   accepted_orders_per_second=%.0f (plus one cancel per order)\n",

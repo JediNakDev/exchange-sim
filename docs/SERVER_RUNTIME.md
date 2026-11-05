@@ -260,3 +260,29 @@ Reading the numbers:
   (`Cpus_allowed_list: 0` for `exsim_server --cpu 0`) and gave ouch accept
   p50 12041, p90 15250, p99 616626 ns; a VM sharing a busy host is not a
   latency reference, so tuned Linux numbers are still to be measured.
+
+### Intended schedule and timestamp boundaries
+
+`--rate N` retains both `start + order_index * interval` and the client's
+actual submission time for every order. The actual timestamp is taken
+immediately before encoding and queueing the application message; the tool
+then flushes its nonblocking TCP buffer. Responses are timed inside the
+application decode callback, or inside the ITCH receiver callback. These
+are client application boundaries, including encoding, queueing, socket I/O,
+server work and client decoding, not kernel or NIC timestamps.
+
+The existing `<protocol> accept` and `itch add` rows measure actual submission
+to callback. `sched accept` and `sched itch` measure intended deadline to the
+same callback, including client stalls and waiting for the outstanding-order
+limit. Warmup orders are excluded from both distributions. `late_sends`
+counts measured sends after their intended deadline; `missed_deadlines`
+counts measured orders sent at least one full interval late. Orders are
+never skipped, so this is a count of affected orders, not dropped arrivals.
+`max_send_lateness` is their worst delay. With `--rate 0`, there is no open-loop
+schedule: intended equals actual and scheduling counters are zero.
+Nanosecond units do not imply nanosecond clock resolution.
+
+The older OUCH measurements above exclude intended-deadline delay; a new
+per-protocol comparison must include both distributions and recorded host
+load. Tail attribution and saturation conclusions from these measurements
+are hypotheses, not established by latency alone.
