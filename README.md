@@ -25,7 +25,7 @@ is in progress and must not be read as working.
 | Exchange core: submit and dispatch, admin console and fault injection, background bots, journal, trading day; server config for all three protocols | **integrated** as a library (`include/exsim/server/`) |
 | Networking: kqueue/epoll poller, TCP server and client, UDP and multicast | **integrated** |
 | Deterministic research runner: simulated time, latency model, fixed-spread and inventory-aware market makers, TWAP, accounting, risk limits, manifests, seed sweeps, paired comparison, replay verification (`exsim_research`) | **integrated** ([RESEARCH_RUNNER.md](docs/RESEARCH_RUNNER.md)) |
-| Coverage-guided fuzzing: 15 libFuzzer targets for every decoder and text parser, committed corpora replayed by `make test` | **integrated** ([FUZZING.md](docs/FUZZING.md)) |
+| Coverage-guided fuzzing: 16 libFuzzer targets for every decoder and text parser, committed corpora replayed by `make test` | **integrated** ([FUZZING.md](docs/FUZZING.md)) |
 | Research API contract (OpenAPI 3.1) and Next.js research UI | **integrated on a mock service**; the UI does not read real runs yet |
 | Three engine layouts compared on one machine (A tick ladder, B sorted vectors, C index arena), independent review of C, SPEC conformance audit | **done** ([engine variants](docs/engine-variants/), [SPEC_CONFORMANCE.md](docs/SPEC_CONFORMANCE.md)) |
 | Independent QA reviews of OUCH, ITCH/MoldUDP64, the core and FIX | **done**; confirmed findings are being fixed (one config finding fixed so far) |
@@ -113,14 +113,14 @@ Normative documents: [SPEC.md](docs/SPEC.md) (matching semantics),
 
 | Layer | What it checks |
 | --- | --- |
-| Unit and contract tests (`tests/`) | 789 tests: codecs, networking, engine contracts, gateways and session recovery, market data under packet faults, exchange core, research runner, journal, bots, ledger, legacy book |
+| Unit and contract tests (`tests/`) | 790 tests: codecs, networking, engine contracts, gateways and session recovery, market data under packet faults, exchange core, research runner, journal, bots, ledger, legacy book |
 | Reference oracle (`tests/exsim/reference/`) | a deliberately simple second implementation of SPEC.md, written independently of the production engine |
 | Differential fuzzer (`tools/exsim_fuzz`) | random command streams through engine and oracle, compared event by event, with a shrinker for minimal reproducers |
 | Scenarios (`tests/scenarios/*.scn`) | 39 hand-written exchange situations with expected events (16 derived line by line from the spec), run against both implementations; a failure names the file, line and field |
 | Journal and replay | canonical serialization, corruption and truncation detection, bit-identical replay |
 | Research determinism (CI) | every research config over fixed seeds on x86_64 Linux g++ and clang++ and arm64 macOS; all artifact digests must be equal |
 | Allocation guards | per-thread counting of every `operator new` form inside `run_tests`; the engine, journal, networking and bot hot paths must report zero |
-| Coverage-guided fuzzing (`fuzz/`) | 15 libFuzzer targets with ASan/UBSan and property checks; the 2026-11-05 campaign ran 302,880,773 executions with no crash, and the committed corpora (6,190 files) replay in every `make test` |
+| Coverage-guided fuzzing (`fuzz/`) | 16 libFuzzer targets with ASan/UBSan and property checks; the 2026-11-05 campaigns ran 384,594,827 executions (302,880,773 over 15 targets, 81,714,054 on the new SBE target) with no crash, and the committed corpora (7,252 files) replay in every `make test` |
 | Sanitizers | the full suite under ASan/UBSan and TSan |
 
 Engine validation so far: 1000 seeds x 20000 steps for each fuzz profile
