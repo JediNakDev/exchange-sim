@@ -402,6 +402,9 @@ int main(int argc, char** argv) {
 
     std::array<char, 65536> datagram{};
     std::uint64_t last_packet_ns = net::monotonic_ns();
+    // Retransmissions are accepted only from the configured request server;
+    // anything else on that socket could inject packets into the book.
+    std::uint64_t foreign_retransmission_packets = 0;
     for (;;) {
         if (poller.wait(10) < 0 && errno != EINTR) {
             std::fprintf(stderr, "poll: %s\n", std::strerror(errno));
@@ -415,6 +418,11 @@ int main(int argc, char** argv) {
                     if (!net::is_would_block(errno) && errno != EMSGSIZE)
                         std::fprintf(stderr, "receive: %s\n", std::strerror(errno));
                     if (errno != EMSGSIZE) break;
+                    continue;
+                }
+                if (socket == &retransmission_socket &&
+                    (!options.retransmission_server.has_value() || peer != *options.retransmission_server)) {
+                    ++foreign_retransmission_packets;
                     continue;
                 }
                 last_packet_ns = net::monotonic_ns();
@@ -437,8 +445,8 @@ int main(int argc, char** argv) {
     const md::ReceiverStats& stats = receiver.stats();
     std::fprintf(stderr,
                  "packets=%" PRIu64 " delivered=%" PRIu64 " duplicates=%" PRIu64 " requests=%" PRIu64
-                 " lost=%" PRIu64 "\n",
+                 " lost=%" PRIu64 " foreign_retransmissions=%" PRIu64 "\n",
                  stats.packets, stats.messages_delivered, stats.duplicate_messages, stats.requests_sent,
-                 stats.messages_lost);
+                 stats.messages_lost, foreign_retransmission_packets);
     return 0;
 }
