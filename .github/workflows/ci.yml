@@ -37,6 +37,53 @@ jobs:
       - name: engine benchmark (fails on any hot-path allocation)
         run: ./build/perf/exsim_bench --ops 200000
 
+  research-determinism:
+    # The research runner promises byte-identical artifacts for the same config
+    # and seed. Each platform and compiler writes one digest per artifact, and
+    # research-determinism-compare requires them all to be equal, across
+    # x86_64 Linux (g++, clang++) and arm64 macOS (Apple clang).
+    name: research determinism (${{ matrix.os }} ${{ matrix.cxx }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-24.04, cxx: g++ }
+          - { os: ubuntu-24.04, cxx: clang++ }
+          - { os: macos-15,     cxx: clang++ }
+    steps:
+      - uses: actions/checkout@v4
+      - name: build research runner
+        run: make -j4 tools MODE=release CXX=${{ matrix.cxx }} EXTRA_CXXFLAGS=-Werror
+      - name: run every research config over fixed seeds
+        run: sh .github/scripts/research_digests.sh build/release/exsim_research "research-digests-${{ matrix.os }}-${{ matrix.cxx }}.txt"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: research-digests-${{ matrix.os }}-${{ matrix.cxx }}
+          path: research-digests-*.txt
+
+  research-determinism-compare:
+    name: research artifacts identical across platforms
+    needs: research-determinism
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: research-digests-*
+          merge-multiple: true
+      - name: compare digests
+        run: |
+          set -e
+          reference=$(ls research-digests-*.txt | head -n 1)
+          for digests in research-digests-*.txt; do
+            echo "$digests: $(wc -l < "$digests") artifacts"
+            if ! cmp -s "$reference" "$digests"; then
+              echo "research artifacts differ between $reference and $digests:"
+              diff "$reference" "$digests" | head -n 40
+              exit 1
+            fi
+          done
+
   differential-fuzz:
     # Random command streams through the production engine and the independent
     # oracle, compared event by event. Release covers volume; debug runs the

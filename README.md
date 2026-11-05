@@ -58,7 +58,13 @@ make tools MODE=perf && ./build/perf/exsim_bench --ops 2000000
 Each research run replays its own journal independently and refuses to report
 success unless the replay matches. A five-seed sweep of about 23,000 events per
 seed takes 0.64 s of wall time on an M-series Mac (release build), and
-repeating it gives byte-identical event files.
+repeating it gives byte-identical event files. The artifacts are also
+identical across platforms and compilers: every research config over seeds
+1..3 produced the same bytes on macOS arm64 (Apple clang 21), Linux aarch64
+(GCC 14.2, Clang 19.1) and Linux x86_64 (GCC 14.2, Clang 19.1, under
+emulation). Only `status.json` (wall clock) and the compiler name in
+`manifest.json` differ. CI keeps this property with the `research-determinism`
+jobs.
 
 CI (`.github/workflows/ci.yml`) builds and tests with `-Werror` on Linux g++
 and clang++ (release and debug), Linux clang++ TSan, and macOS clang (release
@@ -112,6 +118,7 @@ Normative documents: [SPEC.md](docs/SPEC.md) (matching semantics),
 | Differential fuzzer (`tools/exsim_fuzz`) | random command streams through engine and oracle, compared event by event, with a shrinker for minimal reproducers |
 | Scenarios (`tests/scenarios/*.scn`) | 39 hand-written exchange situations with expected events (16 derived line by line from the spec), run against both implementations; a failure names the file, line and field |
 | Journal and replay | canonical serialization, corruption and truncation detection, bit-identical replay |
+| Research determinism (CI) | every research config over fixed seeds on x86_64 Linux g++ and clang++ and arm64 macOS; all artifact digests must be equal |
 | Allocation guards | per-thread counting of every `operator new` form inside `run_tests`; the engine, journal, networking and bot hot paths must report zero |
 | Coverage-guided fuzzing (`fuzz/`) | 15 libFuzzer targets with ASan/UBSan and property checks; the 2026-11-05 campaign ran 302,880,773 executions with no crash, and the committed corpora (6,190 files) replay in every `make test` |
 | Sanitizers | the full suite under ASan/UBSan and TSan |
