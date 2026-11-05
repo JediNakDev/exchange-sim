@@ -7,7 +7,9 @@
 //                   [--retransmit 127.0.0.1:31002] [--mode messages|book]
 //                   [--levels 5] [--late-join] [--count N] [--timeout-ms N]
 //
-// Without --retransmit, gap requests have nowhere to go: missing messages are
+// Retransmission-socket datagrams are accepted only from the exact
+// --retransmit endpoint (the server must answer from that address); others
+// are ignored and counted. Without --retransmit, gap requests have nowhere to go: missing messages are
 // reported as lost after the retry limit and delivery continues (a book is
 // then stale). Exit status 0 after End of Session, --count messages or
 // --timeout-ms of silence; 1 on bad arguments or socket errors.
@@ -422,7 +424,8 @@ int main(int argc, char** argv) {
                 }
                 if (socket == &retransmission_socket &&
                     !tools::md_client::is_configured_retransmission_source(options.retransmission_server, peer)) {
-                    ++foreign_retransmission_datagrams_ignored;
+                    if (foreign_retransmission_datagrams_ignored++ == 0)
+                        std::fprintf(stderr, "ignoring retransmission-socket datagrams not from --retransmit\n");
                     continue;
                 }
                 last_packet_ns = net::monotonic_ns();

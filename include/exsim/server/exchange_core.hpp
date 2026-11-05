@@ -202,8 +202,9 @@ public:
     // MassCancel{cancel_on_disconnect=true} for the whole session when the
     // user has cancel_on_disconnect (deferred until the current batch is
     // dispatched when called from a callback, using a reserved slot, so it is
-    // never refused for a full queue). After shutdown it is refused as
-    // OutsideTradingDay; the end-of-day close has already cancelled every order.
+    // never refused for a full queue). After shutdown it is either refused
+    // (OutsideTradingDay, after the end of the trading day) or applied with
+    // nothing to cancel: the closing SetPhase has already cancelled every order.
     void unbind(SessionId session, ConnectionId connection) noexcept {
         UserRuntime* user = user_for_session(session);
         if (user == nullptr || !user->bound || user->connection != connection) {

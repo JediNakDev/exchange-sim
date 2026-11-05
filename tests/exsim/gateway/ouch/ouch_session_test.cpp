@@ -483,6 +483,41 @@ TEST_CASE(gateway_ouch_session, fault_hooks_reject_and_drop) {
     CHECK(recovered.connection().state() == OuchConnectionState::LoggedIn);
 }
 
+// A drop_out cut never writes past a gap: clearing the fault mid-cut closes
+// the connection at the next message instead of sending it.
+TEST_CASE(gateway_ouch_session, drop_out_cleared_mid_cut_still_closes) {
+    TestExchange exchange;
+    RawSession bob(exchange);
+    REQUIRE(bob.login("bob", "bobpw"));  // 1: S
+    bob.take_frames();
+    exchange.drop_next_outbound_messages(2, 2);
+    bob.send_message(enter_order("BID1", 'B', 10, "AAPL", kHundredDollars));  // 2: dropped
+    CHECK(bob.connection().state() == OuchConnectionState::LoggedIn);
+    exchange.drop_next_outbound_messages(2, 0);  // `fault user BOB off`
+    bob.send_message(enter_order("BID2", 'B', 10, "AAPL", kHundredDollars));  // 3: not written
+    CHECK(bob.take_frames().empty());
+    CHECK(bob.connection().close_reason() == OuchCloseReason::FaultDropOut);
+    bob.disconnect();
+
+    RawSession recovered(exchange);
+    REQUIRE(recovered.login("bob", "bobpw", 2));  // the client saw message 1
+    CHECK_EQ(recovered.take_types(), "AA");
+}
+
+// End of Session during a cut would tell the client not to reconnect while
+// it is missing messages: the cut closes the connection without it.
+TEST_CASE(gateway_ouch_session, end_session_during_a_drop_out_cut_sends_no_end_of_session) {
+    TestExchange exchange;
+    RawSession bob(exchange);
+    REQUIRE(bob.login("bob", "bobpw"));
+    bob.take_frames();
+    exchange.drop_next_outbound_messages(2, 3);
+    bob.send_message(enter_order("BID1", 'B', 10, "AAPL", kHundredDollars));  // dropped, two left
+    bob.connection().end_session(exchange);
+    CHECK(bob.take_frames().empty());  // no 'Z'
+    CHECK(bob.connection().close_reason() == OuchCloseReason::FaultDropOut);
+}
+
 TEST_CASE(gateway_ouch_session, trading_day_lifecycle) {
     TestExchange exchange;
     {

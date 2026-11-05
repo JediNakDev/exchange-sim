@@ -867,8 +867,11 @@ public:
     template <class Context>
         requires OuchServerContext<Context>
     void end_session(Context& context) noexcept {
+        if (state_ == OuchConnectionState::LoggedIn) deliver_stored_messages(context);
+        // During a drop_out cut the client is missing messages: no End of
+        // Session (it would say "do not reconnect"), just the cut.
+        if (state_ == OuchConnectionState::LoggedIn && outbound_cut_by_drop_out_) close(OuchCloseReason::FaultDropOut);
         if (state_ == OuchConnectionState::LoggedIn) {
-            deliver_stored_messages(context);
             write_unsequenced(protocol::soupbintcp::EndOfSession{}, context.now());
         }
         if (state_ != OuchConnectionState::Closed) close(OuchCloseReason::EndOfSession);
@@ -991,11 +994,16 @@ private:
             // client reconnecting with its own count + 1 replays them all.
             if (!replaying_ && user_state_->consume_outbound_drop(context)) {
                 ++next_sequence_to_send_;
+                outbound_cut_by_drop_out_ = true;
                 if (!context.has_pending_drop_out(user_state_->session_id())) {
                     close(OuchCloseReason::FaultDropOut);
                     return;
                 }
                 continue;
+            }
+            if (LOB_UNLIKELY(outbound_cut_by_drop_out_)) {  // the fault was cleared mid-cut: never write past a gap
+                close(OuchCloseReason::FaultDropOut);
+                return;
             }
             const SequencedStore::Message message = store.get(next_sequence_to_send_);
             char* destination = sink_.prepare(message.bytes.size());
@@ -1062,6 +1070,7 @@ private:
     OuchConnectionState state_ = OuchConnectionState::AwaitingLogin;
     OuchCloseReason close_reason_ = OuchCloseReason::None;
     bool replaying_ = false;
+    bool outbound_cut_by_drop_out_ = false;  // a live message was dropped: nothing sequenced is written after it
 };
 
 }  // namespace exsim::gateway::ouch

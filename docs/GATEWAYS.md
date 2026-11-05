@@ -93,7 +93,9 @@ a gap in a live stream.
   the connection closes after the n-th (`FaultDropOut`). A client that
   reconnects asking for its own count + 1 receives every dropped message by
   replay, correctly numbered. Replay is never affected. The fault applies to
-  application (sequenced) messages only.
+  application (sequenced) messages only. If the fault is cleared mid-cut, the
+  next message closes the connection instead of being written, and a server
+  End of Session during a cut is not sent (the client must reconnect).
 
 ## 3. FIX 4.4
 
