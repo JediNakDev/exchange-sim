@@ -126,9 +126,11 @@ private:
     [[noreturn]] void fail(const std::string& message) const { throw ConfigError(line_, message); }
 
     void handle_line(std::string_view raw) {
-        const auto comment = raw.find_first_of("#;");
-        auto line = trim(comment == std::string_view::npos ? raw : raw.substr(0, comment));
-        if (line.empty()) return;
+        // Comments are whole lines only: '#' or ';' as the first non-blank
+        // character. Elsewhere both are ordinary text, so free-text values
+        // such as a description are never cut short.
+        const auto line = trim(raw);
+        if (line.empty() || line.front() == '#' || line.front() == ';') return;
         if (line.front() == '[') {
             if (line.back() != ']') fail("unterminated section header");
             open_section(trim(line.substr(1, line.size() - 2)));
@@ -439,6 +441,53 @@ Timestamp background_agent_timer_interval(const BackgroundAgentConfig& agent) no
     return std::max<Timestamp>(1, Timestamp{millis} * kNanosPerMillisecond);
 }
 
+RecorderStepBound recorder_step_bound(const ExperimentConfig& config) noexcept {
+    const std::size_t open_orders = config.risk.max_open_orders;
+    const std::size_t lot = std::max<Quantity>(1, config.instrument.lot_size);
+    // Fills of one strategy order inside one command: every fill takes at
+    // least one lot and needs a distinct resting order.
+    const std::size_t fills_per_strategy_order =
+        std::max<std::size_t>(1, std::min<std::size_t>(config.risk.max_order_qty / lot, config.engine.max_orders));
+
+    // Engine commands one step can submit. A strategy arrival or scripted
+    // command is one. A market maker timer sends at most one request per order
+    // slot in each of its three passes plus one new order per target level; a
+    // noise taker cancels expired orders and places at most one arrival.
+    std::size_t commands = 1;
+    for (const BackgroundAgentConfig& agent : config.agents) {
+        std::size_t agent_commands = 0;
+        if (agent.kind == BackgroundAgentKind::MarketMaker) {
+            const std::size_t levels = std::min<std::size_t>(agent.market_maker.levels, sim::bots::MarketMaker::kMaxLevels);
+            agent_commands = 3 * agent.market_maker.order_capacity + 2 * levels;
+        } else {
+            agent_commands = agent.noise_taker.order_capacity + 1;
+        }
+        commands = std::max(commands, agent_commands);
+    }
+
+    // Lifecycle rows (ledger fills are never more) per kind of step.
+    // Strategy arrival: arrival, accepted or rejected, replaced, rested or
+    // canceled, two legs per fill (a self match fills two strategy orders),
+    // and self-trade cancels of resting strategy orders.
+    const std::size_t arrival_rows = 4 + 2 * fills_per_strategy_order + open_orders;
+    // Background or scripted step: each command fills or cancels every
+    // resting strategy order at most once, and the strategy's resting
+    // quantity bounds the fills of the whole step.
+    const std::size_t background_rows =
+        std::min(commands * open_orders, open_orders * fills_per_strategy_order) + 2 * open_orders;
+    // Strategy callback: the report delivery row plus the requests and risk
+    // rejects of the compiled strategies (at most one request per open order
+    // and one new order per side). A custom strategy that sends more in one
+    // callback can still overflow; the run then fails as recorder_overflow.
+    const std::size_t callback_rows = 1 + 2 * (open_orders + 1);
+    return RecorderStepBound{commands, std::max({arrival_rows, background_rows, callback_rows})};
+}
+
+std::size_t effective_recorder_flush_margin(const ExperimentConfig& config) noexcept {
+    const RecorderStepBound bound = recorder_step_bound(config);
+    return std::max({config.limits.recorder_flush_margin, bound.commands, bound.records});
+}
+
 void validate_experiment_config(ExperimentConfig& config) {
     check(config.strategy.kind <= StrategyKind::ImmediateSweepExecutor, "unknown strategy kind");
     check(config.accounting.mark <= MarkConvention::LastTrade, "unknown mark convention");
@@ -474,8 +523,13 @@ void validate_experiment_config(ExperimentConfig& config) {
     const auto& metrics = config.metrics;
     check(metrics.markout_horizon_count <= kMaxMarkoutHorizons, "too many markout horizons");
     check(metrics.sample_interval_ns > 0, "sample_interval must be positive");
-    for (std::size_t i = 0; i < metrics.markout_horizon_count; ++i)
+    for (std::size_t i = 0; i < metrics.markout_horizon_count; ++i) {
         check(metrics.markout_horizons_ns[i] > 0 && metrics.markout_horizons_ns[i] <= kMaxDurationNs, "markout horizons must be positive");
+        // Each horizon names its summary metrics (markout_<duration>_*), so a
+        // repeated value (1s, 1000ms) would write the same JSON key twice.
+        check(i == 0 || metrics.markout_horizons_ns[i] > metrics.markout_horizons_ns[i - 1],
+              "markout horizons must be strictly increasing (no duplicates)");
+    }
 
     auto& limits = config.limits;
     check(limits.duration_ns > 0 && limits.duration_ns <= kMaxDurationNs, "duration must be positive and at most 7 days");
@@ -540,7 +594,17 @@ void validate_experiment_config(ExperimentConfig& config) {
         if (agent.kind == BackgroundAgentKind::NoiseTaker)
             check(agent.noise_taker.min_size <= agent.noise_taker.max_size, "noise taker min_size exceeds max_size");
         check(agent.timer_interval_ns <= kMaxDurationNs, "agent timer_interval too large");
+        const std::size_t order_capacity =
+            agent.kind == BackgroundAgentKind::MarketMaker ? agent.market_maker.order_capacity : agent.noise_taker.order_capacity;
+        check(order_capacity >= 1 && order_capacity <= 65'536, "agent order_capacity must be 1..65536");
     }
+
+    // Free recorder space is checked only between steps (after agent
+    // order_capacity is known to be bounded).
+    const std::size_t step_margin = effective_recorder_flush_margin(config);
+    check(2 * step_margin <= limits.recorder_command_capacity && 2 * step_margin <= limits.recorder_record_capacity,
+          "recorder capacities must be at least twice the records one step can produce (" + std::to_string(step_margin) +
+              ", from max_open_orders, risk max_order_qty, lot_size and agent order_capacity)");
 }
 
 ConfigEntries strategy_parameter_entries(const StrategyConfig& strategy) {

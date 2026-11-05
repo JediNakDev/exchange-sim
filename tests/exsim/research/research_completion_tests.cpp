@@ -132,6 +132,7 @@ TEST_CASE(research_compare, paired_differences_and_sample_dispersion) {
         LoadedRun left, right;
         left.master_seed = right.master_seed = seed;
         left.state = right.state = "completed";
+        left.replay_verified = right.replay_verified = true;
         left.market_world = right.market_world = "interactive_synthetic";
         left.metrics = {{"net_pnl", 10.0}};
         right.metrics = {{"net_pnl", 10.0 + static_cast<double>(seed)}};

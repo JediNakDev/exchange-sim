@@ -60,6 +60,10 @@ LoadedRun load_run(const std::filesystem::path& directory) {
     run.state = require_string(summary, "state", summary_path);
     run.termination_reason = require_string(summary, "termination_reason", summary_path);
     run.config_hash = require_string(summary, "config_hash", summary_path);
+    if (const JsonValue* digests = summary.find("digests"); digests != nullptr && digests->kind == JsonValue::Kind::Object) {
+        const JsonValue* replay_verified = digests->find("replay_verified");
+        run.replay_verified = replay_verified != nullptr && replay_verified->kind == JsonValue::Kind::Boolean && replay_verified->boolean;
+    }
     run.market_world = require_string(manifest, "market_world", manifest_path);
     run.experiment_name = require_string(require_member(manifest, "experiment", manifest_path), "name", manifest_path);
     run.strategy_name = require_string(require_member(manifest, "strategy", manifest_path), "name", manifest_path);
@@ -171,14 +175,26 @@ ComparisonReport compare_run_sets(RunSet a, RunSet b) {
 
     std::map<std::uint64_t, const LoadedRun*> completed_a;
     std::map<std::uint64_t, const LoadedRun*> completed_b;
-    for (const LoadedRun& run : report.a.runs) {
-        if (run.state == "completed") completed_a[run.master_seed] = &run;
-        else report.excluded_runs.push_back({'A', run.master_seed, run.run_id, run.state});
-    }
-    for (const LoadedRun& run : report.b.runs) {
-        if (run.state == "completed") completed_b[run.master_seed] = &run;
-        else report.excluded_runs.push_back({'B', run.master_seed, run.run_id, run.state});
-    }
+    report.reproduction_checked = true;
+    const auto admit = [&](char side, const LoadedRun& run, std::map<std::uint64_t, const LoadedRun*>& admitted) {
+        ExcludedRun excluded{side, run.master_seed, run.run_id, run.state, "", ""};
+        if (run.state != "completed") {
+            excluded.reason = "not_completed";
+        } else if (!run.replay_verified) {
+            excluded.reason = "replay_not_verified";
+            excluded.detail = "summary.json does not record a matching independent replay";
+        } else if (run.reproduction == ReproductionCheck::NotReproduced) {
+            excluded.reason = "not_reproduced";
+            excluded.detail = run.reproduction_detail;
+        } else {
+            if (run.reproduction != ReproductionCheck::Reproduced) report.reproduction_checked = false;
+            admitted[run.master_seed] = &run;
+            return;
+        }
+        report.excluded_runs.push_back(std::move(excluded));
+    };
+    for (const LoadedRun& run : report.a.runs) admit('A', run, completed_a);
+    for (const LoadedRun& run : report.b.runs) admit('B', run, completed_b);
     for (const auto& [seed, run] : completed_a) {
         if (completed_b.count(seed)) report.paired_seeds.push_back(seed);
         else report.unpaired_seeds_a.push_back(seed);
@@ -262,12 +278,19 @@ std::string render_comparison_text(const ComparisonReport& report) {
     text += "paired seeds (" + std::to_string(report.paired_seeds.size()) + "): " + seed_list_text(report.paired_seeds) + "\n";
     text += "unpaired seeds: A " + seed_list_text(report.unpaired_seeds_a) + "; B " + seed_list_text(report.unpaired_seeds_b) + "\n";
     if (report.excluded_runs.empty()) {
-        text += "excluded runs (not completed): none\n";
+        text += "excluded runs: none\n";
     } else {
-        text += "excluded runs (not completed):\n";
-        for (const ExcludedRun& run : report.excluded_runs)
-            text += std::string("  ") + run.side + " seed " + std::to_string(run.master_seed) + " " + run.run_id + " state " + run.state + "\n";
+        text += "excluded runs:\n";
+        for (const ExcludedRun& run : report.excluded_runs) {
+            text += std::string("  ") + run.side + " seed " + std::to_string(run.master_seed) + " " + run.run_id + " state " +
+                    run.state + " reason " + run.reason;
+            if (!run.detail.empty()) text += " (" + run.detail + ")";
+            text += "\n";
+        }
     }
+    text += report.reproduction_checked
+                ? "reproduction check: every paired run was re-executed and matched its artifacts byte for byte\n"
+                : "reproduction check: not run; summary.json values are used as written\n";
     if (report.market_world_differs) text += "WARNING: the market worlds differ; results are not directly comparable\n";
     if (report.config_differences.empty()) {
         text += "config differences: none\n";
@@ -322,9 +345,12 @@ std::string render_comparison_json(const ComparisonReport& report) {
         json.key("master_seed").integer_text(run.master_seed);
         json.key("run_id").string(run.run_id);
         json.key("state").string(run.state);
+        json.key("reason").string(run.reason);
+        json.key("detail").string(run.detail);
         json.end_object();
     }
     json.end_array();
+    json.key("reproduction_checked").boolean(report.reproduction_checked);
     json.key("market_world_differs").boolean(report.market_world_differs);
     json.key("config_differences").begin_array();
     for (const ConfigDifference& difference : report.config_differences) {

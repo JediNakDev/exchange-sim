@@ -300,7 +300,18 @@ private:
     void process_strategy_arrival(const StrategyRequestArrival& request) noexcept;
     void process_exchange_command(const Command& command, CommandSource source, std::uint16_t agent_index,
                                   const StrategyRequestArrival* request) noexcept;
-    void record_strategy_arrival(const StrategyRequestArrival& request, std::uint64_t command_index) noexcept;
+    // FIFO queue at one price level: orders and quantity ahead of `order_id`
+    // (all of them when it is 0 or absent) and the level's total leaves.
+    struct LevelQueue {
+        std::uint64_t qty_ahead = 0;
+        std::uint64_t level_qty = 0;
+        std::uint32_t orders_ahead = 0;
+        bool found = false;
+    };
+    [[nodiscard]] LifecycleRecord capture_strategy_arrival(const StrategyRequestArrival& request,
+                                                           std::uint64_t command_index) noexcept;
+    // Uses level_order_ids_ as scratch space.
+    [[nodiscard]] LevelQueue measure_level_queue(Side side, Price price, OrderId order_id) noexcept;
     bool handle_strategy_event(const Event& event, std::uint64_t command_index) noexcept;
     void handle_strategy_fill(const Event& event, const FillLeg& leg, Side side, std::uint64_t command_index) noexcept;
     void schedule_report(const ExecutionReport& report) noexcept;

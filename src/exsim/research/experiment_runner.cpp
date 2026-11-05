@@ -7,9 +7,11 @@
 #include "exsim/research/strategies/inventory_aware_market_maker.hpp"
 #include "exsim/research/strategies/twap_executor.hpp"
 
+#include <algorithm>
 #include <charconv>
 #include <chrono>
 #include <memory>
+#include <set>
 #include <system_error>
 
 namespace exsim::research {
@@ -70,24 +72,50 @@ RunOutcome run_strategy(const RunRequest& request) {
     return outcome;
 }
 
-void prepare_sweep_directory(const std::filesystem::path& directory, bool overwrite) {
+std::filesystem::path seed_directory(const std::filesystem::path& sweep_directory, std::uint64_t master_seed) {
+    return sweep_directory / ("seed-" + std::to_string(master_seed));
+}
+
+// Checks the whole sweep directory before anything is changed, so a refused
+// overwrite leaves the previous sweep (sweep.json and every seed-N) intact.
+// Returns the seed-N directories of an earlier sweep that the new seed list
+// does not include; the caller removes them once the checks have passed.
+std::vector<std::filesystem::path> check_sweep_directory(const SweepRequest& request) {
+    const std::filesystem::path& directory = request.sweep_directory;
+    std::vector<std::filesystem::path> stale_seed_directories;
     std::error_code error;
     if (!std::filesystem::exists(directory, error)) {
-        std::filesystem::create_directories(directory, error);
-        if (error) throw ArtifactError("cannot create directory " + directory.string() + ": " + error.message());
-        return;
+        if (error) throw ArtifactError("cannot inspect " + directory.string() + ": " + error.message());
+        return stale_seed_directories;
     }
     if (!std::filesystem::is_directory(directory, error)) throw ArtifactError(directory.string() + " is not a directory");
+    std::set<std::string> requested_directory_names;
+    for (const std::uint64_t seed : request.master_seeds)
+        requested_directory_names.insert(seed_directory(directory, seed).filename().string());
     bool has_runs = false;
     for (const auto& entry : std::filesystem::directory_iterator(directory, error)) {
         const std::string name = entry.path().filename().string();
-        const bool known = name == "sweep.json" || name == "sweep.json.tmp" || (entry.is_directory() && name.rfind("seed-", 0) == 0);
-        if (!known) throw ArtifactError(directory.string() + " contains " + name + ", which is not part of a sweep; refusing to use it");
+        const bool is_sweep_index = !entry.is_directory() && (name == "sweep.json" || name == "sweep.json.tmp");
+        const bool is_seed_directory = entry.is_directory() && name.rfind("seed-", 0) == 0;
+        if (!is_sweep_index && !is_seed_directory)
+            throw ArtifactError(directory.string() + " contains " + name + ", which is not part of a sweep; refusing to use it");
         has_runs = true;
+        if (is_seed_directory && requested_directory_names.count(name) == 0) stale_seed_directories.push_back(entry.path());
     }
     if (error) throw ArtifactError("cannot list " + directory.string() + ": " + error.message());
-    if (has_runs && !overwrite) throw ArtifactError(directory.string() + " already holds a sweep; pass --overwrite to replace it");
-    std::filesystem::remove(directory / "sweep.json", error);
+    if (has_runs && !request.overwrite)
+        throw ArtifactError(directory.string() + " already holds a sweep; pass --overwrite to replace it");
+    for (const std::uint64_t seed : request.master_seeds) check_run_directory_reusable(seed_directory(directory, seed), request.overwrite);
+    for (const std::filesystem::path& stale : stale_seed_directories) check_run_directory_reusable(stale, true);
+    std::sort(stale_seed_directories.begin(), stale_seed_directories.end());
+    return stale_seed_directories;
+}
+
+void remove_stale_seed_directory(const std::filesystem::path& directory) {
+    prepare_run_directory(directory, true);  // removes only run artifact files
+    std::error_code error;
+    std::filesystem::remove(directory, error);
+    if (error) throw ArtifactError("cannot remove " + directory.string() + ": " + error.message());
 }
 
 std::string render_sweep_json(const SweepRequest& request, const std::vector<RunOutcome>& outcomes) {
@@ -142,15 +170,24 @@ RunOutcome execute_run(const RunRequest& request) {
 
 std::vector<RunOutcome> execute_sweep(const SweepRequest& request) {
     if (request.master_seeds.empty()) throw ConfigError(0, "a sweep needs at least one seed");
-    prepare_sweep_directory(request.sweep_directory, request.overwrite);
+    ExperimentConfig validated = request.config;
+    validate_experiment_config(validated);  // an invalid config changes nothing on disk
+    const std::vector<std::filesystem::path> stale_seed_directories = check_sweep_directory(request);
+    std::error_code error;
+    std::filesystem::create_directories(request.sweep_directory, error);
+    if (error) throw ArtifactError("cannot create directory " + request.sweep_directory.string() + ": " + error.message());
+    // Replace (never delete) the index first: from here on it describes the
+    // new sweep, with no runs yet, so it never lists runs being overwritten.
     std::vector<RunOutcome> outcomes;
+    write_file_atomically(request.sweep_directory / "sweep.json", render_sweep_json(request, outcomes));
+    for (const std::filesystem::path& stale : stale_seed_directories) remove_stale_seed_directory(stale);
     for (const std::uint64_t seed : request.master_seeds) {
         if (request.cancel_requested != nullptr && request.cancel_requested->load(std::memory_order_relaxed)) break;
         RunRequest run;
         run.config = request.config;
         run.config_source_text = request.config_source_text;
         run.master_seed = seed;
-        run.run_directory = request.sweep_directory / ("seed-" + std::to_string(seed));
+        run.run_directory = seed_directory(request.sweep_directory, seed);
         run.parent_run_id = request.parent_run_id;
         run.build = request.build;
         run.overwrite = request.overwrite;

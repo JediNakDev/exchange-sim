@@ -2,16 +2,19 @@
 //
 //   exsim_research run <experiment.conf> --out <dir> [--seed N | --seeds A..B]
 //                      [--overwrite] [--parent-run <run id>] [--quiet]
-//   exsim_research compare <runA> <runB> [--json]
+//   exsim_research compare <runA> <runB> [--json] [--no-verify]
+//   exsim_research verify <run or sweep directory>
 //   exsim_research validate <experiment.conf>
 //
 // Exit codes (docs/RESEARCH_RUNNER.md):
 //   0 success                     every run completed and its replay matched
+//                                 (verify: every run reproduced byte for byte)
 //   1 run not successful          a run failed or was cancelled (artifacts still written)
 //   2 usage error
 //   3 configuration error
 //   4 I/O or artifact error       unreadable input, unusable output directory, bad artifact files
 //   5 replay mismatch             the independent replay did not reproduce the online event digest
+//                                 (verify: a run's artifacts differ from its re-execution)
 //   6 nothing to compare          no completed run is paired by master seed
 
 #include "exsim/research/experiment_config.hpp"
@@ -19,6 +22,7 @@
 #include "exsim/research/json.hpp"
 #include "exsim/research/run_artifacts.hpp"
 #include "exsim/research/run_compare.hpp"
+#include "exsim/research/run_verification.hpp"
 
 #include <atomic>
 #include <csignal>
@@ -52,9 +56,11 @@ constexpr std::string_view kUsage =
     "usage:\n"
     "  exsim_research run <experiment.conf> --out <dir> [--seed N | --seeds A..B] [--overwrite]\n"
     "                     [--parent-run <run id>] [--quiet]\n"
-    "  exsim_research compare <runA> <runB> [--json]\n"
+    "  exsim_research compare <runA> <runB> [--json] [--no-verify]\n"
+    "  exsim_research verify <run or sweep directory>\n"
     "  exsim_research validate <experiment.conf>\n"
-    "exit codes: 0 ok, 1 run failed/cancelled, 2 usage, 3 config, 4 i/o, 5 replay mismatch, 6 nothing to compare\n";
+    "exit codes: 0 ok, 1 run failed/cancelled, 2 usage, 3 config, 4 i/o, 5 replay mismatch or not reproduced,\n"
+    "            6 nothing to compare\n";
 
 int usage_error(std::string_view message) {
     std::cerr << "exsim_research: " << message << "\n" << kUsage;
@@ -172,15 +178,40 @@ int command_run(const std::vector<std::string>& arguments, const std::string& ex
 int command_compare(const std::vector<std::string>& arguments) {
     std::vector<std::string> paths;
     bool as_json = false;
+    bool reexecute_runs = true;
     for (const std::string& argument : arguments) {
         if (argument == "--json") as_json = true;
+        else if (argument == "--no-verify") reexecute_runs = false;
         else if (!argument.empty() && argument[0] == '-') return usage_error("unknown option " + argument);
         else paths.push_back(argument);
     }
     if (paths.size() != 2) return usage_error("compare needs exactly two run or sweep directories");
-    const ComparisonReport report = compare_run_sets(load_run_set(paths[0]), load_run_set(paths[1]));
+    RunSet baseline = load_run_set(paths[0]);
+    RunSet candidate = load_run_set(paths[1]);
+    if (reexecute_runs) {
+        check_reproduction(baseline);
+        check_reproduction(candidate);
+    }
+    const ComparisonReport report = compare_run_sets(std::move(baseline), std::move(candidate));
     std::cout << (as_json ? render_comparison_json(report) : render_comparison_text(report));
     return report.paired_seeds.empty() ? kExitNothingToCompare : kExitSuccess;
+}
+
+int command_verify(const std::vector<std::string>& arguments) {
+    if (arguments.size() != 1 || (!arguments[0].empty() && arguments[0][0] == '-'))
+        return usage_error("verify needs exactly one run or sweep directory");
+    const RunSet set = load_run_set(arguments[0]);
+    bool every_run_reproduced = true;
+    for (const LoadedRun& run : set.runs) {
+        const RunReproduction reproduction = reproduce_run(run.directory);
+        every_run_reproduced = every_run_reproduced && reproduction.reproduced;
+        std::cout << "run " << run.run_id << " seed=" << run.master_seed << " state=" << run.state
+                  << " replay_verified=" << (run.replay_verified ? "true" : "false")
+                  << " reproduced=" << (reproduction.reproduced ? "true" : "false");
+        if (!reproduction.detail.empty()) std::cout << " detail=\"" << reproduction.detail << "\"";
+        std::cout << " dir=" << run.directory.string() << "\n";
+    }
+    return every_run_reproduced ? kExitSuccess : kExitReplayMismatch;
 }
 
 int command_validate(const std::vector<std::string>& arguments) {
@@ -207,6 +238,7 @@ int main(int argc, char** argv) {
     try {
         if (command == "run") return command_run(arguments, argv[0]);
         if (command == "compare") return command_compare(arguments);
+        if (command == "verify") return command_verify(arguments);
         if (command == "validate") return command_validate(arguments);
         if (command == "help" || command == "--help" || command == "-h") {
             std::cout << kUsage;

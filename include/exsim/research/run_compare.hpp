@@ -2,7 +2,9 @@
 #define EXSIM_RESEARCH_RUN_COMPARE_HPP
 
 // Paired comparison of two run sets (a run directory or a sweep directory
-// each). Runs are paired by master seed; only completed runs take part. For
+// each). Runs are paired by master seed; only completed runs whose
+// independent replay matched take part, and, when check_reproduction
+// (run_verification.hpp) ran, only runs this build reproduces. For
 // every metric in summary.json "metrics" the report gives the number of
 // pairs, per-side means and sample standard deviations, and the paired
 // difference (B - A): mean, standard deviation, standard error, min, max.
@@ -21,12 +23,17 @@ namespace exsim::research {
 
 inline constexpr std::string_view kCompareSchema = "exsim.research.compare/1";
 
+enum class ReproductionCheck : std::uint8_t { NotChecked, Reproduced, NotReproduced };
+
 struct LoadedRun {
     std::filesystem::path directory;
     std::string run_id;
     std::uint64_t master_seed = 0;
     std::string state;
     std::string termination_reason;
+    bool replay_verified = false;  // summary digests.replay_verified; false when absent
+    ReproductionCheck reproduction = ReproductionCheck::NotChecked;
+    std::string reproduction_detail;
     std::string market_world;
     std::string experiment_name;
     std::string strategy_name;
@@ -71,6 +78,9 @@ struct ExcludedRun {
     std::uint64_t master_seed = 0;
     std::string run_id;
     std::string state;
+    // "not_completed", "replay_not_verified" or "not_reproduced".
+    std::string reason;
+    std::string detail;
 };
 
 struct ComparisonReport {
@@ -82,6 +92,10 @@ struct ComparisonReport {
     std::vector<ExcludedRun> excluded_runs;
     std::vector<ConfigDifference> config_differences;
     bool market_world_differs = false;
+    // True when every run that could be paired was re-executed and matched
+    // (check_reproduction ran on both sets); false means summary.json values
+    // were taken as written.
+    bool reproduction_checked = false;
     std::vector<MetricComparison> metrics;
 };
 
