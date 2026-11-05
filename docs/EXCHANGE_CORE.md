@@ -180,8 +180,8 @@ consumed by gateways and the loop:
 | --- | --- | --- |
 | `consume_injected_reject(session)` | gateway, per inbound new order | `true`: reject it yourself (OUCH J, FIX 39=8 Text "injected"), do not submit. Consumes one. |
 | `inbound_delay_ns(session)` | loop or gateway | hold each inbound application message this long (a setting, not consumed) |
-| `consume_drop_out(session)` | gateway, per sequenced outbound message | `true`: store it but do not transmit. Consumes one. |
-| `has_disconnect_requests()`, `take_disconnect_requests(span)` | loop | sessions to close now, config order; the loop closes them and calls `unbind` (cancel-on-disconnect applies) |
+| `consume_drop_out(session)` | gateway, per outbound application (business) message | `true`: store it but do not transmit. Consumes one. Session-level messages (logon, heartbeats, logout, resend replies) are never dropped, for OUCH and FIX alike. |
+| `has_disconnect_requests()`, `take_disconnect_requests(span)` | loop | sessions to close now, config order; the loop closes the connection and tells its gateway (`on_disconnected`), which calls `unbind` (cancel-on-disconnect applies) |
 | `user_faults(session)` | status, tests | the whole state |
 
 A new `reject`/`drop_out`/`delay` replaces the previous value (counts start at
@@ -261,13 +261,31 @@ flush, both failure policies via `RLIMIT_FSIZE`) and allocation (zero heap
 allocations in steady state with bots, journal, churn and fault queries, via
 `testfw::AllocationScope`).
 
-## 13. Open questions
+## 13. Decisions (formerly open questions)
 
-* Should `submit` refuse commands after shutdown instead of letting the
-  engine reject them in `Closed`? The loop is expected to stop first.
-* Should cancel-on-disconnect `MassCancel` events be dispatched to the
-  unbound session's gateway (today: yes, the gateway decides)?
-* `fault md off` without a reset hook cannot clear one-shot faults or held
-  packets; the MD publisher should provide `reset_packet_faults()`.
-* Trading-day times are local time since midnight; days crossing midnight
-  are not supported.
+Resolved with the server runtime (docs/SERVER_RUNTIME.md):
+
+* **Commands after shutdown.** `submit` refuses every command once
+  shutdown has run and returns `SubmitResult::ExchangeShutDown`
+  (`CoreCounters::commands_after_shutdown`, shown by `status`). Nothing is
+  journaled or sent to the engine. The OUCH gateway answers an Enter Order
+  with `J` reason `C` (exchange closed). Test:
+  `submit_after_admin_shutdown_is_refused_and_not_journaled`.
+* **Cancel-on-disconnect events of an unbound session.** They are
+  dispatched to the session's gateway like any other event. OUCH and FIX
+  store them in the session's outbound store while no connection is bound
+  and replay them when the user logs in again (OUCH: Login Request
+  sequence number; FIX: ResendRequest). Tests:
+  `server_e2e_faults.admin_disconnect_closes_the_session_and_cancels_on_disconnect`,
+  `server_e2e_sessions.cancel_on_disconnect_follows_the_user_setting`.
+* **`fault md off`.** `PacketFaultInjector::clear_faults()` zeroes the
+  random rates and one-shot counters (seed and delay settings are kept);
+  the MD runtime's `reset_packet_faults()` calls it and then flushes
+  packets already held for reordering, so nothing is left behind. The
+  runtime also does this at end of day so End of Session always reaches
+  receivers. Tests: `clear_faults_stops_new_faults_and_flush_releases_held`,
+  `server_e2e_md.feed_rebuilds_the_engine_book_through_packet_faults_and_retransmission`.
+* **Trading days crossing midnight.** Rejected when the configuration is
+  parsed: `exchange.trading_day_start` must be before
+  `exchange.trading_day_end`, and the error says that days crossing midnight
+  are not supported. Times stay local time since midnight.
