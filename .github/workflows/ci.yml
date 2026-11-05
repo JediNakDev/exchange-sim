@@ -36,6 +36,8 @@ jobs:
         run: make -j4 tools MODE=perf CXX=clang++
       - name: engine benchmark (fails on any hot-path allocation)
         run: ./build/perf/exsim_bench --ops 200000
+      - name: codec benchmark (fails on any allocation or codec error)
+        run: ./build/perf/exsim_codec_bench --iterations 200000 --rounds 3
 
   research-determinism:
     # The research runner promises byte-identical artifacts for the same config

@@ -43,11 +43,12 @@ make test                                     # release build, all tests
 make test MODE=debug                          # ASan + UBSan
 make test MODE=tsan                           # ThreadSanitizer
 make test FILTER=Journal                      # substring filter on test names
-make tools                                    # exsim_bench, exsim_fuzz, exsim_research, exsim_replay, exsim_scenario, exsim_md_client, itch_replay
+make tools                                    # exsim_bench, exsim_codec_bench, exsim_fuzz, exsim_research, exsim_replay, exsim_scenario, exsim_md_client, itch_replay
 
 ./build/release/exsim_scenario tests/scenarios/fifo.scn
 ./build/release/exsim_fuzz --profile mixed --seeds 200 --steps 10000
 make tools MODE=perf && ./build/perf/exsim_bench --ops 2000000
+./build/perf/exsim_codec_bench                # wire codec cost per message
 
 # research: two market-making configs over the same five seeds, then a paired comparison
 ./build/release/exsim_research run config/research/fixed_spread_narrow.conf --out /tmp/narrow --seeds 1..5
@@ -155,6 +156,28 @@ measurements and rejected optimizations are recorded in
 [docs/engine-variants/](docs/engine-variants/). Wire-to-wire latency
 through the gateways will be measured once the server binary exists.
 
+Wire codecs, `exsim_codec_bench`, same perf build and machine, one message at
+a time as the gateways call them, 256 distinct inputs per case, every decoded
+field and encoded byte forced to memory, median of 7 rounds of 2,000,000
+messages (three runs agreed within 0.2 ns, and within 1 ns for FIX), zero
+allocations:
+
+| Path | Message | Bytes | ns/msg |
+| --- | --- | ---: | ---: |
+| inbound order | OUCH 4.2 EnterOrder in a SoupBinTCP packet, decode | 52 | 6.0 |
+| inbound order | SBE NewOrderSingle in a SOFH frame, decode | 51 | 4.0 |
+| inbound order | FIX 4.4 NewOrderSingle, framing, checksum and decode | 162 | 228 |
+| outbound fill | OUCH 4.2 OrderExecuted in a SoupBinTCP packet, encode | 43 | 3.6 |
+| outbound fill | SBE ExecutionReportTrade in a SOFH frame, encode | 89 | 2.1 |
+| outbound fill | FIX 4.4 ExecutionReport, encode | 220 | 155 |
+| market data | ITCH 5.0 AddOrder, encode | 36 | 2.1 |
+| market data | ITCH 5.0 OrderExecuted, encode | 31 | 1.4 |
+| market data | ITCH 5.0 AddOrder, decode | 36 | 2.7 |
+
+The binary protocols cost a few nanoseconds per message. FIX costs 38 to 74
+times more than OUCH or SBE for the same order or fill, which makes it the
+codec worth optimizing.
+
 ## Repository layout
 
 | Path | Contents |
@@ -162,6 +185,6 @@ through the gateways will be measured once the server binary exists.
 | `include/exsim/`, `src/exsim/` | simulator: domain types, engine, protocol codecs, networking, gateways, server components, simulation and research |
 | `include/lob/`, `src/` | original limit order book and sharded engine |
 | `tests/` | test framework, unit tests, oracle, scenarios |
-| `tools/` | bench, fuzz, replay, scenario runner, ITCH replay |
+| `tools/` | engine and codec benchmarks, fuzz, replay, scenario runner, research runner, market data client, ITCH replay |
 | `benchmark/` | Google Benchmark suite for the original book |
 | `docs/` | specifications, reviews, plans |
