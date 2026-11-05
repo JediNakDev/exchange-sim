@@ -82,6 +82,9 @@ inline constexpr std::size_t kMaxApplicationFrameSize =
     sbe::kFramePrefixSize + sbe::ExecutionReportReplace::kBlockLength;
 // Session UUIDs remembered per user to answer a reused id with DuplicateId.
 inline constexpr std::size_t kRememberedSessionUuidsPerUser = 64;
+// NegotiationReject and EstablishmentReject reason once the user's store overflowed.
+inline constexpr std::string_view kStoreOverflowedRefusal =
+    "outbound store overflowed: reports were lost, no session until the next trading day";
 
 struct FixpSbeSessionSettings {
     server::Protocol authentication_protocol = server::Protocol::FixpSbe;
@@ -110,8 +113,11 @@ struct FixpSbeUserStateSettings {
     std::uint32_t max_tokens = 1u << 20;              // day-used ClOrdIds of every request type
     std::size_t store_messages = 1u << 20;            // server flow messages kept for the day
     std::size_t store_bytes = std::size_t{64} << 20;  // their framed bytes
-    // New orders and replaces are rejected at the gateway once the store has
-    // this many or fewer free messages, keeping room for reports on live orders.
+    // Store admission (docs/protocols/FIXP_SBE.md, "Outbound store"). The
+    // store always keeps room for one terminal report per live order plus one
+    // mass cancel outcome. On top of that, new orders and replaces need this
+    // many further free messages, else they get an OutboundStoreFull reject.
+    // The reserve absorbs partial fills, gateway rejects and NotApplied.
     std::size_t store_reserve_messages = 1024;
 
     [[nodiscard]] static FixpSbeUserStateSettings from(const server::EngineSection& engine) noexcept {
@@ -132,6 +138,9 @@ struct FixpSbeUserStatistics {
     // engine answered with no event (RequestHadNoEffect).
     std::uint64_t gateway_generated_rejects = 0;
     std::uint64_t messages_lost_to_store_overflow = 0;
+    // Requests (or client sequence gaps) refused with Terminate because the
+    // store only had room left for reports owed to live orders.
+    std::uint64_t requests_refused_at_store_reserve = 0;
     std::uint64_t outbound_messages_dropped_by_fault = 0;
     std::uint64_t retransmitted_messages = 0;
 };
@@ -148,7 +157,8 @@ enum class FixpSbeCloseReason : std::uint8_t {
     EstablishmentTimeout,   // not established within establishment_timeout_ns
     RetransmitOutOfBounds,  // RetransmitRequest for messages never sent: Terminate ReRequestOutOfBounds
     SendBufferFull,         // sink.prepare failed (SERVER.md 2.4)
-    StoreFull,              // sequenced store overflowed; Terminate sent
+    StoreFull,              // sequenced store overflowed; Terminate sent; no new session for the day
+    StoreReserveReached,    // request refused unapplied: the store only has room for reports owed to live orders
     EndOfSession,           // end_session(): Terminate Finished sent
     TransportClosed,        // on_disconnect() without an earlier close request
 };
@@ -255,6 +265,14 @@ public:
         return next_expected_client_sequence_number_;
     }
     [[nodiscard]] bool has_attached_connection() const noexcept { return attached_connection_ != nullptr; }
+    // True once a server flow message could not be stored. Sticky for the
+    // user state's lifetime (the trading day): nothing is stored after it, and
+    // Negotiate and Establish are refused, so no client can believe it holds a
+    // complete server flow.
+    [[nodiscard]] bool store_overflowed() const noexcept { return store_overflowed_; }
+    // Orders of this user that are accepted and not yet complete (from engine
+    // events). Each one is owed one terminal report: its last Trade or Cancel.
+    [[nodiscard]] std::size_t live_order_count() const noexcept { return live_order_count_; }
     [[nodiscard]] const FixpSbeUserStatistics& statistics() const noexcept { return statistics_; }
     [[nodiscard]] const SequencedStore& store() const noexcept { return store_; }
     [[nodiscard]] const TokenTable& tokens() const noexcept { return tokens_; }
@@ -268,7 +286,10 @@ public:
         for (const Event& event : batch) {
             switch (event.type) {
                 case EventType::Accepted:
-                    if (event.accepted.session == session_id_) report_accepted(event, context, now);
+                    if (event.accepted.session == session_id_) {
+                        ++live_order_count_;
+                        report_accepted(event, context, now);
+                    }
                     break;
                 case EventType::Rejected:
                     if (event.rejected.session == session_id_) report_rejected(event, context, now);
@@ -432,7 +453,7 @@ private:
         };
         ClOrdId cl_ord_id = 0;
         if (!reserve_request_token(request.cl_ord_id, cl_ord_id, reject)) return;
-        if (!store_has_room_for_new_order()) return reject(sbe::ExsimRejectReasonCode::OutboundStoreFull);
+        if (!store_has_room_for_replace()) return reject(sbe::ExsimRejectReasonCode::OutboundStoreFull);
         if (request.force_priority_loss != sbe::BooleanCode::False && request.force_priority_loss != sbe::BooleanCode::True) {
             return reject(sbe::ExsimRejectReasonCode::InvalidField);
         }
@@ -539,11 +560,38 @@ private:
         return cl_ord_id == 0 ? 0 : wire_cl_ord_id_from_token_bytes(tokens_.token(cl_ord_id));
     }
 
-    [[nodiscard]] bool store_has_room_for_new_order() const noexcept {
+    // ---- outbound store admission --------------------------------------------
+
+    // Messages the store can still take, counting each at the largest
+    // application frame size so the byte budget is respected too.
+    [[nodiscard]] std::size_t store_free_message_slots() const noexcept {
         const std::size_t free_messages = store_.max_messages() - static_cast<std::size_t>(store_.last_seq());
         const std::size_t free_bytes = store_.max_bytes() - store_.bytes_used();
-        return free_messages > store_reserve_messages_ &&
-               free_bytes / kMaxApplicationFrameSize > store_reserve_messages_;
+        return std::min(free_messages, free_bytes / kMaxApplicationFrameSize);
+    }
+
+    // Reports the store must always be able to take: one terminal report per
+    // live order (cancel on disconnect, mass cancel, end of day) plus the
+    // outcome of the mass cancel that carries them.
+    [[nodiscard]] std::size_t store_slots_owed_to_live_orders() const noexcept { return live_order_count_ + 1; }
+
+    // A new order needs its acknowledgment and its own terminal report on top
+    // of what is owed and of the reserve.
+    [[nodiscard]] bool store_has_room_for_new_order() const noexcept {
+        return store_free_message_slots() >= store_slots_owed_to_live_orders() + store_reserve_messages_ + 2;
+    }
+
+    // A replace keeps the live order count; it needs room for its acknowledgment.
+    [[nodiscard]] bool store_has_room_for_replace() const noexcept {
+        return store_free_message_slots() >= store_slots_owed_to_live_orders() + store_reserve_messages_ + 1;
+    }
+
+    // Any applied request (or client sequence gap) may store one message that
+    // no live order is owed: a reject, NotApplied or BusinessMessageReject.
+    // Without room for it the request is refused unapplied (see
+    // FixpSbeConnection::refuse_request_at_store_reserve).
+    [[nodiscard]] bool store_has_room_for_unowed_message() const noexcept {
+        return store_free_message_slots() > store_slots_owed_to_live_orders();
     }
 
     // Every request gets a response. If the engine emitted nothing for this
@@ -673,6 +721,7 @@ private:
         report.side = wire_side_from_exsim(leg_side);
         report.ord_status = leg.leaves_qty == 0 ? sbe::OrdStatusCode::Filled : sbe::OrdStatusCode::PartiallyFilled;
         report.last_liquidity_ind = liquidity_indicator_for(fill.aggressor, leg_side);
+        if (leg.leaves_qty == 0) note_order_completed();
         emit_application_message(report, context, now);
     }
 
@@ -693,6 +742,7 @@ private:
         report.side = wire_side_from_exsim(canceled.side);
         report.ord_status = canceled.leaves_qty == 0 ? sbe::OrdStatusCode::Canceled : live_order_status(canceled.cum_qty);
         report.cancel_reason = wire_cancel_reason_from_exsim(canceled.reason);
+        if (canceled.leaves_qty == 0) note_order_completed();
         emit_application_message(report, context, now);
     }
 
@@ -750,15 +800,28 @@ private:
         emit_application_message(reject, context, now);
     }
 
+    void note_order_completed() noexcept {
+        assert(live_order_count_ > 0);
+        if (live_order_count_ > 0) --live_order_count_;
+    }
+
     // Stores the message (assigning its server flow sequence number) and
     // writes it to the attached connection unless a drop-out fault eats it.
+    // The first message that does not fit latches store_overflowed_: no later
+    // message is stored either, because it would sit at the next sequence
+    // number right behind the lost one and hide the loss from recovery.
     template <class Message, class Context>
     void emit_application_message(const Message& message, Context& context, Timestamp now) noexcept {
+        if (request_in_flight_) request_answered_ = true;
+        if (LOB_UNLIKELY(store_overflowed_)) {
+            ++statistics_.messages_lost_to_store_overflow;
+            return;
+        }
         char frame[sbe::kMaxEncodedFrameSize];
         const std::size_t frame_size = sbe::encode(message, frame, sizeof frame);
         assert(frame_size != 0);
-        if (request_in_flight_) request_answered_ = true;
         if (LOB_UNLIKELY(!store_.append(std::span<const char>(frame, frame_size)))) {
+            store_overflowed_ = true;
             ++statistics_.messages_lost_to_store_overflow;
             if (attached_connection_ != nullptr) attached_connection_->terminate_after_store_overflow(now);
             return;
@@ -780,6 +843,8 @@ private:
     SequencedStore store_;
     FixpSbeUserStatistics statistics_;
     std::uint64_t last_exec_id_ = 0;
+    std::size_t live_order_count_ = 0;
+    bool store_overflowed_ = false;
 
     bool has_logical_session_ = false;
     sbe::SessionUuid logical_session_uuid_{};
@@ -957,11 +1022,11 @@ public:
         release_session(context);
     }
 
-    // Server shutdown: Terminate Finished, then close.
+    // Server shutdown: Terminate Finished (once a FIXP session exists), then close.
     template <class Context>
         requires FixpSbeServerContext<Context>
     void end_session(Context& context) noexcept {
-        if (state_ == FixpSbeConnectionState::Established) {
+        if (fixp_session_exists()) {
             send_terminate(sbe::TerminationCode::Finished, "end of session", context.now());
         }
         if (state_ != FixpSbeConnectionState::Closed) close(FixpSbeCloseReason::EndOfSession);
@@ -1022,6 +1087,11 @@ private:
                     protocol_violation("unexpected Sequence", now);
                     return;
                 }
+                if (sequence.next_seq_no > user_state_->next_expected_client_sequence_number() &&
+                    !user_state_->store_has_room_for_unowed_message()) {
+                    refuse_request_at_store_reserve(now);  // NotApplied could not be stored
+                    return;
+                }
                 next_implicit_client_sequence_number_ = sequence.next_seq_no;
                 client_sequence_known_ = true;
                 if (!user_state_->note_client_sequence(sequence.next_seq_no, context, now)) {
@@ -1053,8 +1123,9 @@ private:
                     protocol_violation("Terminate SessionId mismatch", now);
                     return;
                 }
-                // FIXP 4.4.1: the receiver must answer Terminate with Terminate.
-                if (state_ == FixpSbeConnectionState::Established) {
+                // FIXP 4.4.1: the receiver must answer Terminate with Terminate,
+                // also before Establish (the client may decide not to establish).
+                if (fixp_session_exists()) {
                     send_terminate(sbe::TerminationCode::Finished, "terminate acknowledged", now);
                 }
                 close(FixpSbeCloseReason::PeerTerminated);
@@ -1076,6 +1147,13 @@ private:
             return;
         }
         FixpSbeUserState<ByteSink>& user_state = *user_state_;
+        // A duplicate is dropped without storing anything; a message to apply
+        // may store an answer no live order is owed.
+        if (next_implicit_client_sequence_number_ >= user_state.next_expected_client_sequence_number() &&
+            LOB_UNLIKELY(!user_state.store_has_room_for_unowed_message())) {
+            refuse_request_at_store_reserve(now);
+            return;
+        }
         switch (static_cast<sbe::TemplateId>(view.header.template_id)) {
             case sbe::TemplateId::NewOrderSingle: {
                 sbe::NewOrderSingle request;
@@ -1160,6 +1238,9 @@ private:
             context.authenticate(credentials.username, credentials.password, settings_.authentication_protocol);
         FixpSbeUserState<ByteSink>* user_state = user == nullptr ? nullptr : user_states_->find(user->session_id);
         if (user_state == nullptr) return reject(sbe::NegotiationRejectCode::Credentials, "invalid credentials");
+        if (user_state->store_overflowed()) {
+            return reject(sbe::NegotiationRejectCode::Unspecified, kStoreOverflowedRefusal);
+        }
         if (user_state->has_attached_connection()) {
             return reject(sbe::NegotiationRejectCode::Unspecified, "user has an established session");
         }
@@ -1169,15 +1250,18 @@ private:
         if (user_state->remembered_session_uuid_count_ == kRememberedSessionUuidsPerUser) {
             return reject(sbe::NegotiationRejectCode::Unspecified, "daily logical session capacity reached");
         }
-        user_state->begin_logical_session(negotiate.session_id);
-        negotiated_user_ = user;
-        session_uuid_ = negotiate.session_id;
-        state_ = FixpSbeConnectionState::Negotiated;
         sbe::NegotiationResponse response;
         response.session_id = negotiate.session_id;
         response.request_timestamp_ns = negotiate.timestamp_ns;
         response.server_flow = sbe::FlowType::Recoverable;
-        write_session_message(response, now);
+        // Only a response the sink accepted makes the session: after a
+        // SendBufferFull close the UUID stays unused and the previous logical
+        // session stays recoverable, so the client may retry the same UUID.
+        if (!write_session_message(response, now)) return;
+        user_state->begin_logical_session(negotiate.session_id);
+        negotiated_user_ = user;
+        session_uuid_ = negotiate.session_id;
+        state_ = FixpSbeConnectionState::Negotiated;
     }
 
     // ---- Establish (FIXP 4.3) -----------------------------------------------
@@ -1216,6 +1300,9 @@ private:
         }
         FixpSbeUserState<ByteSink>* user_state = user_states_->find(user->session_id);
         if (user_state == nullptr) return reject(sbe::EstablishmentRejectCode::Credentials, "invalid credentials");
+        if (user_state->store_overflowed()) {
+            return reject(sbe::EstablishmentRejectCode::Unspecified, kStoreOverflowedRefusal);
+        }
         if (!user_state->has_logical_session() || user_state->logical_session_uuid() != establish.session_id) {
             return reject(sbe::EstablishmentRejectCode::Unnegotiated, "SessionId was not negotiated");
         }
@@ -1322,6 +1409,16 @@ private:
     // the client detects the gap (FIXP 4.5).
     void note_dropped_realtime_message() noexcept { outbound_sequence_message_required_ = true; }
 
+    // The store has room only for reports owed to live orders: refuse the
+    // request without applying it or consuming its client sequence number,
+    // and without storing anything. Nothing is lost, so the client may
+    // reconnect with Establish once live orders complete.
+    void refuse_request_at_store_reserve(Timestamp now) noexcept {
+        ++user_state_->statistics_.requests_refused_at_store_reserve;
+        send_terminate(sbe::TerminationCode::UnspecifiedError, "outbound store reserve reached", now);
+        close(FixpSbeCloseReason::StoreReserveReached);
+    }
+
     void terminate_after_store_overflow(Timestamp now) noexcept {
         if (state_ != FixpSbeConnectionState::Established) return;
         send_terminate(sbe::TerminationCode::UnspecifiedError, "outbound store full", now);
@@ -1336,8 +1433,13 @@ private:
 
     // ---- output -------------------------------------------------------------
 
+    // Negotiated or Established: the peer knows a session id, so Terminate can name it.
+    [[nodiscard]] bool fixp_session_exists() const noexcept {
+        return state_ == FixpSbeConnectionState::Negotiated || state_ == FixpSbeConnectionState::Established;
+    }
+
     void protocol_violation(std::string_view reason, Timestamp now) noexcept {
-        if (state_ == FixpSbeConnectionState::Negotiated || state_ == FixpSbeConnectionState::Established) {
+        if (fixp_session_exists()) {
             send_terminate(sbe::TerminationCode::UnspecifiedError, reason, now);
         }
         close(FixpSbeCloseReason::ProtocolViolation);

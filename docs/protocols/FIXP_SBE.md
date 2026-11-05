@@ -76,6 +76,11 @@ Only the current logical session can be recovered. At most 64 distinct
 logical UUIDs can be negotiated per user per day; further negotiations are
 rejected rather than forgetting old UUIDs and permitting their reuse.
 A transport reconnect must use Establish, not Negotiate, to recover reports.
+A UUID is recorded only after the sink accepts NegotiationResponse. If that
+write fails, the UUID can be retried and the previous logical flow survives.
+A duplicate Establish on an established transport receives AlreadyEstablished;
+the established session continues. Terminate is answered in both Negotiated
+and Established states; end_session sends Terminate Finished in both states.
 
 All outbound application responses, including NotApplied, are stored before
 transmission. Completed orders need no live mapping for replay. Disconnected
@@ -150,12 +155,35 @@ FIX mappings in GATEWAYS.md. FIXP sequencing replaces FIX MsgSeqNum handling.
   This is a local simulator profile, not an authentication or encryption standard.
 - Timestamp plausibility requires Unix nanoseconds at or after 2000-01-01.
   Request timestamp echoes and supported server flow are checked by the client.
-- Store and token capacity are bounded at construction. New/replace traffic
-  is rejected near store exhaustion. Actual store exhaustion increments a loss
-  counter and closes the connection; a report that could not be stored cannot
-  be recovered. Size the store for the trading day, including cancellations.
+- Store and token capacity are bounded at construction. See Outbound store
+  below for admission and the permanent refusal after actual report loss.
 - Client recovery is in-memory within the client object's lifetime. Crash
   persistence and application retry scheduling are caller responsibilities.
+
+## Outbound store
+
+Admission counts the smaller of free message slots and free bytes divided
+by the largest application frame size. It reserves one terminal report per
+live order plus one mass cancel outcome. New orders need two additional
+slots (acknowledgment and eventual terminal report); replaces need one.
+Both also require the configured reserve, which absorbs partial fills,
+rejects and NotApplied. Accepted orders increase the live count; terminal
+fills and cancels decrease it. Replaces and partial reductions keep it.
+
+New/replace requests near this boundary receive OutboundStoreFull. When
+only the terminal reserve remains, an application request or forward Sequence
+gap is refused without applying it or advancing the client high-water mark:
+the server sends Terminate UnspecifiedError with reason
+`outbound store reserve reached`. Recovery with Establish remains available.
+
+Passive partial fills cannot be refused and can still exhaust either budget.
+The first failed append latches store overflow for the user's entire trading
+day, terminates an attached established connection, and increments the loss
+counter. All later reports are counted as lost and never appended behind the
+hole. Both Establish and Negotiate then reject with Unspecified and reason
+`outbound store overflowed: reports were lost, no session until the next trading day`.
+A new UUID does not reset the latch; only a new day-owned user state does.
+Size both store budgets for the whole day, including partial fills.
 
 ## Integration with the server
 
