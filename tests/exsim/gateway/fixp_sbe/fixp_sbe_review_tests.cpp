@@ -204,6 +204,24 @@ TEST_CASE(gateway_fixp_sbe_review, failed_negotiation_response_does_not_burn_uui
     CHECK(frames[0].is(sbe::TemplateId::NegotiationResponse));
 }
 
+// REVIEW-SBE-06: reject a redundant Establish while continuing the same flow.
+TEST_CASE(gateway_fixp_sbe_review, redundant_establish_keeps_the_established_flow) {
+    EngineTestContext context;
+    context.add_instrument("AAPL");
+    auto& alice = context.add_user("alice", "secret", 1);
+    ServerConnectionHarness server(context);
+    server.log_in();
+    server.establish(kFirstSessionUuid);
+    auto frames = server.take_output();
+    REQUIRE_EQ(frames.size(), 1u);
+    REQUIRE(frames[0].is(sbe::TemplateId::EstablishmentReject));
+    CHECK(frames[0].as<sbe::EstablishmentReject>().code == sbe::EstablishmentRejectCode::AlreadyEstablished);
+    REQUIRE(server.connection().state() == fixp::FixpSbeConnectionState::Established);
+    server.send(limit_order(1, sbe::SideCode::Buy, kHundredDollars, 10));
+    CHECK_EQ(alice.last_server_sequence_number(), 1u);
+    CHECK_EQ(alice.live_order_count(), 1u);
+}
+
 // Repeated rejects and forward gaps must not consume the terminal reserve.
 TEST_CASE(gateway_fixp_sbe_review, repeated_requests_preserve_terminal_store_reserve) {
     for (const bool gap : {false, true}) {
@@ -216,8 +234,16 @@ TEST_CASE(gateway_fixp_sbe_review, repeated_requests_preserve_terminal_store_res
             server.log_in();
             server.send(limit_order(1, sbe::SideCode::Buy, kHundredDollars, 10));
             for (std::uint32_t id = 2; id < 30 && !server.connection().close_requested(); ++id) {
+                const auto expected = alice.next_expected_client_sequence_number();
+                const auto commands = context.submitted_commands;
                 if (gap) server.sequence(2 * id);
                 else server.send(limit_order(id, sbe::SideCode::Buy, kHundredDollars, 10));
+                if (server.connection().close_requested()) {
+                    CHECK_EQ(alice.next_expected_client_sequence_number(), expected);
+                    // Closing the transport submits only cancel-on-disconnect.
+                    CHECK_EQ(context.submitted_commands, commands + 1);
+                    CHECK_EQ(alice.live_order_count(), 0u);
+                }
             }
             CHECK(server.connection().close_reason() == fixp::FixpSbeCloseReason::StoreReserveReached);
             CHECK_EQ(alice.statistics().requests_refused_at_store_reserve, 1u);
