@@ -8,7 +8,7 @@ Updated 2026-11-05. This is a recovery checkpoint, not live delegate status. Kee
 - First trader workflow: **execution and market-making research**.
 - Primary research UI: **Bun + Next.js + TypeScript + Tailwind CSS + shadcn/ui**, following `/Users/jedi/AGENTS.md`. Prefer existing components and meaningful names. C++ owns simulation/backend behavior.
 - API recommendation: C++ HTTP/OpenAPI with generated TS types; omit a tRPC wrapper initially. The user asked us to assess fit after reopening tRPC, so this is a reasoned recommendation rather than an explicit final veto.
-- Resumed/new delegates use Claude Opus 5.5 with high reasoning (user decision 2026-11-05, "continue as claude", after GPT hit its usage limit; GPT was used 2026-11-04 20:45 to 2026-11-05 00:10 +08). No Ollama while the user works here. Do not add co-author attribution to commits.
+- Resumed/new delegates use GPT/ChatGPT with high reasoning (latest user decision 2026-11-05, "continue and turn all subagent to chatgpt", replacing the earlier Claude-only rule). No Ollama while the user works here. Do not add co-author attribution to commits.
 - Full product rationale, causal simulation requirements, realism assumptions, accounting, and UI workflow: [PRODUCT.md](PRODUCT.md).
 
 ## Verified repository state (2026-11-05)
@@ -83,7 +83,7 @@ Wave-2 task IDs and branches are recorded in [delegation-registry.json](delegati
 | Capability | Use here |
 | --- | --- |
 | Incremental thread reads and individual-item reads | Retrieve specific briefs/final findings with small limits; do not reload whole tool transcripts. |
-| Provider/model configuration | Migrate existing failed children to Claude Opus 5.5 in their actual checkouts, preserving partial files. |
+| Provider/model configuration | Resume existing interrupted children with the user's current provider choice (GPT/high as of the latest 2026-11-05 instruction), preserving their actual checkouts and partial files. |
 | App-owned delegate tasks and isolated worktrees | Independent scopes and concise completion reports; new worktrees only via the harness. |
 | Completion notifications | Resume dependent work on completion; no polling loops or scheduled status checks. |
 | Native plan/checklist plus repository checkpoint | Short live milestones in the plan; durable decisions/dependencies/task pointers in these files survive context and provider changes. No separate T3 todo tool was exposed in the inventory. |
@@ -95,6 +95,8 @@ Wave-2 task IDs and branches are recorded in [delegation-registry.json](delegati
 For each completion record: task ID, actual branch/commit, changed scope, tests and log path, unresolved risks, and the next dependent action. Ask children for concise reports, not copies of source files or full logs. When public interfaces change, synchronize those changes before building dependent branches.
 
 ## Immediate next action
+
+Latest 2026-11-05 continuation: all eight unfinished direct child tasks were stopped to clear queued Claude limit-resumes, configured for GPT-6.1 Sol/high, and resumed in their original checkouts. Actual new task IDs, paths and branches are in delegation-registry.json. Completed tasks were not rerun. This supersedes the older Claude auto-resume instructions below.
 
 2026-11-05 evening: the QA fixes for OUCH/core/MD (`6227a51`) and FIX (`3df3527`) and the server runtime (`e9495a0`) are merged and gated. A Claude API rate limit failed the runner fix and mutation check runs; T3 resumes them automatically.
 

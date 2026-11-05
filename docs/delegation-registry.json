@@ -345,13 +345,18 @@
     {
       "threadId": "thread:delegated-task:command%3Amcp%3A4bcebf24-eb39-4dca-8805-e9fc91cd70ec%3Adelegate-task%3Ae28022a3-cc29-4d4a-86c4-4cfec8e4fb7b",
       "title": "C++ HTTP/OpenAPI research API and UI on real runs",
-      "status": "running",
-      "provider": "claudeAgent",
-      "model": "claude-opus-5-5",
+      "status": "starting",
+      "provider": "codex",
+      "model": "gpt-6.1-sol",
       "reasoningEffort": "high",
       "link": "<t3-thread://v2/28299d02-72aa-499f-95da-f2289df17826/thread:delegated-task:command%3Amcp%3A4bcebf24-eb39-4dca-8805-e9fc91cd70ec%3Adelegate-task%3Ae28022a3-cc29-4d4a-86c4-4cfec8e4fb7b>",
-      "recoveryState": "launched 2026-11-05 from e2cdd11 in a harness worktree; builds on committed runner branch (b06a276, e44b5c6) behind an adapter; re-check against the finished runner before merge; told 2026-11-05 the runner is final at 2619a8e (merged 4783f45) and to reconcile the adapter with docs/RESEARCH_RUNNER.md differences table",
-      "taskId": "node:delegated-task:command%3Amcp%3A4bcebf24-eb39-4dca-8805-e9fc91cd70ec%3Adelegate-task%3Ae28022a3-cc29-4d4a-86c4-4cfec8e4fb7b"
+      "recoveryState": "Original task resumed on GPT/high 2026-11-05 after latest user switch; partial work preserved",
+      "taskId": "node:delegated-task:command%3Amcp%3A23bfbf46-e3a2-42ca-8645-3aa7fcc1865f%3Athread-send%3A8c9095f7-18bc-4d01-b693-917e310356de",
+      "previousProvider": "claudeAgent",
+      "previousModel": "claude-opus-5-5",
+      "runId": "run:thread:thread%3Adelegated-task%3Acommand%253Amcp%253A4bcebf24-eb39-4dca-8805-e9fc91cd70ec%253Adelegate-task%253Ae28022a3-cc29-4d4a-86c4-4cfec8e4fb7b:ordinal:6",
+      "checkout": "/Users/jedi/.t3/worktrees/lob/t3-56e22e23",
+      "branch": "t3/cpp-http-research-api"
     },
     {
       "threadId": "thread:delegated-task:command%3Amcp%3A4bcebf24-eb39-4dca-8805-e9fc91cd70ec%3Adelegate-task%3A337bf277-8344-4bed-9afb-78ff48b41a1a",
@@ -446,13 +451,13 @@
     {
       "threadId": "thread:delegated-task:command%3Amcp%3A5af036a3-eb38-4c1b-93e0-da5e0bed29b6%3Adelegate-task%3A9bdb16a6-a126-42be-92ef-f006402dacb4",
       "title": "Fuzz corpus mutation check",
-      "status": "failed-rate-limit",
-      "provider": "claudeAgent",
-      "model": "claude-opus-5-5",
+      "status": "starting",
+      "provider": "codex",
+      "model": "gpt-6.1-sol",
       "reasoningEffort": "high",
       "link": "<t3-thread://v2/28299d02-72aa-499f-95da-f2289df17826/thread:delegated-task:command%3Amcp%3A5af036a3-eb38-4c1b-93e0-da5e0bed29b6%3Adelegate-task%3A9bdb16a6-a126-42be-92ef-f006402dacb4>",
       "parentThreadId": "a4344aba-ffd8-4132-bf6d-ea93d8fe68e8",
-      "taskId": "node:delegated-task:command%3Amcp%3A5af036a3-eb38-4c1b-93e0-da5e0bed29b6%3Adelegate-task%3A9bdb16a6-a126-42be-92ef-f006402dacb4",
+      "taskId": "node:delegated-task:command%3Amcp%3A23bfbf46-e3a2-42ca-8645-3aa7fcc1865f%3Athread-send%3Ae02501c7-1732-4389-9396-792e10bb73b1",
       "ownership": [
         "fuzz/seed_generator.cpp",
         "fuzz/corpus/<protocol targets>/ (new files only)",
@@ -460,18 +465,23 @@
         "docs/FUZZING.md (Mutation check section)",
         "fuzz/mutation_check.sh (optional)"
       ],
-      "recoveryState": "launched 2026-11-05 at 922cb39; its run failed on a Claude API rate limit, and T3 has an automatic resume pending (hasPendingChildRuns); preserve its worktree and resume that thread, do not relaunch"
+      "recoveryState": "Original task resumed on GPT/high 2026-11-05 after latest user switch; partial work preserved",
+      "previousProvider": "claudeAgent",
+      "previousModel": "claude-opus-5-5",
+      "runId": "run:thread:thread%3Adelegated-task%3Acommand%253Amcp%253A5af036a3-eb38-4c1b-93e0-da5e0bed29b6%253Adelegate-task%253A9bdb16a6-a126-42be-92ef-f006402dacb4:ordinal:3",
+      "checkout": "/Users/jedi/.t3/worktrees/lob/t3-d19563e5",
+      "branch": "t3/fuzz-corpus-mutation-check"
     },
     {
       "threadId": "thread:delegated-task:command%3Amcp%3A5af036a3-eb38-4c1b-93e0-da5e0bed29b6%3Adelegate-task%3A45a51fdd-c193-4e8b-b5b9-c6e7a81285c0",
       "title": "Fix research runner QA findings",
-      "status": "failed-rate-limit",
-      "provider": "claudeAgent",
-      "model": "claude-opus-5-5",
+      "status": "starting",
+      "provider": "codex",
+      "model": "gpt-6.1-sol",
       "reasoningEffort": "high",
       "parentThreadId": "a4344aba-ffd8-4132-bf6d-ea93d8fe68e8",
       "link": "<t3-thread://v2/28299d02-72aa-499f-95da-f2289df17826/thread:delegated-task:command%3Amcp%3A5af036a3-eb38-4c1b-93e0-da5e0bed29b6%3Adelegate-task%3A45a51fdd-c193-4e8b-b5b9-c6e7a81285c0>",
-      "taskId": "node:delegated-task:command%3Amcp%3A5af036a3-eb38-4c1b-93e0-da5e0bed29b6%3Adelegate-task%3A45a51fdd-c193-4e8b-b5b9-c6e7a81285c0",
+      "taskId": "node:delegated-task:command%3Amcp%3A23bfbf46-e3a2-42ca-8645-3aa7fcc1865f%3Athread-send%3A797b575b-12f7-4a81-85f7-6dcef5079bb1",
       "ownership": [
         "src/exsim/research/*",
         "include/exsim/research/*",
@@ -479,52 +489,67 @@
         "tools/exsim_research",
         "docs/RESEARCH_RUNNER.md"
       ],
-      "recoveryState": "launched 2026-11-05: fixes R1 to R7 and evaluates P1 to P3 from /tmp/exsim-review-runner/REPORT.md; its run failed on a Claude API rate limit, and T3 has an automatic resume pending; preserve its worktree and resume that thread, do not relaunch"
+      "recoveryState": "Original task resumed on GPT/high 2026-11-05 after latest user switch; partial work preserved",
+      "previousProvider": "claudeAgent",
+      "previousModel": "claude-opus-5-5",
+      "runId": "run:thread:thread%3Adelegated-task%3Acommand%253Amcp%253A5af036a3-eb38-4c1b-93e0-da5e0bed29b6%253Adelegate-task%253A45a51fdd-c193-4e8b-b5b9-c6e7a81285c0:ordinal:3",
+      "checkout": "/Users/jedi/.t3/worktrees/lob/t3-30a9d6d5",
+      "branch": "t3/fix-research-runner-qa"
     },
     {
       "threadId": "thread:delegated-task:command%3Amcp%3A38b870c5-20af-4f07-82f0-eb7e368833f8%3Adelegate-task%3A0c6c66ed-9f41-4389-93f4-3edff5c709c7",
       "title": "FIX 4.4 decode performance",
-      "status": "running",
-      "provider": "claudeAgent",
-      "model": "claude-opus-5-5",
+      "status": "starting",
+      "provider": "codex",
+      "model": "gpt-6.1-sol",
       "reasoningEffort": "high",
       "parentThreadId": "a4344aba-ffd8-4132-bf6d-ea93d8fe68e8",
       "link": "<t3-thread://v2/28299d02-72aa-499f-95da-f2289df17826/thread:delegated-task:command%3Amcp%3A38b870c5-20af-4f07-82f0-eb7e368833f8%3Adelegate-task%3A0c6c66ed-9f41-4389-93f4-3edff5c709c7>",
-      "taskId": "node:delegated-task:command%3Amcp%3A38b870c5-20af-4f07-82f0-eb7e368833f8%3Adelegate-task%3A0c6c66ed-9f41-4389-93f4-3edff5c709c7",
+      "taskId": "node:delegated-task:command%3Amcp%3A23bfbf46-e3a2-42ca-8645-3aa7fcc1865f%3Athread-send%3Ab7bf7c2f-491a-4fd6-91bd-1bc2680f14a7",
       "ownership": [
         "include/exsim/protocol/fix44.hpp: frame_size, FrameReader, Parser, Field, parse_*, decode functions",
         "tests/ (frozen reference decoder, differential test)",
         "tools/exsim_codec_bench (new decode cases only)"
       ],
-      "recoveryState": "launched 2026-11-05 at 3df3527: at least two approaches, identical Status and fields versus a frozen copy of the decoder over the FIX corpora and random messages; no README edits"
+      "recoveryState": "Original task resumed on GPT/high 2026-11-05 after latest user switch; partial work preserved",
+      "previousProvider": "claudeAgent",
+      "previousModel": "claude-opus-5-5",
+      "runId": "run:thread:thread%3Adelegated-task%3Acommand%253Amcp%253A38b870c5-20af-4f07-82f0-eb7e368833f8%253Adelegate-task%253A0c6c66ed-9f41-4389-93f4-3edff5c709c7:ordinal:3",
+      "checkout": "/Users/jedi/.t3/worktrees/lob/t3-c6cd6469",
+      "branch": "t3/fix44-inbound-codec-speed"
     },
     {
       "threadId": "thread:delegated-task:command%3Amcp%3A38b870c5-20af-4f07-82f0-eb7e368833f8%3Adelegate-task%3Ac96ec3e0-a18a-4ff3-a654-a1e12f47f1a4",
       "title": "FIX 4.4 encode performance",
-      "status": "running",
-      "provider": "claudeAgent",
-      "model": "claude-opus-5-5",
+      "status": "starting",
+      "provider": "codex",
+      "model": "gpt-6.1-sol",
       "reasoningEffort": "high",
       "parentThreadId": "a4344aba-ffd8-4132-bf6d-ea93d8fe68e8",
       "link": "<t3-thread://v2/28299d02-72aa-499f-95da-f2289df17826/thread:delegated-task:command%3Amcp%3A38b870c5-20af-4f07-82f0-eb7e368833f8%3Adelegate-task%3Ac96ec3e0-a18a-4ff3-a654-a1e12f47f1a4>",
-      "taskId": "node:delegated-task:command%3Amcp%3A38b870c5-20af-4f07-82f0-eb7e368833f8%3Adelegate-task%3Ac96ec3e0-a18a-4ff3-a654-a1e12f47f1a4",
+      "taskId": "node:delegated-task:command%3Amcp%3A23bfbf46-e3a2-42ca-8645-3aa7fcc1865f%3Athread-send%3A209c1fc6-e794-49f0-81f1-94168bf700e8",
       "ownership": [
         "include/exsim/protocol/fix44.hpp: Builder, Header, format_*, days_from_civil, encode functions",
         "tests/ (frozen reference encoder, differential test)",
         "tools/exsim_codec_bench (new encode cases only)"
       ],
-      "recoveryState": "launched 2026-11-05 at 3df3527: at least two approaches, byte-identical output versus a frozen copy of the encoder; no README edits"
+      "recoveryState": "Original task resumed on GPT/high 2026-11-05 after latest user switch; partial work preserved",
+      "previousProvider": "claudeAgent",
+      "previousModel": "claude-opus-5-5",
+      "runId": "run:thread:thread%3Adelegated-task%3Acommand%253Amcp%253A38b870c5-20af-4f07-82f0-eb7e368833f8%253Adelegate-task%253Ac96ec3e0-a18a-4ff3-a654-a1e12f47f1a4:ordinal:2",
+      "checkout": "/Users/jedi/.t3/worktrees/lob/t3-a254f96d",
+      "branch": "t3/fix44-encoder-performance"
     },
     {
       "threadId": "thread:delegated-task:command%3Amcp%3A38b870c5-20af-4f07-82f0-eb7e368833f8%3Adelegate-task%3Aa8748a28-76ae-477b-a78c-34faf7eed31c",
       "title": "SBE over FIXP: fix QA findings SBE-01 to 06",
-      "status": "running",
-      "provider": "claudeAgent",
-      "model": "claude-opus-5-5",
+      "status": "starting",
+      "provider": "codex",
+      "model": "gpt-6.1-sol",
       "reasoningEffort": "high",
       "parentThreadId": "a4344aba-ffd8-4132-bf6d-ea93d8fe68e8",
       "link": "<t3-thread://v2/28299d02-72aa-499f-95da-f2289df17826/thread:delegated-task:command%3Amcp%3A38b870c5-20af-4f07-82f0-eb7e368833f8%3Adelegate-task%3Aa8748a28-76ae-477b-a78c-34faf7eed31c>",
-      "taskId": "node:delegated-task:command%3Amcp%3A38b870c5-20af-4f07-82f0-eb7e368833f8%3Adelegate-task%3Aa8748a28-76ae-477b-a78c-34faf7eed31c",
+      "taskId": "node:delegated-task:command%3Amcp%3A23bfbf46-e3a2-42ca-8645-3aa7fcc1865f%3Athread-send%3A32418ae6-1450-419f-8a5b-74ca8ba2be82",
       "ownership": [
         "include/exsim/gateway/fixp_sbe/*",
         "include/exsim/protocol/sbe* (only if unavoidable)",
@@ -532,18 +557,23 @@
         "docs/protocols/FIXP_SBE.md",
         "docs/GATEWAYS.md (SBE section)"
       ],
-      "recoveryState": "launched 2026-11-05 at e9495a0: brings in reproducers 7ab2ab8, fixes SBE-01, 02, 03, evaluates 04 to 06; keeps the connection API used by the runtime stable"
+      "recoveryState": "Original task resumed on GPT/high 2026-11-05 after latest user switch; partial work preserved",
+      "previousProvider": "claudeAgent",
+      "previousModel": "claude-opus-5-5",
+      "runId": "run:thread:thread%3Adelegated-task%3Acommand%253Amcp%253A38b870c5-20af-4f07-82f0-eb7e368833f8%253Adelegate-task%253Aa8748a28-76ae-477b-a78c-34faf7eed31c:ordinal:2",
+      "checkout": "/Users/jedi/.t3/worktrees/lob/t3-73fbba65",
+      "branch": "t3/fix-fixp-sbe-qa-findings"
     },
     {
       "threadId": "thread:delegated-task:command%3Amcp%3A38b870c5-20af-4f07-82f0-eb7e368833f8%3Adelegate-task%3A8764c2d4-02f0-40c6-ba0f-7682e846f89a",
       "title": "Wire SBE over FIXP into the server runtime",
-      "status": "running",
-      "provider": "claudeAgent",
-      "model": "claude-opus-5-5",
+      "status": "starting",
+      "provider": "codex",
+      "model": "gpt-6.1-sol",
       "reasoningEffort": "high",
       "parentThreadId": "a4344aba-ffd8-4132-bf6d-ea93d8fe68e8",
       "link": "<t3-thread://v2/28299d02-72aa-499f-95da-f2289df17826/thread:delegated-task:command%3Amcp%3A38b870c5-20af-4f07-82f0-eb7e368833f8%3Adelegate-task%3A8764c2d4-02f0-40c6-ba0f-7682e846f89a>",
-      "taskId": "node:delegated-task:command%3Amcp%3A38b870c5-20af-4f07-82f0-eb7e368833f8%3Adelegate-task%3A8764c2d4-02f0-40c6-ba0f-7682e846f89a",
+      "taskId": "node:delegated-task:command%3Amcp%3A23bfbf46-e3a2-42ca-8645-3aa7fcc1865f%3Athread-send%3Adeb8e79c-9b41-4ea4-9b88-de24e8f65e93",
       "ownership": [
         "include/exsim/server/runtime/*",
         "include/exsim/server/server_runtime.hpp",
@@ -554,23 +584,33 @@
         "docs/SERVER_RUNTIME.md",
         "docs/SERVER.md (SBE wiring lines)"
       ],
-      "recoveryState": "launched 2026-11-05 at e9495a0: FixpSbeGateway in the runtime, SBE E2E tests and allocation guard, exsim_w2w_bench --protocol ouch|fix|fixp_sbe with a per-protocol wire-to-wire table"
+      "recoveryState": "Original task resumed on GPT/high 2026-11-05 after latest user switch; partial work preserved",
+      "previousProvider": "claudeAgent",
+      "previousModel": "claude-opus-5-5",
+      "runId": "run:thread:thread%3Adelegated-task%3Acommand%253Amcp%253A38b870c5-20af-4f07-82f0-eb7e368833f8%253Adelegate-task%253A8764c2d4-02f0-40c6-ba0f-7682e846f89a:ordinal:2",
+      "checkout": "/Users/jedi/.t3/worktrees/lob/t3-59ca89aa",
+      "branch": "t3/wire-fixp-sbe-runtime"
     },
     {
       "threadId": "thread:delegated-task:command%3Amcp%3A38b870c5-20af-4f07-82f0-eb7e368833f8%3Adelegate-task%3A41fe1043-80cb-4c29-ad21-db85d863e8ac",
       "title": "Final review: exsim server runtime end to end",
-      "status": "running",
-      "provider": "claudeAgent",
-      "model": "claude-opus-5-5",
+      "status": "starting",
+      "provider": "codex",
+      "model": "gpt-6.1-sol",
       "reasoningEffort": "high",
       "link": "<t3-thread://v2/28299d02-72aa-499f-95da-f2289df17826/thread:delegated-task:command%3Amcp%3A38b870c5-20af-4f07-82f0-eb7e368833f8%3Adelegate-task%3A41fe1043-80cb-4c29-ad21-db85d863e8ac>",
       "parentThreadId": "a4344aba-ffd8-4132-bf6d-ea93d8fe68e8",
-      "taskId": "node:delegated-task:command%3Amcp%3A38b870c5-20af-4f07-82f0-eb7e368833f8%3Adelegate-task%3A41fe1043-80cb-4c29-ad21-db85d863e8ac",
+      "taskId": "node:delegated-task:command%3Amcp%3A23bfbf46-e3a2-42ca-8645-3aa7fcc1865f%3Athread-send%3Af70ebebe-c23a-4e4b-98aa-5a8b03532e43",
       "ownership": [
         "tests/exsim/server/review/* or tests/exsim/server/e2e/runtime_review_tests.cpp (reproducers only)",
         "/tmp/exsim-review-server/REPORT.md"
       ],
-      "recoveryState": "launched 2026-11-05 at 12a349d: report-only review of the server runtime (OUCH, FIX, MD, admin, faults, shutdown, journal, allocation, w2w method, flakiness); SBE excluded until wired"
+      "recoveryState": "Original task resumed on GPT/high 2026-11-05 after latest user switch; partial work preserved",
+      "previousProvider": "claudeAgent",
+      "previousModel": "claude-opus-5-5",
+      "runId": "run:thread:thread%3Adelegated-task%3Acommand%253Amcp%253A38b870c5-20af-4f07-82f0-eb7e368833f8%253Adelegate-task%253A41fe1043-80cb-4c29-ad21-db85d863e8ac:ordinal:3",
+      "checkout": "/Users/jedi/.t3/worktrees/lob/t3-6663db04",
+      "branch": "t3/review-exsim-server-runtime"
     }
   ]
 }
