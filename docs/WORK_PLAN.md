@@ -110,3 +110,29 @@ Next, on completion notifications (do not poll):
 3. API and UI (`e28022a3`): check the adapter against the runner differences table, review, merge, run the C++ and bun gates.
 4. Runner fixes (`45a51fdd`) and mutation check (`9bdb16a6`) after their GPT continuations finish: review, merge, gate. Replay the strengthened FIX properties against the integrated optimized codec.
 5. Final independent review: the server runtime review (`41fe1043`) is running; after the SBE wiring and API/UI merges, review SBE in the runtime and the UI on real runs; fix findings; final README pass.
+
+## Fuzz corpus mutation check completion (2026-11-05)
+
+- Task `9bdb16a6-a126-42be-92ef-f006402dacb4`, existing checkout
+  `/Users/jedi/.t3/worktrees/lob/t3-d19563e5`, branch
+  `t3/fuzz-corpus-mutation-check`. Resumed on GPT per latest user instruction.
+- Scoped implementation `3cfea1a`; parent b2e6b02 integrated as `d1a7527`.
+  Added 199 boundary seeds across ten targets, with small OUCH/ITCH/FIX
+  property strengthening. Existing corpus files are unchanged. Production
+  codecs and public APIs are untouched; FIX performance owner informed via parent.
+- 103 mutants: 61 killed originally, 94 after seeds/properties, 7 equivalent,
+  2 deferred send-buffer backpressure harness gaps (B4/B8). F8 is now killed
+  by a correctly reframed premature-CheckSum property. No new production bug.
+- Original full gates retained: macOS release 790/790, ASan/UBSan 787/787,
+  Linux GCC and Clang 790/790 each. Recovered campaign: 68,358,584 executions,
+  no crash artifacts. Integrated focused release and sanitizer replay 19/19
+  each; final FIX release replay 447 inputs without violations. Generator
+  strict warning check and byte comparison of 62 original plus 199 appended
+  seeds pass; historical cancel frame bytes preserved after parent QA changes.
+- Exact logs and mutation evidence index: `/tmp/exsim-mutation-resume/EVIDENCE.md`.
+  Per-target results and deferred limitations: `docs/FUZZING.md`.
+- Integrated Linux GCC and Clang focused fuzz replay passed 19/19 each
+  with `-Werror` (`/tmp/exsim-mutation-resume/linux.log`). No warnings.
+  Active validation is complete; no further builds or measurements started.
+- Next action: parent review/integration; retain B4/B8 for a future bounded
+  backpressure harness change. No push or parent merge performed by this child.

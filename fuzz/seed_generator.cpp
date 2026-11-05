@@ -109,12 +109,17 @@ std::vector<std::string> fix_frames() {
     order.price = 1'502'500;
     order.transact_time = 1'700'000'000'000'000'000ull;
     frames.push_back(encoded_fix(order, 3));
-    fix::OrderCancelRequest cancel;
-    cancel.original_client_order_id.assign("ORD-1");
-    cancel.client_order_id.assign("ORD-2");
-    cancel.symbol.assign("AAPL");
-    cancel.side = exsim::Side::BUY;
-    frames.push_back(encoded_fix(cancel, 4));
+    // Preserve the original seed bytes. Current cancel encoders require tag
+    // 60; this historical frame remains useful as a missing-field input.
+    std::array<char, 1024> cancel_buffer{};
+    fix::Builder cancel_builder({cancel_buffer.data(), cancel_buffer.size()});
+    cancel_builder.header('F', fix_header(4));
+    cancel_builder.field(41, "ORD-1");
+    cancel_builder.field(11, "ORD-2");
+    cancel_builder.field(55, "AAPL");
+    cancel_builder.field(54, '1');
+    const std::size_t cancel_size = cancel_builder.finish();
+    frames.emplace_back(cancel_buffer.data(), cancel_size);
     fix::ExecutionReport report;
     report.order_id.assign("1");
     report.client_order_id.assign("ORD-1");

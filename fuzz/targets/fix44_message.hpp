@@ -113,6 +113,26 @@ inline void check_canonical_frame_keeps_values(const fix::Parser<>& input_parser
     }
 }
 
+// Insert a premature CheckSum before any body fields. Rebuild framing so
+// only the field placement is invalid, independent of later semantic errors.
+inline void check_premature_checksum_is_rejected(std::span<const char> input) {
+    const std::string_view text(input.data(), input.size());
+    const std::size_t body_start = text.find('\x01', 12) + 1;
+    const std::string_view body = text.substr(body_start, text.size() - body_start - 7);
+    std::string frame = "8=FIX.4.4\x01" "9=" + std::to_string(body.size() + 7) + "\x01";
+    frame.append("10=000\x01").append(body);
+    const unsigned checksum = checksum_of({frame.data(), frame.size()});
+    frame.append("10=");
+    frame.push_back(static_cast<char>('0' + checksum / 100));
+    frame.push_back(static_cast<char>('0' + checksum / 10 % 10));
+    frame.push_back(static_cast<char>('0' + checksum % 10));
+    frame.push_back('\x01');
+    if (frame.size() > kMaximumFrameBytes) return;
+    fix::Parser<> parser;
+    EXSIM_FUZZ_REQUIRE(parser.parse(frame.data(), frame.size()) == Status::invalid_length,
+                       "CheckSum before the trailer is invalid_length");
+}
+
 inline void check_parsed_frame_is_well_formed(std::span<const char> input, const fix::Parser<>& parser) {
     const std::string_view text(input.data(), input.size());
     EXSIM_FUZZ_REQUIRE(text.substr(0, 12) == std::string_view("8=FIX.4.4\x01" "9=", 12), "BeginString then BodyLength");
@@ -219,6 +239,7 @@ inline int fuzz_fix44_message(const std::uint8_t* data, std::size_t size) {
     EXSIM_FUZZ_REQUIRE(frame_status == Status::ok && frame_extent == input.size(), "parsed frame is exactly one frame");
     check_parsed_frame_is_well_formed(input, parser);
     check_framing_contract(input);
+    check_premature_checksum_is_rejected(input);
 
     check_typed_decode<fix::Logon>(parser, input.size());
     check_typed_decode<fix::Heartbeat>(parser, input.size());

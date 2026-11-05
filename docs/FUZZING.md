@@ -214,6 +214,8 @@ Oracle changes:
     1 MiB.
   - BodyLength has at most 20 digits.
   - Tag 0 is never a field.
+  - Inserting a premature CheckSum into a parsed frame, with BodyLength and
+    the trailer checksum rebuilt, must report `invalid_length`.
   - The canonical re-encoding keeps the value of every field the input had,
     up to decimal spelling and the `.000` that a 17-character UTCTimestamp
     gains.
@@ -225,18 +227,15 @@ Oracle changes:
 | `itch50` | 12 | 6 | 11 | 1 | 82 |
 | `soupbintcp` | 11 | 7 | 10 | 1 | 9 |
 | `moldudp64` | 9 | 7 | 9 | 0 | 2 |
-| `fix44_message` | 12 | 4 | 10 | 1 | 13 |
+| `fix44_message` | 12 | 4 | 11 | 1 | 13 |
 | `fix44_stream` | 10 | 8 | 10 | 0 | 5 |
 | `wire_text_fields` | 8 | 5 | 8 | 0 | 4 |
 | `price_text` | 11 | 7 | 10 | 1 | 4 |
 | `stream_buffers` | 9 | 5 | 5 | 2 | 0 |
-| Total | 103 | 61 | 93 | 7 | 199 |
+| Total | 103 | 61 | 94 | 7 | 199 |
 
-Three non-equivalent mutants still survive, and the reasons are explained
-below:
+Two non-equivalent mutants still survive:
 
-- F8: an oracle gap. Telling the two statuses apart needs a full reference
-  model of the field scan.
 - B4 and B8: a harness gap. The `stream_buffers` harness flushes under 64
   bytes at a time to a peer that drains straight away, so `send` is never
   partial and SendBuffer compaction and the `Blocked` status are never
@@ -251,6 +250,7 @@ Mutants, with line numbers at commit 922cb39. The kinds of kill are:
 - "seed + oracle": the mutant needs both the new seeds and the stronger
   property.
 - "original": the original corpus already killed it.
+- "oracle": the stronger property kills it without another seed.
 
 OUCH 4.2 inbound (`include/exsim/protocol/ouch42.hpp`):
 
@@ -335,8 +335,8 @@ FIX 4.4 (`include/exsim/protocol/fix44.hpp`), checked in `fix44_message`:
 - F6 `:219` CheckSum digits read as `{size - 3, 2}`: original (killed by
   `fix44_stream`).
 - F7 `:233` tag 0 accepted: seed + oracle.
-- F8 `:241` mid-body tag 10 check disabled: survives (oracle gap). The frame
-  gives `duplicate_field` where `invalid_length` was expected.
+- F8 `:241` mid-body tag 10 check disabled: oracle. A correctly framed
+  premature CheckSum must be `invalid_length`, not `duplicate_field`.
 - F9 `:151` UTCTimestamp seconds `> 59` to `> 60`: seed + oracle.
 - F10 `:157` leap year rule `y % 400 == 0` to `!= 0`: seed + oracle.
 - F11 `:847` NewOrderSingle OrderQty bound `> UINT32_MAX` to `> UINT32_MAX + 1`: seed + oracle.
@@ -400,7 +400,32 @@ Stream buffers (`include/exsim/net/stream_buffers.hpp` (BH),
 - B9 BH`:116` overflow branch disabled: original.
 
 Unmutated, the extended corpora of all ten targets replay with no property
-violation and no sanitizer report.
+violation and no sanitizer report. These counts describe the check against
+922cb39; the F8 property was added on resumption after integrating b2e6b02.
+The two remaining harness gaps are deferred because exercising backpressure
+requires a larger socket-driver change than the small property strengthening
+allowed here. No new production defect was found.
+
+Recovered validation on 922cb39: macOS release 790/790, ASan/UBSan 787/787,
+Linux GCC and Clang 790/790 each, all with `-Werror`; seed-generator warning
+check passed. A two-worker, 60-second campaign on each strengthened target
+(FIX message, FIX stream, OUCH inbound/outbound and ITCH) completed 68,358,584
+executions without crash artifacts. No additional campaign was started on
+resumption. Evidence is preserved under `/tmp/exsim-mutation-resume/recovered/`:
+`gates/{release,debug,docker,syntax}.log`, `campaign/<target>/fuzz-*.log`,
+`mut/{mutants.tsv,results1.txt,results2.txt,cross2.txt}` and the individual
+mutant replay/build logs. Resumed checks live in `/tmp/exsim-mutation-resume/`. macOS release and
+ASan/UBSan fuzz replay each passed 19/19 with `-Werror` (`release.log`,
+`debug.log`); the final FIX property also replays 447 inputs in release
+(`final-fix44-release.log`). The warning check passes (`syntax.log`), and
+`seed-compare.log` confirms 62 original plus 199 appended seeds are
+byte-identical to their corpus files. `f8.log`, `f12.log` and `g10.log`
+record the additional mutant rechecks. Linux GCC and Clang each passed
+19/19 focused fuzz tests with `-Werror` (`linux.log`).
+
+Parent integration adds required TransactTime to cancel encoders. The seed
+generator now constructs the historical cancel frame with Builder, preserving
+its bytes as a missing-field input rather than rewriting existing seeds.
 
 ## Fixed findings (historical)
 
