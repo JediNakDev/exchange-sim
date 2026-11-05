@@ -334,12 +334,12 @@
     {
       "threadId": "thread:delegated-task:command%3Amcp%3A4bcebf24-eb39-4dca-8805-e9fc91cd70ec%3Adelegate-task%3A08e286a4-cae1-4949-b6f0-83a32243c0a3",
       "title": "server binary, E2E loopback tests, client tool, wire-to-wire bench",
-      "status": "running",
+      "status": "completed",
       "provider": "claudeAgent",
       "model": "claude-opus-5-5",
       "reasoningEffort": "high",
       "link": "<t3-thread://v2/28299d02-72aa-499f-95da-f2289df17826/thread:delegated-task:command%3Amcp%3A4bcebf24-eb39-4dca-8805-e9fc91cd70ec%3Adelegate-task%3A08e286a4-cae1-4949-b6f0-83a32243c0a3>",
-      "recoveryState": "launched 2026-11-05 from e2cdd11 in a harness worktree; also resolves EXCHANGE_CORE.md section 13 open questions; FIX and SBE plug in later; scope extended 2026-11-05 to wire FIX into the server (drop_out applies to application messages only)",
+      "recoveryState": "completed 2026-11-05 on t3/exsim-server-runtime 1d6c40c; merged e9495a0 after the QA fix merges (SBE ExchangeShutDown case and test added in the merge); macOS release 840/840, ASan/UBSan 837/837, TSan 837/837, Linux g++ and clang++ 840/840. SBE runtime wiring handed to 8764c2d4",
       "taskId": "node:delegated-task:command%3Amcp%3A4bcebf24-eb39-4dca-8805-e9fc91cd70ec%3Adelegate-task%3A08e286a4-cae1-4949-b6f0-83a32243c0a3"
     },
     {
@@ -378,7 +378,7 @@
     {
       "threadId": "thread:delegated-task:command%3Amcp%3A33cc22c4-1a5f-4cc2-85e3-235b5934450a%3Adelegate-task%3Ace8d6fb6-4238-4a7b-af8b-012f79492edb",
       "title": "Fix QA findings: OUCH drop_out and store reserve, core unbind, MD status",
-      "status": "running",
+      "status": "completed",
       "provider": "claudeAgent",
       "model": "claude-opus-5-5",
       "reasoningEffort": "high",
@@ -391,12 +391,12 @@
         "include/exsim/md/",
         "one ctx.unbind line per gateway"
       ],
-      "recoveryState": "launched 2026-11-05 in a harness worktree; F1 OUCH drop_out as a transport cut, F2 admission check before J, F4 one reserved deferred slot per user, F5 publisher status; R1 added by steer (core unbind(SessionId, ConnectionId), all gateway call sites)"
+      "recoveryState": "completed 2026-11-05 on t3/fix-exsim-qa-findings c71acb3; merged 6227a51 (F1, F2, F4, F5, F6, F8, R1); macOS release 806/806, ASan/UBSan 803/803"
     },
     {
       "threadId": "thread:delegated-task:command%3Amcp%3A33cc22c4-1a5f-4cc2-85e3-235b5934450a%3Adelegate-task%3A8d7857c2-edba-48b5-9969-83237eaa437e",
       "title": "Fix FIX 4.4 gateway QA findings R2-R13",
-      "status": "running",
+      "status": "completed",
       "provider": "claudeAgent",
       "model": "claude-opus-5-5",
       "reasoningEffort": "high",
@@ -409,12 +409,12 @@
         "tests/exsim/gateway/fix/",
         "FIX parts of docs/GATEWAYS.md"
       ],
-      "recoveryState": "launched 2026-11-05 in a harness worktree from eeb5b21; R2-R13, P1, P3, P4 and the FIX-internal part of R1; reproducers from 13b5a64"
+      "recoveryState": "completed 2026-11-05 on t3/fix-gateway-qa-findings 3c82c87; merged 3df3527 (R1 to R13, P1, P3, P4) with unique test ConnectionIds for the connection-aware unbind; macOS release 825/825, ASan/UBSan 822/822"
     },
     {
       "threadId": "thread:delegated-task:command%3Amcp%3A33cc22c4-1a5f-4cc2-85e3-235b5934450a%3Adelegate-task%3Af427d42a-2817-4b65-8bff-27669983ccc9",
       "title": "QA review: research runner causality and accounting",
-      "status": "running",
+      "status": "completed",
       "provider": "claudeAgent",
       "model": "claude-opus-5-5",
       "reasoningEffort": "high",
@@ -425,12 +425,12 @@
         "tests/exsim/research/research_review_tests.cpp",
         "/tmp/exsim-review-runner/"
       ],
-      "recoveryState": "launched 2026-11-05 at 813f074; report-only, branch review/research-runner-qa, report /tmp/exsim-review-runner/REPORT.md"
+      "recoveryState": "completed 2026-11-05; report /tmp/exsim-review-runner/REPORT.md; R1 to R7 and P1 to P3 sent to fix delegate 45a51fdd"
     },
     {
       "threadId": "thread:delegated-task:command%3Amcp%3A33cc22c4-1a5f-4cc2-85e3-235b5934450a%3Adelegate-task%3A00a1bebd-409d-4a92-babe-cc3034f3bd7c",
       "title": "QA review: SBE over FIXP gateway",
-      "status": "running",
+      "status": "completed",
       "provider": "claudeAgent",
       "model": "claude-opus-5-5",
       "reasoningEffort": "high",
@@ -441,12 +441,12 @@
         "tests/exsim/gateway/fixp_sbe/fixp_sbe_review_tests.cpp",
         "/tmp/exsim-review-sbe/"
       ],
-      "recoveryState": "launched 2026-11-05 at 813f074; report-only, branch review/fixp-sbe-gateway-qa, report /tmp/exsim-review-sbe/REPORT.md"
+      "recoveryState": "completed 2026-11-05; report /tmp/exsim-review-sbe/REPORT.md, reproducers on review/fixp-sbe-gateway-qa 7ab2ab8; SBE-01 to 06 sent to fix delegate a8748a28"
     },
     {
       "threadId": "thread:delegated-task:command%3Amcp%3A5af036a3-eb38-4c1b-93e0-da5e0bed29b6%3Adelegate-task%3A9bdb16a6-a126-42be-92ef-f006402dacb4",
       "title": "Fuzz corpus mutation check",
-      "status": "running",
+      "status": "failed-rate-limit",
       "provider": "claudeAgent",
       "model": "claude-opus-5-5",
       "reasoningEffort": "high",
@@ -460,7 +460,101 @@
         "docs/FUZZING.md (Mutation check section)",
         "fuzz/mutation_check.sh (optional)"
       ],
-      "recoveryState": "launched 2026-11-05 at 922cb39 in a harness worktree; mutation-checks the protocol fuzz corpora (ouch42, soupbintcp, itch50, moldudp64, fix44, wire_text_fields, price_text, stream_buffers) and adds boundary seeds; must not touch include/ or src/"
+      "recoveryState": "launched 2026-11-05 at 922cb39; its run failed on a Claude API rate limit, and T3 has an automatic resume pending (hasPendingChildRuns); preserve its worktree and resume that thread, do not relaunch"
+    },
+    {
+      "threadId": "thread:delegated-task:command%3Amcp%3A5af036a3-eb38-4c1b-93e0-da5e0bed29b6%3Adelegate-task%3A45a51fdd-c193-4e8b-b5b9-c6e7a81285c0",
+      "title": "Fix research runner QA findings",
+      "status": "failed-rate-limit",
+      "provider": "claudeAgent",
+      "model": "claude-opus-5-5",
+      "reasoningEffort": "high",
+      "parentThreadId": "a4344aba-ffd8-4132-bf6d-ea93d8fe68e8",
+      "link": "<t3-thread://v2/28299d02-72aa-499f-95da-f2289df17826/thread:delegated-task:command%3Amcp%3A5af036a3-eb38-4c1b-93e0-da5e0bed29b6%3Adelegate-task%3A45a51fdd-c193-4e8b-b5b9-c6e7a81285c0>",
+      "taskId": "node:delegated-task:command%3Amcp%3A5af036a3-eb38-4c1b-93e0-da5e0bed29b6%3Adelegate-task%3A45a51fdd-c193-4e8b-b5b9-c6e7a81285c0",
+      "ownership": [
+        "src/exsim/research/*",
+        "include/exsim/research/*",
+        "tests/exsim/research/*",
+        "tools/exsim_research",
+        "docs/RESEARCH_RUNNER.md"
+      ],
+      "recoveryState": "launched 2026-11-05: fixes R1 to R7 and evaluates P1 to P3 from /tmp/exsim-review-runner/REPORT.md; its run failed on a Claude API rate limit, and T3 has an automatic resume pending; preserve its worktree and resume that thread, do not relaunch"
+    },
+    {
+      "threadId": "thread:delegated-task:command%3Amcp%3A38b870c5-20af-4f07-82f0-eb7e368833f8%3Adelegate-task%3A0c6c66ed-9f41-4389-93f4-3edff5c709c7",
+      "title": "FIX 4.4 decode performance",
+      "status": "running",
+      "provider": "claudeAgent",
+      "model": "claude-opus-5-5",
+      "reasoningEffort": "high",
+      "parentThreadId": "a4344aba-ffd8-4132-bf6d-ea93d8fe68e8",
+      "link": "<t3-thread://v2/28299d02-72aa-499f-95da-f2289df17826/thread:delegated-task:command%3Amcp%3A38b870c5-20af-4f07-82f0-eb7e368833f8%3Adelegate-task%3A0c6c66ed-9f41-4389-93f4-3edff5c709c7>",
+      "taskId": "node:delegated-task:command%3Amcp%3A38b870c5-20af-4f07-82f0-eb7e368833f8%3Adelegate-task%3A0c6c66ed-9f41-4389-93f4-3edff5c709c7",
+      "ownership": [
+        "include/exsim/protocol/fix44.hpp: frame_size, FrameReader, Parser, Field, parse_*, decode functions",
+        "tests/ (frozen reference decoder, differential test)",
+        "tools/exsim_codec_bench (new decode cases only)"
+      ],
+      "recoveryState": "launched 2026-11-05 at 3df3527: at least two approaches, identical Status and fields versus a frozen copy of the decoder over the FIX corpora and random messages; no README edits"
+    },
+    {
+      "threadId": "thread:delegated-task:command%3Amcp%3A38b870c5-20af-4f07-82f0-eb7e368833f8%3Adelegate-task%3Ac96ec3e0-a18a-4ff3-a654-a1e12f47f1a4",
+      "title": "FIX 4.4 encode performance",
+      "status": "running",
+      "provider": "claudeAgent",
+      "model": "claude-opus-5-5",
+      "reasoningEffort": "high",
+      "parentThreadId": "a4344aba-ffd8-4132-bf6d-ea93d8fe68e8",
+      "link": "<t3-thread://v2/28299d02-72aa-499f-95da-f2289df17826/thread:delegated-task:command%3Amcp%3A38b870c5-20af-4f07-82f0-eb7e368833f8%3Adelegate-task%3Ac96ec3e0-a18a-4ff3-a654-a1e12f47f1a4>",
+      "taskId": "node:delegated-task:command%3Amcp%3A38b870c5-20af-4f07-82f0-eb7e368833f8%3Adelegate-task%3Ac96ec3e0-a18a-4ff3-a654-a1e12f47f1a4",
+      "ownership": [
+        "include/exsim/protocol/fix44.hpp: Builder, Header, format_*, days_from_civil, encode functions",
+        "tests/ (frozen reference encoder, differential test)",
+        "tools/exsim_codec_bench (new encode cases only)"
+      ],
+      "recoveryState": "launched 2026-11-05 at 3df3527: at least two approaches, byte-identical output versus a frozen copy of the encoder; no README edits"
+    },
+    {
+      "threadId": "thread:delegated-task:command%3Amcp%3A38b870c5-20af-4f07-82f0-eb7e368833f8%3Adelegate-task%3Aa8748a28-76ae-477b-a78c-34faf7eed31c",
+      "title": "SBE over FIXP: fix QA findings SBE-01 to 06",
+      "status": "running",
+      "provider": "claudeAgent",
+      "model": "claude-opus-5-5",
+      "reasoningEffort": "high",
+      "parentThreadId": "a4344aba-ffd8-4132-bf6d-ea93d8fe68e8",
+      "link": "<t3-thread://v2/28299d02-72aa-499f-95da-f2289df17826/thread:delegated-task:command%3Amcp%3A38b870c5-20af-4f07-82f0-eb7e368833f8%3Adelegate-task%3Aa8748a28-76ae-477b-a78c-34faf7eed31c>",
+      "taskId": "node:delegated-task:command%3Amcp%3A38b870c5-20af-4f07-82f0-eb7e368833f8%3Adelegate-task%3Aa8748a28-76ae-477b-a78c-34faf7eed31c",
+      "ownership": [
+        "include/exsim/gateway/fixp_sbe/*",
+        "include/exsim/protocol/sbe* (only if unavoidable)",
+        "tests/exsim/gateway/fixp_sbe/*",
+        "docs/protocols/FIXP_SBE.md",
+        "docs/GATEWAYS.md (SBE section)"
+      ],
+      "recoveryState": "launched 2026-11-05 at e9495a0: brings in reproducers 7ab2ab8, fixes SBE-01, 02, 03, evaluates 04 to 06; keeps the connection API used by the runtime stable"
+    },
+    {
+      "threadId": "thread:delegated-task:command%3Amcp%3A38b870c5-20af-4f07-82f0-eb7e368833f8%3Adelegate-task%3A8764c2d4-02f0-40c6-ba0f-7682e846f89a",
+      "title": "Wire SBE over FIXP into the server runtime",
+      "status": "running",
+      "provider": "claudeAgent",
+      "model": "claude-opus-5-5",
+      "reasoningEffort": "high",
+      "parentThreadId": "a4344aba-ffd8-4132-bf6d-ea93d8fe68e8",
+      "link": "<t3-thread://v2/28299d02-72aa-499f-95da-f2289df17826/thread:delegated-task:command%3Amcp%3A38b870c5-20af-4f07-82f0-eb7e368833f8%3Adelegate-task%3A8764c2d4-02f0-40c6-ba0f-7682e846f89a>",
+      "taskId": "node:delegated-task:command%3Amcp%3A38b870c5-20af-4f07-82f0-eb7e368833f8%3Adelegate-task%3A8764c2d4-02f0-40c6-ba0f-7682e846f89a",
+      "ownership": [
+        "include/exsim/server/runtime/*",
+        "include/exsim/server/server_runtime.hpp",
+        "tests/exsim/server/e2e/*",
+        "tools/exsim_server",
+        "tools/exsim_client",
+        "tools/exsim_w2w_bench",
+        "docs/SERVER_RUNTIME.md",
+        "docs/SERVER.md (SBE wiring lines)"
+      ],
+      "recoveryState": "launched 2026-11-05 at e9495a0: FixpSbeGateway in the runtime, SBE E2E tests and allocation guard, exsim_w2w_bench --protocol ouch|fix|fixp_sbe with a per-protocol wire-to-wire table"
     }
   ]
 }
