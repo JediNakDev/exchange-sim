@@ -72,6 +72,31 @@ tables sized from config; when full, new orders are rejected by the gateway.
 
 `S` System Event `S` is sent after login and `E` at end of day.
 
+### Sequenced store limits and faults
+
+SoupBinTCP Sequenced Data carries no sequence number: the client numbers
+messages by counting from Login Accepted. The gateway therefore never leaves
+a gap in a live stream.
+
+* **Store reserve.** Each user's store keeps `store_reserve_messages` free
+  for reports on orders that are already live (`X` cancels, executions,
+  cancel-on-disconnect, end of day). Admission is checked before anything is
+  stored, ahead of every gateway `J` (token table full, unknown stock,
+  unsupported instruction, injected reject, `M`). Once the free space is at
+  the reserve, an `O`, `U` or `M` stores nothing: the gateway closes the
+  connection (close reason `StoreReserveReached`, no End of Session), counts
+  it in `requests_refused_at_store_reserve`, and the client may reconnect and
+  replay normally. Only a report that does not fit at all overflows the store
+  (End of Session, `StoreFull`, no login until the next trading day).
+* **`fault user X drop_out n`** is a transport cut: the next n sequenced
+  messages are stored but not written, nothing after them is written, and
+  the connection closes after the n-th (`FaultDropOut`). A client that
+  reconnects asking for its own count + 1 receives every dropped message by
+  replay, correctly numbered. Replay is never affected. The fault applies to
+  application (sequenced) messages only. If the fault is cleared mid-cut, the
+  next message closes the connection instead of being written, and a server
+  End of Session during a cut is not sent (the client must reconnect).
+
 ## 3. FIX 4.4
 
 ### Session layer

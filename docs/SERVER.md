@@ -56,7 +56,9 @@ struct Context {                                // exposition only
                                            std::string_view password,
                                            server::Protocol) noexcept;
     bool bind(SessionId, ConnectionId) noexcept; // false: already logged in
-    void unbind(SessionId) noexcept;             // logout/disconnect; triggers
+    void unbind(SessionId, ConnectionId) noexcept; // logout/disconnect of that
+                                                 // connection (no-op if another one
+                                                 // is bound); triggers
                                                  // cancel-on-disconnect if configured
     InstrumentId find_instrument(const Symbol&) const noexcept;  // 0 if unknown
     const InstrumentConfig* instrument(InstrumentId) const noexcept;
@@ -162,7 +164,7 @@ Each request is one line; each reply is one or more lines ending with
 | `fault md off` | clear MD faults |
 | `fault user <USER> reject <n>` | the gateway rejects the user's next n new orders itself (OUCH `J` reason `O`, FIX ER 39=8 Text "injected"); the engine never sees them |
 | `fault user <USER> delay <us>` | hold each inbound application message of the user for `us` microseconds before decoding (orders stay in arrival order) |
-| `fault user <USER> drop_out <n>` | do not transmit the user's next n sequenced messages (still stored): exercises client recovery on reconnect |
+| `fault user <USER> drop_out <n>` | do not transmit the user's next n sequenced application messages (still stored): exercises client recovery. FIX and FIXP/SBE leave a gap the client detects from explicit sequence numbers; OUCH (implicit SoupBinTCP numbering) closes the connection after the n-th, and the client recovers them by replay on reconnect (GATEWAYS.md section 2) |
 | `fault user <USER> disconnect` | close the user's connection now (cancel-on-disconnect applies) |
 | `fault user <USER> off` | clear the user's faults |
 | `bots <on\|off>` | start/stop simulated liquidity |

@@ -37,7 +37,7 @@ concept FixGatewayContext = requires(Context& context, const Context& const_cont
                                      const Symbol& symbol, InstrumentId instrument) {
     { context.authenticate(text, text, server::Protocol::Fix44) } -> std::convertible_to<const server::UserConfig*>;
     { context.bind(session, connection) } -> std::convertible_to<bool>;
-    context.unbind(session);
+    context.unbind(session, connection);
     { const_context.find_instrument(symbol) } -> std::convertible_to<InstrumentId>;
     { const_context.instrument(instrument) } -> std::convertible_to<const InstrumentConfig*>;
     context.submit(command);
@@ -96,7 +96,7 @@ public:
         this->end_connection();
         if (session_bound_ && user_ != nullptr) {
             session_bound_ = false;
-            ctx.unbind(user_->session_id());
+            ctx.unbind(user_->session_id(), connection_id_);
         }
         user_ = nullptr;
     }

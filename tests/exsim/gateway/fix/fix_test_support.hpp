@@ -112,7 +112,8 @@ public:
           events_(exsim::required_event_capacity(engine_config_)),
           users_(std::move(users)),
           directory_(users_, "EXSIM", limits),
-          bound_sessions_(std::size_t{1} << 16, false) {
+          bound_sessions_(std::size_t{1} << 16, false),
+          bound_connection_by_session_(std::size_t{1} << 16, 0) {
         for (std::string_view symbol : {std::string_view("AAPL"), std::string_view("MSFT")}) {
             exsim::InstrumentConfig instrument;
             instrument.symbol = exsim::Symbol(symbol);
@@ -134,15 +135,16 @@ public:
         }
         return nullptr;
     }
-    bool bind(exsim::SessionId session, exsim::server::ConnectionId) noexcept {
+    bool bind(exsim::SessionId session, exsim::server::ConnectionId connection) noexcept {
         if (bound_sessions_[session]) {
             return false;
         }
         bound_sessions_[session] = true;
+        bound_connection_by_session_[session] = connection;
         return true;
     }
-    void unbind(exsim::SessionId session) noexcept {
-        if (!bound_sessions_[session]) {
+    void unbind(exsim::SessionId session, exsim::server::ConnectionId connection) noexcept {
+        if (!bound_sessions_[session] || bound_connection_by_session_[session] != connection) {
             return;
         }
         bound_sessions_[session] = false;
@@ -220,6 +222,7 @@ private:
     std::vector<exsim::server::UserConfig> users_;
     fix::FixUserDirectory<TestByteSink> directory_;
     std::vector<bool> bound_sessions_;
+    std::vector<exsim::server::ConnectionId> bound_connection_by_session_;
     exsim::Timestamp now_ns_ = kSessionStartNs;
 };
 

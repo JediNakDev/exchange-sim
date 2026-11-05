@@ -22,6 +22,7 @@
 #include "exsim/event.hpp"
 #include "exsim/instrument.hpp"
 #include "exsim/matching_engine.hpp"
+#include "exsim/md/publisher.hpp"
 #include "exsim/server/admin.hpp"
 #include "exsim/server/config.hpp"
 #include "exsim/server/core/admin_text.hpp"
@@ -34,6 +35,7 @@
 #include "exsim/sim/packet_faults.hpp"
 
 #include <algorithm>
+#include <concepts>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
@@ -43,6 +45,7 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -65,6 +68,12 @@ struct CoreCounters {
     std::uint64_t journal_failures = 0;              // failed append or flush
     std::uint64_t batches_dispatched = 0;            // non-empty batches
     std::uint64_t session_dispatches = 0;            // Sessions::on_events calls
+    // Batches the MarketData policy reported as not published (on_events
+    // returned a md::PublishStatus other than Ok); 0 for a policy whose
+    // on_events returns void.
+    std::uint64_t market_data_failed_batches = 0;
+    // Last non-Ok md::PublishStatus from on_events, on_timer or on_shutdown.
+    md::PublishStatus market_data_last_failure = md::PublishStatus::Ok;
 };
 
 enum class JournalState : std::uint8_t { Disabled = 0, Healthy = 1, Failed = 2 };
@@ -78,7 +87,9 @@ enum class JournalState : std::uint8_t { Disabled = 0, Healthy = 1, Failed = 2 }
     return "?";
 }
 
-// Deferred-queue slots beyond one cancel-on-disconnect MassCancel per user.
+// Deferred-queue slots for ordinary commands are users + kDeferredCommandSlack.
+// A further one slot per user is reserved for the cancel-on-disconnect
+// MassCancel of unbind, so it is never refused (EXCHANGE_CORE.md section 5).
 inline constexpr std::size_t kDeferredCommandSlack = 64;
 
 template <typename Sessions, typename MarketData, CoreClock Clock>
@@ -106,7 +117,7 @@ public:
           events_(options.event_buffer_capacity != 0 ? options.event_buffer_capacity
                                                      : required_event_capacity(config.engine.engine)),
           user_index_by_session_(std::make_unique<std::uint16_t[]>(std::size_t{1} << 16)),
-          deferred_(config.users.size() + kDeferredCommandSlack),
+          deferred_(2 * config.users.size() + kDeferredCommandSlack),
           day_start_(config.exchange.trading_day_start_ns),
           day_end_(config.exchange.trading_day_end_ns),
           journal_flush_interval_ns_(Timestamp{config.journal_flush_interval_ms} * 1'000'000) {
@@ -171,10 +182,12 @@ public:
         return nullptr;
     }
 
-    // false: unknown session, bot session, or already bound (second login).
+    // false: unknown session, bot session, already bound (second login), or
+    // called from a dispatch callback (logins come from inbound data; this
+    // bounds the queued unbind MassCancels to one per user).
     [[nodiscard]] bool bind(SessionId session, ConnectionId connection) noexcept {
         UserRuntime* user = user_for_session(session);
-        if (user == nullptr || user->bot_owned || user->bound) {
+        if (user == nullptr || user->bot_owned || user->bound || dispatching_) {
             return false;
         }
         user->bound = true;
@@ -183,13 +196,18 @@ public:
         return true;
     }
 
-    // Logout or disconnect. No-op when not bound. Clears a pending
-    // disconnect request; submits MassCancel{cancel_on_disconnect=true} for
-    // the whole session when the user has cancel_on_disconnect (deferred
-    // until the current batch is dispatched when called from a callback).
-    void unbind(SessionId session) noexcept {
+    // Logout or disconnect of `connection`. No-op unless `session` is bound
+    // to that connection, so a stale release from an older connection never
+    // unbinds a newer login. Clears a pending disconnect request; submits
+    // MassCancel{cancel_on_disconnect=true} for the whole session when the
+    // user has cancel_on_disconnect (deferred until the current batch is
+    // dispatched when called from a callback, using a reserved slot, so it is
+    // never refused for a full queue). After shutdown it is either refused
+    // (OutsideTradingDay, after the end of the trading day) or applied with
+    // nothing to cancel: the closing SetPhase has already cancelled every order.
+    void unbind(SessionId session, ConnectionId connection) noexcept {
         UserRuntime* user = user_for_session(session);
-        if (user == nullptr || !user->bound) {
+        if (user == nullptr || !user->bound || user->connection != connection) {
             return;
         }
         user->bound = false;
@@ -201,7 +219,7 @@ public:
             cancel_all.session = session;
             cancel_all.instrument = 0;
             cancel_all.cancel_on_disconnect = true;
-            (void)submit(Command{cancel_all});
+            (void)submit_or_defer(Command{cancel_all}, deferred_.capacity());
         }
     }
 
@@ -216,17 +234,7 @@ public:
     // sessions, market data and bots. Nothing else is applied, journaled or
     // dispatched.
     SubmitResult submit(const Command& command) noexcept {
-        if (dispatching_) {
-            if (!deferred_.push(command)) {
-                ++counters_.deferred_queue_overflows;
-                return SubmitResult::DeferredQueueFull;
-            }
-            ++counters_.commands_deferred;
-            return SubmitResult::Deferred;
-        }
-        const SubmitResult result = apply(command, next_command_stamp());
-        finish_outer_operation();
-        return result;
+        return submit_or_defer(command, deferred_.capacity() - users_.size());
     }
 
     // ns since local midnight: the Clock, never earlier than a value already
@@ -257,9 +265,9 @@ public:
             bots_.on_timer(now_for_timers, *this);
         }
         if constexpr (MarketDataTimerWithCore<MarketData, ExchangeCore>) {
-            market_data_.on_timer(now_for_timers, std::as_const(*this));
+            (void)call_market_data_hook([&] { return market_data_.on_timer(now_for_timers, std::as_const(*this)); });
         } else if constexpr (MarketDataTimer<MarketData>) {
-            market_data_.on_timer(now_for_timers);
+            (void)call_market_data_hook([&] { return market_data_.on_timer(now_for_timers); });
         }
         if (journal_ && !journal_failed_ && journal_flush_interval_ns_ != 0 &&
             now_for_timers - last_journal_flush_ >= journal_flush_interval_ns_) {
@@ -290,6 +298,13 @@ public:
         return user == nullptr ? 0 : user->faults.inbound_delay_ns;
     }
 
+    // Gateway: true while `fault user X drop_out n` has counts left. Does not
+    // consume (OUCH closes the connection after the last dropped message).
+    [[nodiscard]] bool has_pending_drop_out(SessionId session) const noexcept {
+        const UserRuntime* user = user_for_session(session);
+        return user != nullptr && user->faults.drop_next_outbound != 0;
+    }
+
     // Gateway, per sequenced outbound message about to be transmitted: true =
     // store it but do not transmit. Consumes one count.
     [[nodiscard]] bool consume_drop_out(SessionId session) noexcept {
@@ -304,8 +319,9 @@ public:
     [[nodiscard]] bool has_disconnect_requests() const noexcept { return disconnect_requests_pending_ != 0; }
 
     // Server loop: writes up to out.size() sessions whose connection must be
-    // closed now (config order) and clears those requests. Close each one
-    // and call unbind (cancel-on-disconnect applies). Returns the count.
+    // closed now (config order) and clears those requests. Close each one's
+    // connection and let the gateway's disconnect handler unbind it (with its
+    // own ConnectionId; cancel-on-disconnect applies). Returns the count.
     std::size_t take_disconnect_requests(std::span<SessionId> out) noexcept {
         std::size_t taken = 0;
         for (UserRuntime& user : users_) {
@@ -521,6 +537,48 @@ private:
         }
     }
 
+    // Outside dispatch: applies now. During dispatch: queues the command if
+    // the queue holds fewer than `deferred_limit` commands. Ordinary submits
+    // pass capacity - users; unbind passes the whole capacity, so its
+    // MassCancel (at most one per user, bind being refused during dispatch)
+    // always fits.
+    SubmitResult submit_or_defer(const Command& command, std::size_t deferred_limit) noexcept {
+        if (dispatching_) {
+            if (deferred_.size() >= deferred_limit || !deferred_.push(command)) {
+                ++counters_.deferred_queue_overflows;
+                return SubmitResult::DeferredQueueFull;
+            }
+            ++counters_.commands_deferred;
+            return SubmitResult::Deferred;
+        }
+        const SubmitResult result = apply(command, next_command_stamp());
+        finish_outer_operation();
+        return result;
+    }
+
+    // Records a md::PublishStatus a MarketData hook returned (policies whose
+    // hooks return void report nothing). Returns true on a failure.
+    template <typename Status>
+    bool observe_market_data_status(const Status& status) noexcept {
+        if constexpr (std::same_as<Status, md::PublishStatus>) {
+            if (status != md::PublishStatus::Ok) {
+                counters_.market_data_last_failure = status;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    template <typename Call>
+    bool call_market_data_hook(Call&& call) noexcept {
+        if constexpr (std::is_void_v<decltype(call())>) {
+            call();
+            return false;
+        } else {
+            return observe_market_data_status(call());
+        }
+    }
+
     // Steps 1-5 for one command at `stamp`.
     SubmitResult apply(Command command, Timestamp stamp) noexcept {
         if (stamp < day_start_ || stamp >= day_end_) {
@@ -585,7 +643,9 @@ private:
             ++counters_.session_dispatches;
         }
         dispatch_set_.clear();
-        market_data_.on_events(batch);
+        if (call_market_data_hook([&] { return market_data_.on_events(batch); })) {
+            ++counters_.market_data_failed_batches;
+        }
         market_data_.flush();
         bots_.on_events(batch);
         ++counters_.batches_dispatched;
@@ -629,7 +689,7 @@ private:
             sessions_.on_shutdown(stamp, *this);
         }
         if constexpr (MarketDataShutdown<MarketData>) {
-            market_data_.on_shutdown(stamp);
+            (void)call_market_data_hook([&] { return market_data_.on_shutdown(stamp); });
         }
         if (journal_ && !journal_failed_ && !journal_->flush()) {
             on_journal_failure();
@@ -808,6 +868,17 @@ private:
         } else {
             append_line(reply, "md faults unavailable");
         }
+        std::string market_data_state_line = "md state=";
+        if constexpr (MarketDataPublisherState<MarketData>) {
+            market_data_state_line += std::string(md_state_text(std::as_const(market_data_).state()));
+            market_data_state_line +=
+                " stop_reason=" + std::string(md_status_text(std::as_const(market_data_).stop_reason()));
+        } else {
+            market_data_state_line += "unavailable";
+        }
+        market_data_state_line += " failed_batches=" + std::to_string(counters_.market_data_failed_batches) +
+                                  " last_failure=" + std::string(md_status_text(counters_.market_data_last_failure));
+        append_line(reply, market_data_state_line);
         append_line(reply, std::string("bots ") + (bots_enabled_ ? "on" : "off") +
                                " count=" + std::to_string(bot_entries_.size()));
         for (const BotEntry& bot : bot_entries_) {
@@ -832,6 +903,30 @@ private:
                                " deferred=" + std::to_string(counters_.commands_deferred) +
                                " deferred_overflows=" + std::to_string(counters_.deferred_queue_overflows));
         append_ok(reply);
+    }
+
+    [[nodiscard]] static std::string_view md_state_text(md::PublisherState state) noexcept {
+        switch (state) {
+            case md::PublisherState::Setup: return "setup";
+            case md::PublisherState::Live: return "live";
+            case md::PublisherState::Stopped: return "stopped";
+            case md::PublisherState::Ended: return "ended";
+        }
+        return "?";
+    }
+
+    [[nodiscard]] static std::string_view md_status_text(md::PublishStatus status) noexcept {
+        switch (status) {
+            case md::PublishStatus::Ok: return "none";
+            case md::PublishStatus::InvalidConfig: return "invalid_config";
+            case md::PublishStatus::InvalidInstrument: return "invalid_instrument";
+            case md::PublishStatus::DuplicateInstrument: return "duplicate_instrument";
+            case md::PublishStatus::NotAllowedInState: return "not_allowed_in_state";
+            case md::PublishStatus::TimestampOutsideDay: return "timestamp_outside_day";
+            case md::PublishStatus::UnknownInstrument: return "unknown_instrument";
+            case md::PublishStatus::UnrepresentableField: return "unrepresentable_field";
+        }
+        return "?";
     }
 
     // ---- state ----------------------------------------------------------------------
