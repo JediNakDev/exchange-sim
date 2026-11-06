@@ -8,6 +8,8 @@
 #include "exsim/research/simulation.hpp"
 #include "exsim/research/strategies/fixed_spread_market_maker.hpp"
 #include "exsim/research/strategies/inventory_aware_market_maker.hpp"
+#include "exsim/research/strategies/twap_executor.hpp"
+#include "exsim/research/strategies/immediate_sweep_executor.hpp"
 #include "simulation_driver.hpp"
 
 #include <algorithm>
@@ -54,6 +56,10 @@ std::unique_ptr<SimulationDriver> make_simulation_driver(const research::Experim
         case research::StrategyKind::InventoryAwareMarketMaker:
             return std::make_unique<TypedSimulationDriver<research::strategies::InventoryAwareMarketMaker>>(config, master_seed,
                                                                                                          std::move(options));
+        case research::StrategyKind::TwapExecutor:
+            return std::make_unique<TypedSimulationDriver<research::strategies::TwapExecutor>>(config, master_seed, std::move(options));
+        case research::StrategyKind::ImmediateSweepExecutor:
+            return std::make_unique<TypedSimulationDriver<research::strategies::ImmediateSweepExecutor>>(config, master_seed, std::move(options));
         default: break;
     }
     throw std::invalid_argument("the API does not execute this strategy kind");
@@ -67,6 +73,12 @@ std::string strategy_build_id(research::StrategyKind kind) {
         case research::StrategyKind::InventoryAwareMarketMaker:
             return std::string(research::strategies::InventoryAwareMarketMaker::kStrategyName) + "/" +
                    std::to_string(research::strategies::InventoryAwareMarketMaker::kStrategyVersion);
+        case research::StrategyKind::TwapExecutor:
+            return std::string(research::strategies::TwapExecutor::kStrategyName) + "/" +
+                   std::to_string(research::strategies::TwapExecutor::kStrategyVersion);
+        case research::StrategyKind::ImmediateSweepExecutor:
+            return std::string(research::strategies::ImmediateSweepExecutor::kStrategyName) + "/" +
+                   std::to_string(research::strategies::ImmediateSweepExecutor::kStrategyVersion);
         default: break;
     }
     return std::string(research::to_string(kind)) + "/unexecutable";

@@ -113,6 +113,26 @@ struct SummaryInputs {
     Timestamp as_of_time_ns = 0;
 };
 
+bool is_execution_strategy(const research::ExperimentConfig& config) {
+    return config.strategy.kind == research::StrategyKind::TwapExecutor ||
+           config.strategy.kind == research::StrategyKind::ImmediateSweepExecutor;
+}
+
+bool is_execution_metric(std::string_view key) {
+    return key == "completion_ratio" || key == "residual_qty" || key == "decision_slippage_total" ||
+           key == "decision_slippage_per_share" || key == "implementation_shortfall_total" ||
+           key == "implementation_shortfall_per_share" || key == "participation_rate";
+}
+
+const char* execution_unavailable_reason(const research::ExperimentConfig& config, const research::ParentOrderTracking& parent,
+                                         std::string_view key) {
+    if (!is_execution_strategy(config)) return "not_a_parent_order_strategy";
+    if (!parent.declared) return "parent_order_not_declared";
+    if (parent.filled_qty == 0) return "no_parent_fills";
+    if (key == "participation_rate") return "no_market_volume_in_execution_window";
+    return "no_reference_exchange_mid_at_decision";
+}
+
 std::vector<RunComparisonInputs::Metric> summary_metrics(const research::ExperimentConfig& config, const SummaryInputs& inputs) {
     const auto& ledger = inputs.ledger;
     const auto& metrics = inputs.metrics;
@@ -154,6 +174,33 @@ std::vector<RunComparisonInputs::Metric> summary_metrics(const research::Experim
         add("markout_total", doubled(metrics.markouts[horizon].total_times_two), "currency", "exact_fixed_point",
             config.metrics.markout_horizons_ns[horizon]);
     add("quote_exposure_time", std::to_string(metrics.any_side_exposure_ns), "nanoseconds");
+    const auto& parent = metrics.parent;
+    std::optional<std::string> completion, residual, slippage, slippage_per_share, shortfall, shortfall_per_share, participation;
+    if (parent.declared) {
+        completion = format_derived_decimal(static_cast<double>(parent.filled_qty) / parent.qty);
+        residual = std::to_string(parent.qty - std::min<std::uint64_t>(parent.filled_qty, parent.qty));
+        const auto volume = parent.market_volume_at_last_fill - parent.market_volume_at_decision;
+        if (volume > 0) participation = format_derived_decimal(static_cast<double>(parent.filled_qty) / static_cast<double>(volume));
+        if (parent.has_decision_mid && parent.filled_qty > 0) {
+            // Runner benchmark: exchange reference mid at parent declaration, called arrival_mid in native artifacts.
+            // Executed quantity only; no opportunity cost for the unexecuted residual is inferred.
+            const std::int64_t sign = parent.side == Side::BUY ? 1 : -1;
+            const auto price_cost = sign * (2 * parent.fill_notional - parent.decision_mid_times_two * static_cast<std::int64_t>(parent.filled_qty));
+            const auto total_cost = price_cost + 2 * parent.fees;
+            slippage = doubled(price_cost);
+            shortfall = doubled(total_cost);
+            const double divisor = 2.0 * static_cast<double>(parent.filled_qty) * static_cast<double>(kPriceScale);
+            slippage_per_share = format_derived_decimal(static_cast<double>(price_cost) / divisor);
+            shortfall_per_share = format_derived_decimal(static_cast<double>(total_cost) / divisor);
+        }
+    }
+    add("completion_ratio", completion, "ratio", "derived_float");
+    add("residual_qty", residual, "shares");
+    add("decision_slippage_total", slippage, "currency");
+    add("decision_slippage_per_share", slippage_per_share, "currency_per_share", "derived_float");
+    add("implementation_shortfall_total", shortfall, "currency");
+    add("implementation_shortfall_per_share", shortfall_per_share, "currency_per_share", "derived_float");
+    add("participation_rate", participation, "ratio", "derived_float");
     return result;
 }
 
@@ -432,10 +479,52 @@ std::string ResearchRun::render_summary_locked() const {
     latency("cancel", config.latency.cancel_ns, metrics.cancel_latency);
     json.end_array();
 
+    json.key("execution");
+    if (!is_execution_strategy(config)) {
+        json.null();
+    } else {
+        const auto& parent = metrics.parent;
+        const auto& parameters = config.strategy.parent;
+        const Timestamp window_end = parameters.start_ns + parameters.execution_duration_ns;
+        const char* status = inputs.as_of_time_ns >= window_end ? "window_observed" :
+                             (final_summary ? "censored_run_end" : "ongoing");
+        json.begin_object();
+        json.key("parentSide").string(to_api_side(parameters.side));
+        json.key("parentQuantity").unsigned_text(parameters.parent_qty);
+        json.key("parentDeclared").boolean(parent.declared);
+        json.key("observationStatus").string(status);
+        json.key("benchmark").string("reference_exchange_mid_at_decision");
+        json.key("benchmarkMid");
+        if (parent.declared && parent.has_decision_mid) json.string(doubled(parent.decision_mid_times_two));
+        else json.null();
+        json.key("visibleMidAtDecision");
+        if (parent.declared && parent.visible_at_decision.two_sided()) json.string(doubled(parent.visible_at_decision.mid_times_two()));
+        else json.null();
+        json.key("decisionTimeNs");
+        write_unsigned_or_null(json, parent.declared, parent.decision_time);
+        json.key("firstFillTimeNs");
+        write_unsigned_or_null(json, parent.filled_qty > 0, parent.first_fill_time);
+        json.key("lastFillTimeNs");
+        write_unsigned_or_null(json, parent.filled_qty > 0, parent.last_fill_time);
+        json.key("filledQuantity");
+        write_unsigned_or_null(json, parent.declared, parent.filled_qty);
+        json.key("fillNotional");
+        if (parent.declared) json.string(format_price_units(parent.fill_notional));
+        else json.null();
+        json.key("netFees");
+        if (parent.declared) json.string(format_price_units(parent.fees));
+        else json.null();
+        json.key("participationMarketQuantity");
+        write_unsigned_or_null(json, parent.declared, parent.market_volume_at_last_fill - parent.market_volume_at_decision);
+        json.key("unexecutedOpportunityCost").null();
+        json.end_object();
+    }
+
     json.key("metrics").begin_array();
     for (const auto& metric : summary_metrics(config, inputs))
         write_metric(json, metric.metric_key.c_str(), metric.value, metric.unit.c_str(), metric.exactness.c_str(), metric.horizon_ns,
-                     metric.metric_key == "fill_rate" ? "no shares submitted" : mark_unavailable_reason);
+                     is_execution_metric(metric.metric_key) ? execution_unavailable_reason(config, metrics.parent, metric.metric_key) :
+                     (metric.metric_key == "fill_rate" ? "no shares submitted" : mark_unavailable_reason));
     json.end_array();
     json.end_object();
     return json.take();

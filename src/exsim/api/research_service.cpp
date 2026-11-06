@@ -165,8 +165,10 @@ std::vector<std::string_view> canonical_event_kind_names() {
 }
 
 const char* better_direction(std::string_view metric_key) {
-    static const std::set<std::string_view> higher = {"net_pnl", "equity", "gross_realized_pnl", "unrealized_pnl", "spread_capture_total", "markout_total"};
-    static const std::set<std::string_view> lower = {"net_fees", "max_drawdown", "cancel_race_lost_count"};
+    static const std::set<std::string_view> higher = {"net_pnl", "equity", "gross_realized_pnl", "unrealized_pnl", "spread_capture_total",
+                                                     "markout_total", "completion_ratio"};
+    static const std::set<std::string_view> lower = {"net_fees", "max_drawdown", "cancel_race_lost_count", "residual_qty", "decision_slippage_total",
+                                                    "decision_slippage_per_share", "implementation_shortfall_total", "implementation_shortfall_per_share"};
     if (higher.count(metric_key)) return "higher";
     if (lower.count(metric_key)) return "lower";
     return "neither";
@@ -633,7 +635,8 @@ std::string ResearchService::render_service_info() const {
     json.key("serviceBuildId").string(options_.service_build_id);
     json.key("engineBuildId").string(research::kEngineBuildId);
     json.key("executableMarketWorlds").begin_array().string(kExecutableMarketWorld).end_array();
-    json.key("executableStrategyKinds").begin_array().string("fixed_spread_market_maker").string("inventory_aware_market_maker").end_array();
+    json.key("executableStrategyKinds").begin_array().string("fixed_spread_market_maker").string("inventory_aware_market_maker")
+        .string("twap_execution").string("immediate_sweep_execution").end_array();
     json.key("realTimeProtocolModeAvailable").boolean(false);
     json.end_object();
     return json.take();

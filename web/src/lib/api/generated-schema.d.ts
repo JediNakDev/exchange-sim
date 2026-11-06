@@ -489,7 +489,7 @@ export interface components {
          */
         MarketWorld: "interactive_synthetic" | "historical_reconstruction" | "historical_counterfactual_replay";
         /** @enum {string} */
-        StrategyKind: "fixed_spread_market_maker" | "inventory_aware_market_maker" | "twap_execution";
+        StrategyKind: "fixed_spread_market_maker" | "inventory_aware_market_maker" | "twap_execution" | "immediate_sweep_execution";
         /** @enum {string} */
         BackgroundAgentKind: "market_maker" | "noise_taker";
         /** @enum {string} */
@@ -552,7 +552,7 @@ export interface components {
          */
         MarkConvention: "exchange_mid" | "strategy_visible_mid" | "last_trade_price";
         /** @enum {string} */
-        MetricKey: "net_pnl" | "equity" | "gross_realized_pnl" | "unrealized_pnl" | "net_fees" | "ending_position" | "max_long_position" | "max_short_position" | "max_drawdown" | "fill_count" | "filled_shares" | "maker_fill_count" | "taker_fill_count" | "fill_rate" | "submitted_order_count" | "canceled_order_count" | "cancel_race_lost_count" | "spread_capture_total" | "markout_total" | "quote_exposure_time";
+        MetricKey: "net_pnl" | "equity" | "gross_realized_pnl" | "unrealized_pnl" | "net_fees" | "ending_position" | "max_long_position" | "max_short_position" | "max_drawdown" | "fill_count" | "filled_shares" | "maker_fill_count" | "taker_fill_count" | "fill_rate" | "submitted_order_count" | "canceled_order_count" | "cancel_race_lost_count" | "spread_capture_total" | "markout_total" | "quote_exposure_time" | "completion_ratio" | "residual_qty" | "decision_slippage_total" | "decision_slippage_per_share" | "implementation_shortfall_total" | "implementation_shortfall_per_share" | "participation_rate";
         /** @enum {string} */
         MetricUnit: "currency" | "currency_per_share" | "shares" | "count" | "ratio" | "nanoseconds";
         /** @enum {string} */
@@ -675,6 +675,7 @@ export interface components {
             /** @description Shrink the side that adds inventory as the position approaches its risk limit. */
             scaleSizeWithInventory: boolean;
         };
+        /** @description Uses max(1, floor(executionDurationNs / sliceIntervalNs)) cumulative targets at startTimeNs plus k times sliceIntervalNs. One IOC child per slice, skipped if in flight or no visible opposite quote; later slices catch up. Stops after the last scheduled slice. Market children are rejected with validation_failed. */
         TwapExecutionConfig: {
             /**
              * @description discriminator enum property added by openapi-typescript
@@ -683,10 +684,53 @@ export interface components {
             strategyKind: "twap_execution";
             parentSide: components["schemas"]["Side"];
             parentQuantity: components["schemas"]["UnsignedIntegerString"];
+            /** @description Positive; executionDurationNs must cover 1 to 1000000 slices. */
             sliceIntervalNs: components["schemas"]["NanosecondDuration"];
+            /** @description Only limit is executable. Retains the existing enum for compatibility; market returns validation_failed at this field. Limits use IOC and limitOffsetTicks price protection. */
             sliceOrderType: components["schemas"]["OrderType"];
+            /**
+             * @description Parent declaration time; must precede the run bound. No parent metrics exist until declaration.
+             * @default 1000000000
+             */
+            startTimeNs: components["schemas"]["NanosecondTimestamp"];
+            /**
+             * @description At most 7 days. May extend past run end, which censors the observation window. Sweep retries through start plus duration; TWAP requires at least one slice interval.
+             * @default 30000000000
+             */
+            executionDurationNs: components["schemas"]["NanosecondDuration"];
+            /**
+             * @description At most 100000 ticks through the delivered opposite best, clamped to the instrument band. Children are IOC limits, capped by risk.maxOrderQuantity and position headroom and rounded down to lots.
+             * @default 5
+             */
+            limitOffsetTicks: components["schemas"]["UnsignedIntegerString"];
         };
-        StrategyConfig: components["schemas"]["FixedSpreadMarketMakerConfig"] | components["schemas"]["InventoryAwareMarketMakerConfig"] | components["schemas"]["TwapExecutionConfig"];
+        /** @description Declares the parent at startTimeNs and sends a price-protected IOC limit for the remaining quantity. After a child completes, retries on the next delivered market-data update through the execution window. No market-order substitution. */
+        ImmediateSweepExecutionConfig: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            strategyKind: "immediate_sweep_execution";
+            parentSide: components["schemas"]["Side"];
+            /** @description Positive uint32 shares on the lot grid. May exceed child and position caps, leaving an explicit residual. */
+            parentQuantity: components["schemas"]["UnsignedIntegerString"];
+            /**
+             * @description Parent declaration time; must precede the run bound. No parent metrics exist until declaration.
+             * @default 1000000000
+             */
+            startTimeNs: components["schemas"]["NanosecondTimestamp"];
+            /**
+             * @description At most 7 days. May extend past run end, which censors the observation window. Sweep retries through start plus duration; TWAP requires at least one slice interval.
+             * @default 30000000000
+             */
+            executionDurationNs: components["schemas"]["NanosecondDuration"];
+            /**
+             * @description At most 100000 ticks through the delivered opposite best, clamped to the instrument band. Children are IOC limits, capped by risk.maxOrderQuantity and position headroom and rounded down to lots.
+             * @default 5
+             */
+            limitOffsetTicks: components["schemas"]["UnsignedIntegerString"];
+        };
+        StrategyConfig: components["schemas"]["FixedSpreadMarketMakerConfig"] | components["schemas"]["InventoryAwareMarketMakerConfig"] | components["schemas"]["TwapExecutionConfig"] | components["schemas"]["ImmediateSweepExecutionConfig"];
         /** @description Each component is declared separately so paired runs can vary one at a time. */
         LatencyConfig: {
             latencyModel: components["schemas"]["LatencyModelKind"];
@@ -1038,6 +1082,30 @@ export interface components {
             observedMinNs: components["schemas"]["NanosecondDuration"] | null;
             observedMaxNs: components["schemas"]["NanosecondDuration"] | null;
         };
+        /** @description Parent fills use engine truth. The native arrival_mid benchmark is the reference exchange mid at parent decision/declaration, not at each child's exchange arrival. Shortfall and signed slippage cover filled quantity only (positive means worse, buy/sell signed); unexecuted opportunity cost is unavailable. Participation divides parent filled shares by all market traded shares after declaration through the last parent fill, including own trades. Flat metrics carry null reasons; ratios and per-share means are derived to six decimals; total costs are exact currency to five decimals. */
+        ExecutionSummary: {
+            parentSide: components["schemas"]["Side"];
+            parentQuantity: components["schemas"]["UnsignedIntegerString"];
+            parentDeclared: boolean;
+            /**
+             * @description Whether simulated time has covered start plus duration. Terminal runs ending earlier are censored even when the parent filled completely; completion/residual metrics remain observed as of the summary time.
+             * @enum {string}
+             */
+            observationStatus: "ongoing" | "window_observed" | "censored_run_end";
+            /** @constant */
+            benchmark: "reference_exchange_mid_at_decision";
+            benchmarkMid: components["schemas"]["MidPriceDecimal"] | null;
+            visibleMidAtDecision: components["schemas"]["MidPriceDecimal"] | null;
+            decisionTimeNs: components["schemas"]["NanosecondTimestamp"] | null;
+            firstFillTimeNs: components["schemas"]["NanosecondTimestamp"] | null;
+            lastFillTimeNs: components["schemas"]["NanosecondTimestamp"] | null;
+            filledQuantity: components["schemas"]["UnsignedIntegerString"] | null;
+            participationMarketQuantity: components["schemas"]["UnsignedIntegerString"] | null;
+            fillNotional: components["schemas"]["CurrencyAmount"] | null;
+            netFees: components["schemas"]["CurrencyAmount"] | null;
+            /** @description No counterfactual opportunity-cost model is defined by the runner. */
+            unexecutedOpportunityCost: null;
+        };
         RunSummary: {
             /** @constant */
             schemaVersion: "exsim.run-summary/1";
@@ -1057,6 +1125,8 @@ export interface components {
             spreadCaptureTotal: components["schemas"]["MarkoutAmount"];
             markouts: components["schemas"]["MarkoutHorizonSummary"][];
             latency: components["schemas"]["LatencyMeasurement"][];
+            /** @description Optional for compatibility with previously saved summaries; null for market makers. */
+            execution?: components["schemas"]["ExecutionSummary"] | null;
             /** @description Flat metric list used for comparison tables; same values as the structured sections. */
             metrics: components["schemas"]["MetricValue"][];
         };

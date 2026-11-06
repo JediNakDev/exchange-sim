@@ -485,15 +485,43 @@ ConfigTranslationResult translate_experiment_config(const JsonValue& config, std
     if (strategy != nullptr) {
         const std::string kind_pointer = child_pointer(strategy_pointer, "strategyKind");
         const auto kind = shape.enumeration(member_of(strategy, "strategyKind"), kind_pointer,
-                                            {"fixed_spread_market_maker", "inventory_aware_market_maker", "twap_execution"});
+                                            {"fixed_spread_market_maker", "inventory_aware_market_maker", "twap_execution", "immediate_sweep_execution"});
         if (strategy->kind != Kind::Object) {
             shape.add(strategy_pointer, "must be an object");
         } else if (!kind && strategy->find("strategyKind") == nullptr) {
             shape.add(kind_pointer, "is required");
-        } else if (kind && *kind == "twap_execution") {
+        } else if (kind && (*kind == "twap_execution" || *kind == "immediate_sweep_execution")) {
             translated.strategy_kind = *kind;
-            (void)shape.object(strategy, strategy_pointer, {"strategyKind", "parentSide", "parentQuantity", "sliceIntervalNs", "sliceOrderType"});
-            semantic(kind_pointer, "twap_execution is not executable through this service yet; executable kinds are listed by GET /v1/service");
+            const bool twap = *kind == "twap_execution";
+            const bool shaped = twap
+                ? shape.object(strategy, strategy_pointer, {"strategyKind", "parentSide", "parentQuantity", "sliceIntervalNs", "sliceOrderType"},
+                               {"startTimeNs", "executionDurationNs", "limitOffsetTicks"})
+                : shape.object(strategy, strategy_pointer, {"strategyKind", "parentSide", "parentQuantity"},
+                               {"startTimeNs", "executionDurationNs", "limitOffsetTicks"});
+            if (shaped) {
+                runner_text.section("strategy", strategy_pointer);
+                runner_text.entry("kind", twap ? "twap_executor" : "immediate_sweep_executor", kind_pointer);
+                const std::string side_pointer = child_pointer(strategy_pointer, "parentSide");
+                if (const auto side = shape.enumeration(strategy->find("parentSide"), side_pointer, {"buy", "sell"}))
+                    runner_text.entry("side", *side, side_pointer);
+                const auto integer_into = [&](std::string_view api_name, std::string_view runner_key, std::string_view suffix, bool required) {
+                    if (!required && strategy->find(api_name) == nullptr) return;
+                    const std::string pointer = child_pointer(strategy_pointer, api_name);
+                    if (const auto value = shape.unsigned_integer_text(strategy->find(api_name), pointer))
+                        runner_text.entry(runner_key, std::to_string(*value) + std::string(suffix), pointer);
+                };
+                integer_into("parentQuantity", "parent_qty", "", true);
+                integer_into("startTimeNs", "start", "ns", false);
+                integer_into("executionDurationNs", "execution_duration", "ns", false);
+                integer_into("limitOffsetTicks", "limit_offset_ticks", "", false);
+                if (twap) {
+                    integer_into("sliceIntervalNs", "slice_interval", "ns", true);
+                    const std::string type_pointer = child_pointer(strategy_pointer, "sliceOrderType");
+                    if (const auto type = shape.enumeration(strategy->find("sliceOrderType"), type_pointer, {"limit", "market"});
+                        type && *type != "limit")
+                        semantic(type_pointer, "the runner sends price-protected IOC limit children; market children are not supported");
+                }
+            }
         } else if (kind) {
             translated.strategy_kind = *kind;
             const bool inventory_aware = *kind == "inventory_aware_market_maker";
@@ -704,6 +732,17 @@ std::string baseline_config_json(int half_spread_ticks) {
            R"("bounds":{"endSimulationTimeNs":"60000000000","maxCanonicalEventCount":"5000000","wallClockTimeLimitSeconds":600}})";
 }
 
+std::string execution_baseline_config_json(bool twap) {
+    std::string config = baseline_config_json(1);
+    const auto begin = config.find("\"strategy\":{");
+    const auto end = config.find('}', begin);
+    const std::string strategy = twap
+        ? R"("strategy":{"strategyKind":"twap_execution","parentSide":"buy","parentQuantity":"500","sliceIntervalNs":"1000000000","sliceOrderType":"limit","startTimeNs":"1000000000","executionDurationNs":"30000000000","limitOffsetTicks":"5"})"
+        : R"("strategy":{"strategyKind":"immediate_sweep_execution","parentSide":"buy","parentQuantity":"500","startTimeNs":"1000000000","executionDurationNs":"30000000000","limitOffsetTicks":"5"})";
+    config.replace(begin, end - begin + 1, strategy);
+    return config;
+}
+
 }  // namespace
 
 const std::vector<BaselineConfiguration>& baseline_configurations() {
@@ -712,6 +751,10 @@ const std::vector<BaselineConfiguration>& baseline_configurations() {
          "Quotes one tick either side of the strategy-visible mid (runner config fixed_spread_narrow).", baseline_config_json(1)},
         {"fixed-spread-4-ticks", "Fixed spread, 4-tick width",
          "Quotes two ticks either side of the strategy-visible mid (runner config fixed_spread_wide).", baseline_config_json(2)},
+        {"twap-execution", "TWAP parent execution", "Cumulative scheduled IOC limit children, with later-slice catch-up and explicit residuals.",
+         execution_baseline_config_json(true)},
+        {"immediate-sweep-execution", "Immediate sweep parent execution", "IOC limit sweep with retries on delivered data, subject to the same risk caps as TWAP.",
+         execution_baseline_config_json(false)},
     };
     return baselines;
 }
