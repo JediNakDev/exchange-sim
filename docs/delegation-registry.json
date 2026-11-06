@@ -623,6 +623,19 @@
       "branch": "t3/review-exsim-server-runtime",
       "headCommit": "239298f",
       "integratedCommit": "54688e7"
+    },
+    {
+      "threadId": "thread:delegated-task:command%3Amcp%3A22879d5a-e0f7-481c-b85b-83c997d9b0af%3Adelegate-task%3A64634ba1-67d0-4380-8ee1-3f601a64688e",
+      "taskId": "node:delegated-task:command%3Amcp%3A22879d5a-e0f7-481c-b85b-83c997d9b0af%3Adelegate-task%3A64634ba1-67d0-4380-8ee1-3f601a64688e",
+      "title": "Review integrated journal persistence and research comparison",
+      "status": "running",
+      "provider": "codex",
+      "model": "gpt-6.1-sol",
+      "reasoningEffort": "high",
+      "parentThreadId": "a4344aba-ffd8-4132-bf6d-ea93d8fe68e8",
+      "link": "<t3-thread://v2/28299d02-72aa-499f-95da-f2289df17826/thread:delegated-task:command%3Amcp%3A22879d5a-e0f7-481c-b85b-83c997d9b0af%3Adelegate-task%3A64634ba1-67d0-4380-8ee1-3f601a64688e>",
+      "targetCommit": "69bb968",
+      "recoveryState": "New focused independent review; completion notification pending. Do not poll."
     }
   ]
 }
