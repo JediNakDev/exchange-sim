@@ -11,7 +11,7 @@ time for execution and market-making research.
 It grew out of `lob`, a single-instrument limit order book. That history and
 its benchmarks are in [docs/LOB_HISTORY.md](docs/LOB_HISTORY.md).
 
-## Status (2026-11-05)
+## Status (2026-11-06)
 
 Only rows marked **integrated** are on this branch and tested. Everything else
 is in progress and must not be read as working.

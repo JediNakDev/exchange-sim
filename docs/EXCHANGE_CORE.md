@@ -249,7 +249,7 @@ and shutdown flushes).
   queue with 16,384 usable entries. The persistence thread owns subsequent
   writes, seeks and close. Queue overflow and worker I/O failure use the same
   configured failure policy; timers observe worker failure even when periodic
-  flushing is disabled. Counts mean accepted queue entries, not durable writes.
+  flushing is disabled. The record counter means accepted commands, not durable writes.
 * Runtime `flush_journal()` acknowledges request acceptance. `journal_drained()`
   acknowledges that all submitted entries reached a successful footer write.
   Repeated flush requests with no intervening command share that request.

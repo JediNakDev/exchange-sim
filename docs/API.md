@@ -75,7 +75,12 @@ Every error body is `{ "error": ApiError }` with `code`, `message` (not stable),
 | `internal_error` | 500 | service fault; diagnostics are in the service log under `requestId` |
 | `service_unavailable` | 503 | the service is starting or stopping, or the UI proxy cannot reach it; `retryable: true` |
 
-A comparison of two experiments with no shared completed seed, or with different market worlds, is not an error. It returns 200 with `comparable: false` and `incomparabilityReasons`, and the UI must not present it as a paired result.
+HTTP comparisons re-execute each completed native run and require byte-for-byte
+artifact reproduction before pairing seeds. The API stores canonical CLI run IDs
+inside `runner/`; the enclosing service run retains its independent API ID.
+Missing or corrupted native artifacts exclude that run from comparison.
+
+A comparison of two experiments with no shared verified completed seed, or with different market worlds, is not an error. It returns 200 with `comparable: false` and `incomparabilityReasons`, and the UI must not present it as a paired result.
 
 ### Run states and controls
 
@@ -167,7 +172,7 @@ The UI pages map onto these endpoints:
 
 ### Coverage gaps (deferred)
 
-- **Q4 (parent-order execution):** `twap_execution` is in the strategy enum, but `/v1/service` lists `fixed_spread_market_maker` and `inventory_aware_market_maker` in `executableStrategyKinds`, and other strategies are rejected with `validation_failed`. The first vertical slice in PRODUCT.md is market making only. Parent-order metrics (implementation shortfall, signed slippage, completion, residual quantity) and their `MetricKey` values will be added once the runner executes TWAP. The UI does not offer TWAP yet.
+- **Q4 (parent-order execution):** `twap_execution` is in the strategy enum, but `/v1/service` lists `fixed_spread_market_maker` and `inventory_aware_market_maker` in `executableStrategyKinds`, and other strategies are rejected with `validation_failed`. The first vertical slice in PRODUCT.md is market making only. Parent-order metrics (implementation shortfall, signed slippage, completion, residual quantity) and their `MetricKey` values will be added once the HTTP adapter exposes the runner's existing TWAP implementation. The UI does not offer TWAP yet.
 - **Q5 (hostile markets):** price jumps, halts and stale or gapped data inside deterministic runs need scenario events that the runner has not defined yet. v1 exposes limit breaches, terminal state and real-time feed gaps only.
 - **Historical worlds:** `historical_reconstruction` and `historical_counterfactual_replay` appear in `MarketWorld` so that manifests and comparisons can label them. They return `unsupported_market_world` until a fill and queue model exists.
 - **Streaming:** this version uses polling. A browser-compatible stream from the long-lived control service is deferred until interactive monitoring needs it.
