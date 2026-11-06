@@ -19,13 +19,26 @@ build/release/exsim_research compare /tmp/narrow /tmp/wide
 `--parent-run ID`, `--quiet`, and `--overwrite`. Without a seed option it uses
 `experiment.seed`. A sweep writes `sweep.json` and `seed-N/` directories. A single
 run writes directly into the output directory. Existing output is refused unless
-explicitly overwritten; unknown files in a run directory prevent overwrite.
+explicitly overwritten; unknown files in a run directory prevent overwrite. All requested and stale seed
+directories are checked before a sweep overwrite changes any files. Stale seed
+directories are removed after that check. Known artifact names with a `.tmp`
+suffix are recoverable leftovers and are removed on overwrite.
 SIGINT/SIGTERM requests cancellation between chunks. Outputs retain positions and
 failure detail; completion does not liquidate or cancel remaining orders.
 
 Exit codes: 0 all runs completed and independent replay matched; 1 failed or
 cancelled run; 2 usage; 3 invalid config; 4 artifact/I/O failure; 5 replay mismatch;
-6 no completed seed pairs. `compare --json` emits the comparison object instead
+6 no eligible seed pairs. `verify <run-or-sweep>` re-executes each run in a
+fresh temporary directory and compares every deterministic artifact byte for
+byte, reusing the recorded build labels. It returns 5 on a difference. This
+checks reproduction by the current build, not authenticity of the original
+inputs. Cancelled runs cannot reproduce because cancellation timing is not
+recorded. Status is excluded because it contains wall clocks.
+
+`compare` performs this reproduction check by default, excluding mismatches.
+`compare --no-verify` skips re-execution and explicitly labels its results as
+unchecked. Both modes exclude runs with false or missing
+`digests.replay_verified`. `compare --json` emits the comparison object instead
 of its table. Failed/cancelled runs are excluded, missing metrics are unavailable,
 and sample SD uses n-1 (unavailable for fewer than two pairs). Differences are
 candidate B minus baseline A. Configuration differences are printed. Different
@@ -40,7 +53,11 @@ reads a clock, uses virtual dispatch, or allocates after construction. The drive
 writes while yielded and resumes after clearing the recorder. Optional UI work
 cannot change event ordering. Queue exhaustion explicitly fails the run; records
 are never silently dropped. One event can emit many engine events, so recorder
-capacity must accommodate its complete batch, not just the flush margin.
+capacity must accommodate its complete batch. See Recorder flush margin below.
+
+Superseded strategy wakeups are discarded without counting toward
+`max_simulation_events` or `simulation_events`. They still occupy scheduler
+queue slots until popped; timer churn can exhaust that bounded queue.
 
 Simulation events sort by (nanosecond time, enqueue sequence). Observations
 sort the same way but follow all simulation events at that time. Initial order:
@@ -156,6 +173,12 @@ queue evidence is exact engine truth at arrival, before command application:
 `orders_ahead`, `qty_ahead`, `level_qty`; it is not a strategy observation or a
 prediction that an aggressive order will rest. `reference_time_ns` connects a
 stage to the prior request/exchange time. Optional stage-specific fields are null.
+For new limit orders, queue evidence is the existing same-side queue at the
+requested price, excluding the arriving order; `order_id` is not assigned yet.
+For cancel and replace it is the target order at its current price before
+application, including its leaves in `level_qty`. A replace row still carries
+the requested new `price`. An absent target has no queue evidence. This lets a
+researcher inspect the FIFO priority given up by a cancel or replace.
 Ledger `mid_before` and `spread_capture` reference the book before that command.
 Markout `markout` is quantity-weighted, not per-share. `fill_index` joins ledger
 and markout rows. Series `position` is truth, `known_position` is delivered state;
@@ -419,6 +442,7 @@ The following paths enumerate the v1 writer fields, including explicit nulls.
 | `simulation.recorder_command_capacity` | string |
 | `simulation.recorder_record_capacity` | string |
 | `simulation.recorder_flush_margin` | string |
+| `simulation.recorder_effective_flush_margin` | string |
 | `simulation.successful_completion` | string |
 | `simulation.time_limit` | string |
 | `event_order_policy` | string |
@@ -734,10 +758,65 @@ The following paths enumerate the v1 writer fields, including explicit nulls.
 INI sections accept the keys below. Defaults and resolved values are emitted by
 `validate`; the supplied example configs exercise the first vertical slice.
 Durations require integer ns/us/ms/s suffixes, money accepts up to four fractional
-digits, booleans are true/false. Unknown keys are errors. Agent parameters use
+digits, booleans are true/false (also 1/0). Comments require `#` or `;` as
+the first non-blank character of a line; inline characters are literal text.
+Trailing comments on typed values are errors. Markout horizons must be strictly
+increasing after duration conversion, so `1s, 1000ms` is invalid. Unknown keys are errors. Agent parameters use
 the existing bots config parser and manifest records their resolved values.
 
 `kind`, `stp`, `half_spread_ticks`, `quote_size`, `requote_interval`, `requote_threshold_ticks`, `post_only`, `skew_ticks_per_unit`, `skew_unit`, `scale_size_with_inventory`, `side`, `parent_qty`, `start`, `limit_offset_ticks`, `execution_duration`, `slice_interval`, `max_orders`, `maker_fee_per_share`, `taker_fee_per_share`, `auction_fee_per_share`, `max_long_position`, `max_short_position`, `max_order_qty`, `max_open_orders`, `initial_cash`, `mark`, `name`, `description`, `seed`, `duration`, `max_simulation_events`, `symbol`, `tick_size`, `lot_size`, `min_price`, `max_price`, `reference_price`, `feed`, `order`, `cancel`, `ack`, `strategy_compute`, `feed_jitter`, `order_jitter`, `cancel_jitter`, `ack_jitter`, `order_channel_fifo`, `sample_interval`, `markout_horizons`, `simulation_queue_capacity`, `observation_queue_capacity`, `recorder_command_capacity`, `recorder_record_capacity`, `recorder_flush_margin`, `session_id`, `instrument`, `timer_interval`, `owner`.
+
+## Recorder flush margin
+
+`recorder_step_bound(config)` computes conservative command and record bounds
+for one scheduler step from agent order capacities, strategy open-order limits,
+maximum order quantity and lot size. The effective margin is the maximum of
+these bounds and the requested `recorder_flush_margin`. Both recorder capacities
+must be at least twice that margin. Validation rejects smaller capacities.
+The manifest retains the requested margin and adds
+`simulation.recorder_effective_flush_margin`. This guarantee covers the compiled
+strategies; a custom strategy that sends arbitrarily many requests from one
+callback can still fail explicitly with `recorder_overflow`.
+
+## QA adapter changes, 2026-11-05
+
+No existing artifact fields are removed or renamed. `lifecycle.jsonl` arrival
+queue values now implement the pre-application contract above. Large doubled
+monetary values format exactly across the int64 range. Comparison JSON adds
+`reproduction_checked` and `excluded_runs[].reason` / `.detail`; reasons are
+`not_completed`, `replay_not_verified`, or `not_reproduced`.
+
+The C++ adapter should call `check_reproduction` from `run_verification.hpp`
+on both loaded sets before `compare_run_sets`, matching the CLI default.
+Direct `compare_run_sets` remains an in-memory operation and does not perform
+I/O; it always rejects unverified replays and uses any reproduction results
+provided. `LoadedRun` adds `replay_verified`, `reproduction`, and
+`reproduction_detail`. Existing execute-run and sweep request/outcome APIs are
+unchanged. Verification costs another full simulation per eligible run and
+may reject artifacts from older builds whose behavior has changed.
+
+## QA fix verification checkpoint, 2026-11-05
+
+Fix commit `ea8642b`; current parent `b2e6b02` integrated in `6ccb69a`.
+Original reviewer reproducers are unchanged. Recovered research release evidence
+is 66/66 passed; the pre-fix follow-up probes fail all eight expected cases,
+including P1-P3. Logs are under `/tmp/exsim-runnerfix-logs/`:
+
+| Gate (`-j4`, `-Werror`) | Result | Log |
+| --- | --- | --- |
+| macOS release | 856/856 | `final-release.log` |
+| macOS ASan/UBSan | 853/853 | `final-debug.log` |
+| macOS all targets | pass | `final-all.log` |
+| Linux GCC | 856/856 | `final-linux-gcc.log` |
+| Linux Clang | 856/856 | `final-linux-clang.log` |
+| Determinism script, macOS and Linux GCC/Clang | 112/112 identical | `digests-final.txt`, `digests-linux-gcc.txt`, `digests-linux-clang.txt` |
+
+Compared with the pre-fix macOS script, only the 12 lifecycle logs change,
+reflecting pre-application arrival evidence. Command/event journals, accounting,
+series, markouts and summary fixtures are unchanged. Manifests, excluded by the
+script because they include compiler identity, additionally record the effective
+flush margin. See `/tmp/exsim-runnerfix-logs/REPORT.md` for per-finding coverage,
+source locations, adapter changes and integration limits.
 
 ## Verification checkpoint, 2026-11-05
 

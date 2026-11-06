@@ -45,11 +45,17 @@ inline constexpr std::string_view kStatusSchema = "exsim.research.status/1";
 inline constexpr std::string_view kRunnerBuildId = "exsim.research.runner/1";
 inline constexpr std::string_view kEngineBuildId = "exsim.matching_engine/canonical_encoding=1";
 
-// Every file a run directory may contain (overwrite only ever removes these).
+// Every artifact a run directory may contain. A run directory may also hold
+// "<artifact>" + kAtomicWriteSuffix, left behind when a process dies inside
+// write_file_atomically. Overwrite only ever removes these names.
 inline constexpr std::string_view kRunArtifactFileNames[] = {
-    "manifest.json",   "experiment.conf", "status.json",   "status.json.tmp", "commands.journal", "commands.jsonl",
-    "events.jsonl",    "lifecycle.jsonl", "ledger.jsonl",  "markouts.jsonl",  "series.csv",       "summary.json",
+    "manifest.json", "experiment.conf", "status.json",    "commands.journal", "commands.jsonl", "events.jsonl",
+    "lifecycle.jsonl", "ledger.jsonl",  "markouts.jsonl", "series.csv",       "summary.json",
 };
+inline constexpr std::string_view kAtomicWriteSuffix = ".tmp";
+
+// True for a name in kRunArtifactFileNames, or such a name plus kAtomicWriteSuffix.
+[[nodiscard]] bool is_run_artifact_file_name(std::string_view name) noexcept;
 
 struct BuildInfo {
     std::string engine_build_id{kEngineBuildId};
@@ -82,9 +88,14 @@ struct RunArtifactOptions {
 [[nodiscard]] std::string render_manifest_json(const SimulationCore& core, const StrategyIdentity& strategy,
                                                const RunArtifactOptions& options);
 
+// Throws ArtifactError unless `directory` is absent, or a directory that
+// holds only run artifact files (is_run_artifact_file_name) and, when it holds
+// any, `overwrite` is set. Changes nothing on disk.
+void check_run_directory_reusable(const std::filesystem::path& directory, bool overwrite);
+
 // Prepares an empty run directory: creates it, or with `overwrite` removes the
-// known artifact files of an earlier run. Refuses a directory that holds
-// anything else. Throws ArtifactError.
+// known artifact files of an earlier run, including leftover temporaries.
+// Refuses a directory that holds anything else. Throws ArtifactError.
 void prepare_run_directory(const std::filesystem::path& directory, bool overwrite);
 
 // Writes `text` to `path` through a temporary file and rename. Throws ArtifactError.

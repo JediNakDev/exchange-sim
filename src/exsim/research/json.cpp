@@ -37,15 +37,20 @@ std::string json_escape(std::string_view text) {
 }
 
 std::string format_doubled_price(std::int64_t value_times_two) {
-    // value_times_two / 2 price units == value_times_two * 5 units of 1e-5 currency.
+    // value_times_two / 2 price units, printed in currency (1 price unit = 1e-4)
+    // with a fifth decimal for the half unit. Dividing first keeps every int64
+    // input exact; multiplying the magnitude by 5 would wrap above 2^64 / 5.
     const bool negative = value_times_two < 0;
     const std::uint64_t magnitude = negative ? std::uint64_t{0} - static_cast<std::uint64_t>(value_times_two)
                                              : static_cast<std::uint64_t>(value_times_two);
-    const std::uint64_t hundred_thousandths = magnitude * 5;  // |value| <= 2^62 / 5 in practice
-    std::string fraction = std::to_string(hundred_thousandths % 100'000);
-    fraction.insert(0, 5 - fraction.size(), '0');
+    const std::uint64_t price_units = magnitude / 2;
+    const bool has_half_unit = magnitude % 2 != 0;
+    std::string fraction = std::to_string(price_units % static_cast<std::uint64_t>(kPriceScale));
+    fraction.insert(0, 4 - fraction.size(), '0');
+    fraction += has_half_unit ? '5' : '0';
     while (fraction.size() > 2 && fraction.back() == '0') fraction.pop_back();
-    return (negative && hundred_thousandths != 0 ? "-" : "") + std::to_string(hundred_thousandths / 100'000) + "." + fraction;
+    return (negative && magnitude != 0 ? "-" : "") + std::to_string(price_units / static_cast<std::uint64_t>(kPriceScale)) +
+           "." + fraction;
 }
 
 std::string format_hex64(std::uint64_t value) {

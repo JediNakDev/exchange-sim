@@ -212,6 +212,21 @@ using ConfigEntries = std::vector<std::pair<std::string, std::string>>;
 [[nodiscard]] std::string canonical_config_text(const ExperimentConfig& config);
 [[nodiscard]] std::uint64_t experiment_config_hash(const ExperimentConfig& config);
 
+// The most records one scheduler step can push into the recorder, derived
+// from the configured limits. The run checks free space only between steps,
+// so the flush margin must cover a whole step (docs/RESEARCH_RUNNER.md,
+// "Recorder flush margin"). `commands`: engine commands of one step (a
+// background agent timer can submit several). `records`: lifecycle rows or
+// ledger fills of one step.
+struct RecorderStepBound {
+    std::size_t commands = 0;
+    std::size_t records = 0;
+};
+[[nodiscard]] RecorderStepBound recorder_step_bound(const ExperimentConfig& config) noexcept;
+
+// max(recorder_flush_margin, both step bounds): the margin the run uses.
+[[nodiscard]] std::size_t effective_recorder_flush_margin(const ExperimentConfig& config) noexcept;
+
 // Effective background timer period of an agent (see timer_interval_ns).
 [[nodiscard]] Timestamp background_agent_timer_interval(const BackgroundAgentConfig& agent) noexcept;
 

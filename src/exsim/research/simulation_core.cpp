@@ -142,7 +142,7 @@ SimulationCore::SimulationCore(const ExperimentConfig& experiment_config, std::u
       observation_queue_(config_.limits.observation_queue_capacity),
       ledger_(config_.accounting.initial_cash, ledger_lot_capacity(config_)),
       recorder_(config_.limits.recorder_command_capacity, config_.limits.recorder_record_capacity,
-                config_.limits.recorder_flush_margin),
+                effective_recorder_flush_margin(config_)),
       context_(*this, visible_),
       strategy_rng_(derive_stream_seed(run_master_seed, "strategy")),
       latency_rng_(derive_stream_seed(run_master_seed, "latency")) {
@@ -308,6 +308,13 @@ RunStop SimulationCore::prepare_step(const RunBounds& bounds, std::uint64_t step
         state_ = RunState::Paused;
         return RunStop::StepBudgetExhausted;
     }
+    // A wake_at to a new time leaves the superseded wakeup in the queue (a
+    // heap cannot remove it). Discard it here without counting it as a
+    // simulation event, so max_simulation_events and simulation_events do not
+    // depend on how often a strategy reschedules its timer.
+    while (!simulation_queue_.empty() && simulation_queue_.top_payload().kind == SimulationEventKind::StrategyWakeup &&
+           simulation_queue_.top_payload().wakeup_generation != wakeup_generation_)
+        (void)simulation_queue_.pop();
     const Timestamp end = end_time();
     const bool has_simulation = !simulation_queue_.empty() && simulation_queue_.top_time() <= end;
     const bool has_observation = !observation_queue_.empty() && observation_queue_.top_time() <= end;
@@ -519,6 +526,10 @@ void SimulationCore::process_exchange_command(const Command& command, CommandSou
     if (state_ == RunState::Failed) return;
     Command stamped = command;
     stamp_command_time(stamped, now_);
+    // Queue evidence describes the book the request meets on arrival, so it
+    // is taken before the engine applies the command.
+    LifecycleRecord arrival_row;
+    if (request != nullptr) arrival_row = capture_strategy_arrival(*request, digests_.command_count);
     event_buffer_.clear();
     if (engine_.handle(stamped, event_buffer_) != HandleResult::Applied) {
         fail(TerminationReason::EngineOutputCapacity, digests_.command_count);
@@ -553,7 +564,7 @@ void SimulationCore::process_exchange_command(const Command& command, CommandSou
     for (auto& maker : market_makers_) maker->on_events(events);
     for (auto& taker : noise_takers_) taker->on_events(events);
 
-    if (request != nullptr) record_strategy_arrival(*request, command_index);
+    if (request != nullptr) push_lifecycle(arrival_row);
 
     std::uint32_t trade_count = 0;
     std::uint64_t traded_qty = 0;
@@ -584,7 +595,8 @@ void SimulationCore::process_exchange_command(const Command& command, CommandSou
         publish_market_data(top_after, trade_count, traded_qty, last_trade_price, last_trade_aggressor);
 }
 
-void SimulationCore::record_strategy_arrival(const StrategyRequestArrival& request, std::uint64_t command_index) noexcept {
+LifecycleRecord SimulationCore::capture_strategy_arrival(const StrategyRequestArrival& request,
+                                                         std::uint64_t command_index) noexcept {
     LifecycleRecord row;
     row.time = now_;
     row.reference_time = request.decision_time;
@@ -594,43 +606,59 @@ void SimulationCore::record_strategy_arrival(const StrategyRequestArrival& reque
     row.request = request.command.type;
     row.side = request.side;
     if (request.command.type == CommandType::NewOrder) {
-        row.side = request.command.new_order.side;
-        row.tif = request.command.new_order.tif;
-        row.price = request.command.new_order.price;
-        row.qty = request.command.new_order.qty;
-        row.post_only = request.command.new_order.post_only;
-    } else if (request.command.type == CommandType::Replace) {
+        const NewOrder& order = request.command.new_order;
+        row.side = order.side;
+        row.tif = order.tif;
+        row.price = order.price;
+        row.qty = order.qty;
+        row.post_only = order.post_only;
+        // Not in the book yet: the evidence is the queue it would join at its
+        // price (every order there is ahead of it). Not a prediction that an
+        // aggressive order will rest.
+        if (order.type == OrdType::Limit) {
+            const LevelQueue level = measure_level_queue(order.side, order.price, 0);
+            row.has_queue_position = true;
+            row.queue_orders_ahead = level.orders_ahead;
+            row.queue_ahead_qty = level.qty_ahead;
+            row.level_qty = level.level_qty;
+        }
+        return row;
+    }
+    if (request.command.type == CommandType::Replace) {
         row.price = request.command.replace.price;
         row.qty = request.command.replace.qty;
     }
-    // FIFO evidence from engine truth: orders and quantity ahead at the level
-    // right after the request was processed (new order rested, or replaced).
+    // Cancel or replace: the target order as it stands when the request
+    // arrives, with its place in the FIFO queue at its current price. An order
+    // already filled or canceled has no position.
     if (const auto info = engine_.find_order(kStrategySessionId, request.cl_ord_id)) {
         row.order_id = info->order_id;
         row.leaves_qty = info->leaves_qty;
         row.cum_qty = info->cum_qty;
-        const std::size_t count =
-            engine_.level_orders(instrument_id_, info->side, info->price, level_order_ids_.get(), level_order_capacity_);
-        std::uint64_t ahead_qty = 0;
-        std::uint64_t level_qty = 0;
-        std::uint32_t ahead_orders = 0;
-        bool found = false;
-        for (std::size_t position = 0; position < count; ++position) {
-            const auto resting = engine_.find_order(level_order_ids_[position]);
-            if (!resting) continue;
-            level_qty += resting->leaves_qty;
-            if (level_order_ids_[position] == info->order_id) found = true;
-            else if (!found) {
-                ahead_qty += resting->leaves_qty;
-                ++ahead_orders;
-            }
-        }
-        row.has_queue_position = found;
-        row.queue_ahead_qty = ahead_qty;
-        row.queue_orders_ahead = ahead_orders;
-        row.level_qty = level_qty;
+        const LevelQueue level = measure_level_queue(info->side, info->price, info->order_id);
+        row.has_queue_position = level.found;
+        row.queue_orders_ahead = level.orders_ahead;
+        row.queue_ahead_qty = level.qty_ahead;
+        row.level_qty = level.level_qty;
     }
-    push_lifecycle(row);
+    return row;
+}
+
+SimulationCore::LevelQueue SimulationCore::measure_level_queue(Side side, Price price, OrderId order_id) noexcept {
+    LevelQueue level;
+    const std::size_t count = engine_.level_orders(instrument_id_, side, price, level_order_ids_.get(), level_order_capacity_);
+    for (std::size_t position = 0; position < count; ++position) {
+        const auto resting = engine_.find_order(level_order_ids_[position]);
+        if (!resting) continue;
+        level.level_qty += resting->leaves_qty;
+        if (order_id != 0 && level_order_ids_[position] == order_id) {
+            level.found = true;
+        } else if (!level.found) {
+            level.qty_ahead += resting->leaves_qty;
+            ++level.orders_ahead;
+        }
+    }
+    return level;
 }
 
 bool SimulationCore::handle_strategy_event(const Event& event, std::uint64_t command_index) noexcept {

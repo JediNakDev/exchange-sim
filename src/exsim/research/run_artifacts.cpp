@@ -141,34 +141,57 @@ std::string make_run_id(std::string_view experiment_name, std::uint64_t config_h
     return run_id;
 }
 
-void prepare_run_directory(const std::filesystem::path& directory, bool overwrite) {
+bool is_run_artifact_file_name(std::string_view name) noexcept {
+    for (const std::string_view artifact_name : kRunArtifactFileNames) {
+        if (name == artifact_name) return true;
+        if (name.size() == artifact_name.size() + kAtomicWriteSuffix.size() && name.substr(0, artifact_name.size()) == artifact_name &&
+            name.substr(artifact_name.size()) == kAtomicWriteSuffix)
+            return true;
+    }
+    return false;
+}
+
+void check_run_directory_reusable(const std::filesystem::path& directory, bool overwrite) {
     std::error_code error;
     if (!std::filesystem::exists(directory, error)) {
-        std::filesystem::create_directories(directory, error);
-        if (error) throw ArtifactError("cannot create directory " + directory.string() + ": " + error.message());
+        if (error) throw ArtifactError("cannot inspect " + directory.string() + ": " + error.message());
         return;
     }
     if (!std::filesystem::is_directory(directory, error)) throw ArtifactError(directory.string() + " is not a directory");
     bool has_artifacts = false;
     for (const auto& entry : std::filesystem::directory_iterator(directory, error)) {
         const std::string name = entry.path().filename().string();
-        bool known = false;
-        for (const std::string_view artifact_name : kRunArtifactFileNames) known = known || name == artifact_name;
-        if (!known) throw ArtifactError(directory.string() + " contains " + name + ", which is not a run artifact; refusing to use it");
+        if (!is_run_artifact_file_name(name) || entry.is_directory())
+            throw ArtifactError(directory.string() + " contains " + name + ", which is not a run artifact; refusing to use it");
         has_artifacts = true;
     }
     if (error) throw ArtifactError("cannot list " + directory.string() + ": " + error.message());
     if (has_artifacts && !overwrite)
         throw ArtifactError(directory.string() + " already holds a run; pass --overwrite to replace it");
+}
+
+void prepare_run_directory(const std::filesystem::path& directory, bool overwrite) {
+    check_run_directory_reusable(directory, overwrite);
+    std::error_code error;
+    if (!std::filesystem::exists(directory, error)) {
+        std::filesystem::create_directories(directory, error);
+        if (error) throw ArtifactError("cannot create directory " + directory.string() + ": " + error.message());
+        return;
+    }
     for (const std::string_view artifact_name : kRunArtifactFileNames) {
-        std::filesystem::remove(directory / artifact_name, error);
-        if (error) throw ArtifactError("cannot remove " + (directory / artifact_name).string() + ": " + error.message());
+        std::filesystem::path artifact_path = directory / artifact_name;
+        std::filesystem::path temporary_path = artifact_path;
+        temporary_path += kAtomicWriteSuffix;
+        for (const std::filesystem::path& path : {artifact_path, temporary_path}) {
+            std::filesystem::remove(path, error);
+            if (error) throw ArtifactError("cannot remove " + path.string() + ": " + error.message());
+        }
     }
 }
 
 void write_file_atomically(const std::filesystem::path& path, std::string_view text) {
     std::filesystem::path temporary = path;
-    temporary += ".tmp";
+    temporary += kAtomicWriteSuffix;
     {
         std::ofstream stream(temporary, std::ios::binary | std::ios::trunc);
         if (!stream) throw ArtifactError("cannot create " + temporary.string());
@@ -369,6 +392,7 @@ std::string render_manifest_json(const SimulationCore& core, const StrategyIdent
     json.key("recorder_command_capacity").integer_text(limits.recorder_command_capacity);
     json.key("recorder_record_capacity").integer_text(limits.recorder_record_capacity);
     json.key("recorder_flush_margin").integer_text(limits.recorder_flush_margin);
+    json.key("recorder_effective_flush_margin").integer_text(effective_recorder_flush_margin(config));
     json.key("successful_completion")
         .string("every simulation event with time <= end_time_ns processed (end_time_reached), or no events left "
                 "(event_queue_exhausted)");

@@ -87,8 +87,11 @@ struct LifecycleRecord {
     Quantity qty = 0;
     Quantity leaves_qty = 0;
     Quantity cum_qty = 0;
-    std::uint64_t queue_ahead_qty = 0;     // engine truth, resting orders only
-    std::uint64_t level_qty = 0;           // total leaves at the order's level, itself included
+    // ExchangeArrival queue evidence, engine truth before the command is applied:
+    // cancel/replace, the target order at its current price (level_qty includes
+    // it); new limit order, the level it would join (all of it is ahead).
+    std::uint64_t queue_ahead_qty = 0;
+    std::uint64_t level_qty = 0;
     std::uint32_t queue_orders_ahead = 0;
     std::int64_t fee = 0;                  // ExchangeFill: price units
     LifecycleStage stage = LifecycleStage::StrategySubmitted;

@@ -27,6 +27,7 @@ LoadedRun completed_run(std::uint64_t seed, std::optional<double> net_pnl) {
     run.master_seed = seed;
     run.run_id = "run-" + std::to_string(seed);
     run.state = "completed";
+    run.replay_verified = true;
     run.market_world = "synthetic_interactive";
     run.metrics = {{"net_pnl", net_pnl}};
     return run;
