@@ -14,6 +14,7 @@
 #include <unistd.h>
 
 #include <filesystem>
+#include <fstream>
 #include <map>
 #include <optional>
 #include <set>
@@ -479,4 +480,27 @@ TEST_CASE(api_service, idempotency_capacity_rejects_before_mutation_and_preserve
     CHECK_EQ(replay.status, 201);
     CHECK_EQ(replay.body_text, first.body_text);
     CHECK_EQ(service.get("/v1/experiments").body.find("items")->items.size(), 1u);
+}
+
+TEST_CASE(api_service, comparison_excludes_a_run_with_corrupted_native_artifacts) {
+    const auto directory = fresh_service_directory("comparison_reproduction");
+    ServiceUnderTest service(directory);
+    const auto baseline = create_experiment(service, 0, "baseline", R"(["1"])");
+    const auto candidate = create_experiment(service, 1, "candidate", R"(["1"])");
+    (void)create_run(service, baseline, "1");
+    const auto candidate_run = create_run(service, candidate, "1");
+    service.drain_executor();
+    const auto query = "/v1/comparisons?baselineExperimentId=" + baseline + "&candidateExperimentId=" + candidate;
+    const auto before = service.get(query);
+    REQUIRE_EQ(before.status, 200);
+    REQUIRE(before.body.find("comparable")->boolean);
+    {
+        std::ofstream corrupted_summary(directory / "runs" / candidate_run / "runner" / "summary.json", std::ios::app);
+        REQUIRE(corrupted_summary.good());
+        corrupted_summary << "not JSON";
+    }
+    const auto after = service.get(query);
+    REQUIRE_EQ(after.status, 200);
+    CHECK(!after.body.find("comparable")->boolean);
+    CHECK(after.body.find("seedPairing")->find("pairedSeeds")->items.empty());
 }

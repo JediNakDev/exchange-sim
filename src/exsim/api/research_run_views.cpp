@@ -4,6 +4,7 @@
 #include "exsim/api/api_json.hpp"
 #include "exsim/api/research_run.hpp"
 #include "exsim/research/json.hpp"
+#include "exsim/research/run_verification.hpp"
 #include "simulation_driver.hpp"
 
 #include <algorithm>
@@ -887,6 +888,14 @@ std::string ResearchRun::render_book_json(std::optional<std::uint64_t> event_pos
 std::optional<RunComparisonInputs> ResearchRun::comparison_inputs() const {
     std::lock_guard lock(mutex_);
     if (state_ != ApiRunState::Completed || final_summary_json_.empty()) return std::nullopt;
+    // The HTTP comparison has its own view model, so it does not pass
+    // through the CLI's compare_run_sets verification path. Apply the same
+    // native artifact reproduction check before pairing a completed run.
+    try {
+        if (!research::reproduce_run(parameters_.run_directory / "runner").reproduced) return std::nullopt;
+    } catch (const research::ArtifactError&) {
+        return std::nullopt;
+    }
     require_artifacts_ready_locked();
     RunComparisonInputs inputs;
     inputs.run_id = parameters_.run_id;

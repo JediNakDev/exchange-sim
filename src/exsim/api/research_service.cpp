@@ -686,7 +686,7 @@ std::string ResearchService::render_comparison(const HttpRequest& request) {
     std::vector<std::string> reasons;
     if (baseline->translated->market_world != candidate->translated->market_world)
         reasons.push_back("market worlds differ: " + baseline->translated->market_world + " vs " + candidate->translated->market_world);
-    if (paired.empty()) reasons.push_back("no master seed has a completed run in both experiments");
+    if (paired.empty()) reasons.push_back("no master seed has a reproduced completed run in both experiments");
 
     ApiJsonWriter json;
     json.begin_object();

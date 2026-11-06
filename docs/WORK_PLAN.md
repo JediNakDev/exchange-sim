@@ -1,6 +1,6 @@
 # Working state and implementation plan
 
-Updated 2026-11-05. This is a recovery checkpoint, not live delegate status. Keep it concise; put detailed evidence in the relevant report or log.
+Updated 2026-11-06. This is a recovery checkpoint, not live delegate status. Keep it concise; put detailed evidence in the relevant report or log.
 
 ## User decisions and constraints
 
@@ -30,7 +30,8 @@ Updated 2026-11-05. This is a recovery checkpoint, not live delegate status. Kee
 - QA fixes for OUCH, the core and market data merged `6227a51` (from `c71acb3`: F1, F2, F4, F5, F6, F8, R1 with the connection-aware `ExchangeCore::unbind(SessionId, ConnectionId)`): release 806/806, ASan/UBSan 803/803.
 - FIX 4.4 gateway QA fixes merged `3df3527` (from `3c82c87`: R1 to R13, P1, P3, P4): release 825/825, ASan/UBSan 822/822.
 - Server runtime merged `e9495a0` (from `1d6c40c`): `exsim_server` (OUCH, FIX, ITCH/MoldUDP64 with faults and retransmission, admin, bots, journal on one poller thread), `exsim_client`, `exsim_w2w_bench`, 12 loopback E2E tests, wire-to-wire numbers in docs/SERVER_RUNTIME.md section 5 and the README. The merge added the SBE answer to `SubmitResult::ExchangeShutDown` (MarketClosed) with a mutant-checked test. macOS release 840/840, ASan/UBSan 837/837, TSan 837/837, `make all`, perf tools, Linux g++ and clang++ 840/840, all `-Werror` (session scratchpad `merge3-*.log`); README quick start (server, client, admin shutdown) and a w2w smoke run checked by hand.
-- Not integrated yet: SBE in the server runtime; SBE and research runner QA fixes; FIX codec speed-up; C++ HTTP/OpenAPI API; UI on real artifacts; final independent review.
+- Runner QA merged `eccfabb` (source `2c2ab79`), and C++ HTTP/OpenAPI API plus UI on real runs merged `1f8d01c` (source `33b41d3`). SBE gateway QA already merged `89a4d87`. API comparison now requires native artifact reproduction; native artifacts use the same canonical identity as CLI runs. Parent API checks: 33/33; real-binary contract: 9/9, all 23 operations, 284 assertions (`/tmp/exsim-delivery-api.log`, `/tmp/exsim-delivery-contract.log`).
+- Not integrated yet: SBE runtime wiring, final server review reproducers, strengthened fuzz corpus, FIX codec optimization. Confirmed journal reactor blocking remains open. Codec optimizations and measurements remain parked until the real trader workflow and correctness fixes are closed.
 
 ## Milestones
 
@@ -45,8 +46,8 @@ Updated 2026-11-05. This is a recovery checkpoint, not live delegate status. Kee
 - [x] Market data: ITCH/MoldUDP64 publisher, retransmission server, client receiver and book builder, feed-correctness test under packet faults (`4a8927a`).
 - [x] Server binary (reactor, OUCH and FIX gateways, MD, admin, faults, bots, journal) and end-to-end loopback tests; client tool; wire-to-wire latency benchmark (`e9495a0`). SBE in the runtime: delegate `8764c2d4`.
 - [x] Deterministic event runner with latency model and compiled baseline strategies (fixed-spread MM, inventory-aware MM, TWAP), accounting, manifests/artifacts, CLI (`4783f45`).
-- [ ] C++ HTTP/OpenAPI research interface and generated TypeScript types.
-- [ ] Next.js experiment/compare/inspect vertical slice on real artifacts (UI and contract on a mock service merged, `f2c0b57`).
+- [x] C++ HTTP/OpenAPI research interface and generated TypeScript types (`1f8d01c`).
+- [x] Next.js experiment/compare/inspect on real artifacts (`1f8d01c`); real-binary HTTP contract verified, browser interaction not yet independently reviewed.
 - [ ] Independent review (correctness, causality, accounting, protocol recovery, UI); resolve findings; README/docs with measured numbers.
 
 ## Existing worktrees and continuation ownership
@@ -96,20 +97,14 @@ For each completion record: task ID, actual branch/commit, changed scope, tests 
 
 ## Immediate next action
 
-Latest 2026-11-05 continuation: all eight unfinished direct child tasks were stopped to clear queued Claude limit-resumes, configured for GPT-6.1 Sol/high, and resumed in their original checkouts. Actual new task IDs, paths and branches are in delegation-registry.json. Completed tasks were not rerun. This supersedes the older Claude auto-resume instructions below.
+2026-11-06 parent integration checkpoint:
+1. Runner QA and real API/UI are merged. `cd web && bun run dev` launches the C++ API and Next.js; `bun run dev:mock` is explicit. API native run IDs were aligned with CLI IDs so the repaired runner can verify completed HTTP runs. Corrupted native artifacts are excluded from paired comparisons.
+2. Integrate runtime branch `t3/wire-fixp-sbe-runtime` head `8520aa1`, then server review branch `t3/review-exsim-server-runtime` head `239298f`. Parent owns admin complete-line bounds, request-socket peer filtering, and retransmission drain budgets. Check the original reproducers against those repairs.
+3. Resolve REVIEW-SRV-03: synchronous journal writes can block the reactor. Rejecting special destinations alone does not close regular-file stalls. Define bounded handoff and explicit failure behavior, then verify targeted backpressure and shutdown cases.
+4. Integrate completed fuzz mutation branch `6eb78e2`. Keep FIX encode/decode performance branches parked; no valid new speedup claim or comparative runtime measurements exist.
+5. Validate the combined tree, update startup and scope documentation, then commission the remaining independent integration review. Do not confuse earlier child gates with verification of later parent changes.
 
-Runtime continuation checkpoint: partial work committed as `878634b`, parent `b2e6b02` merged cleanly; protocol-selectable wire-to-wire benchmark is compiling/validating. Runtime owns no gateway files and depends on the existing SBE `end_session` API. Parent relayed that dependency to the SBE QA owner. **After merging SBE QA fixes, send the exact integrated commit IDs to the runtime owner before its final tests.** Benchmark runs will record the shared machine load.
-
-Resource checkpoint: runtime reports 845 release tests and all three protocol benchmark smokes passed, with zero rejects/loss. Comparable measurement is deferred after host load reached 90/36/16. Parent told all eight continuations to finish current gates, avoid launching additional full builds/Docker builds/benchmarks, reuse valid evidence, and continue light work. Release serial validation/measurement slots on task completion notifications; do not poll or wait in loops. Preserve raw load samples and do not publish contention-dominated numbers as protocol performance.
-
-2026-11-05 evening: the QA fixes for OUCH/core/MD (`6227a51`) and FIX (`3df3527`) and the server runtime (`e9495a0`) are merged and gated. A Claude API rate limit failed the runner fix and mutation check runs; T3 resumes them automatically.
-
-Next, on completion notifications (do not poll):
-1. SBE QA fixes (`a8748a28`) and SBE runtime wiring (`8764c2d4`): review each, merge the gateway fixes first, then the wiring; full gate (release, ASan/UBSan, TSan, `make all`, perf tools, Linux g++/clang++); README per-protocol wire-to-wire table.
-2. FIX decode (`0c6c66ed`) and encode (`c96ec3e0`): check the differential tests and the bench method, merge both (same file, disjoint functions), re-run `exsim_codec_bench`, update the README codec table.
-3. API and UI (`e28022a3`): check the adapter against the runner differences table, review, merge, run the C++ and bun gates.
-4. Runner fixes (`45a51fdd`) and mutation check (`9bdb16a6`) after their GPT continuations finish: review, merge, gate. Replay the strengthened FIX properties against the integrated optimized codec.
-5. Final independent review: the server runtime review (`41fe1043`) is running; after the SBE wiring and API/UI merges, review SBE in the runtime and the UI on real runs; fix findings; final README pass.
+All prior eight continuation processes have ended. The earlier shared-host scheduling hold caused deferred child checks; no new benchmark slot has been released. Use focused checks during fixes and record exact evidence. Historical child evidence remains below and in the registry.
 
 ## SBE gateway QA completion (2026-11-05, child a8748a28)
 

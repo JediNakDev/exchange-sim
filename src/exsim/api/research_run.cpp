@@ -519,7 +519,10 @@ void ResearchRun::ensure_driver_locked() {
     if (driver_) return;
     research::RunArtifactOptions options;
     options.run_directory = parameters_.run_directory / "runner";
-    options.run_id = parameters_.run_id;
+    // Keep native artifacts identical to a CLI run of the saved config.
+    // The service ID remains the identity of the enclosing API run.
+    options.run_id = research::make_run_id(parameters_.config->runner_config.name,
+                                         research::experiment_config_hash(parameters_.config->runner_config), parameters_.master_seed);
     options.config_source_text = parameters_.config->runner_config_text;
     options.build = research::current_build_info("");
     options.overwrite = true;
