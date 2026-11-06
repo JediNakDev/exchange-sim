@@ -417,11 +417,14 @@ function RunInspection({ runId }: { runId: string }) {
   );
 
   const selectedFillResource = useApiResource(
-    selectedFill ? `selected-fill:${runId}:${selectedFill.orderId}:${processedEventCount}` : null,
+    selectedFill ? `selected-fill:${runId}:${selectedFill.orderId}:${selectedFill.eventPosition}:${processedEventCount}` : null,
     (signal) => readSelectedFill(apiClient, runId, selectedFill!.orderId, selectedFill!.eventPosition, signal),
     null,
   );
-  const focusedFill = selectedFillResource.data ?? fillPage.data?.items.find((fill) => fill.eventPosition === selectedFill?.eventPosition && fill.orderId === selectedFill?.orderId) ?? null;
+  const refreshedFill = selectedFillResource.data;
+  const focusedFill = refreshedFill?.eventPosition === selectedFill?.eventPosition && refreshedFill?.orderId === selectedFill?.orderId
+    ? refreshedFill
+    : fillPage.data?.items.find((fill) => fill.eventPosition === selectedFill?.eventPosition && fill.orderId === selectedFill?.orderId) ?? null;
   const relatedEventPositions = new Set<string>(lifecycleResource.data?.relatedEventPositions ?? []);
   if (focusedFill) {
     for (const relatedPosition of Object.values(focusedFill.relatedEvents)) if (relatedPosition !== null) relatedEventPositions.add(relatedPosition);
