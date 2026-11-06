@@ -145,10 +145,8 @@ int main(int argc, char** argv) {
             server->poll_once();
         }
         const bool journal_ok = server->core().journal_state() != exsim::server::JournalState::Failed;
-        std::fprintf(stderr, "exsim: end of day, md next_sequence=%llu event_hash=%llu%s\n",
-                     static_cast<unsigned long long>(server->market_data().next_sequence()),
-                     static_cast<unsigned long long>(server->market_data().event_stream_hash()),
-                     journal_ok ? "" : " (journal FAILED)");
+        // Report completion through exit status. A final blocking stderr
+        // write could otherwise strand signal-requested shutdown.
         return journal_ok ? 0 : 1;
     } catch (const std::exception& exception) {
         std::fprintf(stderr, "exsim: %s\n", exception.what());

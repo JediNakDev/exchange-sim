@@ -61,7 +61,7 @@ struct ServerRuntimeOptions {
     std::size_t connection_receive_buffer_bytes = 64 * 1024;
     std::size_t connection_send_buffer_bytes = 4 * 1024 * 1024;
     bool bots_enabled_at_start = true;
-    std::FILE* log = stderr;  // startup and connection-level messages; nullptr = silent
+    std::FILE* log = stderr;  // startup listener reporting only; nullptr = silent
 };
 
 template <class... Gateways>
@@ -124,7 +124,6 @@ public:
         if (core_.has_disconnect_requests()) close_requested_sessions();
         if (!core_.shutdown_requested() &&
             (external_shutdown_requested_.load(std::memory_order_relaxed) || market_data_.stopped())) {
-            if (market_data_.stopped()) log("market data feed stopped: shutting the exchange down\n");
             core_.shutdown();
         }
         if (core_.shutdown_requested()) progress_shutdown();
@@ -252,14 +251,12 @@ private:
             end_of_day_started_ = true;
             drain_deadline_ns_ = now + options_.end_of_day_drain_timeout_ns;
             (endpoint<Gateways>().close_for_end_of_day(), ...);
-            log("end of day: closing every session\n");
         }
         std::uint32_t remaining = 0;
         ((remaining += endpoint<Gateways>().transport_connection_count()), ...);
         if (remaining != 0 && now < drain_deadline_ns_) return;
         if (remaining != 0) {
             (endpoint<Gateways>().close_all_now(), ...);
-            log("end of day: drain timed out, closed the remaining connections\n");
         }
         if (!journal_drain_started_) {
             journal_drain_started_ = true;
@@ -268,7 +265,6 @@ private:
         if (!core_.journal_drained()) {
             if (now < drain_deadline_ns_) return;
             core_.abort_journal();
-            log("end of day: journal drain timed out; journal FAILED\n");
         }
         finished_ = true;
     }
@@ -287,13 +283,6 @@ private:
         const std::size_t length = net::format_ipv4_endpoint(market_data_.feed_destination(), text);
         std::fprintf(options_.log, "exsim: md feed to %.*s%s\n", static_cast<int>(length), text.data(),
                      market_data_.feed_destination().port == 0 ? " (port 0: feed disabled)" : "");
-        std::fflush(options_.log);
-    }
-
-    void log(const char* message) noexcept {
-        if (options_.log == nullptr) return;
-        std::fputs("exsim: ", options_.log);
-        std::fputs(message, options_.log);
         std::fflush(options_.log);
     }
 

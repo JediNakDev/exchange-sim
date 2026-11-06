@@ -25,11 +25,13 @@ make tools MODE=release
 
 The server runs one trading day. It ends on the admin `shutdown` command,
 SIGINT or SIGTERM, the configured `exchange.trading_day_end`, or a journal
-failure under `journal.on_failure = shutdown`. At the end it prints the
-last market-data sequence number and the event-stream hash, which
-`exsim_replay` reproduces from the journal. Exit status: 0 after a clean
+failure under `journal.on_failure = shutdown`. Exit status: 0 after a clean
 end of day, 1 for bad arguments, configuration or startup errors (or a
-journal failure).
+journal failure). Listener reporting uses stdio during startup. The reactor
+and normal CLI exit path perform no diagnostic file writes, so a full log
+pipe cannot strand shutdown. Runtime state remains available through the
+admin status response and embedding accessors; `exsim_replay` reports the
+captured command/event hashes.
 
 Startup allocates everything: every user's token table and outbound store
 (`engine.max_tokens_per_session`, `engine.store_*_per_session`), the

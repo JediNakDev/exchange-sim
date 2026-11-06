@@ -4,10 +4,11 @@
 #include "exsim/api/api_json.hpp"
 #include "exsim/api/research_run.hpp"
 #include "exsim/research/json.hpp"
-#include "exsim/research/run_verification.hpp"
 #include "simulation_driver.hpp"
 
 #include <algorithm>
+#include <cstdlib>
+#include <unistd.h>
 #include <cmath>
 
 namespace exsim::api {
@@ -110,6 +111,68 @@ struct SummaryInputs {
     research::RunMetrics metrics;
     std::optional<std::int64_t> mark_times_two;
     Timestamp as_of_time_ns = 0;
+};
+
+std::vector<RunComparisonInputs::Metric> summary_metrics(const research::ExperimentConfig& config, const SummaryInputs& inputs) {
+    const auto& ledger = inputs.ledger;
+    const auto& metrics = inputs.metrics;
+    std::optional<research::DoubledValuation> valuation;
+    if (inputs.mark_times_two) valuation = research::value_at_mark(ledger, config.accounting.initial_cash, *inputs.mark_times_two);
+    std::optional<std::string> net_pnl, equity, unrealized, fill_rate;
+    if (valuation) {
+        net_pnl = doubled(valuation->equity_times_two - 2 * config.accounting.initial_cash);
+        equity = doubled(valuation->equity_times_two);
+        unrealized = doubled(valuation->unrealized_pnl_times_two);
+    }
+    const auto submitted_shares = metrics.accepted_order_qty + metrics.replace_added_qty;
+    if (submitted_shares > 0)
+        fill_rate = format_derived_decimal(static_cast<double>(metrics.filled_qty) / static_cast<double>(submitted_shares));
+    std::vector<RunComparisonInputs::Metric> result;
+    const auto add = [&](const char* key, std::optional<std::string> value, const char* unit,
+                         const char* exactness = "exact_fixed_point", std::optional<Timestamp> horizon = std::nullopt) {
+        result.push_back({key, horizon, std::move(value), unit, exactness});
+    };
+    add("net_pnl", net_pnl, "currency");
+    add("equity", equity, "currency");
+    add("gross_realized_pnl", format_price_units(ledger.gross_realized_pnl), "currency");
+    add("unrealized_pnl", unrealized, "currency");
+    add("net_fees", format_price_units(ledger.fees), "currency");
+    add("ending_position", std::to_string(ledger.position), "shares");
+    add("max_long_position", std::to_string(metrics.max_position), "shares");
+    add("max_short_position", std::to_string(metrics.min_position), "shares");
+    add("max_drawdown", doubled(metrics.max_drawdown_times_two), "currency");
+    add("fill_count", std::to_string(metrics.fill_count), "count");
+    add("filled_shares", std::to_string(metrics.filled_qty), "shares");
+    add("maker_fill_count", std::to_string(metrics.maker_fill_count), "count");
+    add("taker_fill_count", std::to_string(metrics.taker_fill_count), "count");
+    add("fill_rate", fill_rate, "ratio", "derived_float");
+    add("submitted_order_count", std::to_string(metrics.new_orders_submitted), "count");
+    add("canceled_order_count", std::to_string(metrics.orders_canceled_by_request), "count");
+    add("cancel_race_lost_count", std::to_string(metrics.cancel_requests_rejected), "count");
+    add("spread_capture_total", doubled(metrics.spread_capture_total_times_two), "currency");
+    for (std::size_t horizon = 0; horizon < config.metrics.markout_horizon_count; ++horizon)
+        add("markout_total", doubled(metrics.markouts[horizon].total_times_two), "currency", "exact_fixed_point",
+            config.metrics.markout_horizons_ns[horizon]);
+    add("quote_exposure_time", std::to_string(metrics.any_side_exposure_ns), "nanoseconds");
+    return result;
+}
+
+class ComparisonDirectory {
+public:
+    ComparisonDirectory() {
+        const auto pattern = (std::filesystem::temp_directory_path() / "exsim_api_verify_XXXXXX").string();
+        std::vector<char> name(pattern.begin(), pattern.end());
+        name.push_back('\0');
+        if (::mkdtemp(name.data()) == nullptr) throw research::ArtifactError("cannot create comparison verification directory");
+        path = name.data();
+    }
+    ~ComparisonDirectory() {
+        std::error_code ignored;
+        std::filesystem::remove_all(path, ignored);
+    }
+    ComparisonDirectory(const ComparisonDirectory&) = delete;
+    ComparisonDirectory& operator=(const ComparisonDirectory&) = delete;
+    std::filesystem::path path;
 };
 
 void write_metric(ApiJsonWriter& json, const char* key, const std::optional<std::string>& value, const char* unit,
@@ -370,29 +433,9 @@ std::string ResearchRun::render_summary_locked() const {
     json.end_array();
 
     json.key("metrics").begin_array();
-    const std::string mark_reason = mark_unavailable_reason;
-    write_metric(json, "net_pnl", net_pnl, "currency", "exact_fixed_point", std::nullopt, mark_reason.c_str());
-    write_metric(json, "equity", equity, "currency", "exact_fixed_point", std::nullopt, mark_reason.c_str());
-    write_metric(json, "gross_realized_pnl", format_price_units(ledger.gross_realized_pnl), "currency");
-    write_metric(json, "unrealized_pnl", unrealized, "currency", "exact_fixed_point", std::nullopt, mark_reason.c_str());
-    write_metric(json, "net_fees", format_price_units(ledger.fees), "currency");
-    write_metric(json, "ending_position", std::to_string(ledger.position), "shares");
-    write_metric(json, "max_long_position", std::to_string(metrics.max_position), "shares");
-    write_metric(json, "max_short_position", std::to_string(metrics.min_position), "shares");
-    write_metric(json, "max_drawdown", doubled(metrics.max_drawdown_times_two), "currency");
-    write_metric(json, "fill_count", std::to_string(metrics.fill_count), "count");
-    write_metric(json, "filled_shares", std::to_string(metrics.filled_qty), "shares");
-    write_metric(json, "maker_fill_count", std::to_string(metrics.maker_fill_count), "count");
-    write_metric(json, "taker_fill_count", std::to_string(metrics.taker_fill_count), "count");
-    write_metric(json, "fill_rate", fill_rate, "ratio", "derived_float", std::nullopt, "no shares submitted");
-    write_metric(json, "submitted_order_count", std::to_string(metrics.new_orders_submitted), "count");
-    write_metric(json, "canceled_order_count", std::to_string(metrics.orders_canceled_by_request), "count");
-    write_metric(json, "cancel_race_lost_count", std::to_string(metrics.cancel_requests_rejected), "count");
-    write_metric(json, "spread_capture_total", doubled(metrics.spread_capture_total_times_two), "currency");
-    for (std::size_t horizon = 0; horizon < config.metrics.markout_horizon_count; ++horizon)
-        write_metric(json, "markout_total", doubled(metrics.markouts[horizon].total_times_two), "currency", "exact_fixed_point",
-                     config.metrics.markout_horizons_ns[horizon]);
-    write_metric(json, "quote_exposure_time", std::to_string(metrics.any_side_exposure_ns), "nanoseconds");
+    for (const auto& metric : summary_metrics(config, inputs))
+        write_metric(json, metric.metric_key.c_str(), metric.value, metric.unit.c_str(), metric.exactness.c_str(), metric.horizon_ns,
+                     metric.metric_key == "fill_rate" ? "no shares submitted" : mark_unavailable_reason);
     json.end_array();
     json.end_object();
     return json.take();
@@ -887,38 +930,71 @@ std::string ResearchRun::render_book_json(std::optional<std::uint64_t> event_pos
 
 std::optional<RunComparisonInputs> ResearchRun::comparison_inputs() const {
     std::lock_guard lock(mutex_);
-    if (state_ != ApiRunState::Completed || final_summary_json_.empty()) return std::nullopt;
-    // The HTTP comparison has its own view model, so it does not pass
-    // through the CLI's compare_run_sets verification path. Apply the same
-    // native artifact reproduction check before pairing a completed run.
+    if (state_ != ApiRunState::Completed) return std::nullopt;
+    // Re-execute the enclosing API run's config and seed. Only recorded build
+    // labels come from the native manifest. This binds the evidence to the
+    // experiment and produces the values used below without API cache reads.
     try {
-        if (!research::reproduce_run(parameters_.run_directory / "runner").reproduced) return std::nullopt;
+        const auto recorded = parameters_.run_directory / "runner";
+        const auto manifest = research::parse_json(research::read_text_file(recorded / "manifest.json"));
+        const auto text = [](const research::JsonValue& object, std::string_view name) -> std::string {
+            const auto* member = object.find(name);
+            if (member == nullptr || member->kind != research::JsonValue::Kind::String)
+                throw research::ArtifactError("native manifest field is missing or invalid: " + std::string(name));
+            return member->text;
+        };
+        const auto& config = parameters_.config->runner_config;
+        const auto expected_id = research::make_run_id(config.name, research::experiment_config_hash(config), parameters_.master_seed);
+        if (text(manifest, "run_id") != expected_id || text(manifest, "master_seed") != std::to_string(parameters_.master_seed) ||
+            research::read_text_file(recorded / "experiment.conf") != parameters_.config->runner_config_text)
+            return std::nullopt;
+        const auto* build = manifest.find("build");
+        if (build == nullptr) return std::nullopt;
+        const ComparisonDirectory scratch;
+        research::RunArtifactOptions options;
+        options.run_directory = scratch.path;
+        options.run_id = expected_id;
+        options.config_source_text = parameters_.config->runner_config_text;
+        options.build.engine_build_id = text(*build, "engine_build_id");
+        options.build.runner_build_id = text(*build, "runner_build_id");
+        options.build.compiler = text(*build, "compiler");
+        auto driver = make_simulation_driver(config, parameters_.master_seed, std::move(options));
+        RunComparisonInputs inputs;
+        inputs.run_id = parameters_.run_id;
+        inputs.master_seed = parameters_.master_seed;
+        for (;;) {
+            const auto stop = driver->step();
+            if (stop == research::RunStop::FlushRequired || stop == research::RunStop::Completed) {
+                for (const auto& sample : driver->core().recorder().samples.records())
+                    inputs.samples.push_back({sample.time, sample.has_mark, sample.equity_times_two, sample.position});
+                if (stop == research::RunStop::Completed) break;
+                driver->drain();
+            } else if (stop == research::RunStop::Failed || stop == research::RunStop::Cancelled) {
+                return std::nullopt;
+            }
+        }
+        driver->finish();
+        if (!driver->replay_verified()) return std::nullopt;
+        for (const auto name : research::kRunArtifactFileNames) {
+            if (name == "status.json") continue;  // wall clock and process identity
+            std::error_code error;
+            const bool recorded_exists = std::filesystem::exists(recorded / name, error);
+            if (error) return std::nullopt;
+            const bool reproduced_exists = std::filesystem::exists(scratch.path / name, error);
+            if (error || recorded_exists != reproduced_exists) return std::nullopt;
+            if (reproduced_exists &&
+                research::read_text_file(recorded / name) != research::read_text_file(scratch.path / name))
+                return std::nullopt;
+        }
+        const auto& core = driver->core();
+        inputs.end_time_ns = core.now();
+        inputs.metrics = summary_metrics(config, {core.ledger().state(), core.metrics(), core.mark_times_two(), core.now()});
+        return inputs;
     } catch (const research::ArtifactError&) {
         return std::nullopt;
+    } catch (const research::JsonError&) {
+        return std::nullopt;
     }
-    require_artifacts_ready_locked();
-    RunComparisonInputs inputs;
-    inputs.run_id = parameters_.run_id;
-    inputs.master_seed = parameters_.master_seed;
-    inputs.end_time_ns = final_simulation_time_ns_;
-    const research::JsonValue summary = research::parse_json(final_summary_json_);
-    if (const research::JsonValue* metrics = summary.find("metrics")) {
-        for (const research::JsonValue& item : metrics->items) {
-            RunComparisonInputs::Metric metric;
-            metric.metric_key = item.find("metricKey")->text;
-            const research::JsonValue* horizon = item.find("horizonNs");
-            std::uint64_t horizon_ns = 0;
-            if (horizon != nullptr && !horizon->is_null() && parse_unsigned_integer_text(horizon->text, horizon_ns)) metric.horizon_ns = horizon_ns;
-            const research::JsonValue* value = item.find("value");
-            if (value != nullptr && !value->is_null()) metric.value = value->text;
-            metric.unit = item.find("unit")->text;
-            metric.exactness = item.find("exactness")->text;
-            inputs.metrics.push_back(std::move(metric));
-        }
-    }
-    for (const research::SeriesSample& sample : artifacts_.samples)
-        inputs.samples.push_back({sample.time, sample.has_mark, sample.equity_times_two, sample.position});
-    return inputs;
 }
 
 }  // namespace exsim::api

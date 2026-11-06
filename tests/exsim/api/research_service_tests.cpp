@@ -9,6 +9,8 @@
 #include "exsim/api/http_message.hpp"
 #include "exsim/api/research_service.hpp"
 #include "exsim/research/json.hpp"
+#include "exsim/research/run_artifacts.hpp"
+#include "exsim/research/run_verification.hpp"
 #include "tests/framework/test.hpp"
 
 #include <unistd.h>
@@ -503,4 +505,104 @@ TEST_CASE(api_service, comparison_excludes_a_run_with_corrupted_native_artifacts
     REQUIRE_EQ(after.status, 200);
     CHECK(!after.body.find("comparable")->boolean);
     CHECK(after.body.find("seedPairing")->find("pairedSeeds")->items.empty());
+}
+
+TEST_CASE(api_service, comparison_rebuilds_metrics_after_an_outer_summary_edit_and_restart) {
+    const auto directory = fresh_service_directory("comparison_summary_cache");
+    std::string candidate_run, query, expected;
+    {
+        ServiceUnderTest service(directory);
+        const auto baseline = create_experiment(service, 0, "baseline", R"(["1"])");
+        const auto candidate = create_experiment(service, 1, "candidate", R"(["1"])");
+        (void)create_run(service, baseline, "1");
+        candidate_run = create_run(service, candidate, "1");
+        service.drain_executor();
+        query = "/v1/comparisons?baselineExperimentId=" + baseline + "&candidateExperimentId=" + candidate;
+        const auto before = service.get(query);
+        REQUIRE(before.body.find("comparable")->boolean);
+        expected = before.body_text;
+    }
+    const auto cache = directory / "runs" / candidate_run / "summary.json";
+    auto summary = exsim::research::read_text_file(cache);
+    const auto metric_at = summary.find(R"("metricKey":"net_pnl")");
+    REQUIRE(metric_at != std::string::npos);
+    const auto value_field = summary.find(R"("value":")", metric_at);
+    REQUIRE(value_field != std::string::npos);
+    const auto value_at = value_field + std::string_view(R"("value":")").size();
+    const auto value_end = summary.find('"', value_at);
+    REQUIRE(value_end != std::string::npos);
+    summary.replace(value_at, value_end - value_at, "987654321.00005");
+    exsim::research::write_file_atomically(cache, summary);
+    REQUIRE(exsim::research::reproduce_run(directory / "runs" / candidate_run / "runner").reproduced);
+    ServiceUnderTest restarted(directory);
+    const auto after = restarted.get(query);
+    REQUIRE_EQ(after.status, 200);
+    CHECK_EQ(after.body_text, expected);
+}
+
+TEST_CASE(api_service, comparison_rebuilds_series_and_end_time_after_cache_substitution_and_restart) {
+    const auto directory = fresh_service_directory("comparison_series_cache");
+    std::string candidate_run, other_seed_run, query, expected;
+    {
+        ServiceUnderTest service(directory);
+        const auto baseline = create_experiment(service, 0, "baseline", R"(["1"])");
+        const auto candidate = create_experiment(service, 1, "candidate", R"(["1","2"])");
+        (void)create_run(service, baseline, "1");
+        candidate_run = create_run(service, candidate, "1");
+        other_seed_run = create_run(service, candidate, "2");
+        service.drain_executor();
+        query = "/v1/comparisons?baselineExperimentId=" + baseline + "&candidateExperimentId=" + candidate;
+        const auto before = service.get(query);
+        REQUIRE(before.body.find("comparable")->boolean);
+        expected = before.body_text;
+    }
+    const auto target = directory / "runs" / candidate_run;
+    REQUIRE(exsim::research::read_text_file(target / "samples.bin") !=
+            exsim::research::read_text_file(directory / "runs" / other_seed_run / "samples.bin"));
+    std::filesystem::copy_file(directory / "runs" / other_seed_run / "samples.bin", target / "samples.bin",
+                               std::filesystem::copy_options::overwrite_existing);
+    auto record = exsim::research::read_text_file(target / "run.json");
+    const std::string time_field = R"("finalSimulationTimeNs":"5000000000")";
+    const auto at = record.find(time_field);
+    REQUIRE(at != std::string::npos);
+    record.replace(at, time_field.size(), R"("finalSimulationTimeNs":"123")");
+    exsim::research::write_file_atomically(target / "run.json", record);
+    REQUIRE(exsim::research::reproduce_run(target / "runner").reproduced);
+    ServiceUnderTest restarted(directory);
+    const auto after = restarted.get(query);
+    REQUIRE_EQ(after.status, 200);
+    CHECK_EQ(after.body_text, expected);
+}
+
+namespace {
+
+void check_native_directory_substitution(bool different_config) {
+    const auto directory = fresh_service_directory(different_config ? "comparison_native_config" : "comparison_native_seed");
+    ServiceUnderTest service(directory);
+    const auto baseline = create_experiment(service, 0, "baseline", R"(["1","2"])");
+    const auto candidate = create_experiment(service, 1, "candidate", R"(["1","2"])");
+    (void)create_run(service, baseline, "1");
+    const auto candidate_run = create_run(service, candidate, "1");
+    const auto donor = different_config ? create_run(service, baseline, "1") : create_run(service, candidate, "2");
+    service.drain_executor();
+    const auto query = "/v1/comparisons?baselineExperimentId=" + baseline + "&candidateExperimentId=" + candidate;
+    REQUIRE(service.get(query).body.find("comparable")->boolean);
+    const auto target = directory / "runs" / candidate_run / "runner";
+    std::filesystem::remove_all(target);
+    std::filesystem::copy(directory / "runs" / donor / "runner", target, std::filesystem::copy_options::recursive);
+    REQUIRE(exsim::research::reproduce_run(target).reproduced);  // intact evidence for the wrong run
+    const auto after = service.get(query);
+    REQUIRE_EQ(after.status, 200);
+    CHECK(!after.body.find("comparable")->boolean);
+    CHECK(after.body.find("seedPairing")->find("pairedSeeds")->items.empty());
+}
+
+}  // namespace
+
+TEST_CASE(api_service, comparison_rejects_an_intact_native_directory_from_another_seed) {
+    check_native_directory_substitution(false);
+}
+
+TEST_CASE(api_service, comparison_rejects_an_intact_native_directory_from_another_config) {
+    check_native_directory_substitution(true);
 }

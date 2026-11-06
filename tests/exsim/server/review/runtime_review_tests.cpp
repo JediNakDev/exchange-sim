@@ -96,6 +96,54 @@ TEST_CASE(server_runtime_review, journal_backpressure_does_not_block_reactor) {
     if (exited) CHECK_EQ(status, 0);
 }
 
+TEST_CASE(server_runtime_review, a_full_log_pipe_does_not_block_shutdown) {
+    int log_pipe[2], ready_pipe[2];
+    REQUIRE_EQ(::pipe(log_pipe), 0);
+    REQUIRE_EQ(::pipe(ready_pipe), 0);
+    const auto child = ::fork();
+    REQUIRE(child >= 0);
+    if (child == 0) {
+        std::FILE* sink = ::fdopen(log_pipe[1], "w");
+        if (sink == nullptr || ::setvbuf(sink, nullptr, _IONBF, 0) != 0) ::_exit(10);
+        server::ServerRuntimeOptions options;
+        options.log = sink;
+        options.day_time_at_start = kTenAm;
+        options.busy_poll = true;
+        options.end_of_day_drain_timeout_ns = 0;
+        server::ServerRuntime runtime(make_e2e_config(false), options);
+        if (!runtime.start().empty()) ::_exit(11);
+        const int flags = ::fcntl(log_pipe[1], F_GETFL);
+        ::fcntl(log_pipe[1], F_SETFL, flags | O_NONBLOCK);
+        std::array<char, 1024> bytes{};
+        while (::write(log_pipe[1], bytes.data(), bytes.size()) > 0) {}
+        while (::write(log_pipe[1], bytes.data(), 1) > 0) {}
+        ::fcntl(log_pipe[1], F_SETFL, flags);
+        (void)::write(ready_pipe[1], "R", 1);
+        runtime.request_shutdown();
+        runtime.poll_once();
+        ::_exit(runtime.finished() ? 0 : 12);
+    }
+    ::close(ready_pipe[1]);
+    pollfd readiness{ready_pipe[0], POLLIN, 0};
+    const bool ready = ::poll(&readiness, 1, 5000) == 1;
+    int status = 0;
+    bool exited = false;
+    if (ready) {
+        const auto deadline = net::monotonic_ns() + 300'000'000;
+        do {
+            if (::waitpid(child, &status, WNOHANG) == child) { exited = true; break; }
+            ::poll(nullptr, 0, 1);
+        } while (net::monotonic_ns() < deadline);
+    }
+    if (!exited) { ::kill(child, SIGKILL); ::waitpid(child, &status, 0); }
+    ::close(log_pipe[0]);
+    ::close(log_pipe[1]);
+    ::close(ready_pipe[0]);
+    REQUIRE(ready);
+    CHECK(exited);
+    if (exited) CHECK_EQ(status, 0);
+}
+
 TEST_CASE(server_runtime_review, packed_connection_ids_preserve_transport_generations) {
     // The transport retires slots at 24-bit exhaustion. Higher generations
     // are impossible, so runtime packing does not introduce an alias.

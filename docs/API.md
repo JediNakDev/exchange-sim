@@ -75,10 +75,14 @@ Every error body is `{ "error": ApiError }` with `code`, `message` (not stable),
 | `internal_error` | 500 | service fault; diagnostics are in the service log under `requestId` |
 | `service_unavailable` | 503 | the service is starting or stopping, or the UI proxy cannot reach it; `retryable: true` |
 
-HTTP comparisons re-execute each completed native run and require byte-for-byte
-artifact reproduction before pairing seeds. The API stores canonical CLI run IDs
-inside `runner/`; the enclosing service run retains its independent API ID.
-Missing or corrupted native artifacts exclude that run from comparison.
+HTTP comparisons re-execute the enclosing experiment configuration and run seed,
+then require byte-for-byte native artifact reproduction before pairing seeds.
+Canonical native ID, master seed and saved config must match that API run.
+Comparison metrics, samples and final time come from the fresh simulation;
+outer HTTP summaries, binary caches and saved end-time fields are not inputs.
+The API stores canonical CLI IDs inside `runner/`; the enclosing service run
+retains its independent API ID. Missing, corrupted or substituted native
+artifacts exclude that run from comparison.
 
 A comparison of two experiments with no shared verified completed seed, or with different market worlds, is not an error. It returns 200 with `comparable: false` and `incomparabilityReasons`, and the UI must not present it as a paired result.
 
