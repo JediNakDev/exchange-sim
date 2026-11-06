@@ -20,4 +20,16 @@ Five new cases were compiled against the reviewed pre-fix source in isolated tem
 
 Exact pre-fix logs: `/tmp/exsim-ir-before-fix/{api-cache,api-provenance,runtime-log,compile}.log`. The first four are `api_service` cases in `research_service_tests.cpp`; the fifth is `server_runtime_review.a_full_log_pipe_does_not_block_shutdown`. The native substitutions independently pass the CLI reproduction check before the API rejects them, proving provenance rather than malformed-file rejection.
 
-Final-code verification is recorded in WORK_PLAN.md when complete. Existing limits remain: local service, synthetic market-making UI, TWAP CLI-only, no historical mode, and no new performance claim. Successful journal footer writes are not fsync durability; bounded teardown does not constitute a hard real-time OS guarantee.
+Fix commit: `edc13b0`. Final-code checks, all with `-Werror` where applicable:
+
+- macOS release: 932/932; ASan/UBSan: 928/928.
+- Focused server ThreadSanitizer: 143/143.
+- Real C++ API contract: 9/9, all 23 operations.
+- Executable SIGINT/SIGTERM with full blocking stderr pipes: exit 0 for both.
+- Linux GCC 14.2 and Clang 19.1: 53/53 focused API/runtime checks each; both API and server tools built, no compiler warnings/errors.
+
+Logs: `/tmp/exsim-ir-{release,sanitizers,tsan,contract,cli-shutdown,linux}.log`.
+The API/runtime source changed; frontend source did not, so earlier frontend
+59/typecheck/lint/build checks remain applicable. No additional delegate
+review of the fixed code was requested; closure rests on the source repair,
+pre-fix failure demonstrations and post-fix checks. Existing limits remain: local service, synthetic market-making UI, TWAP CLI-only, no historical mode, and no new performance claim. Successful journal footer writes are not fsync durability; bounded teardown does not constitute a hard real-time OS guarantee.

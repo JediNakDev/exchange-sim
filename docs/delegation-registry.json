@@ -635,7 +635,7 @@
       "parentThreadId": "a4344aba-ffd8-4132-bf6d-ea93d8fe68e8",
       "link": "<t3-thread://v2/28299d02-72aa-499f-95da-f2289df17826/thread:delegated-task:command%3Amcp%3A22879d5a-e0f7-481c-b85b-83c997d9b0af%3Adelegate-task%3A64634ba1-67d0-4380-8ee1-3f601a64688e>",
       "targetCommit": "69bb968",
-      "recoveryState": "Review completed; IR-01/P1 and IR-02/03 P2 fixed on parent with five pre-fix failing regressions. Final scoped follow-ups pending.",
+      "recoveryState": "Completed review; IR-01/P1 and IR-02/03 P2 fixed by parent edc13b0. Five regressions fail before repair. Mac release932/ASan928/serverTSan143, realAPI9, blocked-stderr signals2, Linux GCC/Clang focused53 each and API/server builds passed. No second delegate re-review.",
       "branch": "t3/review-journal-comparison",
       "worktreePath": "/Users/jedi/.t3/worktrees/lob/t3-99f6f810",
       "headCommit": "0aa017fa71a6b46a9c561cef4b1374586c13d794",
