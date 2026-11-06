@@ -34,6 +34,7 @@ inline constexpr std::string_view kApiSchemaVersion = "exsim.api/1";
 struct ResearchServiceOptions {
     std::filesystem::path data_directory = "exsim-api-data";
     std::size_t max_live_simulations = 8;
+    // Includes reservations for mutations interrupted before their response was saved.
     std::size_t max_idempotency_keys = 100'000;
     std::uint64_t executor_slice_steps = 2048;
     std::string service_build_id = "exsim_api/1";
@@ -47,7 +48,9 @@ public:
     ResearchService(const ResearchService&) = delete;
     ResearchService& operator=(const ResearchService&) = delete;
 
-    // Thread safe.
+    // Thread safe. Mutations reserve a persisted key before execution. An
+    // uncertain outcome returns 503 and keeps the key reserved across restarts.
+    // Successful responses replay verbatim; legacy JSONL responses remain readable.
     [[nodiscard]] HttpResponse handle(const HttpRequest& request);
     // Error response for a request the HTTP layer rejected before routing.
     [[nodiscard]] HttpResponse rejection_response(int http_status, std::string_view code, std::string_view message);
@@ -71,7 +74,7 @@ private:
     };
     struct StoredIdempotentResponse {
         std::string request_fingerprint;
-        int status = 200;
+        int status = 0;  // zero reserves a key whose mutation outcome is uncertain
         std::string body;
     };
 
@@ -96,7 +99,8 @@ private:
     std::shared_ptr<ResearchRun> find_run(const std::string& run_id) const;
     std::shared_ptr<const StoredExperiment> find_experiment(const std::string& experiment_id) const;
     void persist_experiment(const StoredExperiment& experiment) const;
-    void append_idempotency_record(const std::string& key, const StoredIdempotentResponse& response) const;
+    void persist_idempotency_record(const std::string& key, const StoredIdempotentResponse& response) const;
+    void remove_idempotency_reservation(const std::string& key) const;
     void load_data_directory();
     void executor_loop();
     std::string new_identifier(std::string_view prefix);

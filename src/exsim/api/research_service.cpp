@@ -5,7 +5,12 @@
 #include "exsim/research/json.hpp"
 #include "exsim/research/run_artifacts.hpp"
 
+#include <fcntl.h>
+#include <unistd.h>
+
 #include <algorithm>
+#include <cerrno>
+#include <system_error>
 #include <cmath>
 #include <fstream>
 #include <iostream>
@@ -167,22 +172,65 @@ const char* better_direction(std::string_view metric_key) {
     return "neither";
 }
 
-std::string read_whole_file(const std::filesystem::path& path) {
-    std::ifstream in(path, std::ios::binary);
-    std::ostringstream text;
-    text << in.rdbuf();
-    return text.str();
+// Persist reservations before any mutation. Replacing one key's record avoids
+// torn JSONL appends and leaves the reservation intact if the response write fails.
+void sync_file(const std::filesystem::path& path) {
+    const int descriptor = ::open(path.c_str(), O_RDONLY | O_CLOEXEC);
+    if (descriptor < 0) throw std::system_error(errno, std::generic_category(), "open " + path.string());
+    const int result = ::fsync(descriptor);
+    const int saved_errno = errno;
+    ::close(descriptor);
+    if (result != 0) throw std::system_error(saved_errno, std::generic_category(), "fsync " + path.string());
 }
+
+const research::JsonValue& stored_field(const research::JsonValue& record, std::string_view name, research::JsonValue::Kind kind) {
+    const auto* value = record.find(name);
+    if (record.kind != research::JsonValue::Kind::Object || value == nullptr || value->kind != kind)
+        throw research::ArtifactError("missing or invalid stored field " + std::string(name));
+    return *value;
+}
+
+const std::string& stored_text(const research::JsonValue& record, std::string_view name) {
+    return stored_field(record, name, research::JsonValue::Kind::String).text;
+}
+
+research::JsonValue read_stored_json(const std::filesystem::path& path) {
+    const std::string text = research::read_text_file(path);
+    if (!json_nesting_within_limit(text)) throw research::ArtifactError("stored JSON nests too deeply: " + path.string());
+    return research::parse_json(text);
+}
+
+std::uint64_t stored_unsigned(const research::JsonValue& record, std::string_view name) {
+    std::uint64_t value = 0;
+    if (!parse_unsigned_integer_text(stored_text(record, name), value))
+        throw research::ArtifactError("invalid stored unsigned integer " + std::string(name));
+    return value;
+}
+
+void check_stored_signed(const research::JsonValue& record, std::string_view name) {
+    std::int64_t value = 0;
+    if (!parse_signed_integer_text(stored_text(record, name), value))
+        throw research::ArtifactError("invalid stored signed integer " + std::string(name));
+}
+
+bool is_hex_digest(std::string_view text, std::size_t length) {
+    return text.size() == length && std::all_of(text.begin(), text.end(), [](char character) {
+        return (character >= '0' && character <= '9') || (character >= 'a' && character <= 'f');
+    });
+}
+
+bool valid_resource_id(std::string_view text, std::string_view prefix) {
+    return text.starts_with(prefix) && is_hex_digest(text.substr(prefix.size()), 16);
+}
+
 
 }  // namespace
 
 // ---- Lifetime ----------------------------------------------------------------------
 
 ResearchService::ResearchService(ResearchServiceOptions options) : options_(std::move(options)) {
-    std::error_code error;
-    std::filesystem::create_directories(options_.data_directory / "experiments", error);
-    std::filesystem::create_directories(options_.data_directory / "runs", error);
-    if (error) throw std::runtime_error("cannot create data directory " + options_.data_directory.string() + ": " + error.message());
+    for (const auto* directory : {"experiments", "runs", "idempotency"})
+        std::filesystem::create_directories(options_.data_directory / directory);
     load_data_directory();
     if (options_.start_executor) executor_thread_ = std::thread([this] { executor_loop(); });
 }
@@ -202,7 +250,14 @@ void ResearchService::shutdown() {
         std::lock_guard lock(state_mutex_);
         runs = runs_in_creation_order_;
     }
-    for (const auto& run : runs) run->abandon("the service stopped before the run finished");
+    for (const auto& run : runs) {
+        try {
+            run->abandon("the service stopped before the run finished");
+        } catch (const std::exception& error) {
+            // Destruction must still finish when shutdown diagnostics cannot be saved.
+            std::cerr << "exsim_api: cannot persist interrupted run " << run->run_id() << ": " << error.what() << "\n";
+        }
+    }
 }
 
 bool ResearchService::run_executor_pass() {
@@ -263,54 +318,199 @@ void ResearchService::persist_experiment(const StoredExperiment& experiment) con
     research::write_file_atomically(options_.data_directory / "experiments" / (experiment.experiment_id + ".json"), json.take() + "\n");
 }
 
-void ResearchService::append_idempotency_record(const std::string& key, const StoredIdempotentResponse& response) const {
+void ResearchService::persist_idempotency_record(const std::string& key, const StoredIdempotentResponse& response) const {
     ApiJsonWriter json;
     json.begin_object();
+    json.key("schema").string("exsim.api.idempotency-record/1");
     json.key("key").string(key);
     json.key("fingerprint").string(response.request_fingerprint);
     json.key("status").integer_number(response.status);
     json.key("body").string(response.body);
     json.end_object();
-    std::ofstream out(options_.data_directory / "idempotency.jsonl", std::ios::app);
-    out << json.text() << "\n";
+    const auto path = options_.data_directory / "idempotency" / (sha256_hex(key) + ".json");
+    const auto temporary = std::filesystem::path(path.string() + ".tmp");
+    // The shared artifact writer flushes, but does not fsync before rename.
+    {
+        std::ofstream out(temporary, std::ios::binary | std::ios::trunc);
+        if (!out) throw research::ArtifactError("cannot create " + temporary.string());
+        out << json.text() << "\n";
+        out.flush();
+        if (!out) throw research::ArtifactError("cannot write " + temporary.string());
+        out.close();
+        if (!out) throw research::ArtifactError("cannot close " + temporary.string());
+    }
+    sync_file(temporary);
+    std::filesystem::rename(temporary, path);
+    sync_file(path.parent_path());
+}
+
+void ResearchService::remove_idempotency_reservation(const std::string& key) const {
+    const auto directory = options_.data_directory / "idempotency";
+    std::filesystem::remove(directory / (sha256_hex(key) + ".json"));
+    sync_file(directory);
 }
 
 void ResearchService::load_data_directory() {
-    std::error_code error;
-    for (const auto& entry : std::filesystem::directory_iterator(options_.data_directory / "experiments", error)) {
+    // Validate idempotency first. Corruption must never silently free a key, nor
+    // may loading a live run rewrite its state before this check has succeeded.
+    const auto retain = [&](const research::JsonValue& record, const std::filesystem::path* path) {
+        const std::string key = stored_text(record, "key");
+        StoredIdempotentResponse response;
+        response.request_fingerprint = stored_text(record, "fingerprint");
+        const auto& status = stored_field(record, "status", research::JsonValue::Kind::Number);
+        std::uint64_t code = 0;
+        if (!valid_idempotency_key(key) || !is_hex_digest(response.request_fingerprint, 64) ||
+            !parse_unsigned_integer_text(status.text, code) || (code != 0 && code != 200 && code != 201))
+            throw research::ArtifactError("invalid stored idempotency key, fingerprint or status");
+        response.status = static_cast<int>(code);
+        response.body = stored_text(record, "body");
+        if (path != nullptr) {
+            if (stored_text(record, "schema") != "exsim.api.idempotency-record/1" || path->stem() != sha256_hex(key))
+                throw research::ArtifactError("idempotency record schema or filename mismatch");
+        } else if (code == 0) {
+            throw research::ArtifactError("legacy idempotency record has no response");
+        }
+        if (code == 0) {
+            if (!response.body.empty()) throw research::ArtifactError("pending idempotency record has a response body");
+        } else {
+            if (!json_nesting_within_limit(response.body)) throw research::ArtifactError("stored response nests too deeply");
+            if (research::parse_json(response.body).kind != research::JsonValue::Kind::Object)
+                throw research::ArtifactError("stored response is not an object");
+        }
+        const auto [found, inserted] = idempotent_responses_.emplace(key, response);
+        if (!inserted && (found->second.request_fingerprint != response.request_fingerprint ||
+                          found->second.status != response.status || found->second.body != response.body))
+            throw research::ArtifactError("conflicting stored idempotency records for " + key);
+        if (idempotent_responses_.size() > options_.max_idempotency_keys)
+            throw research::ArtifactError("stored idempotency keys exceed configured capacity; increase max_idempotency_keys");
+    };
+    const auto legacy_path = options_.data_directory / "idempotency.jsonl";
+    if (std::filesystem::exists(legacy_path)) {
+        if (!std::filesystem::is_regular_file(legacy_path)) throw research::ArtifactError("not a regular file: " + legacy_path.string());
+        std::ifstream legacy(legacy_path);
+        if (!legacy) throw research::ArtifactError("cannot open " + legacy_path.string());
+        std::string line;
+        std::size_t line_number = 0;
+        while (std::getline(legacy, line)) {
+            ++line_number;
+            try {
+                if (!json_nesting_within_limit(line)) throw research::ArtifactError("record nests too deeply");
+                retain(research::parse_json(line), nullptr);
+            } catch (const std::exception& error) {
+                throw research::ArtifactError(legacy_path.string() + ":" + std::to_string(line_number) + ": " + error.what());
+            }
+        }
+        if (legacy.bad()) throw research::ArtifactError("cannot read " + legacy_path.string());
+    }
+    for (const auto& entry : std::filesystem::directory_iterator(options_.data_directory / "idempotency")) {
+        if (entry.path().extension() != ".json") continue; // incomplete atomic writes are not committed
+        const auto path = entry.path();
+        try {
+            retain(read_stored_json(path), &path);
+        } catch (const std::exception& error) {
+            throw research::ArtifactError("cannot load " + path.string() + ": " + error.what());
+        }
+    }
+    for (const auto& entry : std::filesystem::directory_iterator(options_.data_directory / "experiments")) {
         if (entry.path().extension() != ".json") continue;
         try {
-            const research::JsonValue record = research::parse_json(read_whole_file(entry.path()));
+            const auto record = read_stored_json(entry.path());
             auto experiment = std::make_shared<StoredExperiment>();
-            experiment->experiment_id = record.find("experimentId")->text;
-            experiment->name = record.find("name")->text;
-            experiment->description = record.find("description")->text;
-            (void)parse_signed_integer_text(record.find("createdAtUnixMs")->text, experiment->created_at_unix_ms);
-            experiment->derived_from_baseline_id = record.find("derivedFromBaselineId")->text;
-            const research::JsonValue* parent = record.find("parentExperimentId");
-            if (parent != nullptr && !parent->is_null()) experiment->parent_experiment_id = parent->text;
-            const research::JsonValue* config = record.find("config");
-            experiment->config_json = serialize_json_value(*config);
-            ConfigTranslationResult translation = translate_experiment_config(*config, "/config");
-            if (!translation.translated) throw std::runtime_error("stored configuration no longer translates");
+            if (stored_text(record, "schema") != "exsim.api.experiment-record/1") throw research::ArtifactError("unknown experiment schema");
+            experiment->experiment_id = stored_text(record, "experimentId");
+            if (!valid_resource_id(experiment->experiment_id, "exp_") || entry.path().stem() != experiment->experiment_id)
+                throw research::ArtifactError("experiment identity does not match filename");
+            experiment->name = stored_text(record, "name");
+            experiment->description = stored_text(record, "description");
+            if (!parse_signed_integer_text(stored_text(record, "createdAtUnixMs"), experiment->created_at_unix_ms))
+                throw research::ArtifactError("invalid experiment creation time");
+            experiment->derived_from_baseline_id = stored_text(record, "derivedFromBaselineId");
+            const auto* parent = record.find("parentExperimentId");
+            if (parent != nullptr && !parent->is_null()) experiment->parent_experiment_id = stored_text(record, "parentExperimentId");
+            const auto& config = stored_field(record, "config", research::JsonValue::Kind::Object);
+            experiment->config_json = serialize_json_value(config);
+            ConfigTranslationResult translation = translate_experiment_config(config, "/config");
+            if (!translation.translated) throw research::ArtifactError("stored configuration no longer translates");
             experiment->translated = std::make_shared<const TranslatedExperimentConfig>(std::move(*translation.translated));
-            experiments_[experiment->experiment_id] = std::move(experiment);
-        } catch (const std::exception& load_error) {
-            std::cerr << "exsim_api: skipping experiment " << entry.path() << ": " << load_error.what() << "\n";
+            experiments_.emplace(experiment->experiment_id, std::move(experiment));
+        } catch (const std::exception& error) {
+            throw research::ArtifactError("cannot load experiment " + entry.path().string() + ": " + error.what());
         }
     }
-    std::vector<std::shared_ptr<ResearchRun>> loaded;
-    for (const auto& entry : std::filesystem::directory_iterator(options_.data_directory / "runs", error)) {
+    // Check every enclosing run record before ResearchRun::load can mark live
+    // runs interrupted. Its artifact and canonical comparison readers stay intact.
+    std::vector<std::pair<std::filesystem::path, std::shared_ptr<const TranslatedExperimentConfig>>> run_records;
+    std::set<std::string> stored_run_ids;
+    for (const auto& entry : std::filesystem::directory_iterator(options_.data_directory / "runs")) {
         if (!std::filesystem::exists(entry.path() / "run.json")) continue;
         try {
-            const research::JsonValue record = research::parse_json(read_whole_file(entry.path() / "run.json"));
-            const auto experiment = experiments_.find(record.find("experimentId")->text);
-            if (experiment == experiments_.end()) throw std::runtime_error("its experiment is missing");
-            loaded.push_back(std::shared_ptr<ResearchRun>(ResearchRun::load(entry.path(), experiment->second->translated)));
-        } catch (const std::exception& load_error) {
-            std::cerr << "exsim_api: skipping run " << entry.path() << ": " << load_error.what() << "\n";
+            const auto record = read_stored_json(entry.path() / "run.json");
+            if (stored_text(record, "schema") != "exsim.api.run-record/1") throw research::ArtifactError("unknown run schema");
+            const auto& run_id = stored_text(record, "runId");
+            if (!valid_resource_id(run_id, "run_") || entry.path().filename() != run_id)
+                throw research::ArtifactError("run identity does not match directory");
+            const auto experiment = experiments_.find(stored_text(record, "experimentId"));
+            if (experiment == experiments_.end()) throw research::ArtifactError("its experiment is missing");
+            const auto state = parse_api_run_state(stored_text(record, "state"));
+            if (!state) throw research::ArtifactError("unknown run state");
+            const auto seed = stored_unsigned(record, "masterSeed");
+            const auto& seeds = experiment->second->translated->master_seeds;
+            if (std::find(seeds.begin(), seeds.end(), seed) == seeds.end()) throw research::ArtifactError("run seed is outside its experiment");
+            check_stored_signed(record, "createdAtUnixMs");
+            (void)stored_unsigned(record, "finalSimulationTimeNs");
+            (void)stored_field(record, "startPaused", research::JsonValue::Kind::Boolean);
+            const auto& history = stored_field(record, "history", research::JsonValue::Kind::Array);
+            if (history.items.empty()) throw research::ArtifactError("run history is empty");
+            for (const auto& transition : history.items) {
+                const auto& from = stored_text(transition, "from");
+                if ((!from.empty() && !parse_api_run_state(from)) || !parse_api_run_state(stored_text(transition, "to")))
+                    throw research::ArtifactError("invalid run history state");
+                check_stored_signed(transition, "atUnixMs");
+                (void)stored_unsigned(transition, "atEventPosition");
+                (void)stored_unsigned(transition, "atSimulationTimeNs");
+                (void)stored_text(transition, "reason");
+            }
+            if (stored_text(history.items.back(), "to") != stored_text(record, "state"))
+                throw research::ArtifactError("run state and history disagree");
+            const auto* diagnostics = record.find("diagnostics");
+            if (diagnostics != nullptr && !diagnostics->is_null()) {
+                (void)stored_text(*diagnostics, "outcomeCode");
+                (void)stored_text(*diagnostics, "message");
+                check_stored_signed(*diagnostics, "residualPositionShares");
+                (void)stored_unsigned(*diagnostics, "residualOpenOrderCount");
+            }
+            const auto manifest = read_stored_json(entry.path() / "manifest.json");
+            if (stored_text(manifest, "schemaVersion") != "exsim.run-manifest/1" || stored_text(manifest, "runId") != run_id ||
+                stored_text(manifest, "experimentId") != experiment->first)
+                throw research::ArtifactError("run manifest identity mismatch");
+            // A shutdown-failed run may legitimately have no inspection cache.
+            // Completed/cancelled runs must not be silently downgraded on load.
+            if (*state == ApiRunState::Completed || *state == ApiRunState::Cancelled ||
+                (*state == ApiRunState::Failed && std::filesystem::exists(entry.path() / "events.bin"))) {
+                for (const auto* artifact : {"manifest.json", "summary.json", "events.bin", "fills.bin", "fill_positions.bin", "markouts.bin", "samples.bin"})
+                    if (!std::filesystem::is_regular_file(entry.path() / artifact))
+                        throw research::ArtifactError("terminal run is missing " + std::string(artifact));
+            }
+            stored_run_ids.insert(run_id);
+            run_records.emplace_back(entry.path(), experiment->second->translated);
+        } catch (const std::exception& error) {
+            throw research::ArtifactError("cannot load run " + entry.path().string() + ": " + error.what());
         }
     }
+    for (const auto& [key, response] : idempotent_responses_) {
+        if (response.status == 0) continue;
+        const auto body = research::parse_json(response.body);
+        const auto* run_id = body.find("runId");
+        const auto* experiment_id = body.find("experimentId");
+        const bool found = run_id != nullptr
+            ? run_id->kind == research::JsonValue::Kind::String && stored_run_ids.count(run_id->text) != 0
+            : response.status == 201 && experiment_id != nullptr && experiment_id->kind == research::JsonValue::Kind::String &&
+                experiments_.count(experiment_id->text) != 0;
+        if (!found) throw research::ArtifactError("idempotency response references a missing resource for key " + key);
+    }
+    std::vector<std::shared_ptr<ResearchRun>> loaded;
+    for (const auto& [directory, config] : run_records)
+        loaded.push_back(std::shared_ptr<ResearchRun>(ResearchRun::load(directory, config)));
     std::sort(loaded.begin(), loaded.end(), [](const auto& left, const auto& right) {
         return left->created_at_unix_ms() != right->created_at_unix_ms() ? left->created_at_unix_ms() < right->created_at_unix_ms()
                                                                          : left->run_id() < right->run_id();
@@ -318,20 +518,6 @@ void ResearchService::load_data_directory() {
     for (const auto& run : loaded) {
         runs_by_id_[run->run_id()] = run;
         runs_in_creation_order_.push_back(run);
-    }
-    std::ifstream idempotency(options_.data_directory / "idempotency.jsonl");
-    std::string line;
-    while (std::getline(idempotency, line)) {
-        try {
-            const research::JsonValue record = research::parse_json(line);
-            StoredIdempotentResponse response;
-            response.request_fingerprint = record.find("fingerprint")->text;
-            response.status = static_cast<int>(record.find("status")->number);
-            response.body = record.find("body")->text;
-            idempotent_responses_[record.find("key")->text] = std::move(response);
-        } catch (const std::exception&) {
-            // A torn last line from a crash: ignore it.
-        }
     }
 }
 
@@ -951,6 +1137,8 @@ HttpResponse ResearchService::route_post(const HttpRequest& request) {
         if (stored != idempotent_responses_.end()) {
             if (stored->second.request_fingerprint != fingerprint)
                 throw ApiFailure(409, "idempotency_key_reused_with_different_request", "this Idempotency-Key was used for a different request");
+            if (stored->second.status == 0)
+                throw ApiFailure(503, "service_unavailable", "this mutation has an uncertain persisted outcome; inspect existing resources before recovery");
             HttpResponse response = json_response(stored->second.status, stored->second.body);
             response.set_header("Idempotent-Replayed", "true");
             return response;
@@ -961,16 +1149,53 @@ HttpResponse ResearchService::route_post(const HttpRequest& request) {
         if (idempotent_responses_.size() >= options_.max_idempotency_keys)
             throw ApiFailure(503, "service_unavailable", "idempotency key capacity reached; no mutation was executed");
     }
-    const auto [status, response_body] = execute_mutation(request, body ? &*body : nullptr);
-    StoredIdempotentResponse stored{fingerprint, status, response_body};
+    StoredIdempotentResponse pending{fingerprint, 0, {}};
+    try {
+        persist_idempotency_record(*key, pending);
+    } catch (const std::exception& error) {
+        std::cerr << "exsim_api: cannot reserve idempotency key: " << error.what() << "\n";
+        throw ApiFailure(503, "service_unavailable", "cannot persist idempotency reservation; no mutation was executed");
+    }
     {
         std::lock_guard lock(state_mutex_);
-        idempotent_responses_[*key] = stored;
+        idempotent_responses_.emplace(*key, pending);
     }
+    int status = 0;
+    std::string response_body;
     try {
-        append_idempotency_record(*key, stored);
-    } catch (const std::exception&) {
+        auto result = execute_mutation(request, body ? &*body : nullptr);
+        status = result.first;
+        response_body = std::move(result.second);
+    } catch (const ApiFailure& failure) {
+        if (failure.http_status >= 500)
+            throw ApiFailure(503, "service_unavailable", "mutation outcome is uncertain; the idempotency key remains reserved");
+        // Request validation and invalid transitions precede their side effects.
+        // Release only these known rejections, never an I/O or unexpected failure.
+        try {
+            remove_idempotency_reservation(*key);
+        } catch (const std::exception& error) {
+            std::cerr << "exsim_api: cannot release rejected mutation reservation: " << error.what() << "\n";
+            throw ApiFailure(503, "service_unavailable", "cannot persist rejection; the idempotency key remains reserved");
+        }
+        std::lock_guard lock(state_mutex_);
+        idempotent_responses_.erase(*key);
+        throw;
+    } catch (const std::exception& error) {
+        std::cerr << "exsim_api: reserved mutation failed: " << error.what() << "\n";
+        throw ApiFailure(503, "service_unavailable", "mutation outcome is uncertain; the idempotency key remains reserved");
     }
+    StoredIdempotentResponse stored{fingerprint, status, response_body};
+    try {
+        persist_idempotency_record(*key, stored);
+    } catch (const std::exception& error) {
+        std::cerr << "exsim_api: cannot persist mutation response: " << error.what() << "\n";
+        throw ApiFailure(503, "service_unavailable", "cannot persist mutation response; the idempotency key remains reserved");
+    }
+    {
+        std::lock_guard lock(state_mutex_);
+        idempotent_responses_.at(*key) = std::move(stored);
+    }
+
     HttpResponse response = json_response(status, response_body);
     response.set_header("Idempotent-Replayed", "false");
     return response;

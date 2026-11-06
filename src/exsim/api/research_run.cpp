@@ -470,9 +470,15 @@ std::unique_ptr<ResearchRun> ResearchRun::load(const std::filesystem::path& run_
     }
 
     std::lock_guard lock(run->mutex_);
-    if (is_terminal(run->state_) && std::filesystem::exists(run_directory / "events.bin")) {
-        run->final_summary_json_ = research::read_text_file(run_directory / "summary.json");
-        run->artifacts_loaded_ = false;
+    if (is_terminal(run->state_)) {
+        if (std::filesystem::exists(run_directory / "events.bin")) {
+            run->final_summary_json_ = research::read_text_file(run_directory / "summary.json");
+            run->artifacts_loaded_ = false;
+        } else if (run->state_ != ApiRunState::Failed) {
+            throw research::ArtifactError("terminal run is missing its inspection artifacts");
+        }
+        // A failed startup/shutdown or artifact write may have no cache. Retain
+        // its original diagnostics/history instead of rewriting it on every load.
         return run;
     }
     // The service stopped while the run was live: its simulation is gone.
@@ -507,12 +513,9 @@ Timestamp ResearchRun::simulation_time_locked() const noexcept {
 void ResearchRun::transition_locked(ApiRunState to_state, const std::string& reason) {
     history_.push_back({state_, to_state, current_unix_milliseconds(), processed_event_count_locked(), simulation_time_locked(), reason});
     state_ = to_state;
-    try {
-        persist_record_locked();
-    } catch (const std::exception&) {
-        // A state record that cannot be written leaves the in-memory state
-        // authoritative; the next transition retries.
-    }
+    // In-memory effects cannot be rolled back. Propagate the write failure so
+    // the service retains the mutation's idempotency reservation.
+    persist_record_locked();
 }
 
 void ResearchRun::ensure_driver_locked() {
@@ -674,12 +677,30 @@ void ResearchRun::finish_locked(research::RunStop stop, const std::string& reque
     final_summary_json_ = render_summary_locked();
     state_ = previous_state;
     const bool use_requester_reason = terminal_state == ApiRunState::Cancelled && !requester_reason.empty();
-    transition_locked(terminal_state, use_requester_reason ? requester_reason : message);
+    history_.push_back({state_, terminal_state, current_unix_milliseconds(), processed_event_count_locked(), simulation_time_locked(),
+                        use_requester_reason ? requester_reason : message});
+    state_ = terminal_state;
     try {
         persist_artifacts_locked();
+        // Publish the terminal record only after every inspection cache exists.
         persist_record_locked();
-    } catch (const std::exception&) {
-        // The run stays readable from memory for this process.
+    } catch (const std::exception& error) {
+        const std::string persistence_error = "run artifacts could not be persisted: " + std::string(error.what());
+        diagnostics_->outcome_code = "failed_internal_error";
+        diagnostics_->message = persistence_error;
+        history_.push_back({state_, ApiRunState::Failed, current_unix_milliseconds(), processed_event_count_locked(),
+                            simulation_time_locked(), persistence_error});
+        state_ = ApiRunState::Failed;
+        // Keep accurate accounting available in memory even if its cache failed.
+        final_summary_json_ = render_summary_locked();
+        try {
+            persist_record_locked();
+        } catch (const std::exception&) {
+            // Preserve the first failure; the service/executor reports it.
+        }
+        driver_.reset();
+        builder_.reset();
+        throw research::ArtifactError(persistence_error);
     }
     driver_.reset();
     builder_.reset();
@@ -727,10 +748,7 @@ void ResearchRun::step(std::uint64_t canonical_event_count, const std::string& r
     }
     history_.push_back({ApiRunState::Paused, ApiRunState::Paused, current_unix_milliseconds(), processed_event_count_locked(),
                         simulation_time_locked(), reason.empty() ? "stepped " + std::to_string(canonical_event_count) + " canonical events" : reason});
-    try {
-        persist_record_locked();
-    } catch (const std::exception&) {
-    }
+    persist_record_locked();
 }
 
 void ResearchRun::cancel(const std::string& reason) {
@@ -755,7 +773,13 @@ void ResearchRun::cancel(const std::string& reason) {
 void ResearchRun::abandon(const std::string& reason) {
     std::lock_guard lock(mutex_);
     if (is_terminal(state_)) return;
-    fail_locked("failed_internal_error", reason);
+    try {
+        fail_locked("failed_internal_error", reason);
+    } catch (...) {
+        driver_.reset();
+        builder_.reset();
+        throw;
+    }
     driver_.reset();
     builder_.reset();
 }

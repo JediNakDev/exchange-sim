@@ -166,7 +166,8 @@ class ResearchRun {
 public:
     explicit ResearchRun(RunCreateParameters parameters);
     // Restores a run saved by an earlier service process. A run that was not
-    // terminal when the service stopped becomes failed.
+    // terminal when the service stopped becomes failed. A previously failed run
+    // without inspection caches retains its saved diagnostics and history.
     static std::unique_ptr<ResearchRun> load(const std::filesystem::path& run_directory,
                                              std::shared_ptr<const TranslatedExperimentConfig> config);
     ~ResearchRun();
@@ -188,7 +189,9 @@ public:
     // Returns true when the run is still running afterwards.
     bool advance_running_slice(std::uint64_t max_steps);
 
-    // Controls (throw ApiFailure invalid_state_transition when not allowed).
+    // Controls throw ApiFailure invalid_state_transition when not allowed.
+    // Persistence errors propagate after in-memory effects; callers must retain
+    // their idempotency reservation rather than execute the request again.
     void pause(const std::string& reason);
     void resume(const std::string& reason);
     void step(std::uint64_t canonical_event_count, const std::string& reason);
