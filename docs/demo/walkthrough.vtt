@@ -1,0 +1,25 @@
+WEBVTT
+
+00:00:00.000 --> 00:00:03.089
+Research experiments backed by the C++ simulator
+
+00:00:03.089 --> 00:00:10.713
+Configure a synthetic market-making experiment
+
+00:00:10.713 --> 00:00:17.028
+Pause, step scheduler events, and resume a real run
+
+00:00:17.028 --> 00:00:22.153
+Inspect equity, inventory, drawdown, and exact accounting
+
+00:00:22.153 --> 00:00:31.234
+Trace a fill through events, queue position, and its lifecycle
+
+00:00:31.234 --> 00:00:39.141
+Compare three common seeds and expose changed assumptions
+
+00:00:39.141 --> 00:00:44.721
+Read paired differences and dispersion, then drill into a seed
+
+00:00:44.721 --> 00:00:52.413
+Return to the auditable run summary
