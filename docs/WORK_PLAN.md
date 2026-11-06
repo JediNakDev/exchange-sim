@@ -1,6 +1,16 @@
 # Working state and implementation plan
 
-Updated 2026-11-06. This is a recovery checkpoint, not live delegate status. Keep it concise; put detailed evidence in the relevant report or log.
+Updated 2026-11-07. This is a recovery checkpoint, not live delegate status. Keep it concise; put detailed evidence in the relevant report or log.
+
+## Current continuation queue
+
+Read this rollup and [quality/PLAN_2026-11-07.md](quality/PLAN_2026-11-07.md) first. Earlier tables below are historical recovery/delegation records; read their detailed reports only for the relevant task.
+
+- Parent code checkpoint: `75d9960`, branch `exchange-simulator`. First frontend recovery, durable API, TWAP/sweep browser workflow, Linux gates and FER-01 repair are integrated. Source details and receipts: [quality/INTEGRATION_2026-11-07.md](quality/INTEGRATION_2026-11-07.md), [quality/FILL_IDENTITY_REPAIR_2026-11-07.md](quality/FILL_IDENTITY_REPAIR_2026-11-07.md).
+- Current frontend: 82 ordinary invariants, type/lint/build; FER-01 unchanged independent reproducer plus three ordinary stationary/pending/off-page browser cases pass. Prior backend code is unchanged: API64 release/ASan, Linux GCC64/Clang64, HTTP9. Do not add historical and current gate counts together or claim sixteen ordinary browser cases were rerun; sixteen are now discovered by CI.
+- Pending independent results: integrated API review `ec50c01c`; new narrow selected-fill repair re-check `2381f721`. Resume on completion notifications, never polling. The earlier frontend re-check repaired-status conclusions and FER-01 finding are preserved in its report.
+- Deployment remains the old installed pair. Copied `production-20261107-candidate-7ca1014` is NOT promotable because it contains FER-01. After clearance, create a fresh verified bundle, check active-run quiescence, take a consistent offline full-data backup, preflight a restored copy, promote and publish. Old writable API binaries cannot read new per-key idempotency protection.
+- Preserve `.claude/`, `output/` and interrupted worktrees. No new PR, push, production restart or private-data mutation in this quality pass yet.
 
 ## User decisions and constraints
 
@@ -245,3 +255,6 @@ Worktree paths and evidence commits follow in completion reports. Parent remaini
 - Frontend re-check `064d0df2` completed in `/Users/jedi/.t3/worktrees/lob/t3-a4a5cb93`. Report/tests source `7a5d995` integrated as `abdf8a5`; evidence checkpoint `24fe51a` read. FR-01..04 passed its independent browser checks. It found FER-01: the selected-fill key omitted event identity and could show the prior sibling fill's evidence.
 - Parent reproduced FER-01 against the old artifact, then added event position to the key and checked returned order/event identity before precedence. The unchanged independent browser reproducer now passes; three ordinary Chromium cases pass for committed/pending/off-page selection and cancellation. Six presentation/helper probes moved into normal test coverage (original review files preserved). Frontend82, types/lint/build pass. No C++ gate was rerun for this readonly UI fix. Exact logs, scopes and receipt: [quality/FILL_IDENTITY_REPAIR_2026-11-07.md](quality/FILL_IDENTITY_REPAIR_2026-11-07.md).
 - Old copied candidate `production-20261107-candidate-7ca1014` is blocked from promotion by this finding; it must be replaced with a new reviewed frontend bundle. No installed service or data changed. Next: new independent narrow FER-01 re-check, await integrated API review `ec50c01c`, fix any findings, then recreate the candidate and proceed with consistent backup/restored-data preflight and promotion.
+
+
+- FER-01 production repair committed `75d9960`. New independent narrow re-check launched from that source: `node:delegated-task:command%3Amcp%3Adbfd70d4-c620-498e-9be2-f818534d0cbb%3Adelegate-task%3A2381f721-7ac4-4b86-b44f-253466ec20db`, GPT/xhigh, harness isolation. Report target `docs/reviews/FILL_IDENTITY_RECHECK_2026-11-07.md`; use the new copied standalone build `slpULgNACN27FJgew-XPE`, not the old candidate. Scope includes current ledger/related events, same-order siblings, cancellation and paging. No production edit, new native/Next build or unrelated broad audit. Parent awaits this and API review `ec50c01c` via notifications.
