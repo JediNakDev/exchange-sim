@@ -50,7 +50,7 @@ Remove this endpoint with `tailscale serve --https=10000 off`.
 
 ## Installed macOS deployment
 
-The demonstration host runs copied release artifacts under `$HOME/Library/Application Support/exsim/releases/`, independent of the external-drive source checkout. The C++ API remains pinned to its validated `production-20261106` bundle; the redesigned frontend uses the `production-20261106-workstation` bundle. Persistent data is at `$HOME/Library/Application Support/exsim/research-data/`.
+The demonstration host runs copied release artifacts under `$HOME/Library/Application Support/exsim/releases/`, independent of the external-drive source checkout. The C++ API remains pinned to its validated `production-20261106` bundle; the redesigned frontend uses the `production-20261106-workstation-final` bundle. Persistent data is at `$HOME/Library/Application Support/exsim/research-data/`.
 
 Two LaunchAgents start at user login and restart on exit:
 

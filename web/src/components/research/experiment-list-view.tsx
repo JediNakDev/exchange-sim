@@ -71,9 +71,9 @@ export function ExperimentListView() {
       />
       {experimentList.failure ? <ApiFailureAlert failure={experimentList.failure} /> : null}
       <dl className="study-summary" aria-label="Research activity">
-        <div><dt>Experiments</dt><dd>{experimentList.isLoading ? "..." : experiments.length}</dd></div>
-        <div><dt>Completed runs</dt><dd>{experimentList.isLoading ? "..." : completedRuns}</dd></div>
-        <div><dt>In progress or paused</dt><dd>{experimentList.isLoading ? "..." : activeRuns}</dd></div>
+        <div><dt>Experiments</dt><dd>{experimentList.data ? experiments.length : experimentList.isLoading ? "..." : "n/a"}</dd></div>
+        <div><dt>Completed runs</dt><dd>{experimentList.data ? completedRuns : experimentList.isLoading ? "..." : "n/a"}</dd></div>
+        <div><dt>In progress or paused</dt><dd>{experimentList.data ? activeRuns : experimentList.isLoading ? "..." : "n/a"}</dd></div>
       </dl>
       <section className="study-library" aria-labelledby="study-library-title">
         <div className="study-library-heading">
