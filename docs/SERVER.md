@@ -38,7 +38,9 @@ loop:
 * `--busy-poll` spins with a zero timeout; `--cpu N` pins the thread
   (Linux; ignored with a warning on macOS).
 * Startup allocates everything (engine pools, token tables, stores,
-  connection slots, MD ring). After the first `poll` the hot path must not
+  connection slots, MD ring, bounded journal handoff). Runtime file writes
+  run on a persistence worker; order state remains on the reactor. After
+  the first `poll` the hot path must not
   allocate. The allocation-guard end-to-end test enforces this.
 
 ## 2. Gateway contract

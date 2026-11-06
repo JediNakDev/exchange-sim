@@ -5,6 +5,7 @@
 #include <fstream>
 #include <iterator>
 #include <system_error>
+#include <sys/stat.h>
 namespace exsim::sim {
 namespace {
 bool write_all(int fd,const unsigned char* p,std::size_t n) noexcept {
@@ -34,9 +35,18 @@ JournalWriter::JournalWriter(const std::string& path,const JournalSetup& setup) 
         add(header,static_cast<std::uint64_t>(i.reference_price));add(header,static_cast<unsigned>(i.initial_phase));
     }
     add(header,hash_bytes(header));
-    fd_=::open(path.c_str(),O_WRONLY|O_CREAT|O_TRUNC,0600);
+    // Nonblocking open avoids waiting for a FIFO reader. Validate the
+    // actual descriptor before truncating so special files are never used.
+    fd_=::open(path.c_str(),O_WRONLY|O_CREAT|O_NONBLOCK|O_CLOEXEC,0600);
     if(fd_<0) throw std::system_error(errno,std::generic_category(),"journal open");
-    try { if(!write_all(fd_,header.data(),header.size())) throw std::system_error(errno,std::generic_category(),"journal header"); }
+    try {
+        struct stat info{};
+        if(::fstat(fd_,&info)!=0) throw std::system_error(errno,std::generic_category(),"journal stat");
+        if(!S_ISREG(info.st_mode)) throw std::invalid_argument("journal destination must be a regular file");
+        if(::ftruncate(fd_,0)!=0 || ::lseek(fd_,0,SEEK_SET)<0)
+            throw std::system_error(errno,std::generic_category(),"journal truncate");
+        if(!write_all(fd_,header.data(),header.size())) throw std::system_error(errno,std::generic_category(),"journal header");
+    }
     catch(...) { ::close(fd_);fd_=-1;throw; }
 }
 JournalWriter::~JournalWriter() { if(fd_>=0) ::close(fd_); }

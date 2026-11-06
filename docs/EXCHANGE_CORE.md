@@ -242,8 +242,27 @@ and shutdown flushes).
   undone); with `continue` trading goes on without a journal. Buffered
   records not yet written at the failure are lost, so `journal_records`
   counts accepted appends, not records on disk.
-* `flush_journal()` writes buffered records and the footer; the destructor
-  flushes too but cannot report errors.
+* The default library writer is synchronous: `flush_journal()` writes buffered
+  records and the footer; its destructor flushes but cannot report errors.
+  The real-time runtime supplies `runtime::JournalWorker` as the core's journal
+  policy. Reactor appends and flush requests enter a startup-allocated SPSC
+  queue with 16,384 usable entries. The persistence thread owns subsequent
+  writes, seeks and close. Queue overflow and worker I/O failure use the same
+  configured failure policy; timers observe worker failure even when periodic
+  flushing is disabled. Counts mean accepted queue entries, not durable writes.
+* Runtime `flush_journal()` acknowledges request acceptance. `journal_drained()`
+  acknowledges that all submitted entries reached a successful footer write.
+  Repeated flush requests with no intervening command share that request.
+  Shutdown waits within the existing session drain deadline. On expiry the
+  journal is marked failed, and the process returns failure. Worker teardown
+  waits at most another 100 ms, then detaches a stalled writer with ownership
+  of its buffers and file descriptor. It never accesses the destroyed runtime.
+  An incomplete journal cannot be treated as a complete capture. A detached
+  kernel write may outlive the runtime until it returns or the process exits.
+* Journal destinations must resolve to regular files. Nonblocking open and
+  descriptor validation reject pipes/devices before truncation. Setup may do
+  blocking regular-file I/O before the reactor starts. Successful writes do
+  not imply `fsync` durability against power loss.
 
 ## 10. Configuration keys added
 

@@ -29,6 +29,7 @@
 #include "exsim/server/exchange_core.hpp"
 #include "exsim/server/runtime/admin_endpoint.hpp"
 #include "exsim/server/runtime/gateway_sessions.hpp"
+#include "exsim/server/runtime/journal_worker.hpp"
 #include "exsim/server/runtime/market_data_runtime.hpp"
 #include "exsim/server/runtime/order_entry_endpoint.hpp"
 #include "exsim/server/runtime/order_entry_gateways.hpp"
@@ -67,7 +68,7 @@ template <class... Gateways>
 class BasicServerRuntime {
 public:
     using Sessions = runtime::GatewaySessions<Gateways...>;
-    using Core = ExchangeCore<Sessions, runtime::MarketDataRuntime, runtime::ServerClock>;
+    using Core = ExchangeCore<Sessions, runtime::MarketDataRuntime, runtime::ServerClock, runtime::JournalWorker<>>;
     template <class Gateway>
     using Endpoint = runtime::OrderEntryEndpoint<Gateway, Core>;
 
@@ -260,6 +261,15 @@ private:
             (endpoint<Gateways>().close_all_now(), ...);
             log("end of day: drain timed out, closed the remaining connections\n");
         }
+        if (!journal_drain_started_) {
+            journal_drain_started_ = true;
+            (void)core_.flush_journal();
+        }
+        if (!core_.journal_drained()) {
+            if (now < drain_deadline_ns_) return;
+            core_.abort_journal();
+            log("end of day: journal drain timed out; journal FAILED\n");
+        }
         finished_ = true;
     }
 
@@ -298,6 +308,7 @@ private:
     runtime::AdminEndpoint<Core> admin_;
     std::atomic<bool> external_shutdown_requested_{false};
     bool end_of_day_started_ = false;
+    bool journal_drain_started_ = false;
     bool finished_ = false;
     std::uint64_t drain_deadline_ns_ = 0;
 };

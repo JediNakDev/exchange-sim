@@ -93,6 +93,15 @@ section 8. Runtime details:
   Session. The server waits up to 3 seconds for clients to answer and for
   output to drain, then closes what is left and exits.
 
+Runtime journaling uses a bounded queue to a persistence worker. File writes,
+seeks and close run there, preserving the canonical journal format. Overflow
+or I/O failure follows `journal.on_failure`; the command already applied to
+the engine is not rolled back. Shutdown waits for the journal within the
+session drain deadline and reports failure if it cannot finish. Worker
+teardown adds at most 100 ms before detaching stalled I/O with owned state.
+Only regular-file destinations are accepted. See [EXCHANGE_CORE.md](EXCHANGE_CORE.md)
+for the persistence and durability contract.
+
 ## 2. Client tools
 
 `exsim_client`: OUCH 4.2 order entry from the command line.

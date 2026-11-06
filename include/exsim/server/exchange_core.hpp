@@ -93,7 +93,7 @@ enum class JournalState : std::uint8_t { Disabled = 0, Healthy = 1, Failed = 2 }
 // MassCancel of unbind, so it is never refused (EXCHANGE_CORE.md section 5).
 inline constexpr std::size_t kDeferredCommandSlack = 64;
 
-template <typename Sessions, typename MarketData, CoreClock Clock>
+template <typename Sessions, typename MarketData, CoreClock Clock, typename Journal = sim::JournalWriter>
     requires CoreMarketData<MarketData>
 class ExchangeCore {
 public:
@@ -258,6 +258,9 @@ public:
         }
         timer_now_ = std::max({loop_now, timer_now_, last_command_ts_});
         const Timestamp now_for_timers = timer_now_;
+        if constexpr (requires(const Journal& journal) { journal.healthy(); }) {
+            if (journal_ && !journal_failed_ && !journal_->healthy()) on_journal_failure();
+        }
         if (!shutdown_ && now_for_timers >= day_end_) {
             shutdown_pending_ = true;  // the trading day is over
         }
@@ -427,8 +430,9 @@ public:
     [[nodiscard]] bool bots_enabled() const noexcept { return bots_enabled_; }
     [[nodiscard]] std::span<const BotEntry> bots() const noexcept { return bot_entries_; }
 
-    // Writes buffered journal records and a valid footer. false: journaling
-    // disabled or failed (the failure policy has then been applied).
+    // Requests a flush. With the synchronous writer this writes the footer;
+    // with the runtime worker journal_drained() acknowledges completion.
+    // false: disabled or failed (the failure policy has then been applied).
     bool flush_journal() noexcept {
         if (!journal_ || journal_failed_) {
             return false;
@@ -443,6 +447,21 @@ public:
 
     [[nodiscard]] JournalState journal_state() const noexcept {
         return !journal_ ? JournalState::Disabled : journal_failed_ ? JournalState::Failed : JournalState::Healthy;
+    }
+
+    [[nodiscard]] bool journal_drained() const noexcept {
+        if constexpr (requires(const Journal& journal) { journal.drained(); }) {
+            return !journal_ || journal_failed_ || journal_->drained();
+        }
+        return true;
+    }
+
+    // The runtime's drain deadline expired. The journal is incomplete and
+    // must be reported as failed even if a blocked write later completes.
+    void abort_journal() noexcept {
+        if (!journal_ || journal_failed_) return;
+        if constexpr (requires(Journal& journal) { journal.abort(); }) journal_->abort();
+        on_journal_failure();
     }
 
     // ---- Queries -----------------------------------------------------------------
@@ -951,7 +970,7 @@ private:
     DeferredCommandQueue deferred_;
     BotRegistry bots_;
     std::vector<BotEntry> bot_entries_;
-    std::optional<sim::JournalWriter> journal_;
+    std::optional<Journal> journal_;
     CoreCounters counters_{};
 
     Timestamp day_start_;

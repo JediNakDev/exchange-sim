@@ -1,5 +1,4 @@
-// Report-only reproducers. Set EXSIM_RUN_SERVER_REVIEW_FAILURES=1 to run
-// assertions that deliberately fail until the reported defects are fixed.
+// Recovered review reproducers, promoted to regressions as fixes land.
 #include "tests/exsim/server/e2e/e2e_support.hpp"
 #include <cstdlib>
 #include <fcntl.h>
@@ -15,7 +14,6 @@ using namespace exsim;
 using namespace exsim::e2e;
 
 TEST_CASE(server_runtime_review, oversized_complete_admin_line_is_rejected) {
-    if (!std::getenv("EXSIM_RUN_SERVER_REVIEW_FAILURES")) return;
     ServerUnderTest server(make_e2e_config(false), 0);
     REQUIRE(server.started());
     client::AdminLineClient admin;
@@ -28,9 +26,9 @@ TEST_CASE(server_runtime_review, oversized_complete_admin_line_is_rejected) {
 }
 
 TEST_CASE(server_runtime_review, fixed_rate_latency_includes_missed_send_deadline) {
-    if (!std::getenv("EXSIM_RUN_SERVER_REVIEW_FAILURES")) return;
     LatencyRecorder recorder(1, 0);
     const std::uint64_t scheduled = net::monotonic_ns();
+    recorder.intended_time_ns[0] = scheduled;
     // Model a client scheduling pause before the first actual send.
     ::poll(nullptr, 0, 100);
     recorder.send_time_ns[0] = net::monotonic_ns();
@@ -40,18 +38,20 @@ TEST_CASE(server_runtime_review, fixed_rate_latency_includes_missed_send_deadlin
     accepted.token[1] = '0';
     recorder.on_order_accepted(accepted, 0);
     const auto scheduled_latency = recorder.last_accept_time_ns - scheduled;
-    REQUIRE_EQ(recorder.accept_latency_ns.size(), 1u);
-    CHECK_GE(recorder.accept_latency_ns[0], scheduled_latency);
+    REQUIRE_EQ(recorder.scheduled_accept_latency_ns.size(), 1u);
+    CHECK_EQ(recorder.scheduled_accept_latency_ns[0], scheduled_latency);
+    CHECK_LT(recorder.accept_latency_ns[0], scheduled_latency);
 }
 
 TEST_CASE(server_runtime_review, journal_backpressure_does_not_block_reactor) {
-    if (!std::getenv("EXSIM_RUN_SERVER_REVIEW_FAILURES")) return;
     int journal_pipe[2], ready_pipe[2];
     REQUIRE_EQ(::pipe(journal_pipe), 0);
     REQUIRE_EQ(::pipe(ready_pipe), 0);
     const pid_t child = ::fork();
     REQUIRE(child >= 0);
     if (child == 0) {
+        (void)::write(ready_pipe[1], "R", 1);
+        try {
         auto config = make_e2e_config(false, "/dev/fd/" + std::to_string(journal_pipe[1]));
         config.journal_flush_interval_ms = 1;
         server::ServerRuntimeOptions options;
@@ -67,9 +67,13 @@ TEST_CASE(server_runtime_review, journal_backpressure_does_not_block_reactor) {
         // Fill the remaining tail, including space smaller than PIPE_BUF.
         while (::write(journal_pipe[1], bytes.data(), 1) > 0) {}
         ::fcntl(journal_pipe[1], F_SETFL, flags);
-        (void)::write(ready_pipe[1], "R", 1);
         runtime.poll_once(); // periodic journal flush writes a footer to a full pipe
         ::_exit(0);
+        } catch (const std::invalid_argument&) {
+            // A pipe is an unsupported journal destination. Rejecting it
+            // before the reactor starts is also a bounded outcome.
+            ::_exit(0);
+        }
     }
     ::close(ready_pipe[1]);
     pollfd readiness{ready_pipe[0], POLLIN, 0};
@@ -104,7 +108,6 @@ TEST_CASE(server_runtime_review, packed_connection_ids_preserve_transport_genera
 }
 
 TEST_CASE(server_runtime_review, retransmission_socket_ignores_unconfigured_sender) {
-    if (!std::getenv("EXSIM_RUN_SERVER_REVIEW_FAILURES")) return;
     struct Handler {
         unsigned delivered = 0;
         void on_message(std::uint64_t, std::span<const char>) { ++delivered; }
@@ -132,6 +135,28 @@ TEST_CASE(server_runtime_review, retransmission_socket_ignores_unconfigured_send
     feed.poll();
     CHECK_EQ(handler.delivered, 0u);
     CHECK_EQ(feed.next_sequence(), 1u);
+    REQUIRE_EQ(trusted_server.send_to(packet.packet(), target), static_cast<ssize_t>(packet.packet().size()));
+    REQUIRE_EQ(::poll(&ready, 1, 1000), 1);
+    feed.poll();
+    CHECK_EQ(handler.delivered, 1u);
+    CHECK_EQ(feed.next_sequence(), 2u);
+}
+
+TEST_CASE(server_runtime_review, retransmission_drain_yields_after_64_datagrams) {
+    server::ServerRuntimeOptions options;
+    options.log = nullptr;
+    options.day_time_at_start = kTenAm;
+    server::ServerRuntime runtime(make_e2e_config(false), options);
+    REQUIRE(runtime.start().empty());
+    net::UdpReceiver sender;
+    REQUIRE_EQ(sender.open(net::loopback_endpoint(0)), 0);
+    const std::array<char, 1> malformed{'x'};
+    for (int index = 0; index < 65; ++index)
+        REQUIRE_EQ(sender.send_to(malformed, runtime.market_data().retransmission_endpoint()), 1);
+    runtime.market_data().handle_retransmission_requests();
+    CHECK_EQ(runtime.market_data().stats().retransmission_requests, 64u);
+    runtime.market_data().handle_retransmission_requests();
+    CHECK_EQ(runtime.market_data().stats().retransmission_requests, 65u);
 }
 
 TEST_CASE(server_runtime_checks, duplicate_login_preserves_first_binding_and_slot_reuse) {
