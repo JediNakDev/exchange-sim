@@ -8,7 +8,7 @@ type Schemas = components["schemas"];
 
 export const FIRST_SLICE_MASTER_SEEDS = ["101", "202", "303", "404", "505"];
 
-export function createFixedSpreadBaselineConfig(quoteWidthTicks: string): Schemas["ExperimentConfig"] {
+export function createFixedSpreadBaselineConfig(halfSpreadTicks: string): Schemas["ExperimentConfig"] {
   return {
     marketWorld: "interactive_synthetic",
     instrument: {
@@ -50,10 +50,11 @@ export function createFixedSpreadBaselineConfig(quoteWidthTicks: string): Schema
     },
     strategy: {
       strategyKind: "fixed_spread_market_maker",
-      quoteWidthTicks,
+      halfSpreadTicks,
       quoteQuantity: "100",
-      requoteOnVisibleMidChange: true,
-      minimumRequoteIntervalNs: "0",
+      requoteIntervalNs: "0",
+      requoteThresholdTicks: "1",
+      postOnly: true,
     },
     seedSet: { masterSeeds: [...FIRST_SLICE_MASTER_SEEDS] },
     latency: {
@@ -78,12 +79,12 @@ export const BASELINE_CONFIGURATIONS: Schemas["BaselineConfiguration"][] = [
     baselineId: "fixed-spread-2-ticks",
     name: "Fixed spread, 2-tick width",
     description: "Quotes one tick either side of the strategy-visible mid, joining the background market maker at the touch.",
-    config: createFixedSpreadBaselineConfig("2"),
+    config: createFixedSpreadBaselineConfig("1"),
   },
   {
     baselineId: "fixed-spread-4-ticks",
     name: "Fixed spread, 4-tick width",
     description: "Quotes two ticks either side of the strategy-visible mid, one level behind the touch.",
-    config: createFixedSpreadBaselineConfig("4"),
+    config: createFixedSpreadBaselineConfig("2"),
   },
 ];

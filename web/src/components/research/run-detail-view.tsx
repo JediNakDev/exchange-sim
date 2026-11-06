@@ -168,6 +168,7 @@ function SummaryPanel({ summary }: { summary: ApiSchemas["RunSummary"] }) {
               <TableRow>
                 <TableHead>Horizon</TableHead>
                 <TableHead className="text-right">Available</TableHead>
+                <TableHead className="text-right">No mark</TableHead>
                 <TableHead className="text-right">Censored</TableHead>
                 <TableHead className="text-right">Total (USD)</TableHead>
                 <TableHead className="text-right">Mean per share (derived)</TableHead>
@@ -178,6 +179,7 @@ function SummaryPanel({ summary }: { summary: ApiSchemas["RunSummary"] }) {
                 <TableRow key={markout.horizonNs}>
                   <TableCell>{formatDurationNs(markout.horizonNs)}</TableCell>
                   <TableCell className="text-right font-mono tabular-nums">{markout.availableFillCount}</TableCell>
+                  <TableCell className="text-right font-mono tabular-nums">{markout.unavailableFillCount}</TableCell>
                   <TableCell className="text-right font-mono tabular-nums">{markout.censoredFillCount}</TableCell>
                   <TableCell className="text-right font-mono tabular-nums">{formatDecimalForDisplay(markout.totalMarkout, { signDisplay: "always" })}</TableCell>
                   <TableCell className="text-right font-mono tabular-nums">{formatDecimalForDisplay(markout.meanMarkoutPerShare, { signDisplay: "always" })}</TableCell>

@@ -4,7 +4,7 @@ Date: 2026-11-04. Contract: [`docs/api/openapi.yaml`](api/openapi.yaml) (OpenAPI
 
 This is the HTTP contract between the C++ research service and its clients: the Next.js research UI in `web/`, the CLI and research scripts. PRODUCT.md explains why it is HTTP and OpenAPI rather than tRPC. The C++ service is the source of truth for matching, accounting and simulated time. Clients display what the API returns and never recompute matching or ledger results.
 
-So far only the mock service in `web/mock-server/` implements this contract. The C++ service has not implemented it yet. The mock is deterministic and seeded, and its responses are validated against the schema in `web/tests/`. Treat the mock as an executable example of the contract, not as the reference simulation.
+The C++ service in `tools/exsim_api/` implements this contract using the deterministic research runner. `bun run dev` in `web/` builds and starts it with Next.js. `bun run dev:mock` explicitly selects the TypeScript mock for UI-only work. Real-service response schemas are checked by `web/e2e/exsim-api-binary.e2e.ts`.
 
 ## Conventions
 
@@ -86,7 +86,7 @@ A comparison of two experiments with no shared completed seed, or with different
 | `paused` | `resume`, `step`, `cancel` |
 | `completed`, `cancelled`, `failed` | none |
 
-`GET /v1/runs/{runId}` returns `allowedActions`, so clients do not need to hard-code this table. `step` advances a paused run by `eventCount` canonical events and leaves it paused. Pause takes effect at the next scheduled event boundary. A run created with `startPaused: true` stays paused at event 0. A UI disconnect never changes a run. Summaries are `availability: partial` until the run is terminal. Cancelled and failed runs keep their residual positions and `terminalDiagnostics`.
+`GET /v1/runs/{runId}` returns `allowedActions`, so clients do not need to hard-code this table. `step` advances a paused run by at least `canonicalEventCount` canonical events and leaves it paused. It processes whole scheduler events, so the count can overshoot when a scheduler event emits several canonical events. Pause takes effect at the next scheduled event boundary. A run created with `startPaused: true` stays paused at event 0. A UI disconnect never changes a run. Summaries are `availability: partial` until the run is terminal. Cancelled and failed runs keep their residual positions and `terminalDiagnostics`.
 
 ### Polling cadence
 
@@ -167,7 +167,7 @@ The UI pages map onto these endpoints:
 
 ### Coverage gaps (deferred)
 
-- **Q4 (parent-order execution):** `twap_execution` is in the strategy enum, but `/v1/service` lists only `fixed_spread_market_maker` in `executableStrategyKinds`, and other strategies are rejected with `validation_failed`. The first vertical slice in PRODUCT.md is market making only. Parent-order metrics (implementation shortfall, signed slippage, completion, residual quantity) and their `MetricKey` values will be added once the runner executes TWAP. The UI does not offer TWAP yet.
+- **Q4 (parent-order execution):** `twap_execution` is in the strategy enum, but `/v1/service` lists `fixed_spread_market_maker` and `inventory_aware_market_maker` in `executableStrategyKinds`, and other strategies are rejected with `validation_failed`. The first vertical slice in PRODUCT.md is market making only. Parent-order metrics (implementation shortfall, signed slippage, completion, residual quantity) and their `MetricKey` values will be added once the runner executes TWAP. The UI does not offer TWAP yet.
 - **Q5 (hostile markets):** price jumps, halts and stale or gapped data inside deterministic runs need scenario events that the runner has not defined yet. v1 exposes limit breaches, terminal state and real-time feed gaps only.
 - **Historical worlds:** `historical_reconstruction` and `historical_counterfactual_replay` appear in `MarketWorld` so that manifests and comparisons can label them. They return `unsupported_market_world` until a fill and queue model exists.
 - **Streaming:** this version uses polling. A browser-compatible stream from the long-lived control service is deferred until interactive monitoring needs it.
@@ -175,6 +175,47 @@ The UI pages map onto these endpoints:
 
 ## Alignment with the deterministic research runner
 
-The runner is being built in parallel on `t3/deterministic-research-runner`. When this contract was committed, that branch (at `84158e0`) had not yet committed `docs/RESEARCH_RUNNER.md`, so the artifact names above have not been checked against the runner.
+The service links the runner library directly. One executor thread advances independent
+`Simulation<Strategy>` instances in round-robin slices, with a mutex per run and at
+most eight live simulations by default (including paused runs). This keeps event-boundary
+controls synchronous without subprocess command/control IPC. HTTP work uses separate
+bounded connection threads. Simulation and accounting remain entirely in C++.
 
-Until they are, this contract assumes the artifact set in PRODUCT.md ("Run artifacts and metrics"): manifest, canonical event log, lifecycle log, ledger, summary and downsampled series. It also assumes `fnv1a_64` canonical digests from docs/SCENARIOS.md. When the runner document lands, it should either use the `schemaVersion` names in the versioning table or record its own names here as differences. The C++ adapter would then translate between the two.
+`docs/RESEARCH_RUNNER.md` describes the CLI disk formats, `exsim.research.*/1`.
+Those files are not HTTP response bodies. The API adapter performs these mappings:
+
+| Area | HTTP mapping |
+| --- | --- |
+| Config | Validate JSON shape, translate to the runner's configuration text and apply runner validation. Support interactive synthetic fixed-spread and inventory-aware market makers. TWAP and historical worlds remain rejected. |
+| Strategy | Expose `halfSpreadTicks`, `quoteQuantity`, `requoteIntervalNs`, `requoteThresholdTicks`, `postOnly`, and the inventory skew/unit/size controls directly. The earlier mock-only quote width fields are replaced. |
+| Latency | Jitter is an added delay in `[0, jitterNs]` on every channel, rather than symmetric jitter. Optional `strategyComputeNs` and `orderChannelFifo` map to the runner's compute and order-channel settings. |
+| Seeds | Preserve runner stream labels (`strategy`, `latency`, `agent.<index>.<kind>.<name>`) and values. `DerivedSeed.streamName` is a string, allowing multiple agents of each kind. |
+| Digests | SHA-256 of stable serialized JSON configuration and HTTP manifest. Run event/ledger digests are the runner's FNV-1a64 canonical engine-event and ledger encodings, not a hash of the richer HTTP event rows. |
+| Artifacts | Runner writer stores its own files under `runs/<runId>/runner/`, including its journal and replay verification. The adapter stores HTTP manifest/summary, run state/history, and versioned local binary indexes in the enclosing directory. Binary indexes require the same record layout and are not a portable export format. |
+| Events | Replay runner commands through a shadow engine to recover exchange events, then attach lifecycle, request, feed and execution-report deliveries. Index canonical positions for pagination and inspection. Record replace and rested/rejected report stages explicitly. |
+| Orders | Group strategy requests and fills by client order id across replacements. Lifecycle and fill queries accept every exchange id assigned to that order. |
+| Books | Exchange truth is replayed from event zero with all levels and counts. Strategy-visible book is only the last delivered top of book, with unknown order/own-share counts null. It does not expose future exchange state. |
+| Accounting | Use runner ledger, FIFO, carried mark and metric records. Missing mark yields null HTTP equity even when flat. Spread capture uses the mid immediately before the fill-producing command. Exact values have fixed 4/5 digit scales; derived statistics have 6 digits. |
+| Markouts | `measured`, `unavailable`, `censored` become `available`, `unavailable_no_mark`, `censored_past_run_end`. `strategy_visible_mid` marking is rejected. |
+| Series | Downsample with the last sample per bucket; inventory and equity come from samples, raw exchange mid from bid/ask, quoted spread from visible bid/ask, and drawdown from the running equity peak. |
+| Comparison | Pair completed runs by master seed, compute exact differences before derived dispersion, and align sample series. Different worlds or missing shared completed seeds return noncomparable results. |
+| Terminal states | Time/empty queue complete; cancellation cancels. Event/wall limits, recorder backpressure, queue/engine capacity, ledger failures, replay mismatch and other failures have explicit outcome codes in OpenAPI. |
+| Connections | Return `not_running` with no sessions. This research process does not monitor the separate real-time server. |
+
+Pause occurs between scheduler steps. Step processes whole scheduler events until the
+requested canonical count is met, and may complete the run. The service applies its
+canonical-event and active-wall-time bounds in addition to runner bounds. Active runs
+are failed on service shutdown; completed artifacts remain queryable after restart.
+An abrupt process loss cannot reconstruct the in-memory partial inspection indexes.
+
+HTTP limits: 32 connections, 1000 requests per connection, 8 KiB request line,
+16 KiB/64 headers, 1 MiB body, 64 JSON nesting levels, and 10 second socket
+read/write timeouts. Excess idempotency keys (100,000 retained by default) reject
+new mutations with `503 service_unavailable` before execution; existing keys replay.
+The data directory is for one service process. There is no multi-process writer
+coordination or remote authentication.
+
+The runner QA branch at `ea8642b` adds stronger artifact verification, work budgets,
+and pre-command FIFO evidence without changing the public record layout consumed
+here. Its current differences table was read in the QA owner's checkout. Recheck
+API tests when those fixes are integrated; do not copy disk JSON into HTTP bodies.

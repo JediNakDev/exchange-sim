@@ -186,11 +186,11 @@ export class MockResearchService {
   private seedFirstVerticalSliceFixtures(): void {
     const fixtureCreatedAtMs = Date.parse("2026-11-03T09:00:00.000Z");
     const fixtures = [
-      { experimentId: "exp_fixedspreadw2", baselineId: "fixed-spread-2-ticks", width: "2", name: "Fixed spread 2 ticks (baseline)" },
-      { experimentId: "exp_fixedspreadw4", baselineId: "fixed-spread-4-ticks", width: "4", name: "Fixed spread 4 ticks (candidate)" },
+      { experimentId: "exp_fixedspreadw2", baselineId: "fixed-spread-2-ticks", width: "2", halfSpreadTicks: "1", name: "Fixed spread 2 ticks (baseline)" },
+      { experimentId: "exp_fixedspreadw4", baselineId: "fixed-spread-4-ticks", width: "4", halfSpreadTicks: "2", name: "Fixed spread 4 ticks (candidate)" },
     ];
     fixtures.forEach((fixture, fixtureIndex) => {
-      const config = createFixedSpreadBaselineConfig(fixture.width);
+      const config = createFixedSpreadBaselineConfig(fixture.halfSpreadTicks);
       this.experimentsById.set(fixture.experimentId, {
         experimentId: fixture.experimentId,
         name: fixture.name,
@@ -442,8 +442,8 @@ export class MockResearchService {
     if (BigInt(request.config.bounds.endSimulationTimeNs) === 0n || BigInt(request.config.bounds.endSimulationTimeNs) > MOCK_MAX_SIMULATED_DURATION_NS) {
       semanticIssues.push({ fieldPath: "/config/bounds/endSimulationTimeNs", issue: "must be between 1 ns and 600 s of simulated time in the mock service" });
     }
-    if (request.config.strategy.strategyKind === "fixed_spread_market_maker" && BigInt(request.config.strategy.quoteWidthTicks) === 0n) {
-      semanticIssues.push({ fieldPath: "/config/strategy/quoteWidthTicks", issue: "must be at least 1" });
+    if (request.config.strategy.strategyKind === "fixed_spread_market_maker" && BigInt(request.config.strategy.halfSpreadTicks) === 0n) {
+      semanticIssues.push({ fieldPath: "/config/strategy/halfSpreadTicks", issue: "must be at least 1" });
     }
     if (request.config.instrument.tickSize === "0.0000") semanticIssues.push({ fieldPath: "/config/instrument/tickSize", issue: "must be positive" });
     request.config.scenario.backgroundAgents.forEach((agent, agentIndex) => {

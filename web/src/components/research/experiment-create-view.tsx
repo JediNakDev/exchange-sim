@@ -25,7 +25,8 @@ import { humanizeEnumValue } from "@/lib/research-labels";
 import { cn } from "@/lib/utils";
 
 type ExperimentConfig = ApiSchemas["ExperimentConfig"];
-type FixedSpreadConfig = ApiSchemas["FixedSpreadMarketMakerConfig"];
+/** Both executable market makers share the runner's quoting parameters; the inventory-aware one adds a skew. */
+type QuotingStrategyConfig = ApiSchemas["FixedSpreadMarketMakerConfig"] | ApiSchemas["InventoryAwareMarketMakerConfig"];
 
 const NO_PARENT_EXPERIMENT = "none";
 
@@ -160,6 +161,7 @@ export function ExperimentCreateView() {
   const [previewOutcome, setPreviewOutcome] = useState<PreviewOutcome | null>(null);
   const [requestFailure, setRequestFailure] = useState<ApiSchemas["ApiError"] | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [startRunsPaused, setStartRunsPaused] = useState(false);
 
   const firstBaseline = baselineList.data?.items[0] ?? null;
   const draft = editedDraft ?? (firstBaseline ? draftFromBaseline(firstBaseline) : null);
@@ -183,8 +185,8 @@ export function ExperimentCreateView() {
     setEditedDraft(nextDraft);
     setRequestFailure(null);
   };
-  const strategyConfig = draft.config.strategy.strategyKind === "fixed_spread_market_maker" ? (draft.config.strategy as FixedSpreadConfig) : null;
-  const updateFixedSpread = (applyChange: (nextStrategy: FixedSpreadConfig) => void) => updateDraft((nextDraft) => applyChange(nextDraft.config.strategy as FixedSpreadConfig));
+  const strategyConfig: QuotingStrategyConfig | null = draft.config.strategy.strategyKind === "twap_execution" ? null : draft.config.strategy;
+  const updateQuotingStrategy = (applyChange: (nextStrategy: QuotingStrategyConfig) => void) => updateDraft((nextDraft) => applyChange(nextDraft.config.strategy as QuotingStrategyConfig));
 
   const requestPreview = async () => {
     setRequestFailure(null);
@@ -208,7 +210,7 @@ export function ExperimentCreateView() {
       for (const masterSeed of experiment.config.seedSet.masterSeeds) {
         unwrapApiResult(
           await apiClient.POST("/v1/runs", {
-            body: { experimentId: experiment.experimentId, masterSeed, startPaused: false },
+            body: { experimentId: experiment.experimentId, masterSeed, startPaused: startRunsPaused },
             params: { header: { "Idempotency-Key": `${previewOutcome.experimentIdempotencyKey}-seed-${masterSeed}`.slice(0, 128) } },
           }),
         );
@@ -311,14 +313,26 @@ export function ExperimentCreateView() {
 
           {strategyConfig ? (
             <FieldSet>
-              <FieldLegend>Strategy: fixed-spread market maker</FieldLegend>
+              <FieldLegend>Strategy: {humanizeEnumValue(strategyConfig.strategyKind)}</FieldLegend>
+              <FieldDescription>Quotes one level each side of the strategy-visible mid and requotes by cancel/replace on a timer.</FieldDescription>
               <FieldGroup className="grid gap-3 md:grid-cols-3">
-                <TextField label="Quote width" unit="ticks" fieldPath="/config/strategy/quoteWidthTicks" inputMode="numeric" value={strategyConfig.quoteWidthTicks} onValueChange={(quoteWidthTicks) => updateFixedSpread((nextStrategy) => void (nextStrategy.quoteWidthTicks = quoteWidthTicks))} issuesByFieldPath={issuesByFieldPath} />
-                <TextField label="Quote quantity" unit="shares" fieldPath="/config/strategy/quoteQuantity" inputMode="numeric" value={strategyConfig.quoteQuantity} onValueChange={(quoteQuantity) => updateFixedSpread((nextStrategy) => void (nextStrategy.quoteQuantity = quoteQuantity))} issuesByFieldPath={issuesByFieldPath} />
-                <TextField label="Minimum requote interval" unit="ns" fieldPath="/config/strategy/minimumRequoteIntervalNs" inputMode="numeric" value={strategyConfig.minimumRequoteIntervalNs} onValueChange={(intervalNs) => updateFixedSpread((nextStrategy) => void (nextStrategy.minimumRequoteIntervalNs = intervalNs))} issuesByFieldPath={issuesByFieldPath} />
+                <TextField label="Half spread" unit="ticks from the visible mid" fieldPath="/config/strategy/halfSpreadTicks" inputMode="numeric" value={strategyConfig.halfSpreadTicks} onValueChange={(halfSpreadTicks) => updateQuotingStrategy((nextStrategy) => void (nextStrategy.halfSpreadTicks = halfSpreadTicks))} issuesByFieldPath={issuesByFieldPath} />
+                <TextField label="Quote quantity" unit="shares" fieldPath="/config/strategy/quoteQuantity" inputMode="numeric" value={strategyConfig.quoteQuantity} onValueChange={(quoteQuantity) => updateQuotingStrategy((nextStrategy) => void (nextStrategy.quoteQuantity = quoteQuantity))} issuesByFieldPath={issuesByFieldPath} />
+                <TextField label="Requote interval" unit="ns" fieldPath="/config/strategy/requoteIntervalNs" inputMode="numeric" value={strategyConfig.requoteIntervalNs} description={formatDurationNs(strategyConfig.requoteIntervalNs)} onValueChange={(intervalNs) => updateQuotingStrategy((nextStrategy) => void (nextStrategy.requoteIntervalNs = intervalNs))} issuesByFieldPath={issuesByFieldPath} />
+                <TextField label="Requote threshold" unit="ticks" description="Minimum move of the desired quote before a resting quote is replaced." fieldPath="/config/strategy/requoteThresholdTicks" inputMode="numeric" value={strategyConfig.requoteThresholdTicks} onValueChange={(thresholdTicks) => updateQuotingStrategy((nextStrategy) => void (nextStrategy.requoteThresholdTicks = thresholdTicks))} issuesByFieldPath={issuesByFieldPath} />
+                {strategyConfig.strategyKind === "inventory_aware_market_maker" ? (
+                  <>
+                    <TextField label="Inventory skew" unit="ticks per skew unit" fieldPath="/config/strategy/inventorySkewTicksPerUnit" inputMode="numeric" value={strategyConfig.inventorySkewTicksPerUnit} onValueChange={(skewTicks) => updateQuotingStrategy((nextStrategy) => void ((nextStrategy as ApiSchemas["InventoryAwareMarketMakerConfig"]).inventorySkewTicksPerUnit = skewTicks))} issuesByFieldPath={issuesByFieldPath} />
+                    <TextField label="Skew unit" unit="shares" fieldPath="/config/strategy/inventorySkewUnitShares" inputMode="numeric" value={strategyConfig.inventorySkewUnitShares} onValueChange={(skewUnitShares) => updateQuotingStrategy((nextStrategy) => void ((nextStrategy as ApiSchemas["InventoryAwareMarketMakerConfig"]).inventorySkewUnitShares = skewUnitShares))} issuesByFieldPath={issuesByFieldPath} />
+                    <Field orientation="horizontal" className="md:col-span-3">
+                      <Checkbox id="scale-size-with-inventory" checked={strategyConfig.scaleSizeWithInventory} onCheckedChange={(checkedState) => updateQuotingStrategy((nextStrategy) => void ((nextStrategy as ApiSchemas["InventoryAwareMarketMakerConfig"]).scaleSizeWithInventory = checkedState === true))} />
+                      <FieldLabel htmlFor="scale-size-with-inventory">Shrink the side that adds inventory as the position nears its limit</FieldLabel>
+                    </Field>
+                  </>
+                ) : null}
                 <Field orientation="horizontal" className="md:col-span-3">
-                  <Checkbox id="requote-on-mid-change" checked={strategyConfig.requoteOnVisibleMidChange} onCheckedChange={(checkedState) => updateFixedSpread((nextStrategy) => void (nextStrategy.requoteOnVisibleMidChange = checkedState === true))} />
-                  <FieldLabel htmlFor="requote-on-mid-change">Requote when the strategy-visible mid changes</FieldLabel>
+                  <Checkbox id="post-only" checked={strategyConfig.postOnly} onCheckedChange={(checkedState) => updateQuotingStrategy((nextStrategy) => void (nextStrategy.postOnly = checkedState === true))} />
+                  <FieldLabel htmlFor="post-only">Post only: never cross the visible opposite side</FieldLabel>
                 </Field>
               </FieldGroup>
             </FieldSet>
@@ -358,6 +372,11 @@ export function ExperimentCreateView() {
               <TextField label="Acknowledgment" unit="ns" fieldPath="/config/latency/acknowledgmentLatencyNs" inputMode="numeric" value={latency.acknowledgmentLatencyNs} description={formatDurationNs(latency.acknowledgmentLatencyNs)} onValueChange={(latencyNs) => updateDraft((nextDraft) => void (nextDraft.config.latency.acknowledgmentLatencyNs = latencyNs))} issuesByFieldPath={issuesByFieldPath} />
               <TextField label="Cancel" unit="ns" fieldPath="/config/latency/cancelLatencyNs" inputMode="numeric" value={latency.cancelLatencyNs} description={formatDurationNs(latency.cancelLatencyNs)} onValueChange={(latencyNs) => updateDraft((nextDraft) => void (nextDraft.config.latency.cancelLatencyNs = latencyNs))} issuesByFieldPath={issuesByFieldPath} />
               <TextField label="Jitter" unit="ns" fieldPath="/config/latency/jitterNs" inputMode="numeric" value={latency.jitterNs} onValueChange={(latencyNs) => updateDraft((nextDraft) => void (nextDraft.config.latency.jitterNs = latencyNs))} issuesByFieldPath={issuesByFieldPath} />
+              <TextField label="Strategy compute" unit="ns" description="Decision to departure, before order entry or cancel latency." fieldPath="/config/latency/strategyComputeNs" inputMode="numeric" value={latency.strategyComputeNs ?? "0"} onValueChange={(latencyNs) => updateDraft((nextDraft) => void (nextDraft.config.latency.strategyComputeNs = latencyNs))} issuesByFieldPath={issuesByFieldPath} />
+              <Field orientation="horizontal" className="md:col-span-3">
+                <Checkbox id="order-channel-fifo" checked={latency.orderChannelFifo ?? true} onCheckedChange={(checkedState) => updateDraft((nextDraft) => void (nextDraft.config.latency.orderChannelFifo = checkedState === true))} />
+                <FieldLabel htmlFor="order-channel-fifo">One FIFO order-entry channel: a cancel never overtakes an earlier order</FieldLabel>
+              </Field>
             </FieldGroup>
           </FieldSet>
 
@@ -381,6 +400,11 @@ export function ExperimentCreateView() {
               <TextField label="Simulation end" unit="ns" fieldPath="/config/bounds/endSimulationTimeNs" inputMode="numeric" value={draft.config.bounds.endSimulationTimeNs} description={formatDurationNs(draft.config.bounds.endSimulationTimeNs.match(/^\d+$/) ? draft.config.bounds.endSimulationTimeNs : "0")} onValueChange={(endTimeText) => updateDraft((nextDraft) => void (nextDraft.config.bounds.endSimulationTimeNs = endTimeText))} issuesByFieldPath={issuesByFieldPath} />
             </FieldGroup>
           </FieldSet>
+
+          <Field orientation="horizontal">
+            <Checkbox id="start-runs-paused" checked={startRunsPaused} onCheckedChange={(checkedState) => setStartRunsPaused(checkedState === true)} />
+            <FieldLabel htmlFor="start-runs-paused">Start runs paused, to step through them event by event</FieldLabel>
+          </Field>
 
           <div className="flex flex-wrap gap-2">
             <Button type="submit" variant={isPreviewCurrent ? "outline" : "default"}>

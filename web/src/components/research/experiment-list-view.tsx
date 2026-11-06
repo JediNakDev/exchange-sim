@@ -18,7 +18,9 @@ const EXPERIMENT_LIST_POLL_INTERVAL_MS = 3000;
 export function describeStrategy(strategyConfig: ApiSchemas["StrategyConfig"]): string {
   switch (strategyConfig.strategyKind) {
     case "fixed_spread_market_maker":
-      return `fixed spread, ${strategyConfig.quoteWidthTicks} ticks x ${strategyConfig.quoteQuantity}`;
+      return `fixed spread, ${strategyConfig.halfSpreadTicks} ticks each side x ${strategyConfig.quoteQuantity}`;
+    case "inventory_aware_market_maker":
+      return `inventory-aware, ${strategyConfig.halfSpreadTicks} ticks each side x ${strategyConfig.quoteQuantity}, skew ${strategyConfig.inventorySkewTicksPerUnit} per ${strategyConfig.inventorySkewUnitShares}`;
     default:
       return humanizeEnumValue(strategyConfig.strategyKind);
   }

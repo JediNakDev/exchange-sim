@@ -196,9 +196,12 @@ export interface paths {
         put?: never;
         /**
          * Advance a paused deterministic run by a number of canonical events; the run stays paused.
-         * @description A step never skips part of a scheduled event: it stops at a canonical
-         *     event boundary. If the simulation bounds are reached during the step the
-         *     run transitions to completed.
+         * @description A step never skips part of a scheduled event: it advances whole runner
+         *     scheduler events until at least `canonicalEventCount` canonical events
+         *     were appended, so it can overshoot (see RunStepRequest). It runs
+         *     synchronously: the response already shows the new progress. If the
+         *     simulation bounds are reached during the step the run transitions to
+         *     completed.
          */
         post: operations["stepRun"];
         delete?: never;
@@ -335,7 +338,13 @@ export interface paths {
         };
         /**
          * Book view immediately after an event position, as exchange truth or as the strategy had received it.
-         * @description Initially served by deterministic replay from the beginning of the run to the requested boundary.
+         * @description exchange_truth is rebuilt by replaying the run's exchange events from
+         *     the beginning to the requested position, with every level, order count
+         *     and own share count. strategy_visible is the last top of book the
+         *     strategy had received at that position (the runner's feed delivers top
+         *     of book only), so it has at most one level per side and null order and
+         *     own share counts. A position beyond the processed events of a live run
+         *     is 409 artifact_not_ready.
          */
         get: operations["getBookAtEventPosition"];
         put?: never;
@@ -515,10 +524,16 @@ export interface components {
          * @enum {string}
          */
         CancelReason: "user_requested" | "immediate_or_cancel" | "fill_or_kill" | "self_trade_prevention" | "mass_cancel" | "cancel_on_disconnect" | "end_of_day" | "end_of_run";
-        /** @enum {string} */
-        ExecutionReportKind: "accepted" | "rejected" | "filled" | "canceled" | "replaced" | "cancel_rejected";
-        /** @enum {string} */
-        LiquidityRole: "maker" | "taker";
+        /**
+         * @description Execution report delivered to the strategy. `accepted` acknowledges a new order that traded on arrival or was fully consumed; `rested` acknowledges a new order that rested on the book (the runner reports the two separately).
+         * @enum {string}
+         */
+        ExecutionReportKind: "accepted" | "rested" | "rejected" | "filled" | "canceled" | "replaced" | "cancel_rejected";
+        /**
+         * @description `auction` marks a fill from an auction uncross (no maker or taker side). The interactive synthetic world has no auctions, so it never appears there today.
+         * @enum {string}
+         */
+        LiquidityRole: "maker" | "taker" | "auction";
         /**
          * @description Whether FIFO-ahead quantity is the engine's exact queue or an estimate from limited market data.
          * @enum {string}
@@ -552,8 +567,11 @@ export interface components {
         RiskLimitBreachAction: "block_orders_that_increase_exposure" | "cancel_all_and_stop_strategy";
         /** @enum {string} */
         OrderFinalStatus: "open_at_run_end" | "filled" | "canceled" | "partially_filled_then_canceled" | "rejected";
-        /** @enum {string} */
-        LifecycleStageKind: "strategy_submitted" | "arrived_at_exchange" | "accepted" | "rested" | "acknowledgment_delivered" | "partially_filled" | "filled" | "fill_report_delivered" | "cancel_submitted" | "cancel_arrived_at_exchange" | "canceled" | "cancel_report_delivered" | "cancel_rejected_too_late" | "rejected";
+        /**
+         * @description Lifecycle of one strategy order. The runner's strategies requote by cancel/replace, so the replace stages and the report deliveries for `rested` and `rejected` reports appear too. A replace that loses time priority gives the order a new exchange order id; the lifecycle still covers the whole client order.
+         * @enum {string}
+         */
+        LifecycleStageKind: "strategy_submitted" | "arrived_at_exchange" | "accepted" | "rested" | "acknowledgment_delivered" | "partially_filled" | "filled" | "fill_report_delivered" | "cancel_submitted" | "cancel_arrived_at_exchange" | "canceled" | "cancel_report_delivered" | "cancel_rejected_too_late" | "rejected" | "replace_submitted" | "replace_arrived_at_exchange" | "replaced" | "replace_rejected" | "replace_report_delivered" | "rested_report_delivered" | "reject_report_delivered";
         /** @enum {string} */
         AssumptionCategory: "market_world" | "scenario" | "instrument" | "strategy" | "seeds" | "latency" | "fees" | "risk" | "accounting" | "bounds" | "queue_model";
         /** @enum {string} */
@@ -621,29 +639,41 @@ export interface components {
             description: string;
             backgroundAgents: components["schemas"]["BackgroundAgentConfig"][];
         };
+        /** @description The research runner's fixed spread market maker (`[strategy] kind = fixed_spread_market_maker`). Quotes one level each side of the strategy-visible mid and requotes by cancel/replace. */
         FixedSpreadMarketMakerConfig: {
             /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
             strategyKind: "fixed_spread_market_maker";
-            /** @description Full bid-to-ask width in ticks, centered on the strategy-visible mid (rounded away from the mid to the tick grid). */
-            quoteWidthTicks: components["schemas"]["UnsignedIntegerString"];
+            /** @description Ticks from the strategy-visible mid to each quote (runner `half_spread_ticks`). */
+            halfSpreadTicks: components["schemas"]["UnsignedIntegerString"];
+            /** @description Shares per quote (runner `quote_size`). */
             quoteQuantity: components["schemas"]["UnsignedIntegerString"];
-            requoteOnVisibleMidChange: boolean;
-            minimumRequoteIntervalNs: components["schemas"]["NanosecondDuration"];
+            /** @description Timer period at which the strategy re-evaluates its quotes (runner `requote_interval`). */
+            requoteIntervalNs: components["schemas"]["NanosecondDuration"];
+            /** @description Minimum move of the desired quote price, in ticks, before a resting quote is replaced. */
+            requoteThresholdTicks: components["schemas"]["UnsignedIntegerString"];
+            /** @description Quotes never cross the visible opposite side. */
+            postOnly: boolean;
         };
+        /** @description The fixed spread quoting rules plus an inventory skew (`[strategy] kind = inventory_aware_market_maker`). */
         InventoryAwareMarketMakerConfig: {
             /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
             strategyKind: "inventory_aware_market_maker";
-            quoteWidthTicks: components["schemas"]["UnsignedIntegerString"];
+            halfSpreadTicks: components["schemas"]["UnsignedIntegerString"];
             quoteQuantity: components["schemas"]["UnsignedIntegerString"];
-            /** @description Quote center shift in ticks per lot of signed inventory (positive inventory shifts quotes down). */
-            inventorySkewTicksPerLot: components["schemas"]["ExactDecimal"];
-            minimumRequoteIntervalNs: components["schemas"]["NanosecondDuration"];
+            requoteIntervalNs: components["schemas"]["NanosecondDuration"];
+            requoteThresholdTicks: components["schemas"]["UnsignedIntegerString"];
+            postOnly: boolean;
+            /** @description Quote center shift in ticks per `inventorySkewUnitShares` of known inventory (long inventory shifts quotes down). */
+            inventorySkewTicksPerUnit: components["schemas"]["UnsignedIntegerString"];
+            inventorySkewUnitShares: components["schemas"]["UnsignedIntegerString"];
+            /** @description Shrink the side that adds inventory as the position approaches its risk limit. */
+            scaleSizeWithInventory: boolean;
         };
         TwapExecutionConfig: {
             /**
@@ -668,8 +698,12 @@ export interface components {
             acknowledgmentLatencyNs: components["schemas"]["NanosecondDuration"];
             /** @description Strategy cancel submit to exchange arrival. */
             cancelLatencyNs: components["schemas"]["NanosecondDuration"];
-            /** @description Half-width of uniform jitter (drawn from the strategy latency stream); must be "0" for the constant model. */
+            /** @description Extra uniform delay in [0, jitterNs] added to every message on every channel, drawn from the `latency` seed stream; must be "0" for the constant model. Channels stay FIFO. */
             jitterNs: components["schemas"]["NanosecondDuration"];
+            /** @description Optional (default "0"). Strategy decision to departure, added before the order-entry or cancel latency. */
+            strategyComputeNs?: components["schemas"]["NanosecondDuration"];
+            /** @description Optional (default true). True: new, cancel and replace requests share one FIFO order-entry channel, so a cancel never overtakes an earlier order. False: each request arrives after its own latency, so a faster cancel can race ahead of its order. */
+            orderChannelFifo?: boolean;
         };
         FeeSchedule: {
             feeScheduleId: string;
@@ -787,6 +821,7 @@ export interface components {
             reason?: string;
         };
         RunStepRequest: {
+            /** @description Minimum number of canonical events to append. The runner advances one scheduler event at a time and one scheduler event can append several canonical events (for example an arrival, its acceptance and its fills), so the step stops at the first scheduler-event boundary at or after the requested count and may overshoot it. The response's progress shows the exact count. The step also stops early when the run reaches a terminal state. */
             canonicalEventCount: number;
         };
         RunStateTransition: {
@@ -806,8 +841,11 @@ export interface components {
             endSimulationTimeNs: components["schemas"]["NanosecondTimestamp"];
         };
         TerminalDiagnostics: {
-            /** @enum {string} */
-            outcomeCode: "completed_at_simulation_bound" | "cancelled_by_request" | "failed_event_bound_exceeded" | "failed_wall_clock_limit_exceeded" | "failed_journal_backpressure" | "failed_ledger_overflow" | "failed_internal_error";
+            /**
+             * @description Mapping from the runner's termination reason: end_time_reached and event_queue_exhausted give completed_at_simulation_bound; cancel_requested gives cancelled_by_request (or the service limit that requested it: failed_event_bound_exceeded, failed_wall_clock_limit_exceeded); event_limit_reached gives failed_event_bound_exceeded; simulation_queue_full and observation_queue_full give failed_capacity_exceeded; recorder_overflow gives failed_journal_backpressure; ledger_rejected_fill gives failed_ledger_overflow; engine_output_capacity gives failed_capacity_exceeded; order_table_corrupt gives failed_internal_error. A run whose independent replay does not reproduce its event digest is failed_replay_mismatch.
+             * @enum {string}
+             */
+            outcomeCode: "completed_at_simulation_bound" | "cancelled_by_request" | "failed_event_bound_exceeded" | "failed_wall_clock_limit_exceeded" | "failed_journal_backpressure" | "failed_ledger_overflow" | "failed_capacity_exceeded" | "failed_replay_mismatch" | "failed_internal_error";
             message: string;
             residualPositionShares: components["schemas"]["SignedIntegerString"];
             residualOpenOrderCount: components["schemas"]["UnsignedIntegerString"];
@@ -839,8 +877,8 @@ export interface components {
             page: components["schemas"]["PageInfo"];
         };
         DerivedSeed: {
-            /** @enum {string} */
-            streamName: "background_market_maker" | "background_noise_taker" | "strategy" | "latency_jitter";
+            /** @description The runner's stream label: `strategy`, `latency`, or `agent.<index>.<kind>.<name>` for each background agent (for example `agent.0.market_maker.mm`). The label is the input to the seed derivation function, so several agents of one kind get distinct streams. */
+            streamName: string;
             seed: components["schemas"]["UnsignedIntegerString"];
         };
         SeedDerivation: {
@@ -984,6 +1022,9 @@ export interface components {
         MarkoutHorizonSummary: {
             horizonNs: components["schemas"]["NanosecondDuration"];
             availableFillCount: components["schemas"]["UnsignedIntegerString"];
+            /** @description Fills with no two-sided mark at the fill or at the horizon (`unavailable_no_mark`). */
+            unavailableFillCount: components["schemas"]["UnsignedIntegerString"];
+            /** @description Fills whose horizon falls past the run end. In a partial summary, horizons not yet reached are counted here too. */
             censoredFillCount: components["schemas"]["UnsignedIntegerString"];
             /** @description Sum over available fills only; censored fills are excluded, not zero-filled. */
             totalMarkout: components["schemas"]["MarkoutAmount"];
@@ -1215,8 +1256,10 @@ export interface components {
         BookLevel: {
             price: components["schemas"]["PriceDecimal"];
             totalShares: components["schemas"]["UnsignedIntegerString"];
-            orderCount: components["schemas"]["UnsignedIntegerString"];
-            ownShares: components["schemas"]["UnsignedIntegerString"];
+            /** @description Null in the strategy_visible view, whose top-of-book feed carries no order counts. */
+            orderCount: components["schemas"]["UnsignedIntegerString"] | null;
+            /** @description Null in the strategy_visible view; the strategy tracks its own orders from execution reports, not from the feed. */
+            ownShares: components["schemas"]["UnsignedIntegerString"] | null;
         };
         BookView: {
             runId: components["schemas"]["RunId"];
@@ -1990,6 +2033,7 @@ export interface operations {
                 cursor?: components["parameters"]["Cursor"];
                 /** @description Maximum items per page. */
                 limit?: components["parameters"]["Limit"];
+                /** @description Any exchange order id the own order has had. A replace assigns the order a new exchange order id, so the result holds every fill of that order and each fill reports the id it had when it filled. */
                 orderId?: components["schemas"]["UnsignedIntegerString"];
             };
             header?: never;
