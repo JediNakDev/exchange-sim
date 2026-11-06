@@ -45,6 +45,12 @@ public:
         for (;;) {
             const std::size_t newline = pending.find('\n', line_start);
             if (newline == std::string::npos) break;
+            if (newline - line_start > kMaxLineBytes) {
+                tcp_server_.send(id, std::string_view("ERR line too long\n"));
+                tcp_server_.close_after_flush(id);
+                pending.clear();
+                return;
+            }
             std::string_view line(pending.data() + line_start, newline - line_start);
             if (!line.empty() && line.back() == '\r') line.remove_suffix(1);
             line_start = newline + 1;

@@ -154,7 +154,10 @@ public:
     // ---- retransmission ----------------------------------------------------------
     // Answers every pending request datagram (level-triggered readiness).
     void handle_retransmission_requests() {
-        for (;;) {
+        // Level-triggered readiness will report remaining packets next time.
+        // Bound every drain, including malformed/oversized traffic, so the
+        // reactor can service order entry, timers and shutdown.
+        for (std::size_t drained = 0; drained < 64; ++drained) {
             net::Ipv4Endpoint requester{};
             const ssize_t length = retransmission_socket_.receive_from(request_buffer_, requester);
             if (length < 0) {

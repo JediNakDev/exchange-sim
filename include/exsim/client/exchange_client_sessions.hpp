@@ -243,6 +243,8 @@ public:
                     break;
                 }
                 ++handled;
+                if (socket == &request_socket_ &&
+                    (peer.address != retransmission_server_.address || peer.port != retransmission_server_.port)) continue;
                 (void)receiver_.on_packet(std::span<const char>(datagram_.data(), static_cast<std::size_t>(length)),
                                           net::monotonic_ns());
             }
