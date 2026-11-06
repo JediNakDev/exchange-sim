@@ -33,7 +33,7 @@ Updated 2026-11-06. This is a recovery checkpoint, not live delegate status. Kee
 - Runner QA merged `eccfabb` (source `2c2ab79`), and C++ HTTP/OpenAPI API plus UI on real runs merged `1f8d01c` (source `33b41d3`). SBE gateway QA already merged `89a4d87`. API comparison now requires native artifact reproduction; native artifacts use the same canonical identity as CLI runs. Parent API checks: 33/33; real-binary contract: 9/9, all 23 operations, 284 assertions (`/tmp/exsim-delivery-api.log`, `/tmp/exsim-delivery-contract.log`).
 - SBE runtime wiring merged `221682a` (source `8520aa1`); server review reproducers merged `54688e7` (source `239298f`). Parent fixes cover complete admin line bounds, retransmission peer filtering and a 64-datagram drain budget. Runtime journaling now uses a bounded persistence worker with explicit failure and bounded teardown; independent re-review and sanitizer gates remain pending. Focused combined server checks: 142/142 (`/tmp/exsim-delivery-runtime-final.log`), including six worker tests and all recovered review reproducers.
 - Frontend parent checks: 59/59, typecheck and lint (`/tmp/exsim-delivery-web-{tests,types,lint}.log`). No browser interaction or new performance measurements claimed.
-- Not integrated yet: strengthened fuzz corpus, FIX codec optimization. Codec optimizations and measurements remain parked.
+- Strengthened fuzz corpus and properties are integrated from `6eb78e2` (199 added seeds, 94 mutants killed; B4/B8 remain documented harness gaps). FIX codec optimization remains unintegrated. Codec optimizations and measurements remain parked.
 
 ## Milestones
 
@@ -62,7 +62,7 @@ Updated 2026-11-06. This is a recovery checkpoint, not live delegate status. Kee
 | QA fixes: OUCH, core, MD | harness worktree (task `...delegate-task%3Ace8d6fb6-4238-4a7b-af8b-012f79492edb`) | Done (`c71acb3`), merged `6227a51`. |
 | QA review: research runner | harness worktree (task `...delegate-task%3Af427d42a-2817-4b65-8bff-27669983ccc9`) | Done. Report `/tmp/exsim-review-runner/REPORT.md`; R1 to R7, P1 to P3 with fix delegate `45a51fdd`. |
 | QA review: SBE over FIXP | harness worktree (task `...delegate-task%3A00a1bebd-409d-4a92-babe-cc3034f3bd7c`) | Done. Report `/tmp/exsim-review-sbe/REPORT.md`, reproducers `review/fixp-sbe-gateway-qa` `7ab2ab8`; findings with fix delegate `a8748a28`. |
-| Fuzz corpus mutation check | harness worktree (task `...delegate-task%3A9bdb16a6-a126-42be-92ef-f006402dacb4`) | Completed source `6eb78e2`, clean original checkout; all 19 focused fuzz tests passed on macOS release/ASan and Linux GCC/Clang. 94/103 mutants killed, 7 equivalent, B4/B8 harness gaps remain. Pending parent integration. |
+| Fuzz corpus mutation check | harness worktree (task `...delegate-task%3A9bdb16a6-a126-42be-92ef-f006402dacb4`) | Completed source `6eb78e2`, clean original checkout; all 19 focused fuzz tests passed on macOS release/ASan and Linux GCC/Clang. 94/103 mutants killed, 7 equivalent, B4/B8 harness gaps remain. Integrated on the parent after `db8c710`. |
 | QA fixes: research runner | harness worktree (task `...delegate-task%3A45a51fdd-c193-4e8b-b5b9-c6e7a81285c0`) | Done `2c2ab79`, merged `eccfabb`. Mac release856/ASan853 and Linux GCC/Clang856 passed; 112 cross-platform digests agree. Report `/tmp/exsim-runnerfix-logs/REPORT.md`. |
 | QA fixes: SBE over FIXP | harness worktree (task `...delegate-task%3Aa8748a28-76ae-477b-a78c-34faf7eed31c`) | Done production `096f9fd`, assertions `4134656`, merged `89a4d87`. Parent source includes corrected cases; child historical checks below. |
 | SBE in the server runtime | harness worktree (task `...delegate-task%3A8764c2d4-02f0-40c6-ba0f-7682e846f89a`) | Done `8520aa1`, merged `221682a`. Parent combined focused server checks 142/142 after runtime repairs. Comparative measurements remain parked. |
@@ -103,7 +103,7 @@ For each completion record: task ID, actual branch/commit, changed scope, tests 
 1. Runner QA, real API/UI, SBE runtime wiring and server review reproducers are merged. `cd web && bun run dev` launches the C++ API and Next.js; `bun run dev:mock` is explicit. HTTP comparisons require byte-for-byte native reproduction, and corrupted runs are excluded from seed pairing. Native run IDs match CLI identities while API IDs remain distinct service identities.
 2. REVIEW-SRV-01/02/04 are repaired and their original tests are always on. The benchmark keeps separate actual-send and intended-deadline distributions. A deterministic 65-datagram case verifies the 64-entry request drain bound for SRV-05. No new latency numbers are claimed.
 3. REVIEW-SRV-03 implementation: runtime `JournalWorker` hands commands and flush requests through a preallocated SPSC queue. It preserves canonical encoding and uses the existing shutdown/continue policies on overflow/I/O error. The shutdown drain deadline applies to persistence, with at most 100 ms additional worker teardown. Stalled detached workers own their buffers and descriptor. Special destinations are rejected before truncation. Offline journal writers remain synchronous. Six worker tests cover replay, blocked I/O, overflow, I/O failure, bounded destruction and core policies. Independent re-review remains required.
-4. Integrate completed fuzz mutation branch `6eb78e2`. Keep FIX encode/decode performance branches parked; no valid new speedup claim or comparative runtime measurements exist.
+4. Strengthened fuzz mutation branch `6eb78e2` is integrated. Keep FIX encode/decode performance branches parked; no valid new speedup claim or comparative runtime measurements exist.
 5. Validate the combined tree and commission a focused independent review of the new journal boundary and API comparison integration. Do not confuse earlier child gates with verification of later parent changes.
 
 All prior eight continuation processes have ended. The earlier shared-host scheduling hold caused deferred child checks; no new benchmark slot has been released. Historical child evidence remains below and in the registry.
@@ -128,3 +128,29 @@ All prior eight continuation processes have ended. The earlier shared-host sched
 - Recovered and reused all 30 release E2E passes; all 10 new ASan/UBSan repetitions pass 12/12, logs `/tmp/exsim-review-server/flaky/{release,debug}_run_N.log`. Focused ASan/UBSan and TSan gates each pass existing E2E 12/12 (`focused-debug.log`, `focused-tsan.log`); normal review entries 7/7 in each (`checks-debug.log`, `checks-tsan.log`). SIGINT and SIGTERM idle process shutdown exit 0 (`signals-final.log`). All log basenames are under `/tmp/exsim-review-server/`.
 - Linux g++ `-Werror` validation setup failed because the temporary copy omitted a fuzz header (`linux-gcc.log`); new-test Linux compilation remains incomplete. No replacement Docker/full-suite build or performance measurement started after the parent's shared-host resource instruction. Tests use a bounded fork for the pipe-backed journal reproducer; Linux portability still needs verification. No new latency/throughput claims.
 - Next: parent may cherry-pick scoped review commit, route confirmed defects to owners, decide persistence/benchmark contracts, and run a focused Linux gate when resources allow. No pushes or parent merges performed.
+
+## Fuzz corpus mutation check completion (2026-11-05)
+
+- Task `9bdb16a6-a126-42be-92ef-f006402dacb4`, existing checkout
+  `/Users/jedi/.t3/worktrees/lob/t3-d19563e5`, branch
+  `t3/fuzz-corpus-mutation-check`. Resumed on GPT per latest user instruction.
+- Scoped implementation `3cfea1a`; parent b2e6b02 integrated as `d1a7527`.
+  Added 199 boundary seeds across ten targets, with small OUCH/ITCH/FIX
+  property strengthening. Existing corpus files are unchanged. Production
+  codecs and public APIs are untouched; FIX performance owner informed via parent.
+- 103 mutants: 61 killed originally, 94 after seeds/properties, 7 equivalent,
+  2 deferred send-buffer backpressure harness gaps (B4/B8). F8 is now killed
+  by a correctly reframed premature-CheckSum property. No new production bug.
+- Original full gates retained: macOS release 790/790, ASan/UBSan 787/787,
+  Linux GCC and Clang 790/790 each. Recovered campaign: 68,358,584 executions,
+  no crash artifacts. Integrated focused release and sanitizer replay 19/19
+  each; final FIX release replay 447 inputs without violations. Generator
+  strict warning check and byte comparison of 62 original plus 199 appended
+  seeds pass; historical cancel frame bytes preserved after parent QA changes.
+- Exact logs and mutation evidence index: `/tmp/exsim-mutation-resume/EVIDENCE.md`.
+  Per-target results and deferred limitations: `docs/FUZZING.md`.
+- Integrated Linux GCC and Clang focused fuzz replay passed 19/19 each
+  with `-Werror` (`/tmp/exsim-mutation-resume/linux.log`). No warnings.
+  Active validation is complete; no further builds or measurements started.
+- Next action: parent review/integration; retain B4/B8 for a future bounded
+  backpressure harness change. No push or parent merge performed by this child.

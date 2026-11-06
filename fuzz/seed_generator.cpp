@@ -24,6 +24,7 @@
 #include <fstream>
 #include <iterator>
 #include <map>
+#include <utility>
 #include <string>
 #include <string_view>
 #include <unistd.h>
@@ -108,12 +109,17 @@ std::vector<std::string> fix_frames() {
     order.price = 1'502'500;
     order.transact_time = 1'700'000'000'000'000'000ull;
     frames.push_back(encoded_fix(order, 3));
-    fix::OrderCancelRequest cancel;
-    cancel.original_client_order_id.assign("ORD-1");
-    cancel.client_order_id.assign("ORD-2");
-    cancel.symbol.assign("AAPL");
-    cancel.side = exsim::Side::BUY;
-    frames.push_back(encoded_fix(cancel, 4));
+    // Preserve the original seed bytes. Current cancel encoders require tag
+    // 60; this historical frame remains useful as a missing-field input.
+    std::array<char, 1024> cancel_buffer{};
+    fix::Builder cancel_builder({cancel_buffer.data(), cancel_buffer.size()});
+    cancel_builder.header('F', fix_header(4));
+    cancel_builder.field(41, "ORD-1");
+    cancel_builder.field(11, "ORD-2");
+    cancel_builder.field(55, "AAPL");
+    cancel_builder.field(54, '1');
+    const std::size_t cancel_size = cancel_builder.finish();
+    frames.emplace_back(cancel_buffer.data(), cancel_size);
     fix::ExecutionReport report;
     report.order_id.assign("1");
     report.client_order_id.assign("ORD-1");
@@ -390,6 +396,262 @@ void add_simulation_seeds(const std::filesystem::path& repository_root) {
     }
 }
 
+
+// Boundary seeds, appended after every other seed of each target so the
+// earlier seed-NNN files keep their bytes. A campaign corpus rarely holds an
+// input sitting exactly on a limit; the mutation check in docs/FUZZING.md
+// showed which off-by-one, dropped-field and validation bugs survived without
+// these.
+
+struct EnumeratedCodes {
+    std::size_t offset;
+    std::string_view allowed_codes;
+};
+
+// Every byte non-zero and distinct from its neighbours, so a dropped,
+// shifted or narrowed field changes the re-encoded bytes; enumerated fields
+// hold their first allowed code.
+template <typename Message>
+std::string busy_fixed_layout(std::initializer_list<EnumeratedCodes> enumerated_fields) {
+    std::string bytes(Message::wire_size, '\0');
+    for (std::size_t index = 0; index < bytes.size(); ++index) bytes[index] = static_cast<char>((index * 37 + 11) & 0xff);
+    bytes[0] = Message::type;
+    for (const EnumeratedCodes& field : enumerated_fields) bytes[field.offset] = field.allowed_codes.front();
+    return bytes;
+}
+
+// The busy message, one byte short and one byte long, and the busy message
+// with each enumerated field set to every other allowed code and to '?'.
+template <typename Message>
+void add_fixed_layout_boundary_seeds(const std::string& target, std::initializer_list<EnumeratedCodes> enumerated_fields) {
+    const std::string busy = busy_fixed_layout<Message>(enumerated_fields);
+    add_seed(target, busy);
+    add_seed(target, busy.substr(0, busy.size() - 1));
+    add_seed(target, busy + busy[1]);
+    for (const EnumeratedCodes& field : enumerated_fields) {
+        for (const char code : std::string(field.allowed_codes.substr(1)) + "?") {
+            std::string with_code = busy;
+            with_code[field.offset] = code;
+            add_seed(target, with_code);
+        }
+    }
+}
+
+// A FuzzByteReader::take_interesting_int64 choice: selector byte, delta byte.
+struct WideValuePick {
+    std::uint8_t selector;
+    std::uint8_t delta;
+};
+constexpr WideValuePick kPickZero{3, 0};
+constexpr WideValuePick kPickMinusOne{3, 0xff};
+constexpr WideValuePick kPickUint32Max{1, 0};
+constexpr WideValuePick kPickUint32MaxPlusOne{1, 1};
+constexpr WideValuePick kPickUint48Max{2, 0};
+constexpr WideValuePick kPickUint48MaxPlusOne{2, 1};
+
+// Input for check_wide_field_encode: the target's message choice, the base
+// message bytes, then the picks for its prices and timestamp in read order.
+template <typename Message>
+std::string wide_field_encode_seed(std::uint32_t message_choice, std::initializer_list<EnumeratedCodes> enumerated_fields,
+                                   std::initializer_list<WideValuePick> picks) {
+    std::string seed = big_endian(message_choice, 4) + busy_fixed_layout<Message>(enumerated_fields);
+    for (const WideValuePick pick : picks) {
+        seed += static_cast<char>(pick.selector);
+        seed += static_cast<char>(pick.delta);
+    }
+    return seed;
+}
+
+// One price and an optional timestamp: every price limit, then (for 48-bit
+// timestamps) both sides of the timestamp limit.
+template <typename Message>
+void add_price_encode_seeds(const std::string& target, std::uint32_t message_choice,
+                            std::initializer_list<EnumeratedCodes> enumerated_fields, bool has_timestamp,
+                            bool timestamp_is_48_bit) {
+    for (const WideValuePick price : {kPickMinusOne, kPickUint32Max, kPickUint32MaxPlusOne}) {
+        if (has_timestamp) {
+            add_seed(target, wide_field_encode_seed<Message>(message_choice, enumerated_fields, {price, kPickZero}));
+        } else {
+            add_seed(target, wide_field_encode_seed<Message>(message_choice, enumerated_fields, {price}));
+        }
+    }
+    if (timestamp_is_48_bit) {
+        for (const WideValuePick timestamp : {kPickUint48Max, kPickUint48MaxPlusOne}) {
+            add_seed(target, wide_field_encode_seed<Message>(message_choice, enumerated_fields, {kPickZero, timestamp}));
+        }
+    }
+}
+
+// A FIX frame around `body` ('|' stands for SOH), with the correct BodyLength
+// spelled with at least `body_length_digits` digits and the correct CheckSum.
+std::string fix_frame(std::string body, std::size_t body_length_digits = 1) {
+    std::replace(body.begin(), body.end(), '|', '\x01');
+    std::string body_length = std::to_string(body.size());
+    if (body_length.size() < body_length_digits) body_length.insert(0, body_length_digits - body_length.size(), '0');
+    std::string frame = "8=FIX.4.4\x01" "9=" + body_length + "\x01" + body;
+    unsigned checksum = 0;
+    for (const char byte : frame) checksum += static_cast<unsigned char>(byte);
+    char trailer[16];
+    std::snprintf(trailer, sizeof trailer, "10=%03u\x01", checksum % 256);
+    return frame + trailer;
+}
+
+std::string fix_heartbeat_body(std::string_view sending_time) {
+    return "35=0|49=CLIENT1|56=EXSIM|34=2|52=" + std::string(sending_time) + "|";
+}
+
+std::string fix_new_order_body(std::string_view quantity) {
+    return "35=D|49=CLIENT1|56=EXSIM|34=3|52=20231114-22:13:20.123|11=ORD-1|55=AAPL|54=1|38=" + std::string(quantity) +
+           "|40=2|44=150.25|59=0|60=20231114-22:13:20|7928=N|";
+}
+
+// fix44_stream mode 1 (Builder): `body_fields` (tag, value) then the buffer capacity.
+std::string fix_builder_seed(const std::vector<std::pair<unsigned, std::string>>& body_fields, std::uint32_t capacity) {
+    std::string seed(1, '\x01');
+    seed += big_endian(body_fields.size(), 4);
+    for (const auto& [tag, value] : body_fields) {
+        seed += '\x01';                      // small tag: 1 + take_index(200)
+        seed += big_endian(tag - 1, 4);
+        seed += big_endian(value.size(), 4);  // take_text(40) length
+        seed += value;
+    }
+    seed += '\0';  // capacity from take_index(400)
+    seed += big_endian(capacity, 4);
+    return seed;
+}
+
+void add_boundary_seeds() {
+    add_fixed_layout_boundary_seeds<ouch::EnterOrder>("ouch42_inbound", {{15, "BSTE"}});
+    add_fixed_layout_boundary_seeds<ouch::ReplaceOrder>("ouch42_inbound", {});
+    add_fixed_layout_boundary_seeds<ouch::CancelOrder>("ouch42_inbound", {});
+    add_fixed_layout_boundary_seeds<ouch::ModifyOrder>("ouch42_inbound", {{15, "BSTE"}});
+    add_price_encode_seeds<ouch::EnterOrder>("ouch42_inbound", 0, {{15, "BSTE"}}, false, false);
+    add_price_encode_seeds<ouch::ReplaceOrder>("ouch42_inbound", 1, {}, false, false);
+
+    add_fixed_layout_boundary_seeds<ouch::SystemEvent>("ouch42_outbound", {{9, "SE"}});
+    add_fixed_layout_boundary_seeds<ouch::OrderAccepted>("ouch42_outbound", {{23, "BSTE"}, {64, "LD"}});
+    add_fixed_layout_boundary_seeds<ouch::OrderCanceled>("ouch42_outbound", {});
+    add_fixed_layout_boundary_seeds<ouch::OrderExecuted>("ouch42_outbound", {});
+    add_fixed_layout_boundary_seeds<ouch::OrderRejected>("ouch42_outbound", {});
+    add_fixed_layout_boundary_seeds<ouch::CancelPending>("ouch42_outbound", {});
+    add_fixed_layout_boundary_seeds<ouch::CancelReject>("ouch42_outbound", {});
+    add_fixed_layout_boundary_seeds<ouch::OrderModified>("ouch42_outbound", {{23, "BSTE"}});
+    add_fixed_layout_boundary_seeds<ouch::OrderReplaced>("ouch42_outbound", {{23, "BSTE"}, {64, "LD"}});
+    add_price_encode_seeds<ouch::OrderAccepted>("ouch42_outbound", 0, {{23, "BSTE"}, {64, "LD"}}, true, false);
+    add_price_encode_seeds<ouch::OrderExecuted>("ouch42_outbound", 1, {}, true, false);
+    add_price_encode_seeds<ouch::OrderReplaced>("ouch42_outbound", 2, {{23, "BSTE"}, {64, "LD"}}, true, false);
+
+    add_fixed_layout_boundary_seeds<itch::SystemEvent>("itch50", {{11, "OSQMEC"}});
+    add_fixed_layout_boundary_seeds<itch::StockDirectory>("itch50", {});
+    add_fixed_layout_boundary_seeds<itch::StockTradingAction>("itch50", {});
+    add_fixed_layout_boundary_seeds<itch::AddOrder>("itch50", {{19, "BS"}});
+    add_fixed_layout_boundary_seeds<itch::AddOrderMPID>("itch50", {{19, "BS"}});
+    add_fixed_layout_boundary_seeds<itch::OrderExecuted>("itch50", {});
+    add_fixed_layout_boundary_seeds<itch::OrderExecutedWithPrice>("itch50", {});
+    add_fixed_layout_boundary_seeds<itch::OrderCancel>("itch50", {});
+    add_fixed_layout_boundary_seeds<itch::OrderDelete>("itch50", {});
+    add_fixed_layout_boundary_seeds<itch::OrderReplace>("itch50", {});
+    add_fixed_layout_boundary_seeds<itch::Trade>("itch50", {{19, "BS"}});
+    add_fixed_layout_boundary_seeds<itch::CrossTrade>("itch50", {});
+    add_fixed_layout_boundary_seeds<itch::NetOrderImbalance>("itch50", {});
+    add_price_encode_seeds<itch::AddOrder>("itch50", 0, {{19, "BS"}}, true, true);
+    add_price_encode_seeds<itch::OrderExecutedWithPrice>("itch50", 1, {}, true, true);
+    add_price_encode_seeds<itch::OrderReplace>("itch50", 2, {}, true, true);
+    add_price_encode_seeds<itch::Trade>("itch50", 3, {{19, "BS"}}, true, true);
+    // Net order imbalance: each of far, near and current reference price at every limit, the others zero.
+    for (std::size_t price_index = 0; price_index < 3; ++price_index) {
+        for (const WideValuePick limit : {kPickMinusOne, kPickUint32Max, kPickUint32MaxPlusOne}) {
+            WideValuePick prices[3] = {kPickZero, kPickZero, kPickZero};
+            prices[price_index] = limit;
+            add_seed("itch50", wide_field_encode_seed<itch::NetOrderImbalance>(
+                                   4, {}, {prices[0], prices[1], prices[2], kPickZero}));
+        }
+    }
+    for (const WideValuePick timestamp : {kPickUint48Max, kPickUint48MaxPlusOne}) {
+        add_seed("itch50", wide_field_encode_seed<itch::OrderDelete>(5, {}, {timestamp}));
+    }
+
+    // SoupBinTCP: a packet one byte short of and one byte past its length.
+    const std::string data_packet = soup_frame('U', "abcd");
+    add_seed("soupbintcp", data_packet.substr(0, data_packet.size() - 1));
+    add_seed("soupbintcp", data_packet + "e");
+    // Reader: max length 10, frames of length 10 (ok) and 11 (overflow).
+    const std::string reader_header_max_10 = std::string("\xc7\x0a", 2) + big_endian(1, 4);
+    add_seed("soupbintcp", reader_header_max_10 + soup_frame('U', std::string(9, 'u')));
+    add_seed("soupbintcp", reader_header_max_10 + soup_frame('U', std::string(10, 'u')));
+    // Reader: buffer of 13 bytes, frames of length 11 (fills it) and 12 (full).
+    const std::string reader_header_capacity_13 = std::string("\x0d\x7f", 2) + big_endian(1, 4);
+    add_seed("soupbintcp", reader_header_capacity_13 + soup_frame('U', std::string(10, 'u')));
+    add_seed("soupbintcp", reader_header_capacity_13 + soup_frame('U', std::string(11, 'u')));
+    // Login packets with a sequence number in every digit of the 20-byte field.
+    soup::LoginAccepted login_accepted;
+    login_accepted.session = {'E', 'X', 'S', 'I', 'M', ' ', ' ', ' ', ' ', '1'};
+    login_accepted.sequence = 12345678901234567890ull;
+    std::array<char, 33> login_accepted_bytes{};
+    add_seed("soupbintcp", {login_accepted_bytes.data(), soup::encode(login_accepted, login_accepted_bytes.data(), 33)});
+    soup::LoginRequest login_request;
+    login_request.sequence = UINT64_MAX;
+    std::array<char, 49> login_request_bytes{};
+    const std::string longest_login = {login_request_bytes.data(), soup::encode(login_request, login_request_bytes.data(), 49)};
+    add_seed("soupbintcp", longest_login);
+    std::string overflowing_login = longest_login;
+    overflowing_login.back() = '6';  // 18446744073709551616: one past UINT64_MAX (invalid_field)
+    add_seed("soupbintcp", overflowing_login);
+
+    // MoldUDP64: the last message one byte longer than the packet, and the
+    // most messages a packet can carry (65534 one-byte messages).
+    const std::string session_name = "EXSIM     ";
+    add_seed("moldudp64", session_name + big_endian(1, 8) + big_endian(1, 2) + big_endian(4, 2) + "abc");
+    std::string fullest_packet = session_name + big_endian(1, 8) + big_endian(65534, 2);
+    for (int message = 0; message < 65534; ++message) fullest_packet += big_endian(1, 2) + "m";
+    add_seed("moldudp64", fullest_packet);
+
+    // FIX framing limits: 20 and 21 BodyLength digits, the 1 MiB frame limit, tag 0.
+    const std::string logout_body = "35=5|49=CLIENT1|56=EXSIM|34=6|52=20231114-22:13:20.123|";
+    add_seed("fix44_message", fix_frame(logout_body, 20));
+    add_seed("fix44_message", fix_frame(logout_body, 21));
+    add_seed("fix44_message", "8=FIX.4.4\x01" "9=1048549\x01" "35=0\x01");  // declares exactly 1 MiB: incomplete
+    add_seed("fix44_message", "8=FIX.4.4\x01" "9=1048550\x01" "35=0\x01");  // one byte more: overflow
+    add_seed("fix44_message", fix_frame(logout_body + "0=x|"));
+    // UTCTimestamp limits: second 59 and 60, leap days in 2000, 2024 and (invalid) 2100.
+    for (const char* sending_time : {"20231114-22:13:59.123", "20231114-22:13:60.123", "20000229-00:00:00.000",
+                                     "20240229-12:00:00", "21000229-00:00:00.000", "21000228-23:59:59.999"}) {
+        add_seed("fix44_message", fix_frame(fix_heartbeat_body(sending_time)));
+    }
+    // OrderQty limits: 4294967295 fits the 32-bit quantity, 4294967296 does not.
+    add_seed("fix44_message", fix_frame(fix_new_order_body("4294967295")));
+    add_seed("fix44_message", fix_frame(fix_new_order_body("4294967296")));
+
+    // FIX Builder: a field one byte larger than the space left (refused), and
+    // a frame exactly filling its buffer (36 bytes) and one byte larger.
+    const std::vector<std::pair<unsigned, std::string>> one_field = {{11, "abcdefghij"}};
+    add_seed("fix44_stream", fix_builder_seed(one_field, 27));
+    add_seed("fix44_stream", fix_builder_seed(one_field, 36));
+    add_seed("fix44_stream", fix_builder_seed(one_field, 35));
+    // 61 body fields fill the 64-entry field table with 8, 9 and 10; 62 overflow it.
+    for (const unsigned body_field_count : {61u, 62u}) {
+        std::vector<std::pair<unsigned, std::string>> fields;
+        for (unsigned index = 0; index < body_field_count; ++index) fields.push_back({12 + index, "v"});
+        std::string seed = fix_builder_seed(fields, 0);
+        seed.replace(seed.size() - 5, 5, "\x01");  // 65536-byte buffer
+        add_seed("fix44_stream", seed);
+    }
+
+    // wire numeric: the largest uint64, one past it, and ':' (the byte after '9').
+    add_seed("wire_text_fields", "18446744073709551615");
+    add_seed("wire_text_fields", "18446744073709551616");
+    add_seed("wire_text_fields", "     12:");
+    // Value 10 into a 1-character field (does not fit), then an alpha value
+    // whose last byte is a control character below ' '.
+    add_seed("wire_text_fields", std::string("\0", 1) + big_endian(10, 4) + big_endian(0, 4) + big_endian(4, 4) +
+                                     big_endian(3, 4) + "AB\x01" + big_endian(0x0102030405060708ull, 8));
+
+    // Server price parser limits: whole part one past the int64 range, and
+    // fractions one past INT64_MAX and INT64_MIN.
+    for (const char* text : {"922337203685477", "922337203685478", "922337203685477.5808", "-922337203685477.5809"}) {
+        add_seed("price_text", text);
+    }
+}
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -403,6 +665,7 @@ int main(int argc, char** argv) {
     add_sbe_seeds();
     add_text_seeds(repository_root);
     add_simulation_seeds(repository_root);
+    add_boundary_seeds();
     for (const auto& [target, seeds] : seeds_by_target) {
         std::filesystem::create_directories(output_directory / target);
         for (std::size_t index = 0; index < seeds.size(); ++index) {
