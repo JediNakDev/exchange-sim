@@ -7,13 +7,13 @@ The silent walkthrough records the production Next.js frontend connected through
 | Approximate time | Scene |
 | --- | --- |
 | 00:00 | Experiments and completed seed runs |
-| 00:03 | Configure a quoting experiment, feed delay and assumptions |
-| 00:11 | Start paused, step 1,000 scheduler events, resume to completion |
-| 00:17 | Equity, inventory, drawdown and fixed-point accounting |
-| 00:22 | Event stepping, a fill's order lifecycle and exchange/strategy views |
-| 00:31 | Compare three common seeds and expose the changed quote width |
-| 00:39 | Paired metric differences, dispersion and per-seed drill-down |
-| 00:45 | Inspect the manifest and return to the summary |
+| 00:05 | Configure a quoting experiment, feed delay and assumptions |
+| 00:12 | Start paused, step 1,000 scheduler events, resume to completion |
+| 00:19 | Equity, inventory, drawdown and fixed-point accounting |
+| 00:24 | Event stepping, a fill's order lifecycle and exchange/strategy views |
+| 00:34 | Compare three common seeds and expose the changed quote width |
+| 00:41 | Paired metric differences, dispersion and per-seed drill-down |
+| 00:47 | Inspect the manifest and return to the summary |
 
 The comparison changes only `strategy.halfSpreadTicks`, from 1 to 2, across seeds 1, 2 and 3. In this particular synthetic experiment the wider quotes have lower net P&L on all three seeds. Three seeds and an uncalibrated synthetic market do not establish a live trading result.
 
@@ -31,6 +31,6 @@ The comparison changes only `strategy.halfSpreadTicks`, from 1 to 2, across seed
 
 ## Capture and checks
 
-Captured on 2026-11-06 at 1440 x 900. The UI was driven in an isolated Chromium session after the preview bridge and desktop browser surfaces were unavailable. Navigation, form entry, run controls, event stepping and fill selection used actual rendered controls. The final pass completed all eight scenes, with 57 API responses, zero failed API responses and zero browser exceptions. The MP4 was decoded end to end after encoding.
+Refreshed after the frontend redesign on 2026-11-06 at 1440 x 900. The recording includes the searchable experiment library and the new research workstation layout. The UI was driven in an isolated Chromium session after the preview bridge and desktop browser surfaces were unavailable. Navigation, form entry, run controls, event stepping and fill selection used actual rendered controls. The final pass completed all eight scenes, with 57 API responses, zero failed API responses and zero browser exceptions. The MP4 was decoded end to end after encoding.
 
-The Next.js production build enables standalone output. The C++ research source is the validated integration at `edc13b0`; this publishing change does not alter simulation or matching behavior. Host-specific Tailscale addresses, property lists, logs and run artifacts are not included in these assets. Reproduction and service management: [DEPLOYMENT.md](../DEPLOYMENT.md).
+The visual direction follows the installed Anthropic frontend-design skill; [design notes](../UI_DESIGN.md) describe the choices. The Next.js production build enables standalone output. The C++ research source is the validated integration at `edc13b0`; this publishing change does not alter simulation or matching behavior. Host-specific Tailscale addresses, property lists, logs and run artifacts are not included in these assets. Reproduction and service management: [DEPLOYMENT.md](../DEPLOYMENT.md).

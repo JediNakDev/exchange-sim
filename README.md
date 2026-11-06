@@ -70,7 +70,7 @@ The protocol runtime is a separate process from deterministic browser research. 
 ## Architecture and stack
 
 - **C++:** matching, simulation, strategies, accounting, network protocols, journals and the HTTP service.
-- **Frontend:** Bun, Next.js, TypeScript, Tailwind CSS and shadcn/ui. The browser uses a same-origin proxy and generated OpenAPI types.
+- **Frontend:** Bun, Next.js, TypeScript, Tailwind CSS and shadcn/ui, with self-hosted IBM Plex typography. The research workstation has persistent navigation, a searchable experiment library, compact run outcomes and a keyboard-driven event tape. The browser uses a same-origin proxy and generated OpenAPI types. [Design notes](docs/UI_DESIGN.md).
 - **Shared implementation:** deterministic research and the real-time protocol runtime instantiate the same matching-engine code, with separate state. The engine itself reads no clock, performs no I/O and uses no randomness.
 
 [Product decisions](docs/PRODUCT.md) · [Architecture](docs/ARCHITECTURE.md) · [Matching specification](docs/SPEC.md) · [HTTP/OpenAPI](docs/API.md) · [Gateway contracts](docs/GATEWAYS.md)

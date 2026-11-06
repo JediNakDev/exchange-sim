@@ -17,5 +17,5 @@ export function isTerminalRunState(runState: ApiSchemas["RunState"]): boolean {
 }
 
 export function RunStateBadge({ runState }: { runState: ApiSchemas["RunState"] }) {
-  return <Badge variant={BADGE_VARIANT_BY_RUN_STATE[runState]}>{runState}</Badge>;
+  return <Badge className="run-state" data-state={runState} variant={BADGE_VARIANT_BY_RUN_STATE[runState]}>{runState}</Badge>;
 }

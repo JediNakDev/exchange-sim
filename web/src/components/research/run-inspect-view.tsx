@@ -443,12 +443,12 @@ export function RunInspectView() {
       <PageHeading
         title={
           <span className="flex items-center gap-2">
-            Inspect <span className="font-mono">{run.runId}</span> <RunStateBadge runState={run.state} />
+            Inspect seed <span>{run.masterSeed}</span> <RunStateBadge runState={run.state} />
           </span>
         }
         description={
           <span>
-            seed <span className="font-mono">{run.masterSeed}</span>, {formatIntegerText(processedEventCount)} events processed.{" "}
+            <span className="font-mono text-xs">{run.runId}</span>{" / "} seed <span className="font-mono">{run.masterSeed}</span>, {formatIntegerText(processedEventCount)} events processed.{" "}
             <Link className="underline" href={`/runs/${run.runId}`}>
               Run summary
             </Link>
@@ -460,7 +460,7 @@ export function RunInspectView() {
         aria-label="Event position stepper. Arrow keys or j and k step one event, Shift steps 25, Home and End jump to the ends."
         tabIndex={0}
         onKeyDown={handleStepperKeys}
-        className="flex flex-wrap items-center gap-2 rounded-md border p-2 focus-visible:outline-2 focus-visible:outline-ring"
+        className="inspection-toolbar flex flex-wrap items-center gap-2 border focus-visible:outline-2 focus-visible:outline-ring"
       >
         <Button size="icon-sm" variant="outline" aria-label="First event" onClick={() => selectEventPosition("0")}>
           <ChevronFirstIcon />
@@ -521,7 +521,7 @@ export function RunInspectView() {
         </TabsList>
         <TabsContent value="fills">
           {fillPage.failure ? <ApiFailureAlert failure={fillPage.failure} /> : null}
-          <div className="max-h-[28rem] overflow-auto rounded-md border">
+          <div className="event-tape overflow-hidden rounded-md border">
             <Table className="text-xs">
               <TableHeader>
                 <TableRow>

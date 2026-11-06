@@ -2,29 +2,25 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { FlaskConicalIcon, GitCompareArrowsIcon, NetworkIcon, ChevronRightIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAVIGATION_LINKS = [
-  { href: "/experiments", label: "Experiments" },
-  { href: "/compare", label: "Compare" },
-  { href: "/connections", label: "Connections" },
+  { href: "/experiments", label: "Experiments", icon: FlaskConicalIcon },
+  { href: "/compare", label: "Compare", icon: GitCompareArrowsIcon },
+  { href: "/connections", label: "Connections", icon: NetworkIcon },
 ];
 
-/** Primary links; `currentPathname` is null while the pathname has not streamed in yet. */
 export function PrimaryNavigationLinks({ currentPathname }: { currentPathname: string | null }) {
   return (
-    <nav aria-label="Primary" className="flex items-center gap-1 text-sm">
-      {NAVIGATION_LINKS.map((navigationLink) => {
-        const isActive =
-          currentPathname !== null && (currentPathname.startsWith(navigationLink.href) || (navigationLink.href === "/experiments" && currentPathname.startsWith("/runs")));
+    <nav aria-label="Primary" className="workspace-navigation">
+      {NAVIGATION_LINKS.map(({ href, label, icon: Icon }) => {
+        const isActive = currentPathname !== null && (currentPathname.startsWith(href) || (href === "/experiments" && currentPathname.startsWith("/runs")));
         return (
-          <Link
-            key={navigationLink.href}
-            href={navigationLink.href}
-            aria-current={isActive ? "page" : undefined}
-            className={cn("rounded-md px-2 py-1 hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none", isActive && "bg-accent font-medium")}
-          >
-            {navigationLink.label}
+          <Link key={href} href={href} aria-current={isActive ? "page" : undefined} className={cn("workspace-nav-link", isActive && "is-active")}>
+            <Icon size={18} strokeWidth={1.7} aria-hidden="true" />
+            <span>{label}</span>
+            {isActive ? <ChevronRightIcon className="nav-current-marker" size={15} aria-hidden="true" /> : null}
           </Link>
         );
       })}
@@ -32,7 +28,17 @@ export function PrimaryNavigationLinks({ currentPathname }: { currentPathname: s
   );
 }
 
-/** Highlights the active section. Render inside <Suspense> because the pathname is runtime data. */
 export function AppNavigation() {
   return <PrimaryNavigationLinks currentPathname={usePathname()} />;
+}
+
+export function WorkspaceContext() {
+  const pathname = usePathname();
+  const section = pathname.includes("/inspect") ? "Fill inspection"
+    : pathname.startsWith("/runs") ? "Run analysis"
+    : pathname === "/experiments/new" ? "New experiment"
+    : pathname === "/compare" ? "Paired comparison"
+    : pathname === "/connections" ? "Connections"
+    : pathname === "/experiments" ? "Experiment library" : "Experiment details";
+  return <span className="workspace-context"><span>Research</span><ChevronRightIcon size={13} aria-hidden="true" /><span>{section}</span></span>;
 }

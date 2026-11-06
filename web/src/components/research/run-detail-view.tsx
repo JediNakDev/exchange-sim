@@ -320,13 +320,13 @@ export function RunDetailView() {
       <PageHeading
         title={
           <span className="flex items-center gap-2">
-            <span className="font-mono">{run.runId}</span>
+            <span>Seed {run.masterSeed}</span>
             <RunStateBadge runState={run.state} />
           </span>
         }
         description={
           <span>
-            seed <span className="font-mono">{run.masterSeed}</span> of{" "}
+            <span className="font-mono text-xs">{run.runId}</span>{" / "}
             <Link className="underline" href={`/experiments/${run.experimentId}`}>
               {run.experimentId}
             </Link>
@@ -345,7 +345,7 @@ export function RunDetailView() {
           </>
         }
       />
-      <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
+      <div className="run-progress-strip">
         <span>
           Events processed <span className="font-mono tabular-nums">{formatIntegerText(run.progress.processedCanonicalEventCount)}</span>
         </span>
@@ -360,10 +360,18 @@ export function RunDetailView() {
         ) : null}
       </div>
       {run.terminalDiagnostics ? (
-        <p className="text-sm">
-          <Badge variant={run.state === "failed" ? "destructive" : "secondary"}>{run.terminalDiagnostics.outcomeCode}</Badge> {run.terminalDiagnostics.message} Residual position{" "}
+        <p className="run-diagnostics">
+          {run.state === "completed" ? "Run complete." : run.terminalDiagnostics.message} Residual position{" "}
           <span className="font-mono">{run.terminalDiagnostics.residualPositionShares}</span> shares, residual open orders <span className="font-mono">{run.terminalDiagnostics.residualOpenOrderCount}</span>.
         </p>
+      ) : null}
+      {summaryResource.data ? (
+        <dl className="run-result-strip" aria-label="Run outcomes">
+          <div><dt>Net P&L (USD)</dt><dd className={summaryResource.data.accounting.netPnl?.startsWith("-") ? "text-destructive" : "text-primary"}>{formatDecimalForDisplay(summaryResource.data.accounting.netPnl, { signDisplay: "always" })}</dd></div>
+          <div><dt>Ending position (shares)</dt><dd>{formatDecimalForDisplay(summaryResource.data.accounting.positionShares)}</dd></div>
+          <div><dt>Filled shares</dt><dd>{formatIntegerText(summaryResource.data.orders.filledShares)}</dd></div>
+          <div><dt>Max drawdown (USD)</dt><dd>{formatDecimalForDisplay(summaryResource.data.risk.maxDrawdown)}</dd></div>
+        </dl>
       ) : null}
       {seriesResource.data ? (
         <div className="grid gap-4 lg:grid-cols-3">

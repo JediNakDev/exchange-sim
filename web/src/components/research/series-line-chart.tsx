@@ -24,7 +24,7 @@ export type SeriesChartRow = { simulationTimeSeconds: number; bucketEndTimeNs: s
 export function SeriesLineChart({ title, description, rows, lines }: { title: string; description?: string; rows: SeriesChartRow[]; lines: SeriesLineDefinition[] }) {
   const chartConfig: ChartConfig = Object.fromEntries(lines.map((line) => [line.valueKey, { label: line.label, color: line.color }]));
   return (
-    <Card size="sm">
+    <Card size="sm" className="chart-panel">
       <CardHeader>
         <CardTitle>{title}</CardTitle>
         {description ? <CardDescription>{description}</CardDescription> : null}
@@ -32,7 +32,7 @@ export function SeriesLineChart({ title, description, rows, lines }: { title: st
       <CardContent>
         <ChartContainer config={chartConfig} className="aspect-auto h-48 w-full">
           <LineChart data={rows} margin={{ left: 4, right: 8, top: 4, bottom: 0 }}>
-            <CartesianGrid vertical={false} />
+            <CartesianGrid vertical={false} strokeDasharray="3 4" />
             <XAxis dataKey="simulationTimeSeconds" type="number" domain={["dataMin", "dataMax"]} tickLine={false} axisLine={false} tickFormatter={(tickSeconds: number) => `${tickSeconds}s`} />
             <YAxis tickLine={false} axisLine={false} width={64} domain={["auto", "auto"]} />
             <ChartTooltip
@@ -60,7 +60,7 @@ export function SeriesLineChart({ title, description, rows, lines }: { title: st
             />
             {lines.length > 1 ? <ChartLegend content={<ChartLegendContent />} /> : null}
             {lines.map((line) => (
-              <Line key={line.valueKey} dataKey={line.valueKey} type="stepAfter" stroke={`var(--color-${line.valueKey})`} strokeWidth={2} dot={false} connectNulls={false} isAnimationActive={false} />
+              <Line key={line.valueKey} dataKey={line.valueKey} type="stepAfter" stroke={`var(--color-${line.valueKey})`} strokeWidth={1.7} dot={false} connectNulls={false} isAnimationActive={false} />
             ))}
           </LineChart>
         </ChartContainer>

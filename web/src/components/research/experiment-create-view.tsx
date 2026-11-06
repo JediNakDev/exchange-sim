@@ -25,6 +25,22 @@ import { humanizeEnumValue } from "@/lib/research-labels";
 import { cn } from "@/lib/utils";
 
 type ExperimentConfig = ApiSchemas["ExperimentConfig"];
+
+const SCENARIO_PARAMETER_LABELS: Record<string, string> = {
+  levels: "Price levels per side",
+  quoteSizeShares: "Quote quantity",
+  spreadTicks: "Half spread",
+  fairValueStepIntervalNs: "Fair value step interval",
+  fairValueStepTicks: "Fair value step size",
+  requoteIntervalNs: "Requote interval",
+  meanInterarrivalNs: "Mean time between orders",
+  minimumOrderShares: "Minimum order quantity",
+  maximumOrderShares: "Maximum order quantity",
+  crossTicks: "Crossing distance",
+  limitOrderProbability: "Resting order probability",
+  limitOrderLifetimeNs: "Resting order lifetime",
+};
+
 /** Both executable market makers share the runner's quoting parameters; the inventory-aware one adds a skew. */
 type QuotingStrategyConfig = ApiSchemas["FixedSpreadMarketMakerConfig"] | ApiSchemas["InventoryAwareMarketMakerConfig"];
 
@@ -108,7 +124,7 @@ function TextField({
         value={value}
         inputMode={inputMode}
         aria-invalid={fieldIssues.length > 0 || undefined}
-        className="font-mono"
+        className={inputMode === "text" ? undefined : "font-mono"}
         onChange={(changeEvent) => onValueChange(changeEvent.target.value)}
       />
       {description ? <FieldDescription>{description}</FieldDescription> : null}
@@ -229,9 +245,9 @@ export function ExperimentCreateView() {
   return (
     <>
       <PageHeading title="New experiment" description="Start from a baseline, change what you are testing, review every assumption, then queue one run per master seed." />
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.6fr)_minmax(280px,1fr)]">
         <form
-          className="flex flex-col gap-4"
+          className="experiment-form flex flex-col"
           onSubmit={(submitEvent) => {
             submitEvent.preventDefault();
             void requestPreview();
@@ -293,12 +309,12 @@ export function ExperimentCreateView() {
               <code className="font-mono">{draft.config.scenario.scenarioId}</code>: {draft.config.scenario.description}
             </FieldDescription>
             {draft.config.scenario.backgroundAgents.map((agent, agentIndex) => (
-              <FieldGroup key={agent.agentKind} className="grid gap-3 md:grid-cols-3">
-                <p className="text-sm font-medium md:col-span-3">{humanizeEnumValue(agent.agentKind)}</p>
+              <FieldGroup key={agent.agentKind} className="grid gap-3 md:grid-cols-2">
+                <p className="text-sm font-medium md:col-span-2">{humanizeEnumValue(agent.agentKind)}</p>
                 {agent.parameters.map((parameter, parameterIndex) => (
                   <TextField
                     key={parameter.name}
-                    label={parameter.name}
+                    label={SCENARIO_PARAMETER_LABELS[parameter.name] ?? humanizeEnumValue(parameter.name)}
                     unit={parameter.unit}
                     description={parameter.description}
                     fieldPath={`/config/scenario/backgroundAgents/${agentIndex}/parameters/${parameterIndex}/value`}
@@ -315,7 +331,7 @@ export function ExperimentCreateView() {
             <FieldSet>
               <FieldLegend>Strategy: {humanizeEnumValue(strategyConfig.strategyKind)}</FieldLegend>
               <FieldDescription>Quotes one level each side of the strategy-visible mid and requotes by cancel/replace on a timer.</FieldDescription>
-              <FieldGroup className="grid gap-3 md:grid-cols-3">
+              <FieldGroup className="grid gap-3 md:grid-cols-2">
                 <TextField label="Half spread" unit="ticks from the visible mid" fieldPath="/config/strategy/halfSpreadTicks" inputMode="numeric" value={strategyConfig.halfSpreadTicks} onValueChange={(halfSpreadTicks) => updateQuotingStrategy((nextStrategy) => void (nextStrategy.halfSpreadTicks = halfSpreadTicks))} issuesByFieldPath={issuesByFieldPath} />
                 <TextField label="Quote quantity" unit="shares" fieldPath="/config/strategy/quoteQuantity" inputMode="numeric" value={strategyConfig.quoteQuantity} onValueChange={(quoteQuantity) => updateQuotingStrategy((nextStrategy) => void (nextStrategy.quoteQuantity = quoteQuantity))} issuesByFieldPath={issuesByFieldPath} />
                 <TextField label="Requote interval" unit="ns" fieldPath="/config/strategy/requoteIntervalNs" inputMode="numeric" value={strategyConfig.requoteIntervalNs} description={formatDurationNs(strategyConfig.requoteIntervalNs)} onValueChange={(intervalNs) => updateQuotingStrategy((nextStrategy) => void (nextStrategy.requoteIntervalNs = intervalNs))} issuesByFieldPath={issuesByFieldPath} />
@@ -324,13 +340,13 @@ export function ExperimentCreateView() {
                   <>
                     <TextField label="Inventory skew" unit="ticks per skew unit" fieldPath="/config/strategy/inventorySkewTicksPerUnit" inputMode="numeric" value={strategyConfig.inventorySkewTicksPerUnit} onValueChange={(skewTicks) => updateQuotingStrategy((nextStrategy) => void ((nextStrategy as ApiSchemas["InventoryAwareMarketMakerConfig"]).inventorySkewTicksPerUnit = skewTicks))} issuesByFieldPath={issuesByFieldPath} />
                     <TextField label="Skew unit" unit="shares" fieldPath="/config/strategy/inventorySkewUnitShares" inputMode="numeric" value={strategyConfig.inventorySkewUnitShares} onValueChange={(skewUnitShares) => updateQuotingStrategy((nextStrategy) => void ((nextStrategy as ApiSchemas["InventoryAwareMarketMakerConfig"]).inventorySkewUnitShares = skewUnitShares))} issuesByFieldPath={issuesByFieldPath} />
-                    <Field orientation="horizontal" className="md:col-span-3">
+                    <Field orientation="horizontal" className="md:col-span-2">
                       <Checkbox id="scale-size-with-inventory" checked={strategyConfig.scaleSizeWithInventory} onCheckedChange={(checkedState) => updateQuotingStrategy((nextStrategy) => void ((nextStrategy as ApiSchemas["InventoryAwareMarketMakerConfig"]).scaleSizeWithInventory = checkedState === true))} />
                       <FieldLabel htmlFor="scale-size-with-inventory">Shrink the side that adds inventory as the position nears its limit</FieldLabel>
                     </Field>
                   </>
                 ) : null}
-                <Field orientation="horizontal" className="md:col-span-3">
+                <Field orientation="horizontal" className="md:col-span-2">
                   <Checkbox id="post-only" checked={strategyConfig.postOnly} onCheckedChange={(checkedState) => updateQuotingStrategy((nextStrategy) => void (nextStrategy.postOnly = checkedState === true))} />
                   <FieldLabel htmlFor="post-only">Post only: never cross the visible opposite side</FieldLabel>
                 </Field>
@@ -354,7 +370,7 @@ export function ExperimentCreateView() {
           <FieldSet>
             <FieldLegend>Latency</FieldLegend>
             <FieldDescription>Each path is configured separately. Feed: exchange to strategy market data. Order entry: strategy to exchange. Acknowledgment: exchange to strategy reports. Cancel: strategy cancel to exchange.</FieldDescription>
-            <FieldGroup className="grid gap-3 md:grid-cols-3">
+            <FieldGroup className="grid gap-3 md:grid-cols-2">
               <Field>
                 <FieldLabel htmlFor="latency-model">Model</FieldLabel>
                 <Select value={latency.latencyModel} onValueChange={(latencyModel) => updateDraft((nextDraft) => void (nextDraft.config.latency.latencyModel = latencyModel as ApiSchemas["LatencyModelKind"]))}>
@@ -373,7 +389,7 @@ export function ExperimentCreateView() {
               <TextField label="Cancel" unit="ns" fieldPath="/config/latency/cancelLatencyNs" inputMode="numeric" value={latency.cancelLatencyNs} description={formatDurationNs(latency.cancelLatencyNs)} onValueChange={(latencyNs) => updateDraft((nextDraft) => void (nextDraft.config.latency.cancelLatencyNs = latencyNs))} issuesByFieldPath={issuesByFieldPath} />
               <TextField label="Jitter" unit="ns" fieldPath="/config/latency/jitterNs" inputMode="numeric" value={latency.jitterNs} onValueChange={(latencyNs) => updateDraft((nextDraft) => void (nextDraft.config.latency.jitterNs = latencyNs))} issuesByFieldPath={issuesByFieldPath} />
               <TextField label="Strategy compute" unit="ns" description="Decision to departure, before order entry or cancel latency." fieldPath="/config/latency/strategyComputeNs" inputMode="numeric" value={latency.strategyComputeNs ?? "0"} onValueChange={(latencyNs) => updateDraft((nextDraft) => void (nextDraft.config.latency.strategyComputeNs = latencyNs))} issuesByFieldPath={issuesByFieldPath} />
-              <Field orientation="horizontal" className="md:col-span-3">
+              <Field orientation="horizontal" className="md:col-span-2">
                 <Checkbox id="order-channel-fifo" checked={latency.orderChannelFifo ?? true} onCheckedChange={(checkedState) => updateDraft((nextDraft) => void (nextDraft.config.latency.orderChannelFifo = checkedState === true))} />
                 <FieldLabel htmlFor="order-channel-fifo">One FIFO order-entry channel: a cancel never overtakes an earlier order</FieldLabel>
               </Field>
@@ -382,7 +398,7 @@ export function ExperimentCreateView() {
 
           <FieldSet>
             <FieldLegend>Fees and risk</FieldLegend>
-            <FieldGroup className="grid gap-3 md:grid-cols-3">
+            <FieldGroup className="grid gap-3 md:grid-cols-2">
               <TextField label="Fee schedule id" fieldPath="/config/fees/feeScheduleId" inputMode="text" value={draft.config.fees.feeScheduleId} onValueChange={(feeScheduleId) => updateDraft((nextDraft) => void (nextDraft.config.fees.feeScheduleId = feeScheduleId))} issuesByFieldPath={issuesByFieldPath} />
               <TextField label="Maker fee" unit="USD/share, negative is a rebate" fieldPath="/config/fees/makerFeePerShare" value={draft.config.fees.makerFeePerShare} onValueChange={(feeText) => updateDraft((nextDraft) => void (nextDraft.config.fees.makerFeePerShare = feeText))} issuesByFieldPath={issuesByFieldPath} />
               <TextField label="Taker fee" unit="USD/share" fieldPath="/config/fees/takerFeePerShare" value={draft.config.fees.takerFeePerShare} onValueChange={(feeText) => updateDraft((nextDraft) => void (nextDraft.config.fees.takerFeePerShare = feeText))} issuesByFieldPath={issuesByFieldPath} />
@@ -394,7 +410,7 @@ export function ExperimentCreateView() {
 
           <FieldSet>
             <FieldLegend>Accounting and bounds</FieldLegend>
-            <FieldGroup className="grid gap-3 md:grid-cols-3">
+            <FieldGroup className="grid gap-3 md:grid-cols-2">
               <TextField label="Initial cash" unit="USD" fieldPath="/config/initialCash" value={draft.config.initialCash} onValueChange={(cashText) => updateDraft((nextDraft) => void (nextDraft.config.initialCash = cashText))} issuesByFieldPath={issuesByFieldPath} />
               <TextField label="Markout horizons" unit="ns, comma separated" fieldPath="/config/markoutHorizonsNs" inputMode="text" value={draft.markoutHorizonsText} onValueChange={(horizonsText) => updateDraft((nextDraft) => void (nextDraft.markoutHorizonsText = horizonsText))} issuesByFieldPath={issuesByFieldPath} />
               <TextField label="Simulation end" unit="ns" fieldPath="/config/bounds/endSimulationTimeNs" inputMode="numeric" value={draft.config.bounds.endSimulationTimeNs} description={formatDurationNs(draft.config.bounds.endSimulationTimeNs.match(/^\d+$/) ? draft.config.bounds.endSimulationTimeNs : "0")} onValueChange={(endTimeText) => updateDraft((nextDraft) => void (nextDraft.config.bounds.endSimulationTimeNs = endTimeText))} issuesByFieldPath={issuesByFieldPath} />
@@ -411,12 +427,12 @@ export function ExperimentCreateView() {
               Review assumptions
             </Button>
             <Button type="button" disabled={!isPreviewCurrent || !previewOutcome?.preview.valid || isSubmitting} onClick={() => void createExperimentAndStartRuns()}>
-              {isSubmitting ? "Starting..." : `Create and start ${createRequest.config.seedSet.masterSeeds.length} runs`}
+              {isSubmitting ? "Starting..." : `Create and start ${createRequest.config.seedSet.masterSeeds.length} ${createRequest.config.seedSet.masterSeeds.length === 1 ? "run" : "runs"}`}
             </Button>
           </div>
         </form>
 
-        <div className="flex flex-col gap-4 xl:sticky xl:top-14 xl:self-start">
+        <div className="flex flex-col gap-4 xl:sticky xl:top-22 xl:self-start">
           {requestFailure ? <ApiFailureAlert failure={requestFailure} /> : null}
           <Card size="sm">
             <CardHeader>

@@ -77,10 +77,10 @@ export function ExperimentDetailView() {
         }
       />
       {experiment.description ? <p className="text-sm">{experiment.description}</p> : null}
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+      <div className="flex flex-col gap-5">
         <Card size="sm">
           <CardHeader>
-            <CardTitle>Runs</CardTitle>
+            <CardTitle>Runs by seed</CardTitle>
             <CardDescription>One run per master seed. Updates every second while any run is active.</CardDescription>
           </CardHeader>
           <CardContent>

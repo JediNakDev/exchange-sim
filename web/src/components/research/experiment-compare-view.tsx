@@ -154,9 +154,9 @@ export function ExperimentCompareView() {
 
   return (
     <>
-      <PageHeading title="Compare experiments" description="Paired by master seed: each difference is candidate minus baseline on the same seed, so shared market randomness cancels." />
+      <PageHeading title="Compare experiments" description="Change one assumption. Compare the same seeds. Follow the difference back to a fill." />
       {experimentList.failure ? <ApiFailureAlert failure={experimentList.failure} /> : null}
-      <div className="flex flex-wrap gap-3">
+      <div className="comparison-selectors flex flex-wrap gap-5 rounded-lg border bg-card p-5">
         <ExperimentSelect label="Baseline" value={baselineExperimentId} experiments={experiments} onValueChange={(experimentId) => selectExperiment("baseline", experimentId)} />
         <ExperimentSelect label="Candidate" value={candidateExperimentId} experiments={experiments} onValueChange={(experimentId) => selectExperiment("candidate", experimentId)} />
       </div>
@@ -180,8 +180,8 @@ export function ExperimentCompareView() {
           <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
             <Card size="sm">
               <CardHeader>
-                <CardTitle>Seed pairing</CardTitle>
-                <CardDescription>Only seeds completed in both experiments enter the statistics.</CardDescription>
+                <CardTitle>Paired seeds</CardTitle>
+                <CardDescription>Only reproduced, completed runs enter this paired comparison.</CardDescription>
               </CardHeader>
               <CardContent className="flex flex-col gap-1 text-sm">
                 <p>

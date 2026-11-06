@@ -11,7 +11,7 @@ bun install --frozen-lockfile
 bun run build
 mkdir -p .next/standalone/.next
 cp -R .next/static .next/standalone/.next/
-cp -R public .next/standalone/
+if [ -d public ]; then cp -R public .next/standalone/; fi
 ```
 
 `next.config.ts` enables standalone output. Deploy the complete standalone directory, its copied static/public assets, and the C++ binary. Node.js runs the standalone Next.js server; Bun manages frontend dependencies and builds. Keep run data outside the release directory.
@@ -50,7 +50,7 @@ Remove this endpoint with `tailscale serve --https=10000 off`.
 
 ## Installed macOS deployment
 
-The demonstration host runs copied release artifacts under `$HOME/Library/Application Support/exsim/releases/production-20261106/`, independent of the external-drive source checkout. Persistent data is at `$HOME/Library/Application Support/exsim/research-data/`.
+The demonstration host runs copied release artifacts under `$HOME/Library/Application Support/exsim/releases/`, independent of the external-drive source checkout. The C++ API remains pinned to its validated `production-20261106` bundle; the redesigned frontend uses the `production-20261106-workstation` bundle. Persistent data is at `$HOME/Library/Application Support/exsim/research-data/`.
 
 Two LaunchAgents start at user login and restart on exit:
 
