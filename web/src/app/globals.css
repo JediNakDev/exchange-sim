@@ -173,7 +173,7 @@
 .chart-panel .recharts-cartesian-grid-horizontal line { stroke: #e3ebef; }
 .chart-panel .recharts-cartesian-axis-tick text { fill: #597281; font-family: var(--font-sans); font-size: 10px; }
 .experiment-form { gap: 20px; }
-.experiment-form fieldset { background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 23px; }
+.experiment-form [data-slot="field-set"] { background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 23px; }
 .experiment-form legend { font-size: 16px; font-weight: 500; padding-inline: 4px; }
 .experiment-form [data-slot="field-label"] { flex-wrap: wrap; font-size: 12px; font-weight: 500; color: #38566a; }
 .experiment-form [data-slot="field-description"] { font-size: 11px; line-height: 1.6; }

@@ -121,6 +121,13 @@ export function listAssumptionDifferences(baselineConfig: ExperimentConfig, cand
 }
 
 export const BETTER_DIRECTION_BY_METRIC: Record<Schemas["MetricKey"], Schemas["MetricComparison"]["betterDirection"]> = {
+  completion_ratio: "higher",
+  residual_qty: "lower",
+  decision_slippage_total: "lower",
+  decision_slippage_per_share: "lower",
+  implementation_shortfall_total: "lower",
+  implementation_shortfall_per_share: "lower",
+  participation_rate: "neither",
   net_pnl: "higher",
   equity: "higher",
   gross_realized_pnl: "higher",

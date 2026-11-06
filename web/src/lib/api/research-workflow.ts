@@ -61,3 +61,23 @@ export async function startMissingSeedRuns(client: ExsimApiClient, experiment: A
 export function validStepEventCount(value: string): boolean {
   return /^[1-9][0-9]{0,5}$/.test(value) && BigInt(value) <= 100000n;
 }
+
+
+/** Search ordered fill pages without retaining unrelated evidence or reading past a match. */
+export async function readSelectedFill(client: ExsimApiClient, runId: string, orderId: string, eventPosition: string, signal: AbortSignal): Promise<ApiSchemas["Fill"]> {
+  let cursor: string | undefined;
+  const seen = new Set<string>();
+  do {
+    signal.throwIfAborted();
+    const page = unwrapApiResult(await client.GET("/v1/runs/{runId}/fills", { params: { path: { runId }, query: { orderId, limit: 200, cursor } }, signal }));
+    const selected = page.items.find((fill) => fill.eventPosition === eventPosition && fill.orderId === orderId);
+    if (selected) return selected;
+    if (page.items.some((fill) => BigInt(fill.eventPosition) > BigInt(eventPosition))) break;
+    cursor = page.page.nextCursor ?? undefined;
+    if (cursor !== undefined) {
+      if (seen.has(cursor)) throw new Error("The service repeated a fill cursor. Try refreshing this order.");
+      seen.add(cursor);
+    }
+  } while (cursor !== undefined);
+  throw new Error("The selected fill is missing from the available order evidence. Retry to refresh it.");
+}

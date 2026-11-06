@@ -54,7 +54,7 @@ test("a partially launched batch remains saved and starts only its missing seed"
   expect(posts).toBe(3);
 });
 
-test("variants copy the saved assumptions and expose inventory-aware configuration", async ({ page }) => {
+test("variants copy saved assumptions and hide models the service cannot execute", async ({ page }) => {
   const service = new MockResearchService();
   const parent = await requestJson<ApiSchemas["Experiment"]>(service, "/v1/experiments/exp_fixedspreadw2");
   let previewBody: ApiSchemas["ExperimentCreateRequest"] | undefined;
@@ -69,11 +69,7 @@ test("variants copy the saved assumptions and expose inventory-aware configurati
   await expect.poll(() => previewBody?.parentExperimentId).toBe(parent.experimentId);
   expect(previewBody?.config).toEqual(parent.config);
   await page.getByLabel("Quoting model").click();
-  await page.getByRole("option", { name: "Inventory-aware market maker" }).click();
-  await page.getByLabel(/Inventory skew/).fill("2");
-  await page.getByRole("button", { name: "Review assumptions" }).click();
-  await expect.poll(() => previewBody?.config.strategy.strategyKind).toBe("inventory_aware_market_maker");
-  expect(previewBody?.config.strategy).toMatchObject({ inventorySkewTicksPerUnit: "2", inventorySkewUnitShares: "100" });
+  await expect(page.getByRole("option", { name: "Inventory-aware market maker" })).toHaveCount(0);
 });
 
 test("lost step responses retry the same key and keyboard submits respect the API bound", async ({ page }) => {
@@ -165,4 +161,115 @@ test("research routes retain mobile width and have no browser exceptions", async
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390);
   }
   expect(errors).toEqual([]);
+});
+
+test("duration drafts survive keyboard clearing and invalid intermediate text", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await installService(page, new MockResearchService());
+  await page.goto("/experiments/new");
+  for (const label of ["Requote interval", "Feed", "Order entry", "Acknowledgment", "Cancel"]) {
+    const input = page.getByLabel(new RegExp(`^${label}`));
+    const original = await input.inputValue();
+    await input.press("ControlOrMeta+A");
+    await input.press("Backspace");
+    await expect(input).toHaveValue("");
+    await expect(page.getByRole("heading", { name: "New experiment" })).toBeVisible();
+    await input.fill("not yet a duration");
+    await expect(input).toHaveValue("not yet a duration");
+    await input.fill(original);
+  }
+  await page.getByRole("button", { name: "Review assumptions" }).click();
+  await expect(page.getByRole("button", { name: /Create and start/ })).toBeEnabled();
+  expect(errors).toEqual([]);
+});
+
+test("changing variant source resets reviewed intent and draft state on the same route", async ({ page }) => {
+  const service = new MockResearchService();
+  const second = await requestJson<ApiSchemas["Experiment"]>(service, "/v1/experiments/exp_fixedspreadw4");
+  await installService(page, service);
+  await page.goto("/experiments/new?from=exp_fixedspreadw2");
+  await page.getByLabel("Name", { exact: true }).fill("Edited source A");
+  await page.getByRole("button", { name: "Review assumptions" }).click();
+  await expect(page.getByRole("button", { name: /Create and start/ })).toBeEnabled();
+  await page.evaluate(() => window.history.pushState(null, "", "/experiments/new?from=exp_fixedspreadw4"));
+  await expect(page.getByLabel("Name", { exact: true })).toHaveValue(`${second.name} variant`);
+  await expect(page.getByRole("button", { name: /Create and start/ })).toBeDisabled();
+  await expect(page.getByLabel(/Half spread/)).toHaveValue("halfSpreadTicks" in second.config.strategy ? second.config.strategy.halfSpreadTicks : "");
+});
+
+test("loaded run status becomes visibly stale and controls wait for recovery", async ({ page }) => {
+  let now = Date.parse("2026-11-07T12:00:00Z");
+  const service = new MockResearchService(() => now);
+  const baseline = BASELINE_CONFIGURATIONS[0];
+  const experiment = await requestJson<ApiSchemas["Experiment"]>(service, "/v1/experiments", { name: "Stale status", derivedFromBaselineId: baseline.baselineId, config: baseline.config }, "stale-experiment");
+  const run = await requestJson<ApiSchemas["Run"]>(service, "/v1/runs", { experimentId: experiment.experimentId, masterSeed: baseline.config.seedSet.masterSeeds[0], startPaused: true }, "stale-run");
+  now += 1000;
+  let unavailable = false;
+  await installService(page, service, async (route, request) => {
+    if (!unavailable || new URL(request.url).pathname !== `/v1/runs/${run.runId}`) return false;
+    await route.fulfill({ status: 503, json: failure });
+    return true;
+  });
+  await page.goto(`/runs/${run.runId}`);
+  await expect(page.getByRole("button", { name: "Step events" })).toBeEnabled();
+  unavailable = true;
+  await expect(page.getByText("Run status is stale. Refresh before changing the run.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Step events" })).toBeDisabled();
+  unavailable = false;
+  await page.getByRole("alert").filter({ hasText: "Run status is stale. Refresh before changing the run." }).getByRole("button", { name: "Try again" }).click();
+  await expect(page.getByText("Run status is stale. Refresh before changing the run.")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Step events" })).toBeEnabled();
+  await page.goto(`/runs/${run.runId}/inspect`);
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  unavailable = true;
+  await expect(page.getByText("Run status is stale. Showing the last known event range.")).toBeVisible();
+  unavailable = false;
+  await page.getByRole("alert").filter({ hasText: "Run status is stale. Showing the last known event range." }).getByRole("button", { name: "Try again" }).click();
+  await expect(page.getByText("Run status is stale. Showing the last known event range.")).toHaveCount(0);
+});
+
+test("stationary lifecycle and series failures recover in place", async ({ page }) => {
+  const service = new MockResearchService();
+  let failLifecycle = true;
+  let failSeries = true;
+  await installService(page, service, async (route, request) => {
+    const path = new URL(request.url).pathname;
+    if ((failLifecycle && path.endsWith("/lifecycle")) || (failSeries && path.endsWith("/series"))) {
+      await route.fulfill({ status: 503, json: failure });
+      return true;
+    }
+    return false;
+  });
+  await page.goto("/runs/run_fsw2seed303");
+  await expect(page.getByText("Could not load run series")).toBeVisible();
+  failSeries = false;
+  await page.getByRole("button", { name: "Try again", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Equity (USD)" })).toBeVisible();
+  await page.goto("/runs/run_fsw2seed303/inspect");
+  const fills = page.getByRole("table", { name: "Recorded fills" });
+  await fills.locator("tbody tr").first().click();
+  await expect(page.getByText("Could not load order lifecycle")).toBeVisible();
+  failLifecycle = false;
+  await page.getByRole("button", { name: "Try again", exact: true }).click();
+  await expect(page.getByRole("heading", { name: /^Order [0-9]+:/ })).toBeVisible();
+});
+
+test("capability discovery does not offer an unknown strategy without an editor", async ({ page }) => {
+  const service = new MockResearchService();
+  await installService(page, service, async (route, request, forward) => {
+    const path = new URL(request.url).pathname;
+    if (path !== "/v1/service" && path !== "/v1/baselines") return false;
+    const response = await forward();
+    const body = await response.json();
+    if (path === "/v1/service") body.executableStrategyKinds.unshift("future_strategy");
+    else body.items.unshift({ ...structuredClone(body.items[0]), baselineId: "future-baseline", name: "Future strategy", config: { ...body.items[0].config, strategy: { strategyKind: "future_strategy" } } });
+    await route.fulfill({ status: 200, json: body });
+    return true;
+  });
+  await page.goto("/experiments/new");
+  await expect(page.getByLabel("Name", { exact: true })).toBeVisible();
+  await page.getByLabel("Baseline", { exact: true }).click();
+  await expect(page.getByRole("option", { name: "Future strategy" })).toHaveCount(0);
+  await expect(page.getByRole("option").first()).toBeVisible();
 });

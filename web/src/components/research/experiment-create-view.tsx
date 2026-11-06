@@ -27,6 +27,10 @@ import { cn } from "@/lib/utils";
 
 type ExperimentConfig = ApiSchemas["ExperimentConfig"];
 
+function draftDurationDescription(value: string): string | undefined {
+  return /^(0|[1-9][0-9]{0,19})$/.test(value) ? formatDurationNs(value) : undefined;
+}
+
 const SCENARIO_PARAMETER_LABELS: Record<string, string> = {
   levels: "Price levels per side",
   quoteSizeShares: "Quote quantity",
@@ -46,6 +50,7 @@ const SCENARIO_PARAMETER_LABELS: Record<string, string> = {
 type QuotingStrategyConfig = ApiSchemas["FixedSpreadMarketMakerConfig"] | ApiSchemas["InventoryAwareMarketMakerConfig"];
 
 const NO_PARENT_EXPERIMENT = "none";
+const EDITABLE_STRATEGY_KINDS: ApiSchemas["StrategyKind"][] = ["fixed_spread_market_maker", "inventory_aware_market_maker", "twap_execution", "immediate_sweep_execution"];
 
 function splitListText(listText: string): string[] {
   return listText.split(/[\s,]+/).filter((entry) => entry.length > 0);
@@ -170,9 +175,14 @@ function AssumptionsTable({ assumptions }: { assumptions: ApiSchemas["Assumption
 }
 
 export function ExperimentCreateView() {
-  const router = useRouter();
   const parentId = useSearchParams().get("from");
+  return <ExperimentEditor key={parentId ?? "new"} parentId={parentId} />;
+}
+
+function ExperimentEditor({ parentId }: { parentId: string | null }) {
+  const router = useRouter();
   const apiClient = getBrowserApiClient();
+  const serviceResource = useApiResource("service-capabilities", async () => unwrapApiResult(await apiClient.GET("/v1/service")), null);
   const baselineList = useApiResource("baselines", async () => unwrapApiResult(await apiClient.GET("/v1/baselines")), null);
   const experimentList = useApiResource("experiments-for-parent", () => readExperiments(apiClient), null);
   const parentResource = useApiResource(parentId ? `variant:${parentId}` : null, async () => unwrapApiResult(await apiClient.GET("/v1/experiments/{experimentId}", { params: { path: { experimentId: parentId! } } })), null);
@@ -183,9 +193,11 @@ export function ExperimentCreateView() {
   const [isPreviewing, setIsPreviewing] = useState(false);
   const [startRunsPaused, setStartRunsPaused] = useState(false);
 
-  const firstBaseline = baselineList.data?.items[0] ?? null;
+  const supportedKinds = serviceResource.data?.executableStrategyKinds.filter((kind) => EDITABLE_STRATEGY_KINDS.includes(kind));
+  const executableBaselines = baselineList.data?.items.filter((baseline) => supportedKinds?.includes(baseline.config.strategy.strategyKind)) ?? [];
+  const firstBaseline = executableBaselines[0] ?? null;
   const parent = parentResource.data;
-  const draft = useMemo(() => editedDraft ?? (parent ? {
+  const draft = editedDraft ?? (parent ? {
     baselineId: parent.derivedFromBaselineId,
     name: `${parent.name} variant`,
     description: parent.description ?? "",
@@ -193,8 +205,8 @@ export function ExperimentCreateView() {
     config: structuredClone(parent.config),
     masterSeedsText: parent.config.seedSet.masterSeeds.join(", "),
     markoutHorizonsText: parent.config.markoutHorizonsNs.join(", "),
-  } : !parentId && firstBaseline ? draftFromBaseline(firstBaseline) : null), [editedDraft, parent, parentId, firstBaseline]);
-  const createRequest = useMemo(() => (draft ? buildCreateRequest(draft) : null), [draft]);
+  } : !parentId && firstBaseline ? draftFromBaseline(firstBaseline) : null);
+  const createRequest = draft ? buildCreateRequest(draft) : null;
   const createRequestText = createRequest ? JSON.stringify(createRequest) : null;
   const isPreviewCurrent = previewOutcome !== null && previewOutcome.requestText === createRequestText;
   const issuesByFieldPath = useMemo(() => {
@@ -205,10 +217,11 @@ export function ExperimentCreateView() {
     return groupedIssues;
   }, [isPreviewCurrent, previewOutcome, requestFailure]);
 
+  if (serviceResource.failure) return <ApiFailureAlert failure={serviceResource.failure} title="Could not load executable strategies" onRetry={serviceResource.reload} />;
   if (parentResource.failure) return <ApiFailureAlert failure={parentResource.failure} title="Could not load the source experiment" onRetry={parentResource.reload} />;
   if (baselineList.failure) return <ApiFailureAlert failure={baselineList.failure} title="Could not load baselines" onRetry={baselineList.reload} />;
-  if (baselineList.data?.items.length === 0) return <p className="text-sm text-muted-foreground">No executable baselines are available. Check the research service and reload this page.</p>;
-  if (!draft || !createRequest || !baselineList.data) return <p className="text-sm text-muted-foreground">Loading baselines...</p>;
+  if (baselineList.data && supportedKinds && executableBaselines.length === 0) return <p className="text-sm text-muted-foreground">No executable baselines are available. Check the research service and reload this page.</p>;
+  if (!draft || !createRequest || !baselineList.data || !supportedKinds) return <p className="text-sm text-muted-foreground">Loading baselines...</p>;
 
   const updateDraft = (applyChange: (nextDraft: ExperimentDraft) => void) => {
     const nextDraft = structuredClone(draft);
@@ -216,7 +229,9 @@ export function ExperimentCreateView() {
     setEditedDraft(nextDraft);
     setRequestFailure(null);
   };
-  const strategyConfig: QuotingStrategyConfig | null = draft.config.strategy.strategyKind === "twap_execution" ? null : draft.config.strategy;
+  const strategyConfig = draft.config.strategy.strategyKind === "fixed_spread_market_maker" || draft.config.strategy.strategyKind === "inventory_aware_market_maker" ? draft.config.strategy : null;
+  const executionConfig = draft.config.strategy.strategyKind === "twap_execution" || draft.config.strategy.strategyKind === "immediate_sweep_execution" ? draft.config.strategy : null;
+  const updateExecution = (applyChange: (strategy: ApiSchemas["TwapExecutionConfig"] | ApiSchemas["ImmediateSweepExecutionConfig"]) => void) => updateDraft((next) => applyChange(next.config.strategy as ApiSchemas["TwapExecutionConfig"] | ApiSchemas["ImmediateSweepExecutionConfig"]));
   const updateQuotingStrategy = (applyChange: (nextStrategy: QuotingStrategyConfig) => void) => updateDraft((nextDraft) => applyChange(nextDraft.config.strategy as QuotingStrategyConfig));
 
   const requestPreview = async () => {
@@ -260,15 +275,17 @@ export function ExperimentCreateView() {
   return (
     <>
       <PageHeading title="New experiment" description="Start from a baseline, change what you are testing, review every assumption, then queue one run per master seed." />
+      {experimentList.failure ? <ApiFailureAlert failure={experimentList.failure} title="Could not load parent experiments" onRetry={experimentList.reload} /> : null}
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.6fr)_minmax(280px,1fr)]">
         <form
+          key={draft.baselineId}
           className="experiment-form flex flex-col"
           onSubmit={(submitEvent) => {
             submitEvent.preventDefault();
             void requestPreview();
           }}
         >
-          <fieldset disabled={isSubmitting || isPreviewing} className="contents">
+          <fieldset aria-label="Experiment configuration" disabled={isSubmitting || isPreviewing} className="flex min-w-0 flex-col gap-5">
           <FieldSet>
             <FieldLegend>Identity</FieldLegend>
             <FieldGroup className="grid gap-3 md:grid-cols-2">
@@ -285,7 +302,7 @@ export function ExperimentCreateView() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {baselineList.data.items.map((baseline) => (
+                    {executableBaselines.map((baseline) => (
                       <SelectItem key={baseline.baselineId} value={baseline.baselineId}>
                         {baseline.name}
                       </SelectItem>
@@ -356,7 +373,7 @@ export function ExperimentCreateView() {
                     : { ...common, strategyKind: "fixed_spread_market_maker" };
                 })}>
                   <SelectTrigger id="strategy-kind" className="w-full"><SelectValue /></SelectTrigger>
-                  <SelectContent><SelectItem value="fixed_spread_market_maker">Fixed-spread market maker</SelectItem><SelectItem value="inventory_aware_market_maker">Inventory-aware market maker</SelectItem></SelectContent>
+                  <SelectContent>{supportedKinds.includes("fixed_spread_market_maker") ? <SelectItem value="fixed_spread_market_maker">Fixed-spread market maker</SelectItem> : null}{supportedKinds.includes("inventory_aware_market_maker") ? <SelectItem value="inventory_aware_market_maker">Inventory-aware market maker</SelectItem> : null}</SelectContent>
                 </Select>
                 <FieldDescription>Inventory-aware quoting skews prices away from accumulated inventory and can reduce the size that adds exposure.</FieldDescription>
               </Field>
@@ -364,7 +381,7 @@ export function ExperimentCreateView() {
               <FieldGroup className="grid gap-3 md:grid-cols-2">
                 <TextField label="Half spread" unit="ticks from the visible mid" fieldPath="/config/strategy/halfSpreadTicks" inputMode="numeric" value={strategyConfig.halfSpreadTicks} onValueChange={(halfSpreadTicks) => updateQuotingStrategy((nextStrategy) => void (nextStrategy.halfSpreadTicks = halfSpreadTicks))} issuesByFieldPath={issuesByFieldPath} />
                 <TextField label="Quote quantity" unit="shares" fieldPath="/config/strategy/quoteQuantity" inputMode="numeric" value={strategyConfig.quoteQuantity} onValueChange={(quoteQuantity) => updateQuotingStrategy((nextStrategy) => void (nextStrategy.quoteQuantity = quoteQuantity))} issuesByFieldPath={issuesByFieldPath} />
-                <TextField label="Requote interval" unit="ns" fieldPath="/config/strategy/requoteIntervalNs" inputMode="numeric" value={strategyConfig.requoteIntervalNs} description={formatDurationNs(strategyConfig.requoteIntervalNs)} onValueChange={(intervalNs) => updateQuotingStrategy((nextStrategy) => void (nextStrategy.requoteIntervalNs = intervalNs))} issuesByFieldPath={issuesByFieldPath} />
+                <TextField label="Requote interval" unit="ns" fieldPath="/config/strategy/requoteIntervalNs" inputMode="numeric" value={strategyConfig.requoteIntervalNs} description={draftDurationDescription(strategyConfig.requoteIntervalNs)} onValueChange={(intervalNs) => updateQuotingStrategy((nextStrategy) => void (nextStrategy.requoteIntervalNs = intervalNs))} issuesByFieldPath={issuesByFieldPath} />
                 <TextField label="Requote threshold" unit="ticks" description="Minimum move of the desired quote before a resting quote is replaced." fieldPath="/config/strategy/requoteThresholdTicks" inputMode="numeric" value={strategyConfig.requoteThresholdTicks} onValueChange={(thresholdTicks) => updateQuotingStrategy((nextStrategy) => void (nextStrategy.requoteThresholdTicks = thresholdTicks))} issuesByFieldPath={issuesByFieldPath} />
                 {strategyConfig.strategyKind === "inventory_aware_market_maker" ? (
                   <>
@@ -381,6 +398,42 @@ export function ExperimentCreateView() {
                   <FieldLabel htmlFor="post-only">Post only: never cross the visible opposite side</FieldLabel>
                 </Field>
               </FieldGroup>
+            </FieldSet>
+          ) : null}
+
+          {executionConfig ? (
+            <FieldSet>
+              <FieldLegend>Parent-order execution</FieldLegend>
+              <FieldDescription>Children are IOC limits priced through the delivered opposite touch by the protection distance, clamped to the instrument band. The child risk cap and position headroom can leave a residual parent quantity.</FieldDescription>
+              <FieldGroup className="grid gap-3 md:grid-cols-2">
+                <Field>
+                  <FieldLabel htmlFor="execution-method">Execution method</FieldLabel>
+                  <Select value={executionConfig.strategyKind} onValueChange={(kind) => updateDraft((next) => {
+                    const previous = next.config.strategy as ApiSchemas["TwapExecutionConfig"] | ApiSchemas["ImmediateSweepExecutionConfig"];
+                    const common = { parentSide: previous.parentSide, parentQuantity: previous.parentQuantity, startTimeNs: previous.startTimeNs ?? "1000000000", executionDurationNs: previous.executionDurationNs ?? "30000000000", limitOffsetTicks: previous.limitOffsetTicks ?? "5" };
+                    next.config.strategy = kind === "twap_execution" ? { ...common, strategyKind: "twap_execution", sliceIntervalNs: "1000000000", sliceOrderType: "limit" } : { ...common, strategyKind: "immediate_sweep_execution" };
+                  })}>
+                    <SelectTrigger id="execution-method" className="w-full"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {supportedKinds.includes("twap_execution") ? <SelectItem value="twap_execution">TWAP</SelectItem> : null}
+                      {supportedKinds.includes("immediate_sweep_execution") ? <SelectItem value="immediate_sweep_execution">Immediate sweep</SelectItem> : null}
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="parent-side">Parent side</FieldLabel>
+                  <Select value={executionConfig.parentSide} onValueChange={(side) => updateExecution((next) => { next.parentSide = side as ApiSchemas["Side"]; })}>
+                    <SelectTrigger id="parent-side" className="w-full"><SelectValue /></SelectTrigger>
+                    <SelectContent><SelectItem value="buy">Buy</SelectItem><SelectItem value="sell">Sell</SelectItem></SelectContent>
+                  </Select>
+                </Field>
+                <TextField label="Parent quantity" unit="shares" fieldPath="/config/strategy/parentQuantity" inputMode="numeric" value={executionConfig.parentQuantity} onValueChange={(value) => updateExecution((next) => { next.parentQuantity = value; })} issuesByFieldPath={issuesByFieldPath} />
+                <TextField label="Parent start" unit="ns" fieldPath="/config/strategy/startTimeNs" inputMode="numeric" value={executionConfig.startTimeNs ?? "1000000000"} onValueChange={(value) => updateExecution((next) => { next.startTimeNs = value; })} issuesByFieldPath={issuesByFieldPath} />
+                <TextField label="Execution window" unit="ns" fieldPath="/config/strategy/executionDurationNs" inputMode="numeric" value={executionConfig.executionDurationNs ?? "30000000000"} onValueChange={(value) => updateExecution((next) => { next.executionDurationNs = value; })} issuesByFieldPath={issuesByFieldPath} />
+                <TextField label="Price protection" unit="ticks through the visible opposite touch" fieldPath="/config/strategy/limitOffsetTicks" inputMode="numeric" value={executionConfig.limitOffsetTicks ?? "5"} onValueChange={(value) => updateExecution((next) => { next.limitOffsetTicks = value; })} issuesByFieldPath={issuesByFieldPath} />
+                {executionConfig.strategyKind === "twap_execution" ? <TextField label="Slice interval" unit="ns" fieldPath="/config/strategy/sliceIntervalNs" inputMode="numeric" value={executionConfig.sliceIntervalNs} onValueChange={(value) => updateExecution((next) => { if (next.strategyKind === "twap_execution") next.sliceIntervalNs = value; })} issuesByFieldPath={issuesByFieldPath} /> : null}
+              </FieldGroup>
+              <FieldDescription>{executionConfig.strategyKind === "twap_execution" ? "TWAP schedules floor(window / interval) cumulative targets. Each slice sends at most one child; skipped or capped quantities can catch up on later slices. There is no extra final slice." : "Sweep retries remaining quantity on delivered market updates after its prior child completes, through the execution window. It may send several capped children."} A completed simulation does not guarantee a completed parent order.</FieldDescription>
             </FieldSet>
           ) : null}
 
@@ -413,10 +466,10 @@ export function ExperimentCreateView() {
                   </SelectContent>
                 </Select>
               </Field>
-              <TextField label="Feed" unit="ns" fieldPath="/config/latency/feedLatencyNs" inputMode="numeric" value={latency.feedLatencyNs} description={formatDurationNs(latency.feedLatencyNs)} onValueChange={(latencyNs) => updateDraft((nextDraft) => void (nextDraft.config.latency.feedLatencyNs = latencyNs))} issuesByFieldPath={issuesByFieldPath} />
-              <TextField label="Order entry" unit="ns" fieldPath="/config/latency/orderEntryLatencyNs" inputMode="numeric" value={latency.orderEntryLatencyNs} description={formatDurationNs(latency.orderEntryLatencyNs)} onValueChange={(latencyNs) => updateDraft((nextDraft) => void (nextDraft.config.latency.orderEntryLatencyNs = latencyNs))} issuesByFieldPath={issuesByFieldPath} />
-              <TextField label="Acknowledgment" unit="ns" fieldPath="/config/latency/acknowledgmentLatencyNs" inputMode="numeric" value={latency.acknowledgmentLatencyNs} description={formatDurationNs(latency.acknowledgmentLatencyNs)} onValueChange={(latencyNs) => updateDraft((nextDraft) => void (nextDraft.config.latency.acknowledgmentLatencyNs = latencyNs))} issuesByFieldPath={issuesByFieldPath} />
-              <TextField label="Cancel" unit="ns" fieldPath="/config/latency/cancelLatencyNs" inputMode="numeric" value={latency.cancelLatencyNs} description={formatDurationNs(latency.cancelLatencyNs)} onValueChange={(latencyNs) => updateDraft((nextDraft) => void (nextDraft.config.latency.cancelLatencyNs = latencyNs))} issuesByFieldPath={issuesByFieldPath} />
+              <TextField label="Feed" unit="ns" fieldPath="/config/latency/feedLatencyNs" inputMode="numeric" value={latency.feedLatencyNs} description={draftDurationDescription(latency.feedLatencyNs)} onValueChange={(latencyNs) => updateDraft((nextDraft) => void (nextDraft.config.latency.feedLatencyNs = latencyNs))} issuesByFieldPath={issuesByFieldPath} />
+              <TextField label="Order entry" unit="ns" fieldPath="/config/latency/orderEntryLatencyNs" inputMode="numeric" value={latency.orderEntryLatencyNs} description={draftDurationDescription(latency.orderEntryLatencyNs)} onValueChange={(latencyNs) => updateDraft((nextDraft) => void (nextDraft.config.latency.orderEntryLatencyNs = latencyNs))} issuesByFieldPath={issuesByFieldPath} />
+              <TextField label="Acknowledgment" unit="ns" fieldPath="/config/latency/acknowledgmentLatencyNs" inputMode="numeric" value={latency.acknowledgmentLatencyNs} description={draftDurationDescription(latency.acknowledgmentLatencyNs)} onValueChange={(latencyNs) => updateDraft((nextDraft) => void (nextDraft.config.latency.acknowledgmentLatencyNs = latencyNs))} issuesByFieldPath={issuesByFieldPath} />
+              <TextField label="Cancel" unit="ns" fieldPath="/config/latency/cancelLatencyNs" inputMode="numeric" value={latency.cancelLatencyNs} description={draftDurationDescription(latency.cancelLatencyNs)} onValueChange={(latencyNs) => updateDraft((nextDraft) => void (nextDraft.config.latency.cancelLatencyNs = latencyNs))} issuesByFieldPath={issuesByFieldPath} />
               <TextField label="Jitter" unit="ns" fieldPath="/config/latency/jitterNs" inputMode="numeric" value={latency.jitterNs} onValueChange={(latencyNs) => updateDraft((nextDraft) => void (nextDraft.config.latency.jitterNs = latencyNs))} issuesByFieldPath={issuesByFieldPath} />
               <TextField label="Strategy compute" unit="ns" description="Decision to departure, before order entry or cancel latency." fieldPath="/config/latency/strategyComputeNs" inputMode="numeric" value={latency.strategyComputeNs ?? "0"} onValueChange={(latencyNs) => updateDraft((nextDraft) => void (nextDraft.config.latency.strategyComputeNs = latencyNs))} issuesByFieldPath={issuesByFieldPath} />
               <Field orientation="horizontal" className="md:col-span-2">
@@ -434,7 +487,7 @@ export function ExperimentCreateView() {
               <TextField label="Taker fee" unit="USD/share" fieldPath="/config/fees/takerFeePerShare" value={draft.config.fees.takerFeePerShare} onValueChange={(feeText) => updateDraft((nextDraft) => void (nextDraft.config.fees.takerFeePerShare = feeText))} issuesByFieldPath={issuesByFieldPath} />
               <TextField label="Max absolute position" unit="shares" fieldPath="/config/risk/maxAbsolutePositionShares" inputMode="numeric" value={draft.config.risk.maxAbsolutePositionShares} onValueChange={(limitText) => updateDraft((nextDraft) => void (nextDraft.config.risk.maxAbsolutePositionShares = limitText))} issuesByFieldPath={issuesByFieldPath} />
               <TextField label="Max open orders" unit="count" fieldPath="/config/risk/maxOpenOrders" inputMode="numeric" value={draft.config.risk.maxOpenOrders} onValueChange={(limitText) => updateDraft((nextDraft) => void (nextDraft.config.risk.maxOpenOrders = limitText))} issuesByFieldPath={issuesByFieldPath} />
-              <TextField label="Max order quantity" unit="shares" fieldPath="/config/risk/maxOrderQuantity" inputMode="numeric" value={draft.config.risk.maxOrderQuantity} onValueChange={(limitText) => updateDraft((nextDraft) => void (nextDraft.config.risk.maxOrderQuantity = limitText))} issuesByFieldPath={issuesByFieldPath} />
+              <TextField label={executionConfig ? "Max child order quantity" : "Max order quantity"} unit="shares" fieldPath="/config/risk/maxOrderQuantity" inputMode="numeric" value={draft.config.risk.maxOrderQuantity} onValueChange={(limitText) => updateDraft((nextDraft) => void (nextDraft.config.risk.maxOrderQuantity = limitText))} issuesByFieldPath={issuesByFieldPath} />
             </FieldGroup>
           </FieldSet>
 
@@ -456,7 +509,7 @@ export function ExperimentCreateView() {
             <Button type="submit" variant={isPreviewCurrent ? "outline" : "default"}>
               {isPreviewing ? "Reviewing..." : "Review assumptions"}
             </Button>
-            <Button type="button" disabled={!isPreviewCurrent || !previewOutcome?.preview.valid || isSubmitting} onClick={() => void createExperimentAndStartRuns()}>
+            <Button type="button" disabled={!isPreviewCurrent || !previewOutcome?.preview.valid || isSubmitting || !supportedKinds.includes(draft.config.strategy.strategyKind)} onClick={() => void createExperimentAndStartRuns()}>
               {isSubmitting ? "Starting..." : `Create and start ${createRequest.config.seedSet.masterSeeds.length} ${createRequest.config.seedSet.masterSeeds.length === 1 ? "run" : "runs"}`}
             </Button>
           </div>

@@ -10,5 +10,5 @@ export default defineConfig({
   expect: { timeout: 5000 },
   reporter: "list",
   use: { baseURL: "http://127.0.0.1:3762", viewport: { width: 1440, height: 1000 }, trace: "retain-on-failure" },
-  webServer: { command: "node .next/standalone/server.js", env: { HOSTNAME: "127.0.0.1", PORT: "3762" }, url: "http://127.0.0.1:3762/experiments", timeout: 30_000, reuseExistingServer: false },
+  webServer: { command: "node .next/standalone/server.js", env: { HOSTNAME: "127.0.0.1", PORT: "3762", EXSIM_API_BASE_URL: "http://127.0.0.1:3763" }, url: "http://127.0.0.1:3762/experiments", timeout: 30_000, reuseExistingServer: false },
 });

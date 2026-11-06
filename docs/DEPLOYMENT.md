@@ -131,3 +131,10 @@ python3 -B scripts/deployment/test_research_delivery.py
 ```
 
 CI currently exercises C++ tests/tools and research determinism, but does not run this tool, frontend checks, real API/frontend contract checks or a packaged release/restore drill. Integration owners should add appropriate gates separately. The audit and evidence limits are in [DELIVERY_AUDIT_2026-11-07.md](reviews/DELIVERY_AUDIT_2026-11-07.md).
+
+
+## 2026-11-07 storage upgrade precautions
+
+The new API reads legacy `idempotency.jsonl` and writes per-key records in `idempotency/`. Keep both stores in every full-data backup. An older JSONL-only executable ignores new replay protection, so do not perform a writable binary-only downgrade after new mutations. Use a reader compatible with both stores, or an explicit offline data rollback that preserves the later directory separately and acknowledges which later work it would discard.
+
+Before promotion, check for active runs and arrange quiescence rather than destroying their in-memory simulations. Stop all data writers and automatic restart jobs before using the offline backup tool. Validate a restored disposable copy with the new API before switching the installed data directory. Never start two APIs against the same directory. Malformed records or incomplete terminal caches now fail startup; preserve the diagnostic and original bytes rather than deleting records to make readiness green. An uncertain reserved key is intentionally not retried automatically and has no reconciliation endpoint. These guarantees concern single-writer process restart, not an end-to-end power-loss transaction.

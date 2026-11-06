@@ -58,5 +58,8 @@
     "sharp",
     "unrs-resolver"
   ],
-  "type": "module"
+  "type": "module",
+  "patchedDependencies": {
+    "openapi-typescript-helpers@0.1.0": "patches/openapi-typescript-helpers@0.1.0.patch"
+  }
 }

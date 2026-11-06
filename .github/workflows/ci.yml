@@ -56,13 +56,13 @@ jobs:
       - name: production frontend
         working-directory: web
         run: bun run build
+      - name: real C++ API contract binary
+        run: make -j2 build/release/exsim_api CXX=clang++ EXTRA_CXXFLAGS=-Werror
       - name: browser failure and recovery invariants
         working-directory: web
         run: |
           bunx playwright install --with-deps chromium --only-shell
           bun run test:browser
-      - name: real C++ API contract binary
-        run: make -j2 build/release/exsim_api CXX=clang++ EXTRA_CXXFLAGS=-Werror
       - name: real HTTP contract and native artifact integration
         working-directory: web
         run: bun test ./e2e/exsim-api-binary.e2e.ts

@@ -23,7 +23,7 @@ export interface ApiResourceState<ResourceData> {
 
 export function useApiResource<ResourceData>(
   resourceKey: string | null,
-  loadResource: () => Promise<ResourceData>,
+  loadResource: (signal: AbortSignal) => Promise<ResourceData>,
   pollPolicy: number | null | ((latestData: ResourceData) => number | null),
 ): ApiResourceState<ResourceData> {
   const [resourceState, setResourceState] = useState<KeyedResourceState<ResourceData>>({ resourceKey: null, data: null, failure: null });
@@ -38,11 +38,12 @@ export function useApiResource<ResourceData>(
   useEffect(() => {
     if (resourceKey === null) return;
     let isCancelled = false;
+    const controller = new AbortController();
     let pollTimer: ReturnType<typeof setTimeout> | null = null;
     const loadOnce = async () => {
       let loadedData: ResourceData | null = null;
       try {
-        loadedData = await loadResourceForEffect();
+        loadedData = await loadResourceForEffect(controller.signal);
         if (!isCancelled) setResourceState({ resourceKey, data: loadedData, failure: null });
       } catch (caught) {
         if (!isCancelled) setResourceState((previous) => ({ resourceKey, data: previous.resourceKey === resourceKey ? previous.data : null, failure: describeApiFailure(caught) }));
@@ -53,6 +54,7 @@ export function useApiResource<ResourceData>(
     void loadOnce();
     return () => {
       isCancelled = true;
+      controller.abort();
       if (pollTimer !== null) clearTimeout(pollTimer);
     };
   }, [resourceKey, fixedPollInterval, reloadRequestCount]);

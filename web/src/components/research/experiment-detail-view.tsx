@@ -50,7 +50,7 @@ export function ExperimentDetailView() {
   );
   const runList = runListResource.data;
 
-  if (experimentResource.failure) return <ApiFailureAlert failure={experimentResource.failure} title="Could not load experiment" />;
+  if (experimentResource.failure) return <ApiFailureAlert failure={experimentResource.failure} title="Could not load experiment" onRetry={experimentResource.reload} />;
   if (!experiment) return <p className="text-sm text-muted-foreground">Loading experiment...</p>;
 
   const recordedSeeds = new Set(runList?.items.map((run) => run.masterSeed));
@@ -188,7 +188,7 @@ export function ExperimentDetailView() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {assumptionsResource.failure ? <ApiFailureAlert failure={assumptionsResource.failure} /> : null}
+            {assumptionsResource.failure ? <ApiFailureAlert failure={assumptionsResource.failure} onRetry={assumptionsResource.reload} /> : null}
             <div className="max-h-[36rem] overflow-auto rounded-md border">
               <Table>
                 <TableBody>

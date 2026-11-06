@@ -80,6 +80,10 @@ int main(int argc, char** argv) {
     if (list_only) {
         return 0;
     }
+    if (run == 0) {
+        std::cerr << "No tests matched filter: " << filter << "\n";
+        return 2;
+    }
     std::cout << "\n" << run - failed << "/" << run << " tests passed\n";
     for (const auto& name : failed_names) {
         std::cout << "  FAILED: " << name << "\n";

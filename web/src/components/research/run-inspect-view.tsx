@@ -18,7 +18,7 @@ import { ApiFailureAlert } from "@/components/research/api-failure-alert";
 import { PageHeading } from "@/components/research/page-heading";
 import { isTerminalRunState, RunStateBadge } from "@/components/research/run-state-badge";
 import { ArtifactPageControls } from "@/components/research/artifact-page-controls";
-import { readAllPages } from "@/lib/api/research-workflow";
+import { readSelectedFill } from "@/lib/api/research-workflow";
 import { useCursorHistory } from "@/hooks/use-cursor-history";
 import { useApiResource } from "@/hooks/use-api-resource";
 import { getBrowserApiClient, unwrapApiResult, type ApiSchemas } from "@/lib/api/exsim-api-client";
@@ -186,14 +186,16 @@ function FocusPanel({
   focusedFill,
   lifecycle,
   lifecycleFailure,
+  onRetryLifecycle,
   onSelectEventPosition,
 }: {
   focusedFill: ApiSchemas["Fill"] | null;
   lifecycle: ApiSchemas["OrderLifecycle"] | null;
   lifecycleFailure: ApiSchemas["ApiError"] | null;
+  onRetryLifecycle: () => void;
   onSelectEventPosition: (eventPosition: string) => void;
 }) {
-  if (lifecycleFailure) return <ApiFailureAlert failure={lifecycleFailure} title="Could not load order lifecycle" />;
+  if (lifecycleFailure) return <ApiFailureAlert failure={lifecycleFailure} title="Could not load order lifecycle" onRetry={onRetryLifecycle} />;
   if (!lifecycle) {
     return (
       <Card size="sm">
@@ -414,12 +416,12 @@ function RunInspection({ runId }: { runId: string }) {
     null,
   );
 
-  const selectedOrderFills = useApiResource(
+  const selectedFillResource = useApiResource(
     selectedFill ? `selected-fill:${runId}:${selectedFill.orderId}:${processedEventCount}` : null,
-    () => readAllPages(async (cursor) => unwrapApiResult(await apiClient.GET("/v1/runs/{runId}/fills", { params: { path: { runId }, query: { orderId: selectedFill!.orderId, cursor, limit: 200 } } })), (fill) => `${fill.eventPosition}:${fill.orderId}`),
+    (signal) => readSelectedFill(apiClient, runId, selectedFill!.orderId, selectedFill!.eventPosition, signal),
     null,
   );
-  const focusedFill = (selectedOrderFills.data?.items ?? fillPage.data?.items)?.find((fill) => fill.eventPosition === selectedFill?.eventPosition && fill.orderId === selectedFill?.orderId) ?? null;
+  const focusedFill = selectedFillResource.data ?? fillPage.data?.items.find((fill) => fill.eventPosition === selectedFill?.eventPosition && fill.orderId === selectedFill?.orderId) ?? null;
   const relatedEventPositions = new Set<string>(lifecycleResource.data?.relatedEventPositions ?? []);
   if (focusedFill) {
     for (const relatedPosition of Object.values(focusedFill.relatedEvents)) if (relatedPosition !== null) relatedEventPositions.add(relatedPosition);
@@ -469,6 +471,7 @@ function RunInspection({ runId }: { runId: string }) {
           </span>
         }
       />
+      {runResource.failure ? <ApiFailureAlert failure={runResource.failure} title="Run status is stale. Showing the last known event range." onRetry={runResource.reload} /> : null}
       <div
         role="group"
         aria-label="Event position stepper. Arrow keys or j and k step one event, Shift steps 25, Home and End jump to the ends."
@@ -526,8 +529,8 @@ function RunInspection({ runId }: { runId: string }) {
           </div>
         </div>
         <div className="flex min-w-0 flex-col gap-3">
-          {selectedOrderFills.failure ? <ApiFailureAlert failure={selectedOrderFills.failure} title="Could not refresh the selected fill" onRetry={selectedOrderFills.reload} /> : null}
-          <FocusPanel focusedFill={focusedFill} lifecycle={lifecycleResource.data} lifecycleFailure={lifecycleResource.failure} onSelectEventPosition={selectEventPosition} />
+          {selectedFillResource.failure ? <ApiFailureAlert failure={selectedFillResource.failure} title="Could not refresh the selected fill" onRetry={selectedFillResource.reload} /> : null}
+          <FocusPanel focusedFill={focusedFill} lifecycle={lifecycleResource.data} lifecycleFailure={lifecycleResource.failure} onRetryLifecycle={lifecycleResource.reload} onSelectEventPosition={selectEventPosition} />
         </div>
       </div>
 

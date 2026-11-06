@@ -176,9 +176,12 @@ The UI pages map onto these endpoints:
 - **Compare** (`/compare`): comparisons.
 - **Connections** (`/connections`): connections.
 
+### Parent-order execution
+
+The service advertises `twap_execution` and `immediate_sweep_execution` alongside both market makers. The browser offers discovered execution baselines and parameter forms. Both use price-protected IOC limits from the strategy-delivered opposite touch. Summaries and paired comparisons include parent completion, residual shares, signed executed slippage/costs, and participation, plus explicit missing/censored evidence. Total costs preserve five decimal digits; per-share costs and ratios are derived to six. Costs cover filled quantity only, not residual opportunity cost or full-parent counterfactual shortfall. [Exact configuration, metrics and benchmark contract](reviews/EXECUTION_API_2026-11-07.md).
+
 ### Coverage gaps (deferred)
 
-- **Q4 (parent-order execution):** `twap_execution` is in the strategy enum, but `/v1/service` lists `fixed_spread_market_maker` and `inventory_aware_market_maker` in `executableStrategyKinds`, and other strategies are rejected with `validation_failed`. The first vertical slice in PRODUCT.md is market making only. Parent-order metrics (implementation shortfall, signed slippage, completion, residual quantity) and their `MetricKey` values will be added once the HTTP adapter exposes the runner's existing TWAP implementation. The UI does not offer TWAP yet.
 - **Q5 (hostile markets):** price jumps, halts and stale or gapped data inside deterministic runs need scenario events that the runner has not defined yet. v1 exposes limit breaches, terminal state and real-time feed gaps only.
 - **Historical worlds:** `historical_reconstruction` and `historical_counterfactual_replay` appear in `MarketWorld` so that manifests and comparisons can label them. They return `unsupported_market_world` until a fill and queue model exists.
 - **Streaming:** this version uses polling. A browser-compatible stream from the long-lived control service is deferred until interactive monitoring needs it.
@@ -230,3 +233,8 @@ The runner QA branch at `ea8642b` adds stronger artifact verification, work budg
 and pre-command FIFO evidence without changing the public record layout consumed
 here. Its current differences table was read in the QA owner's checkout. Recheck
 API tests when those fixes are integrated; do not copy disk JSON into HTTP bodies.
+
+
+### Persistence and uncertain mutation outcomes
+
+New idempotency records use `idempotency/<sha256(key)>.json`; legacy JSONL remains readable. A durable reservation precedes execution. An unexpected execution or response-persistence failure retains its key and returns a retryable 503; the same fingerprint cannot execute again, and a different fingerprint conflicts. The outcome may require operator inspection. Known 4xx validation/state failures release their reservation. There is no automatic uncertain-key reconciliation endpoint or safe writable downgrade to the old JSONL-only implementation. Corrupt metadata and incomplete terminal evidence fail startup. See [durability report](reviews/API_DURABILITY_2026-11-07.md) and [deployment precautions](DEPLOYMENT.md).

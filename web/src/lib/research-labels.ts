@@ -5,6 +5,13 @@ import type { ApiSchemas } from "@/lib/api/exsim-api-client";
 import { formatDecimalForDisplay, formatDurationNs, type DecimalDisplayOptions } from "@/lib/exact-decimal-format";
 
 export const METRIC_LABEL_BY_KEY: Record<ApiSchemas["MetricKey"], string> = {
+  completion_ratio: "Parent completion",
+  residual_qty: "Parent residual quantity",
+  decision_slippage_total: "Decision slippage, executed quantity",
+  decision_slippage_per_share: "Decision slippage per filled share",
+  implementation_shortfall_total: "Executed cost including fees",
+  implementation_shortfall_per_share: "Executed cost per filled share",
+  participation_rate: "Participation through last parent fill",
   net_pnl: "Net P&L",
   equity: "Ending equity",
   gross_realized_pnl: "Gross realized P&L",

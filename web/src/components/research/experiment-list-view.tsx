@@ -24,8 +24,10 @@ export function describeStrategy(strategyConfig: ApiSchemas["StrategyConfig"]): 
       return `fixed spread, ${strategyConfig.halfSpreadTicks} ticks each side x ${strategyConfig.quoteQuantity}`;
     case "inventory_aware_market_maker":
       return `inventory-aware, ${strategyConfig.halfSpreadTicks} ticks each side x ${strategyConfig.quoteQuantity}, skew ${strategyConfig.inventorySkewTicksPerUnit} per ${strategyConfig.inventorySkewUnitShares}`;
-    default:
-      return humanizeEnumValue(strategyConfig.strategyKind);
+    case "twap_execution":
+      return `TWAP ${strategyConfig.parentSide}, ${strategyConfig.parentQuantity} shares / ${formatDurationNs(strategyConfig.sliceIntervalNs)}`;
+    case "immediate_sweep_execution":
+      return `immediate sweep ${strategyConfig.parentSide}, ${strategyConfig.parentQuantity} shares`;
   }
 }
 

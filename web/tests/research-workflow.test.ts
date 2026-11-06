@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { MockResearchService } from "../mock-server/mock-research-service";
 import { BASELINE_CONFIGURATIONS } from "../mock-server/baseline-catalog";
 import { createExsimApiClient, unwrapApiResult } from "../src/lib/api/exsim-api-client";
-import { initialRunIdempotencyKey, readAllPages, readExperimentRuns, startMissingSeedRuns, validStepEventCount } from "../src/lib/api/research-workflow";
+import { initialRunIdempotencyKey, readAllPages, readExperimentRuns, readSelectedFill, startMissingSeedRuns, validStepEventCount } from "../src/lib/api/research-workflow";
 
 const pageInfo = (nextCursor: string | null) => ({ nextCursor, limit: 1 });
 
@@ -80,4 +80,36 @@ describe("recoverable seed launches", () => {
 test("step bounds match the API, including keyboard form submissions", () => {
   for (const value of ["1", "99999", "100000"]) expect(validStepEventCount(value)).toBe(true);
   for (const value of ["0", "01", "-1", "1.1", "1e2", "100001", "9999999", "", " 1", "18446744073709551615"]) expect(validStepEventCount(value)).toBe(false);
+});
+
+
+describe("selected fill reads", () => {
+  test("stops at a match without enumerating unrelated later pages", async () => {
+    const service = new MockResearchService();
+    const base = createExsimApiClient("http://mock.exsim.test", (request) => service.handleRequest(request));
+    const fills = unwrapApiResult(await base.GET("/v1/runs/{runId}/fills", { params: { path: { runId: "run_fsw2seed303" }, query: { limit: 1 } } }));
+    const target = fills.items[0];
+    let reads = 0;
+    const client = createExsimApiClient("http://mock.exsim.test", async (request) => {
+      reads++;
+      if (reads > 1) throw new Error("unrelated later page must not be read");
+      const url = new URL(request.url);
+      url.searchParams.set("limit", "1");
+      return service.handleRequest(new Request(url, request));
+    });
+    expect((await readSelectedFill(client, "run_fsw2seed303", target.orderId, target.eventPosition, new AbortController().signal)).eventPosition).toBe(target.eventPosition);
+    expect(reads).toBe(1);
+  });
+  test("aborted selection starts no network work", async () => {
+    const controller = new AbortController();
+    controller.abort();
+    let reads = 0;
+    const client = createExsimApiClient("http://mock.exsim.test", async () => { reads++; return Response.json({}); });
+    await expect(readSelectedFill(client, "run_fsw2seed303", "10", "55", controller.signal)).rejects.toThrow();
+    expect(reads).toBe(0);
+  });
+  test("missing selected evidence is explicit rather than perpetual loading", async () => {
+    const client = createExsimApiClient("http://mock.exsim.test", async () => Response.json({ items: [], page: { nextCursor: null, limit: 200 } }));
+    await expect(readSelectedFill(client, "run_fsw2seed303", "10", "55", new AbortController().signal)).rejects.toThrow("selected fill is missing");
+  });
 });

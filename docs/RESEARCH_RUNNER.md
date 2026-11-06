@@ -1,8 +1,7 @@
 # Deterministic research runner
 
 The CLI executes real synthetic-market runs against the production MatchingEngine.
-These artifacts are distinct from `web/mock-server` fixtures. The browser and HTTP
-service do not yet read these files. This document defines the disk contract v1.
+These artifacts are distinct from `web/mock-server` fixtures. The C++ HTTP service executes the same runner and verifies native artifacts; the browser displays its translated API views. This document defines the disk contract v1, not the HTTP response format.
 
 ## Reproduce
 
@@ -193,7 +192,9 @@ and markout rows. Series `position` is truth, `known_position` is delivered stat
 that side was empty. `mark_price`, `unrealized_pnl` and `equity` are empty when
 there is no mark and can carry five decimals.
 
-## HTTP integration differences
+## Historical HTTP integration checklist
+
+The checklist below predates the completed HTTP adapter and records its original translation work; its implementation-status entries are historical. Current behavior is defined in docs/API.md and docs/reviews/EXECUTION_API_2026-11-07.md. Native and HTTP formats remain distinct.
 
 docs/API.md and docs/api/openapi.yaml (`exsim.api/1`) define the HTTP schema
 family. The runner writes its own disk format, `exsim.research.*/1`, with

@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ApiFailureAlert } from "@/components/research/api-failure-alert";
 import { PageHeading } from "@/components/research/page-heading";
 import { isTerminalRunState, RunStateBadge } from "@/components/research/run-state-badge";
+import { ExecutionSummaryPanel } from "@/components/research/execution-summary-panel";
 import { RunSeriesChart } from "@/components/research/run-series-chart";
 import { validStepEventCount } from "@/lib/api/research-workflow";
 import { useApiResource } from "@/hooks/use-api-resource";
@@ -37,7 +38,7 @@ function DefinitionRows({ rows }: { rows: [string, React.ReactNode][] }) {
   );
 }
 
-function RunControls({ run, onRunChanged }: { run: ApiSchemas["Run"]; onRunChanged: () => void }) {
+function RunControls({ run, onRunChanged, stale }: { run: ApiSchemas["Run"]; onRunChanged: () => void; stale: boolean }) {
   const apiClient = getBrowserApiClient();
   const [stepEventCountText, setStepEventCountText] = useState(DEFAULT_STEP_EVENT_COUNT);
   const [controlFailure, setControlFailure] = useState<ApiSchemas["ApiError"] | null>(null);
@@ -46,7 +47,7 @@ function RunControls({ run, onRunChanged }: { run: ApiSchemas["Run"]; onRunChang
   const [pendingAction, setPendingAction] = useState<ApiSchemas["RunControlAction"] | null>(null);
 
   const sendControl = async (action: ApiSchemas["RunControlAction"]) => {
-    if (inFlight.current || (action === "step" && !validStepEventCount(stepEventCountText))) return;
+    if (stale || inFlight.current || (action === "step" && !validStepEventCount(stepEventCountText))) return;
     inFlight.current = true;
     setPendingAction(action);
     setControlFailure(null);
@@ -81,7 +82,7 @@ function RunControls({ run, onRunChanged }: { run: ApiSchemas["Run"]; onRunChang
   if (run.allowedActions.length === 0) return null;
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex flex-wrap items-center gap-2">
+      <fieldset disabled={stale} className="flex flex-wrap items-center gap-2">
         {run.allowedActions.includes("pause") ? (
           <Button size="sm" variant="outline" disabled={pendingAction !== null} onClick={() => void sendControl("pause")}>
             Pause
@@ -111,7 +112,7 @@ function RunControls({ run, onRunChanged }: { run: ApiSchemas["Run"]; onRunChang
             Cancel
           </Button>
         ) : null}
-      </div>
+      </fieldset>
       {controlFailure ? <ApiFailureAlert failure={controlFailure} title="Control request rejected" /> : null}
     </div>
   );
@@ -121,6 +122,7 @@ function SummaryPanel({ summary }: { summary: ApiSchemas["RunSummary"] }) {
   const accounting = summary.accounting;
   return (
     <div className="grid gap-4 xl:grid-cols-2">
+      <ExecutionSummaryPanel summary={summary} />
       <Card size="sm">
         <CardHeader>
           <CardTitle>Ledger</CardTitle>
@@ -247,7 +249,7 @@ function SummaryPanel({ summary }: { summary: ApiSchemas["RunSummary"] }) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {summary.metrics.map((metric) => (
+              {summary.metrics.filter((metric) => metric.unavailableReason !== "not_a_parent_order_strategy").map((metric) => (
                 <TableRow key={`${metric.metricKey}:${metric.horizonNs ?? ""}`}>
                   <TableCell>{metricLabel(metric.metricKey, metric.horizonNs)}</TableCell>
                   <TableCell className="text-right font-mono tabular-nums">{metric.value === null ? metric.unavailableReason ?? "n/a" : formatMetricValue(metric.value, metric.unit)}</TableCell>
@@ -348,6 +350,8 @@ export function RunDetailView() {
         actions={
           <>
             <RunControls
+              key={run.runId}
+              stale={runResource.failure !== null}
               run={run}
               onRunChanged={() => runResource.reload()}
             />
@@ -371,6 +375,8 @@ export function RunDetailView() {
           </Badge>
         ) : null}
       </div>
+      {runResource.failure ? <ApiFailureAlert failure={runResource.failure} title="Run status is stale. Refresh before changing the run." onRetry={runResource.reload} /> : null}
+      {seriesResource.failure ? <ApiFailureAlert failure={seriesResource.failure} title="Could not load run series" onRetry={seriesResource.reload} /> : null}
       {run.terminalDiagnostics ? (
         <p className="run-diagnostics">
           {run.state === "completed" ? "Run complete." : run.terminalDiagnostics.message} Residual position{" "}

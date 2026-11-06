@@ -27,7 +27,7 @@ The recording shows the production Next.js frontend using real C++ runs, includi
 | Matching engine | Price-time priority, continuous trading and auctions, market/IOC/FOK and post-only orders, STP, replace/partial cancel, mass cancel and expiry |
 | Validation | Reference oracle, differential fuzzing and shrinking, scenarios, canonical journals and replay, decoder corpora, allocation guards, sanitizer and cross-platform checks |
 
-The browser templates currently expose fixed-spread variants. The HTTP service also executes inventory-aware configurations; parent-order execution remains a CLI workflow. Historical replay models, arbitrary uploaded strategy code, multi-user authentication and live-server monitoring through the research UI are not implemented. Synthetic agent models are controlled experiments, not calibrated market impact.
+The browser and HTTP service expose fixed-spread and inventory-aware quoting, TWAP and immediate-sweep execution. Parent results distinguish simulation completion, remaining quantity, observation-window coverage and costs on executed shares. Unexecuted opportunity cost remains unavailable. Historical replay models, arbitrary uploaded strategy code, multi-user authentication and live-server monitoring through the research UI are not implemented. Synthetic agent models are controlled experiments, not calibrated market impact.
 
 ## Start locally
 
@@ -90,7 +90,7 @@ bun run build
 bun run test:e2e
 ```
 
-Latest integration repair checks: **932** macOS release tests, **928** ASan/UBSan tests, **143** focused server TSan tests, and **9** real-binary HTTP contract tests covering all 23 operations. Linux GCC and Clang each passed **53** focused API/runtime checks and built both service binaries after the repairs. The earlier combined Linux snapshot passed 927 tests with each compiler. Frontend invariants: **73**, plus typecheck, lint, production build and **6** isolated browser recovery checks. Deployment tooling: **40** disposable fixture checks. These new checks do not replace the historical C++ integration evidence.
+Latest integration repair checks: **932** macOS release tests, **928** ASan/UBSan tests, **143** focused server TSan tests, and **9** real-binary HTTP contract tests covering all 23 operations. Linux GCC and Clang each passed **53** focused API/runtime checks and built both service binaries after the repairs. The earlier combined Linux snapshot passed 927 tests with each compiler. Current quality checkpoint: **64** focused C++ API tests in release and ASan/UBSan, **76** frontend invariants, **13** browser cases including two actual Next-proxy/C++ workflows, and **9** real-binary HTTP contract cases. Typecheck, lint and production build passed. Deployment tooling: **40** disposable fixture checks. These new checks do not replace the historical C++ integration evidence.
 
 Five new regressions fail the reviewed pre-fix code and pass the repairs. Exact revisions, logs and limits: [integration fixes](docs/reviews/INTEGRATION_FIXES_2026-11-06.md), [working checkpoint](docs/WORK_PLAN.md), [fuzzing](docs/FUZZING.md).
 
