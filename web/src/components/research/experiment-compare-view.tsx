@@ -17,6 +17,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ApiFailureAlert } from "@/components/research/api-failure-alert";
 import { PageHeading } from "@/components/research/page-heading";
 import { SeriesLineChart, type SeriesChartRow } from "@/components/research/series-line-chart";
+import { readExperiments } from "@/lib/api/research-workflow";
 import { useApiResource } from "@/hooks/use-api-resource";
 import { getBrowserApiClient, unwrapApiResult, type ApiSchemas } from "@/lib/api/exsim-api-client";
 import { buildAlignedChartRows } from "@/lib/chart-derived-floats";
@@ -131,7 +132,7 @@ export function ExperimentCompareView() {
   const searchParams = useSearchParams();
   const apiClient = getBrowserApiClient();
   const [chartedSeed, setChartedSeed] = useState(ALL_SEEDS);
-  const experimentList = useApiResource("compare-experiments", async () => unwrapApiResult(await apiClient.GET("/v1/experiments", { params: { query: { limit: 200 } } })), null);
+  const experimentList = useApiResource("compare-experiments", () => readExperiments(apiClient), null);
   const experiments = experimentList.data?.items ?? [];
   const baselineExperimentId = searchParams.get("baseline") ?? experiments.find((experiment) => experiment.parentExperimentId === null)?.experimentId ?? null;
   const candidateExperimentId = searchParams.get("candidate") ?? experiments.find((experiment) => experiment.parentExperimentId === baselineExperimentId)?.experimentId ?? null;
@@ -155,12 +156,12 @@ export function ExperimentCompareView() {
   return (
     <>
       <PageHeading title="Compare experiments" description="Change one assumption. Compare the same seeds. Follow the difference back to a fill." />
-      {experimentList.failure ? <ApiFailureAlert failure={experimentList.failure} /> : null}
+      {experimentList.failure ? <ApiFailureAlert failure={experimentList.failure} onRetry={experimentList.reload} /> : null}
       <div className="comparison-selectors flex flex-wrap gap-5 rounded-lg border bg-card p-5">
         <ExperimentSelect label="Baseline" value={baselineExperimentId} experiments={experiments} onValueChange={(experimentId) => selectExperiment("baseline", experimentId)} />
         <ExperimentSelect label="Candidate" value={candidateExperimentId} experiments={experiments} onValueChange={(experimentId) => selectExperiment("candidate", experimentId)} />
       </div>
-      {comparisonResource.failure ? <ApiFailureAlert failure={comparisonResource.failure} title="Comparison unavailable" /> : null}
+      {comparisonResource.failure ? <ApiFailureAlert failure={comparisonResource.failure} title="Comparison unavailable" onRetry={comparisonResource.reload} /> : null}
       {comparisonResource.isLoading ? <p className="text-sm text-muted-foreground">Computing comparison...</p> : null}
       {comparison ? (
         <>

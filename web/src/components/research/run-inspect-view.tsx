@@ -17,6 +17,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ApiFailureAlert } from "@/components/research/api-failure-alert";
 import { PageHeading } from "@/components/research/page-heading";
 import { isTerminalRunState, RunStateBadge } from "@/components/research/run-state-badge";
+import { ArtifactPageControls } from "@/components/research/artifact-page-controls";
+import { readAllPages } from "@/lib/api/research-workflow";
+import { useCursorHistory } from "@/hooks/use-cursor-history";
 import { useApiResource } from "@/hooks/use-api-resource";
 import { getBrowserApiClient, unwrapApiResult, type ApiSchemas } from "@/lib/api/exsim-api-client";
 import { formatDecimalForDisplay, formatDurationNs, formatIntegerText, formatSimulationTimeNs, offsetUnsignedIntegerText } from "@/lib/exact-decimal-format";
@@ -368,11 +371,17 @@ function FocusPanel({
 
 export function RunInspectView() {
   const { runId } = useParams<{ runId: string }>();
+  return <RunInspection key={runId} runId={runId} />;
+}
+
+function RunInspection({ runId }: { runId: string }) {
   const apiClient = getBrowserApiClient();
   const [focusedEventPosition, setFocusedEventPosition] = useState("0");
   const [jumpTargetText, setJumpTargetText] = useState("");
   const [focusedOrderId, setFocusedOrderId] = useState<string | null>(null);
-  const [focusedFillMatchId, setFocusedFillMatchId] = useState<string | null>(null);
+  const [selectedFill, setSelectedFill] = useState<ApiSchemas["Fill"] | null>(null);
+  const fillsCursor = useCursorHistory();
+  const ordersCursor = useCursorHistory();
 
   const runResource = useApiResource(`inspect-run:${runId}`, async () => unwrapApiResult(await apiClient.GET("/v1/runs/{runId}", { params: { path: { runId } } })), (latestRun) => (isTerminalRunState(latestRun.state) ? null : 2000));
   const run = runResource.data;
@@ -397,15 +406,20 @@ export function RunInspectView() {
     async () => unwrapApiResult(await apiClient.GET("/v1/runs/{runId}/book", { params: { path: { runId }, query: { eventPosition: focusedEventPosition, view: "strategy_visible", depth: BOOK_DEPTH } } })),
     null,
   );
-  const fillPage = useApiResource(run ? `fills:${runId}:${processedEventCount}` : null, async () => unwrapApiResult(await apiClient.GET("/v1/runs/{runId}/fills", { params: { path: { runId }, query: { limit: 1000 } } })), null);
-  const orderPage = useApiResource(run ? `orders:${runId}:${processedEventCount}` : null, async () => unwrapApiResult(await apiClient.GET("/v1/runs/{runId}/orders", { params: { path: { runId }, query: { limit: 1000 } } })), null);
+  const fillPage = useApiResource(run ? `fills:${runId}:${processedEventCount}:${fillsCursor.cursor ?? "first"}` : null, async () => unwrapApiResult(await apiClient.GET("/v1/runs/{runId}/fills", { params: { path: { runId }, query: { limit: 200, cursor: fillsCursor.cursor } } })), null);
+  const orderPage = useApiResource(run ? `orders:${runId}:${processedEventCount}:${ordersCursor.cursor ?? "first"}` : null, async () => unwrapApiResult(await apiClient.GET("/v1/runs/{runId}/orders", { params: { path: { runId }, query: { limit: 200, cursor: ordersCursor.cursor } } })), null);
   const lifecycleResource = useApiResource(
-    focusedOrderId ? `lifecycle:${runId}:${focusedOrderId}` : null,
+    focusedOrderId ? `lifecycle:${runId}:${focusedOrderId}:${processedEventCount}` : null,
     async () => unwrapApiResult(await apiClient.GET("/v1/runs/{runId}/orders/{orderId}/lifecycle", { params: { path: { runId, orderId: focusedOrderId! } } })),
     null,
   );
 
-  const focusedFill = fillPage.data?.items.find((fill) => fill.matchId === focusedFillMatchId) ?? null;
+  const selectedOrderFills = useApiResource(
+    selectedFill ? `selected-fill:${runId}:${selectedFill.orderId}:${processedEventCount}` : null,
+    () => readAllPages(async (cursor) => unwrapApiResult(await apiClient.GET("/v1/runs/{runId}/fills", { params: { path: { runId }, query: { orderId: selectedFill!.orderId, cursor, limit: 200 } } })), (fill) => `${fill.eventPosition}:${fill.orderId}`),
+    null,
+  );
+  const focusedFill = (selectedOrderFills.data?.items ?? fillPage.data?.items)?.find((fill) => fill.eventPosition === selectedFill?.eventPosition && fill.orderId === selectedFill?.orderId) ?? null;
   const relatedEventPositions = new Set<string>(lifecycleResource.data?.relatedEventPositions ?? []);
   if (focusedFill) {
     for (const relatedPosition of Object.values(focusedFill.relatedEvents)) if (relatedPosition !== null) relatedEventPositions.add(relatedPosition);
@@ -414,12 +428,12 @@ export function RunInspectView() {
   const selectEventPosition = (eventPosition: string) => setFocusedEventPosition(offsetUnsignedIntegerText(eventPosition, 0n, "0", maximumEventPosition));
   const stepEventPosition = (stepOffset: bigint) => setFocusedEventPosition(offsetUnsignedIntegerText(focusedEventPosition, stepOffset, "0", maximumEventPosition));
   const focusFill = (fill: ApiSchemas["Fill"]) => {
-    setFocusedFillMatchId(fill.matchId);
+    setSelectedFill(fill);
     setFocusedOrderId(fill.orderId);
     selectEventPosition(fill.eventPosition);
   };
   const focusOrder = (order: ApiSchemas["OwnOrderSummary"]) => {
-    setFocusedFillMatchId(null);
+    setSelectedFill(null);
     setFocusedOrderId(order.orderId);
     selectEventPosition(order.submitEventPosition);
   };
@@ -435,7 +449,7 @@ export function RunInspectView() {
     keyboardEvent.preventDefault();
   };
 
-  if (runResource.failure && !run) return <ApiFailureAlert failure={runResource.failure} title="Could not load run" />;
+  if (runResource.failure && !run) return <ApiFailureAlert failure={runResource.failure} title="Could not load run" onRetry={runResource.reload} />;
   if (!run) return <p className="text-sm text-muted-foreground">Loading run...</p>;
 
   return (
@@ -500,29 +514,33 @@ export function RunInspectView() {
 
       <div className="grid gap-4 2xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         <div className="flex min-w-0 flex-col gap-4">
-          {eventWindow.failure ? <ApiFailureAlert failure={eventWindow.failure} /> : null}
+          {eventWindow.failure ? <ApiFailureAlert failure={eventWindow.failure} onRetry={eventWindow.reload} /> : null}
           {eventWindow.data ? (
             <EventWindowTable events={eventWindow.data.items} focusedEventPosition={focusedEventPosition} relatedEventPositions={relatedEventPositions} onSelectEventPosition={selectEventPosition} />
           ) : (
             <p className="text-sm text-muted-foreground">{hasEvents ? "Loading events..." : "No events processed yet."}</p>
           )}
           <div className="grid gap-4 md:grid-cols-2">
-            <BookLadder title="Exchange truth" bookView={exchangeBook.data} />
-            <BookLadder title="Strategy-visible" bookView={strategyBook.data} />
+            <div>{exchangeBook.failure ? <ApiFailureAlert failure={exchangeBook.failure} onRetry={exchangeBook.reload} /> : <BookLadder title="Exchange truth" bookView={exchangeBook.data} />}</div>
+            <div>{strategyBook.failure ? <ApiFailureAlert failure={strategyBook.failure} onRetry={strategyBook.reload} /> : <BookLadder title="Strategy-visible" bookView={strategyBook.data} />}</div>
           </div>
         </div>
-        <FocusPanel focusedFill={focusedFill} lifecycle={lifecycleResource.data} lifecycleFailure={lifecycleResource.failure} onSelectEventPosition={selectEventPosition} />
+        <div className="flex min-w-0 flex-col gap-3">
+          {selectedOrderFills.failure ? <ApiFailureAlert failure={selectedOrderFills.failure} title="Could not refresh the selected fill" onRetry={selectedOrderFills.reload} /> : null}
+          <FocusPanel focusedFill={focusedFill} lifecycle={lifecycleResource.data} lifecycleFailure={lifecycleResource.failure} onSelectEventPosition={selectEventPosition} />
+        </div>
       </div>
 
       <Tabs defaultValue="fills">
         <TabsList>
-          <TabsTrigger value="fills">Fills ({fillPage.data?.items.length ?? 0})</TabsTrigger>
-          <TabsTrigger value="orders">Own orders ({orderPage.data?.items.length ?? 0})</TabsTrigger>
+          <TabsTrigger value="fills">Fills</TabsTrigger>
+          <TabsTrigger value="orders">Own orders</TabsTrigger>
         </TabsList>
         <TabsContent value="fills">
-          {fillPage.failure ? <ApiFailureAlert failure={fillPage.failure} /> : null}
+          <ArtifactPageControls label="Fills" pageNumber={fillsCursor.pageNumber} count={fillPage.data?.items.length ?? 0} nextCursor={fillPage.data?.page.nextCursor ?? null} isLoading={fillPage.isLoading} onPrevious={fillsCursor.previous} onNext={fillsCursor.next} />
+          {fillPage.failure ? <ApiFailureAlert failure={fillPage.failure} onRetry={fillPage.reload} /> : null}
           <div className="event-tape overflow-hidden rounded-md border">
-            <Table className="text-xs">
+            <Table aria-label="Recorded fills" className="text-xs">
               <TableHeader>
                 <TableRow>
                   <TableHead>Match</TableHead>
@@ -539,11 +557,12 @@ export function RunInspectView() {
                 </TableRow>
               </TableHeader>
               <TableBody>
+                {fillPage.data?.items.length === 0 ? <TableRow><TableCell colSpan={11} className="text-muted-foreground">No fills recorded on this page.</TableCell></TableRow> : null}
                 {fillPage.data?.items.map((fill) => (
                   <TableRow
-                    key={fill.matchId}
+                    key={`${fill.eventPosition}:${fill.orderId}`}
                     tabIndex={0}
-                    data-state={fill.matchId === focusedFillMatchId ? "selected" : undefined}
+                    data-state={fill.eventPosition === selectedFill?.eventPosition && fill.orderId === selectedFill?.orderId ? "selected" : undefined}
                     className="cursor-pointer focus-visible:outline-2 focus-visible:outline-ring"
                     onClick={() => focusFill(fill)}
                     onKeyDown={(keyboardEvent) => keyboardEvent.key === "Enter" && focusFill(fill)}
@@ -566,9 +585,10 @@ export function RunInspectView() {
           </div>
         </TabsContent>
         <TabsContent value="orders">
-          {orderPage.failure ? <ApiFailureAlert failure={orderPage.failure} /> : null}
+          <ArtifactPageControls label="Orders" pageNumber={ordersCursor.pageNumber} count={orderPage.data?.items.length ?? 0} nextCursor={orderPage.data?.page.nextCursor ?? null} isLoading={orderPage.isLoading} onPrevious={ordersCursor.previous} onNext={ordersCursor.next} />
+          {orderPage.failure ? <ApiFailureAlert failure={orderPage.failure} onRetry={orderPage.reload} /> : null}
           <div className="max-h-[28rem] overflow-auto rounded-md border">
-            <Table className="text-xs">
+            <Table aria-label="Recorded own orders" className="text-xs">
               <TableHeader>
                 <TableRow>
                   <TableHead>Order</TableHead>
@@ -582,6 +602,7 @@ export function RunInspectView() {
                 </TableRow>
               </TableHeader>
               <TableBody>
+                {orderPage.data?.items.length === 0 ? <TableRow><TableCell colSpan={8} className="text-muted-foreground">No own orders recorded on this page.</TableCell></TableRow> : null}
                 {orderPage.data?.items.map((order) => (
                   <TableRow
                     key={order.orderId}

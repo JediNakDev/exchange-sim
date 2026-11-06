@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,7 @@ import { ApiFailureAlert } from "@/components/research/api-failure-alert";
 import { PageHeading } from "@/components/research/page-heading";
 import { isTerminalRunState, RunStateBadge } from "@/components/research/run-state-badge";
 import { RunSeriesChart } from "@/components/research/run-series-chart";
+import { validStepEventCount } from "@/lib/api/research-workflow";
 import { useApiResource } from "@/hooks/use-api-resource";
 import { createIdempotencyKey, describeApiFailure, getBrowserApiClient, unwrapApiResult, type ApiSchemas } from "@/lib/api/exsim-api-client";
 import { formatDecimalForDisplay, formatDurationNs, formatIntegerText, formatSimulationTimeNs, formatWallClockTime } from "@/lib/exact-decimal-format";
@@ -21,6 +22,7 @@ import { formatMetricValue, humanizeEnumValue, metricLabel, METRIC_UNIT_LABEL } 
 
 const ACTIVE_RUN_POLL_INTERVAL_MS = 1000;
 const DEFAULT_STEP_EVENT_COUNT = "100";
+
 
 function DefinitionRows({ rows }: { rows: [string, React.ReactNode][] }) {
   return (
@@ -39,12 +41,18 @@ function RunControls({ run, onRunChanged }: { run: ApiSchemas["Run"]; onRunChang
   const apiClient = getBrowserApiClient();
   const [stepEventCountText, setStepEventCountText] = useState(DEFAULT_STEP_EVENT_COUNT);
   const [controlFailure, setControlFailure] = useState<ApiSchemas["ApiError"] | null>(null);
+  const inFlight = useRef(false);
+  const retryRequest = useRef<{ fingerprint: string; key: string } | null>(null);
   const [pendingAction, setPendingAction] = useState<ApiSchemas["RunControlAction"] | null>(null);
 
   const sendControl = async (action: ApiSchemas["RunControlAction"]) => {
+    if (inFlight.current || (action === "step" && !validStepEventCount(stepEventCountText))) return;
+    inFlight.current = true;
     setPendingAction(action);
     setControlFailure(null);
-    const requestOptions = { params: { path: { runId: run.runId }, header: { "Idempotency-Key": createIdempotencyKey(action) } } };
+    const fingerprint = JSON.stringify([run.runId, action, action === "step" ? stepEventCountText : null]);
+    if (retryRequest.current?.fingerprint !== fingerprint) retryRequest.current = { fingerprint, key: createIdempotencyKey(action) };
+    const requestOptions = { params: { path: { runId: run.runId }, header: { "Idempotency-Key": retryRequest.current.key } } };
     try {
       let updatedRun: ApiSchemas["Run"];
       if (action === "step") {
@@ -57,12 +65,16 @@ function RunControls({ run, onRunChanged }: { run: ApiSchemas["Run"]; onRunChang
       } else {
         updatedRun = unwrapApiResult(await apiClient.POST("/v1/runs/{runId}/cancel", { ...requestOptions, body: { reason: "cancelled from the research UI" } }));
       }
-      onRunChanged();
+      retryRequest.current = null;
       toast.success(`${action} accepted; run is ${updatedRun.state}`);
     } catch (caught) {
-      setControlFailure(describeApiFailure(caught));
+      const failure = describeApiFailure(caught);
+      setControlFailure(failure);
+      if (!failure.retryable) retryRequest.current = null;
     } finally {
+      inFlight.current = false;
       setPendingAction(null);
+      onRunChanged();
     }
   };
 
@@ -88,8 +100,8 @@ function RunControls({ run, onRunChanged }: { run: ApiSchemas["Run"]; onRunChang
               void sendControl("step");
             }}
           >
-            <Input aria-label="Events to step" className="h-8 w-24 font-mono" inputMode="numeric" value={stepEventCountText} onChange={(changeEvent) => setStepEventCountText(changeEvent.target.value)} />
-            <Button size="sm" variant="outline" type="submit" disabled={pendingAction !== null || !/^[1-9][0-9]{0,6}$/.test(stepEventCountText)}>
+            <Input aria-label="Events to step" className="h-8 w-24 font-mono" inputMode="numeric" disabled={pendingAction !== null} value={stepEventCountText} onChange={(changeEvent) => setStepEventCountText(changeEvent.target.value)} />
+            <Button size="sm" variant="outline" type="submit" disabled={pendingAction !== null || !validStepEventCount(stepEventCountText)}>
               Step events
             </Button>
           </form>
@@ -312,7 +324,7 @@ export function RunDetailView() {
   const manifestResource = useApiResource(`manifest:${runId}`, async () => unwrapApiResult(await apiClient.GET("/v1/runs/{runId}/manifest", { params: { path: { runId } } })), null);
   const seriesResource = useApiResource(summaryKey ? `series:${summaryKey}` : null, async () => unwrapApiResult(await apiClient.GET("/v1/runs/{runId}/series", { params: { path: { runId }, query: { seriesKinds: ["equity", "inventory", "drawdown"], maxPoints: 300 } } })), null);
 
-  if (runResource.failure && !run) return <ApiFailureAlert failure={runResource.failure} title="Could not load run" />;
+  if (runResource.failure && !run) return <ApiFailureAlert failure={runResource.failure} title="Could not load run" onRetry={runResource.reload} />;
   if (!run) return <p className="text-sm text-muted-foreground">Loading run...</p>;
 
   return (
@@ -387,11 +399,11 @@ export function RunDetailView() {
           <TabsTrigger value="history">State history</TabsTrigger>
         </TabsList>
         <TabsContent value="summary">
-          {summaryResource.failure ? <ApiFailureAlert failure={summaryResource.failure} /> : null}
+          {summaryResource.failure ? <ApiFailureAlert failure={summaryResource.failure} onRetry={summaryResource.reload} /> : null}
           {summaryResource.data ? <SummaryPanel summary={summaryResource.data} /> : <p className="text-sm text-muted-foreground">Loading summary...</p>}
         </TabsContent>
         <TabsContent value="manifest">
-          {manifestResource.failure ? <ApiFailureAlert failure={manifestResource.failure} /> : null}
+          {manifestResource.failure ? <ApiFailureAlert failure={manifestResource.failure} onRetry={manifestResource.reload} /> : null}
           {manifestResource.data ? <ManifestPanel manifest={manifestResource.data} /> : null}
         </TabsContent>
         <TabsContent value="history">

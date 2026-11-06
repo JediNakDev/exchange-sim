@@ -1,8 +1,9 @@
 import { CircleAlertIcon } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import type { ApiSchemas } from "@/lib/api/exsim-api-client";
 
-export function ApiFailureAlert({ failure, title }: { failure: ApiSchemas["ApiError"]; title?: string }) {
+export function ApiFailureAlert({ failure, title, onRetry }: { failure: ApiSchemas["ApiError"]; title?: string; onRetry?: () => void }) {
   return (
     <Alert variant="destructive">
       <CircleAlertIcon />
@@ -22,6 +23,7 @@ export function ApiFailureAlert({ failure, title }: { failure: ApiSchemas["ApiEr
           </ul>
         ) : null}
         <p className="text-xs opacity-70">request {failure.requestId}</p>
+        {onRetry ? <Button size="sm" variant="outline" onClick={onRetry}>Try again</Button> : null}
       </AlertDescription>
     </Alert>
   );

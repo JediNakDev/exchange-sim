@@ -2,6 +2,10 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
+import { useRef, useState } from "react";
+import { toast } from "sonner";
+import { Checkbox } from "@/components/ui/checkbox";
+import { readExperimentRuns, startMissingSeedRuns } from "@/lib/api/research-workflow";
 import { GitCompareIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,7 +14,7 @@ import { ApiFailureAlert } from "@/components/research/api-failure-alert";
 import { PageHeading } from "@/components/research/page-heading";
 import { isTerminalRunState, RunStateBadge } from "@/components/research/run-state-badge";
 import { useApiResource } from "@/hooks/use-api-resource";
-import { getBrowserApiClient, unwrapApiResult } from "@/lib/api/exsim-api-client";
+import { describeApiFailure, getBrowserApiClient, unwrapApiResult, type ApiSchemas } from "@/lib/api/exsim-api-client";
 import { formatIntegerText, formatSimulationTimeNs, formatWallClockTime } from "@/lib/exact-decimal-format";
 import { humanizeEnumValue } from "@/lib/research-labels";
 import { cn } from "@/lib/utils";
@@ -22,6 +26,10 @@ export function ExperimentDetailView() {
   const { experimentId } = useParams<{ experimentId: string }>();
   const router = useRouter();
   const apiClient = getBrowserApiClient();
+  const [startPaused, setStartPaused] = useState(false);
+  const [isStarting, setIsStarting] = useState(false);
+  const starting = useRef(false);
+  const [launchFailure, setLaunchFailure] = useState<ApiSchemas["ApiError"] | null>(null);
   const experimentResource = useApiResource(`experiment:${experimentId}`, async () => unwrapApiResult(await apiClient.GET("/v1/experiments/{experimentId}", { params: { path: { experimentId } } })), null);
   const experiment = experimentResource.data;
   // The service flattens the stored configuration the same way it does before creation.
@@ -37,13 +45,32 @@ export function ExperimentDetailView() {
   );
   const runListResource = useApiResource(
     `runs-of:${experimentId}`,
-    async () => unwrapApiResult(await apiClient.GET("/v1/runs", { params: { query: { experimentId, limit: 1000 } } })),
+    () => readExperimentRuns(apiClient, experimentId),
     (latestRunPage) => (latestRunPage.items.some((run) => !isTerminalRunState(run.state)) ? ACTIVE_RUN_POLL_INTERVAL_MS : IDLE_RUN_POLL_INTERVAL_MS),
   );
   const runList = runListResource.data;
 
   if (experimentResource.failure) return <ApiFailureAlert failure={experimentResource.failure} title="Could not load experiment" />;
   if (!experiment) return <p className="text-sm text-muted-foreground">Loading experiment...</p>;
+
+  const recordedSeeds = new Set(runList?.items.map((run) => run.masterSeed));
+  const missingSeeds = experiment.config.seedSet.masterSeeds.filter((seed) => !recordedSeeds.has(seed));
+  const startMissing = async () => {
+    if (starting.current) return;
+    starting.current = true;
+    setIsStarting(true);
+    setLaunchFailure(null);
+    try {
+      const count = await startMissingSeedRuns(apiClient, experiment, startPaused);
+      toast.success(count === 0 ? "All seeds already have runs" : `Started ${count} seed ${count === 1 ? "run" : "runs"}`);
+    } catch (caught) {
+      setLaunchFailure(describeApiFailure(caught));
+    } finally {
+      starting.current = false;
+      setIsStarting(false);
+      runListResource.reload();
+    }
+  };
 
   return (
     <>
@@ -61,7 +88,9 @@ export function ExperimentDetailView() {
           </span>
         }
         actions={
-          experiment.parentExperimentId ? (
+          <div className="flex flex-wrap gap-2">
+          <Button asChild size="sm"><Link href={`/experiments/new?from=${encodeURIComponent(experiment.experimentId)}`}>Create variant</Link></Button>
+          {experiment.parentExperimentId ? (
             <Button asChild size="sm" variant="outline">
               <Link href={`/compare?baseline=${experiment.parentExperimentId}&candidate=${experiment.experimentId}`}>
                 <GitCompareIcon /> Compare with parent
@@ -73,7 +102,8 @@ export function ExperimentDetailView() {
                 <GitCompareIcon /> Compare
               </Link>
             </Button>
-          )
+          )}
+          </div>
         }
       />
       {experiment.description ? <p className="text-sm">{experiment.description}</p> : null}
@@ -81,10 +111,18 @@ export function ExperimentDetailView() {
         <Card size="sm">
           <CardHeader>
             <CardTitle>Runs by seed</CardTitle>
-            <CardDescription>One run per master seed. Updates every second while any run is active.</CardDescription>
+            <CardDescription>Each master seed should have a run. Updates every second while any run is active.</CardDescription>
           </CardHeader>
           <CardContent>
-            {runListResource.failure ? <ApiFailureAlert failure={runListResource.failure} /> : null}
+            {runListResource.failure ? <ApiFailureAlert failure={runListResource.failure} onRetry={runListResource.reload} /> : null}
+            {launchFailure ? <ApiFailureAlert failure={launchFailure} title="Seed launch interrupted" /> : null}
+            {runList && missingSeeds.length > 0 ? (
+              <div className="mb-4 flex flex-wrap items-center gap-3 rounded-md border bg-muted/40 p-3 text-sm" aria-live="polite">
+                <p className="min-w-48 flex-1">{missingSeeds.length} of {experiment.config.seedSet.masterSeeds.length} seeds still need runs. Recorded runs are kept.</p>
+                <label className="flex items-center gap-2 text-xs"><Checkbox checked={startPaused} disabled={isStarting} onCheckedChange={(checked) => setStartPaused(checked === true)} />Start paused</label>
+                <Button size="sm" disabled={isStarting || runListResource.failure !== null} onClick={() => void startMissing()}>{isStarting ? "Starting..." : "Start missing seeds"}</Button>
+              </div>
+            ) : null}
             <div className="overflow-x-auto rounded-md border">
               <Table>
                 <TableHeader>

@@ -5,7 +5,7 @@
 // person can start runs, so the assumptions shown are the service's own reading.
 
 import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { ApiFailureAlert } from "@/components/research/api-failure-alert";
 import { PageHeading } from "@/components/research/page-heading";
+import { readExperiments, startMissingSeedRuns } from "@/lib/api/research-workflow";
 import { useApiResource } from "@/hooks/use-api-resource";
 import { createIdempotencyKey, describeApiFailure, getBrowserApiClient, unwrapApiResult, type ApiSchemas } from "@/lib/api/exsim-api-client";
 import { formatDecimalForDisplay, formatDurationNs } from "@/lib/exact-decimal-format";
@@ -170,17 +171,29 @@ function AssumptionsTable({ assumptions }: { assumptions: ApiSchemas["Assumption
 
 export function ExperimentCreateView() {
   const router = useRouter();
+  const parentId = useSearchParams().get("from");
   const apiClient = getBrowserApiClient();
   const baselineList = useApiResource("baselines", async () => unwrapApiResult(await apiClient.GET("/v1/baselines")), null);
-  const experimentList = useApiResource("experiments-for-parent", async () => unwrapApiResult(await apiClient.GET("/v1/experiments", { params: { query: { limit: 200 } } })), null);
+  const experimentList = useApiResource("experiments-for-parent", () => readExperiments(apiClient), null);
+  const parentResource = useApiResource(parentId ? `variant:${parentId}` : null, async () => unwrapApiResult(await apiClient.GET("/v1/experiments/{experimentId}", { params: { path: { experimentId: parentId! } } })), null);
   const [editedDraft, setEditedDraft] = useState<ExperimentDraft | null>(null);
   const [previewOutcome, setPreviewOutcome] = useState<PreviewOutcome | null>(null);
   const [requestFailure, setRequestFailure] = useState<ApiSchemas["ApiError"] | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isPreviewing, setIsPreviewing] = useState(false);
   const [startRunsPaused, setStartRunsPaused] = useState(false);
 
   const firstBaseline = baselineList.data?.items[0] ?? null;
-  const draft = editedDraft ?? (firstBaseline ? draftFromBaseline(firstBaseline) : null);
+  const parent = parentResource.data;
+  const draft = useMemo(() => editedDraft ?? (parent ? {
+    baselineId: parent.derivedFromBaselineId,
+    name: `${parent.name} variant`,
+    description: parent.description ?? "",
+    parentExperimentId: parent.experimentId,
+    config: structuredClone(parent.config),
+    masterSeedsText: parent.config.seedSet.masterSeeds.join(", "),
+    markoutHorizonsText: parent.config.markoutHorizonsNs.join(", "),
+  } : !parentId && firstBaseline ? draftFromBaseline(firstBaseline) : null), [editedDraft, parent, parentId, firstBaseline]);
   const createRequest = useMemo(() => (draft ? buildCreateRequest(draft) : null), [draft]);
   const createRequestText = createRequest ? JSON.stringify(createRequest) : null;
   const isPreviewCurrent = previewOutcome !== null && previewOutcome.requestText === createRequestText;
@@ -192,7 +205,9 @@ export function ExperimentCreateView() {
     return groupedIssues;
   }, [isPreviewCurrent, previewOutcome, requestFailure]);
 
-  if (baselineList.failure) return <ApiFailureAlert failure={baselineList.failure} title="Could not load baselines" />;
+  if (parentResource.failure) return <ApiFailureAlert failure={parentResource.failure} title="Could not load the source experiment" onRetry={parentResource.reload} />;
+  if (baselineList.failure) return <ApiFailureAlert failure={baselineList.failure} title="Could not load baselines" onRetry={baselineList.reload} />;
+  if (baselineList.data?.items.length === 0) return <p className="text-sm text-muted-foreground">No executable baselines are available. Check the research service and reload this page.</p>;
   if (!draft || !createRequest || !baselineList.data) return <p className="text-sm text-muted-foreground">Loading baselines...</p>;
 
   const updateDraft = (applyChange: (nextDraft: ExperimentDraft) => void) => {
@@ -205,33 +220,33 @@ export function ExperimentCreateView() {
   const updateQuotingStrategy = (applyChange: (nextStrategy: QuotingStrategyConfig) => void) => updateDraft((nextDraft) => applyChange(nextDraft.config.strategy as QuotingStrategyConfig));
 
   const requestPreview = async () => {
+    if (isPreviewing || isSubmitting) return;
+    setIsPreviewing(true);
     setRequestFailure(null);
     try {
       const preview = unwrapApiResult(await apiClient.POST("/v1/experiment-previews", { body: createRequest }));
-      setPreviewOutcome({ requestText: JSON.stringify(createRequest), preview, experimentIdempotencyKey: createIdempotencyKey("experiment") });
+      setPreviewOutcome({ requestText: JSON.stringify(createRequest), preview, experimentIdempotencyKey: previewOutcome?.requestText === JSON.stringify(createRequest) ? previewOutcome.experimentIdempotencyKey : createIdempotencyKey("experiment") });
     } catch (caught) {
-      setPreviewOutcome(null);
       setRequestFailure(describeApiFailure(caught));
+    } finally {
+      setIsPreviewing(false);
     }
   };
 
   const createExperimentAndStartRuns = async () => {
-    if (!isPreviewCurrent) return;
+    if (!isPreviewCurrent || isSubmitting || isPreviewing) return;
     setIsSubmitting(true);
     setRequestFailure(null);
     try {
       const experiment = unwrapApiResult(
         await apiClient.POST("/v1/experiments", { body: createRequest, params: { header: { "Idempotency-Key": previewOutcome.experimentIdempotencyKey } } }),
       );
-      for (const masterSeed of experiment.config.seedSet.masterSeeds) {
-        unwrapApiResult(
-          await apiClient.POST("/v1/runs", {
-            body: { experimentId: experiment.experimentId, masterSeed, startPaused: startRunsPaused },
-            params: { header: { "Idempotency-Key": `${previewOutcome.experimentIdempotencyKey}-seed-${masterSeed}`.slice(0, 128) } },
-          }),
-        );
+      try {
+        await startMissingSeedRuns(apiClient, experiment, startRunsPaused);
+        toast.success(`Saved ${experiment.name}; seed runs queued`);
+      } catch {
+        toast.error("Experiment saved. Some seed runs may still need starting; continue from its Runs by seed panel.");
       }
-      toast.success(`Created ${experiment.name} and queued ${experiment.config.seedSet.masterSeeds.length} runs`);
       router.push(`/experiments/${experiment.experimentId}`);
     } catch (caught) {
       setRequestFailure(describeApiFailure(caught));
@@ -240,7 +255,7 @@ export function ExperimentCreateView() {
   };
 
   const latency = draft.config.latency;
-  const parentCandidates = experimentList.data?.items ?? [];
+  const parentCandidates = experimentList.data?.items ?? (parent ? [parent] : []);
 
   return (
     <>
@@ -253,6 +268,7 @@ export function ExperimentCreateView() {
             void requestPreview();
           }}
         >
+          <fieldset disabled={isSubmitting || isPreviewing} className="contents">
           <FieldSet>
             <FieldLegend>Identity</FieldLegend>
             <FieldGroup className="grid gap-3 md:grid-cols-2">
@@ -329,7 +345,21 @@ export function ExperimentCreateView() {
 
           {strategyConfig ? (
             <FieldSet>
-              <FieldLegend>Strategy: {humanizeEnumValue(strategyConfig.strategyKind)}</FieldLegend>
+              <FieldLegend>Research strategy</FieldLegend>
+              <Field>
+                <FieldLabel htmlFor="strategy-kind">Quoting model</FieldLabel>
+                <Select value={strategyConfig.strategyKind} onValueChange={(kind) => updateDraft((nextDraft) => {
+                  const previous = nextDraft.config.strategy as QuotingStrategyConfig;
+                  const common = { halfSpreadTicks: previous.halfSpreadTicks, quoteQuantity: previous.quoteQuantity, requoteIntervalNs: previous.requoteIntervalNs, requoteThresholdTicks: previous.requoteThresholdTicks, postOnly: previous.postOnly };
+                  nextDraft.config.strategy = kind === "inventory_aware_market_maker"
+                    ? { ...common, strategyKind: "inventory_aware_market_maker", inventorySkewTicksPerUnit: "1", inventorySkewUnitShares: "100", scaleSizeWithInventory: true }
+                    : { ...common, strategyKind: "fixed_spread_market_maker" };
+                })}>
+                  <SelectTrigger id="strategy-kind" className="w-full"><SelectValue /></SelectTrigger>
+                  <SelectContent><SelectItem value="fixed_spread_market_maker">Fixed-spread market maker</SelectItem><SelectItem value="inventory_aware_market_maker">Inventory-aware market maker</SelectItem></SelectContent>
+                </Select>
+                <FieldDescription>Inventory-aware quoting skews prices away from accumulated inventory and can reduce the size that adds exposure.</FieldDescription>
+              </Field>
               <FieldDescription>Quotes one level each side of the strategy-visible mid and requotes by cancel/replace on a timer.</FieldDescription>
               <FieldGroup className="grid gap-3 md:grid-cols-2">
                 <TextField label="Half spread" unit="ticks from the visible mid" fieldPath="/config/strategy/halfSpreadTicks" inputMode="numeric" value={strategyConfig.halfSpreadTicks} onValueChange={(halfSpreadTicks) => updateQuotingStrategy((nextStrategy) => void (nextStrategy.halfSpreadTicks = halfSpreadTicks))} issuesByFieldPath={issuesByFieldPath} />
@@ -424,12 +454,13 @@ export function ExperimentCreateView() {
 
           <div className="flex flex-wrap gap-2">
             <Button type="submit" variant={isPreviewCurrent ? "outline" : "default"}>
-              Review assumptions
+              {isPreviewing ? "Reviewing..." : "Review assumptions"}
             </Button>
             <Button type="button" disabled={!isPreviewCurrent || !previewOutcome?.preview.valid || isSubmitting} onClick={() => void createExperimentAndStartRuns()}>
               {isSubmitting ? "Starting..." : `Create and start ${createRequest.config.seedSet.masterSeeds.length} ${createRequest.config.seedSet.masterSeeds.length === 1 ? "run" : "runs"}`}
             </Button>
           </div>
+          </fieldset>
         </form>
 
         <div className="flex flex-col gap-4 xl:sticky xl:top-22 xl:self-start">

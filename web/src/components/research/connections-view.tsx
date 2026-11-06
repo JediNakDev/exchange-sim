@@ -42,7 +42,7 @@ export function ConnectionsView() {
           )
         }
       />
-      {connections.failure ? <ApiFailureAlert failure={connections.failure} /> : null}
+      {connections.failure ? <ApiFailureAlert failure={connections.failure} onRetry={connections.reload} /> : null}
       {status ? (
         <div className="grid gap-4 xl:grid-cols-2">
           <Card size="sm" className="xl:col-span-2">

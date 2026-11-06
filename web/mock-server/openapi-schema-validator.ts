@@ -2,13 +2,14 @@
 // Used by the mock service for request validation and by tests to check that
 // every mock response conforms to the contract.
 
-import Ajv2020, { type ErrorObject, type ValidateFunction } from "ajv/dist/2020";
+import Ajv2020, { type ErrorObject, type ValidateFunction } from "ajv/dist/2020.js";
 import addFormats from "ajv-formats";
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { parse as parseYaml } from "yaml";
 
-export const OPENAPI_DOCUMENT_PATH = join(import.meta.dir, "..", "..", "docs", "api", "openapi.yaml");
+export const OPENAPI_DOCUMENT_PATH = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "docs", "api", "openapi.yaml");
 const OPENAPI_SCHEMA_ID = "exsim-openapi";
 
 export interface SchemaValidationIssue {

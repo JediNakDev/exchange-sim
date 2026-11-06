@@ -53,7 +53,9 @@ Every mutating POST (`/v1/experiments`, `/v1/runs`, and the `cancel`, `pause`, `
 - Same key, different body: `409 idempotency_key_reused_with_different_request`.
 - Missing key: `400 idempotency_key_required`.
 
-`POST /v1/experiment-previews` creates nothing and needs no key. The UI derives the experiment key from the reviewed preview and the run keys as `<experiment key>-seed-<seed>`, so a retried "create and start" never duplicates runs.
+`POST /v1/experiment-previews` creates nothing and needs no key. The UI retains the experiment key for an unchanged reviewed request. Initial seed-run keys are `initial-run-<sha256>`, hashing the full JSON pair `[experimentId, masterSeed]` without truncating either identifier. Creation and the saved experiment's missing-seed action use the same keys and first read every run page. A failed or cancelled run still counts as recorded and is not silently replaced. If a seed launch fails, the UI opens the saved experiment so missing seeds can be started separately. Concurrent clients retrying the same seed/body share a key; different `startPaused` bodies can return the documented conflict rather than create a duplicate.
+
+Run controls retain the key for an unchanged failed action in that mounted run view. Retrying that step after a lost reply replays the first response. Successful actions clear the key so another explicit step is a new action. A page reload is not an automatic retry of a previous control.
 
 ### Errors
 

@@ -27,6 +27,55 @@ jobs:
         if: matrix.mode == 'release'
         run: make -j4 tools examples MODE=release CXX=${{ matrix.cxx }} EXTRA_CXXFLAGS=-Werror
 
+  research-web:
+    name: research UI, HTTP contract and delivery invariants
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: frozen frontend dependencies
+        working-directory: web
+        run: bun install --frozen-lockfile
+      - name: generated API types match the contract
+        working-directory: web
+        run: |
+          bun run generate-api-types
+          git diff --exit-code -- src/lib/api/generated-schema.d.ts
+      - name: frontend types, lint and invariant tests
+        working-directory: web
+        run: |
+          bun run typecheck
+          bun run lint --max-warnings 0
+          bun test ./tests
+      - name: production frontend
+        working-directory: web
+        run: bun run build
+      - name: browser failure and recovery invariants
+        working-directory: web
+        run: |
+          bunx playwright install --with-deps chromium --only-shell
+          bun run test:browser
+      - name: real C++ API contract binary
+        run: make -j2 build/release/exsim_api CXX=clang++ EXTRA_CXXFLAGS=-Werror
+      - name: real HTTP contract and native artifact integration
+        working-directory: web
+        run: bun test ./e2e/exsim-api-binary.e2e.ts
+      - name: package and offline restore invariants
+        run: python3 -B scripts/deployment/test_research_delivery.py
+      - name: keep browser failure traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: research-browser-failures
+          path: web/test-results/
+          if-no-files-found: ignore
+
   perf-smoke:
     name: perf build + zero-allocation bench smoke
     runs-on: ubuntu-24.04

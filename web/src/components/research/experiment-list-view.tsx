@@ -10,8 +10,9 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ApiFailureAlert } from "@/components/research/api-failure-alert";
 import { PageHeading } from "@/components/research/page-heading";
+import { readExperiments } from "@/lib/api/research-workflow";
 import { useApiResource } from "@/hooks/use-api-resource";
-import { getBrowserApiClient, unwrapApiResult, type ApiSchemas } from "@/lib/api/exsim-api-client";
+import { getBrowserApiClient, type ApiSchemas } from "@/lib/api/exsim-api-client";
 import { formatDurationNs, formatWallClockTime } from "@/lib/exact-decimal-format";
 import { humanizeEnumValue } from "@/lib/research-labels";
 
@@ -47,7 +48,7 @@ export function ExperimentListView() {
   const [search, setSearch] = useState("");
   const experimentList = useApiResource(
     "experiments",
-    async () => unwrapApiResult(await getBrowserApiClient().GET("/v1/experiments", { params: { query: { limit: 200 } } })),
+    () => readExperiments(getBrowserApiClient()),
     EXPERIMENT_LIST_POLL_INTERVAL_MS,
   );
 
@@ -69,7 +70,7 @@ export function ExperimentListView() {
           </Button>
         }
       />
-      {experimentList.failure ? <ApiFailureAlert failure={experimentList.failure} /> : null}
+      {experimentList.failure ? <ApiFailureAlert failure={experimentList.failure} onRetry={experimentList.reload} /> : null}
       <dl className="study-summary" aria-label="Research activity">
         <div><dt>Experiments</dt><dd>{experimentList.data ? experiments.length : experimentList.isLoading ? "..." : "n/a"}</dd></div>
         <div><dt>Completed runs</dt><dd>{experimentList.data ? completedRuns : experimentList.isLoading ? "..." : "n/a"}</dd></div>

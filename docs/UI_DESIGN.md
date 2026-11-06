@@ -40,3 +40,8 @@ The first built form crowded long scenario labels into three columns. The final 
 The real production pages were exercised at 1440 px and 390 px: library search and its empty result, experiment/run views, preview validation, comparison, keyboard event stepping and fill selection. All four mobile page checks retained a 390 px document width. Browser exceptions and failed API responses: zero. Unit/contract frontend tests: 59 passed; typecheck, lint and standalone production build passed. The refreshed walkthrough also creates a real paused run, steps it and resumes it to completion. C++ behavior and the HTTP contract are unchanged.
 
 A final failure-state check intercepts an unavailable experiment service: the three activity counts show `n/a`, not false zeroes. This case failed against the initial redesign and passes in the deployed version.
+
+
+## Workflow reliability pass, 2026-11-07
+
+The visual system stays intact. Saved experiments now expose missing-seed recovery and a variant action. Configuration exposes the existing inventory-aware market maker. Artifact tables have explicit bounded cursor pages, retain their selected explanation and refresh active evidence. Panel titles are semantic section headings. Failure views provide a named recovery action. Exact amounts and simulated-time semantics are unchanged. Six durable isolated production-browser checks and 73 frontend invariants are recorded in [quality/FRONTEND_RELIABILITY_2026-11-07.md](quality/FRONTEND_RELIABILITY_2026-11-07.md); independent review and final deployment are still pending.

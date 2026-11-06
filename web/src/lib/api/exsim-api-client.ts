@@ -47,7 +47,16 @@ export class ExsimApiRequestError extends Error {
 }
 
 function isErrorResponseBody(value: unknown): value is ApiSchemas["ErrorResponseBody"] {
-  return typeof value === "object" && value !== null && "error" in value && typeof (value as { error: unknown }).error === "object";
+  if (typeof value !== "object" || value === null || !("error" in value)) return false;
+  const error = value.error;
+  return typeof error === "object" && error !== null &&
+    "code" in error && typeof error.code === "string" &&
+    "message" in error && typeof error.message === "string" &&
+    "requestId" in error && typeof error.requestId === "string" &&
+    "retryable" in error && typeof error.retryable === "boolean" &&
+    "fieldIssues" in error && Array.isArray(error.fieldIssues) &&
+    error.fieldIssues.every((issue: unknown) => typeof issue === "object" && issue !== null &&
+      "fieldPath" in issue && typeof issue.fieldPath === "string" && "issue" in issue && typeof issue.issue === "string");
 }
 
 /** Returns `data` or throws ExsimApiRequestError carrying the contract's ApiError. */

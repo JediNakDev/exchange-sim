@@ -187,3 +187,24 @@ All prior eight continuation processes have ended. The earlier shared-host sched
 - Refreshed the public walkthrough and screenshots with the redesign. The final eight-scene recording issued 57 successful API requests, with no browser exceptions or API failures. H.264 MP4 decoded fully: 1,352 frames, 54.08 seconds. Media log `/tmp/exsim-redesign-video.log`; capture report `/tmp/exsim-product-demo-report.json`. GitHub publication uses the existing `exchange-simulator` branch, without a main-branch merge. Untracked `.claude/` and `output/` remain preserved.
 
 - Final count-state repair: unavailable experiment data displays `n/a` rather than zero. An isolated browser 503 reproducer fails the initial redesign and passes on staging and the live endpoint (`/tmp/exsim-redesign-count-{before,after,live}.log`). Final frontend bundle `production-20261106-workstation-final`, build `7xqRXybDSlUBIS_ATWSBL`, is healthy through Tailscale; the API process remained running. The redesign and refreshed media were pushed in `19aed81`; this small count-state follow-up retains the same healthy-data visuals.
+
+## Thorough product-quality continuation, 2026-11-07
+
+The user requested continued implementation, explicitly authorized subagents and asked for the best result across the project. Shared task list and acceptance criteria: [quality/PLAN_2026-11-07.md](quality/PLAN_2026-11-07.md). Parent owns uncommitted frontend workflow/retry/pagination/proxy repairs and pending regression tests. No new release has been deployed or pushed. Prior live services remain untouched; `.claude/` and `output/` are preserved.
+
+New GPT/xhigh delegates use harness-created isolated worktrees from dependent parent `6d5c29f`. Worktree paths and final commits will be supplied in completion reports. Build caps: focused `-j2`, no full suites, Docker, benchmarks or extra delegates. Parent integrates serially; independent review is a separate later task.
+
+| Task | Harness task ID | Ownership and next action |
+| --- | --- | --- |
+| API durability | `node:delegated-task:command%3Amcp%3Adbfd70d4-c620-498e-9be2-f818534d0cbb%3Adelegate-task%3Ab5fbe611-8cd2-40dc-854e-c62784351e74` | Service persistence/idempotency/reload, focused failure/restart tests, report. Completion notification resumes parent. |
+| Execution API | `node:delegated-task:command%3Amcp%3Adbfd70d4-c620-498e-9be2-f818534d0cbb%3Adelegate-task%3A49036dd0-77f1-40d8-8239-2b5cc61ea1e7` | TWAP/immediate sweep strategy bridge, discovery, exact parent-order metrics, OpenAPI/types and focused integration checks. Parent implements the browser after contract integration. |
+| Delivery hardening | `node:delegated-task:command%3Amcp%3Adbfd70d4-c620-498e-9be2-f818534d0cbb%3Adelegate-task%3A106e2b06-0df8-4e28-8dfb-52a2ef0e22c9` | Packaging/readiness/consistent backup/restore/rollback in disposable directories, deployment docs and audit. No actual production operations. |
+
+Parent pending: finish regression files for partial seed launches/lost replies, cursor paging, malformed errors, proxy boundaries, step controls and variant/inventory-aware configuration; rerun typecheck/lint after the latest edits, then production build and focused browser checks. `@playwright/test` 1.65.0 was added through Bun for durable interaction regressions; no browser test files or new test pass claims yet. Resume on child completion notifications rather than polling.
+
+
+### Parent reliability and delivery checkpoint
+
+- Delivery implementation `eca0f55` integrated as `7fbf6c0`; child evidence checkpoint `52f5d7d` read but not merged wholesale. Source checkout `/Users/jedi/.t3/worktrees/lob/t3-2e875d0f`. Parent disposable tool checks pass 40/40 in 5.596 s (`/tmp/exsim-quality-delivery-tests.log`). No production service or run data touched. DA-01/02 routed to the running durability task through a steer message.
+- Parent frontend reliability implementation and evidence: [quality/FRONTEND_RELIABILITY_2026-11-07.md](quality/FRONTEND_RELIABILITY_2026-11-07.md). Verified 73/73 frontend invariants (3.01 s), typecheck, zero-warning lint, production standalone build, 6/6 isolated browser invariants (4.3 s). Logs `/tmp/exsim-quality-{web-tests,types,lint,build,browser}.log`. New API schema drift/frontend/real-contract/browser/delivery CI job is configured but has not run on GitHub. No new C++ full suite or benchmark was run.
+- Next: commit this parent checkpoint, independently review its failure/retry/identity boundaries, then integrate durability/execution results and implement the execution UI against the actual returned contract. Keep all new product changes out of the live deployment until integrated gates pass.

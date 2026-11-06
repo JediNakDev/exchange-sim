@@ -42,3 +42,7 @@ next-env.d.ts
 
 # agent rules file that `next dev` writes and rewrites on start
 AGENTS.md
+
+# Browser regression output
+/test-results/
+/playwright-report/

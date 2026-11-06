@@ -12,8 +12,8 @@ The recording shows the production Next.js frontend using real C++ runs, includi
 
 ## Research workflow
 
-1. **Configure.** Start from a narrow or wide quoting baseline. Set market-agent parameters, common seeds, feed/order/acknowledgment/cancel delays, fees, risk limits and a simulation bound. Review the assumptions before starting.
-2. **Run.** Let simulated time advance to completion, or start paused and step scheduler events. Each run owns its engine, RNG streams and accounting state.
+1. **Configure.** Start from a narrow or wide quoting baseline, or copy a saved experiment as a variant. Choose fixed-spread or inventory-aware quoting. Set market-agent parameters, common seeds, feed/order/acknowledgment/cancel delays, fees, risk limits and a simulation bound. Review the assumptions before starting.
+2. **Run.** Let simulated time advance to completion, or start paused and step scheduler events. Each run owns its engine, RNG streams and accounting state. A partially started batch stays saved; its experiment page starts only missing seeds.
 3. **Compare.** See changed assumptions, aligned equity/inventory/drawdown charts, per-seed differences, sample standard deviation and standard error. Only completed runs whose native evidence reproduces under the expected configuration and seed enter the paired result. Comparison values come from that fresh execution.
 4. **Explain.** Inspect the event timeline, exchange truth versus the delivered strategy view, FIFO quantity ahead, order lifecycles, fill roles, fees and markouts. A completed run can retain inventory and resting orders; the summary reports both.
 
@@ -90,7 +90,7 @@ bun run build
 bun run test:e2e
 ```
 
-Latest integration repair checks: **932** macOS release tests, **928** ASan/UBSan tests, **143** focused server TSan tests, and **9** real-binary HTTP contract tests covering all 23 operations. Linux GCC and Clang each passed **53** focused API/runtime checks and built both service binaries after the repairs. The earlier combined Linux snapshot passed 927 tests with each compiler. Frontend tests: **59**, plus typecheck, lint and production build.
+Latest integration repair checks: **932** macOS release tests, **928** ASan/UBSan tests, **143** focused server TSan tests, and **9** real-binary HTTP contract tests covering all 23 operations. Linux GCC and Clang each passed **53** focused API/runtime checks and built both service binaries after the repairs. The earlier combined Linux snapshot passed 927 tests with each compiler. Frontend invariants: **73**, plus typecheck, lint, production build and **6** isolated browser recovery checks. Deployment tooling: **40** disposable fixture checks. These new checks do not replace the historical C++ integration evidence.
 
 Five new regressions fail the reviewed pre-fix code and pass the repairs. Exact revisions, logs and limits: [integration fixes](docs/reviews/INTEGRATION_FIXES_2026-11-06.md), [working checkpoint](docs/WORK_PLAN.md), [fuzzing](docs/FUZZING.md).
 
