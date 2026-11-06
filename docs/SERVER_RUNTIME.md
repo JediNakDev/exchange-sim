@@ -46,6 +46,7 @@ operator paths (admin commands, log lines) do.
 | --- | --- | --- |
 | `exchange.ouch_port` 15000 | TCP | OUCH 4.2 over SoupBinTCP 3.0 |
 | `exchange.fix_port` 15001 | TCP | FIX 4.4 |
+| `exchange.fixp_sbe_port` 15003 | TCP | SBE 1.0 over FIXP 1.0 |
 | `exchange.admin_port` 15002 | TCP, loopback by default | admin and fault-injection console |
 | `market_data.port` 16000 | UDP to `market_data.address` | ITCH 5.0 over MoldUDP64 (multicast or unicast) |
 | `market_data.retransmit_port` 16001 | UDP | MoldUDP64 retransmission requests |
@@ -81,14 +82,14 @@ section 8. Runtime details:
   arrival order once their time has come (up to 256 delayed reads per
   connection are tracked).
 * `fault user U drop_out n` affects application (business) messages only;
-  FIX recovers in-session through ResendRequest, OUCH by reconnecting with
+  FIX recovers in-session through ResendRequest, FIXP through RetransmitRequest, OUCH by reconnecting with
   its next expected sequence number.
 * `fault user U disconnect` closes the connection and tells its gateway,
   exactly as when the client goes away (cancel-on-disconnect applies).
 * `fault md off` also releases packets held for reordering.
 * `shutdown`: every instrument goes to Closed through the engine, OUCH
   users get System Event `E` and End of Session, FIX users get Logout
-  ("end of day"), the feed sends ITCH `S` `E` and `C` then MoldUDP64 End of
+  ("end of day"), FIXP users get Terminate (Finished), the feed sends ITCH `S` `E` and `C` then MoldUDP64 End of
   Session. The server waits up to 3 seconds for clients to answer and for
   output to drain, then closes what is left and exits.
 
@@ -119,13 +120,13 @@ header). The admin console is a plain line protocol (`nc`).
 
 The client-side socket plumbing used by the tools and the end-to-end tests
 is `include/exsim/client/exchange_client_sessions.hpp`: `OuchTcpSession`,
-`FixTcpSession`, `MarketDataFeed` (with gap requests) and
+`FixTcpSession`, `FixpSbeTcpSession`, `MarketDataFeed` (with gap requests) and
 `AdminLineClient`.
 
 ## 3. Inside the runtime
 
 `include/exsim/server/server_runtime.hpp`:
-`using ServerRuntime = BasicServerRuntime<runtime::OuchGateway, runtime::FixGateway>`.
+`using ServerRuntime = BasicServerRuntime<runtime::OuchGateway, runtime::FixGateway, runtime::FixpSbeGateway>`.
 
 One thread runs `poll_once()` until the day is finished:
 
@@ -145,7 +146,7 @@ Pieces (all under `include/exsim/server/runtime/`):
 
 | File | Role |
 | --- | --- |
-| `order_entry_gateways.hpp` | `OuchGateway`, `FixGateway`: the compile-time gateway shape |
+| `order_entry_gateways.hpp` | `OuchGateway`, `FixGateway`, `FixpSbeGateway`: the compile-time gateway shape |
 | `order_entry_endpoint.hpp` | one TCP listener per gateway: preallocated connection slots, inbound delay, close handling; packs the core `ConnectionId` as `(endpoint tag << 56) \| (generation << 32) \| slot` |
 | `gateway_sessions.hpp` | the core's `Sessions` policy: routes each event batch to the gateway owning the session |
 | `market_data_runtime.hpp` | the core's `MarketData` policy: ITCH publisher -> `PacketFaultInjector` -> UDP, retransmission server, heartbeat, event-stream hash |
@@ -165,19 +166,13 @@ virtual calls: the server lists gateways as template arguments, and the
 loop, the delay fault, admin disconnects, end-of-day handling and the
 allocation guarantees are shared.
 
-SBE over FIXP (`docs/proposals/SBE_FIXP.md` section 3 on the
-`exchange-simulator` branch) is not wired into this runtime yet. Wiring it
-takes:
-
-1. a `FixpSbeGateway` type in `order_entry_gateways.hpp`:
-   `configured_port` returns `exchange.fixp_sbe_port`, the user directory
-   holds the users with `protocol = fixp_sbe`, `dispatch` finds the user's
-   session and hands it the batch, and `close_for_end_of_day` calls the
-   session's `end_session` (FIXP Terminate after the end-of-day messages);
-2. adding it to the list:
-   `BasicServerRuntime<OuchGateway, FixGateway, FixpSbeGateway>`;
-3. an end-to-end test next to `tests/exsim/server/e2e/fix_and_lifecycle_e2e_tests.cpp`
-   and FIXP traffic in the allocation-guard test.
+SBE over FIXP uses `FixpSbeGateway` and the same endpoint machinery.
+Its user directory contains `protocol = fixp_sbe` users, its listener uses
+`exchange.fixp_sbe_port`, and dispatch delivers batches to persistent user
+state even when disconnected. End of day invokes the connection's
+`end_session` after the engine reports, producing Terminate (Finished).
+No gateway API change is required. `FixpSbeTcpSession` adds a socket wrapper
+around the existing client with Negotiate, automatic Establish and reconnect.
 
 ## 4. Tests
 
@@ -197,20 +192,22 @@ sockets; waits are bounded (5 s per condition).
 | `server_e2e_sessions.cancel_on_disconnect_follows_the_user_setting` | cancel-on-disconnect on and off, replay of stored cancels |
 | `server_e2e_fix.enter_replace_cancel_and_trade_against_an_ouch_client` | FIX order entry, FIX vs OUCH trade |
 | `server_e2e_fix.drop_out_is_recovered_through_resend_request` | FIX `drop_out` recovered in-session (PossDup resend) |
-| `server_e2e_lifecycle.shutdown_ends_every_session_and_the_feed` | `shutdown`: OUCH `S`/`E` + End of Session, FIX Logout, ITCH `S` `E`/`C` + End of Session |
+| `server_e2e_fixp_sbe` (five cases) | Negotiate/Establish; enter/replace/cancel; OUCH trade; reject/delay; drop_out recovered through RetransmitRequest; admin disconnect and replayed cancel-on-disconnect; shutdown Terminate |
+| `server_e2e_lifecycle.shutdown_ends_every_session_and_the_feed` | `shutdown`: OUCH `S`/`E` + End of Session, FIX Logout, FIXP Terminate, ITCH `S` `E`/`C` + End of Session |
 | `server_e2e_lifecycle.journal_replays_to_the_published_event_stream` | the journal replays to the same event count and hash as the live feed |
-| `server_e2e_allocation.steady_state_order_entry_market_data_and_bots_do_not_allocate` | after warm-up, 10000+ OUCH and FIX round trips with trades, bots and the ITCH feed: zero heap allocations on the server thread (`testfw::AllocationScope`; counting is unavailable under sanitizers) |
+| `server_e2e_allocation.steady_state_order_entry_market_data_and_bots_do_not_allocate` | after warm-up, 10000+ OUCH, FIX and FIXP round trips with trades, bots and the ITCH feed: zero heap allocations on the server thread (`testfw::AllocationScope`; counting is unavailable under sanitizers) |
 
 ## 5. Wire-to-wire latency
 
 `exsim_w2w_bench` runs the same `ServerRuntime` in-process on its own
-thread (OUCH, FIX and admin listeners, ITCH feed to a local UDP socket, no
-bots, no journal) and an OUCH client on the main thread. The client sends
+thread (OUCH, FIX, FIXP and admin listeners, ITCH feed to a local UDP socket, no
+bots, no journal) and a client selected with `--protocol ouch|fix|fixp_sbe`
+(default `ouch`) on the main thread. The client sends
 Enter Orders (buy 100 @ 99.00, a fresh token each) at a fixed rate and
 cancels each one when it is accepted. On the client's monotonic clock it
 measures:
 
-* **ouch accept**: Enter Order written to the socket -> Order Accepted read
+* **ouch accept**, **fix accept**, or **sbe accept**: Enter Order written to the socket -> the protocol acknowledgement read
   back;
 * **itch add**: Enter Order written -> the matching ITCH Add Order read from
   the UDP feed.
@@ -263,3 +260,29 @@ Reading the numbers:
   (`Cpus_allowed_list: 0` for `exsim_server --cpu 0`) and gave ouch accept
   p50 12041, p90 15250, p99 616626 ns; a VM sharing a busy host is not a
   latency reference, so tuned Linux numbers are still to be measured.
+
+### Intended schedule and timestamp boundaries
+
+`--rate N` retains both `start + order_index * interval` and the client's
+actual submission time for every order. The actual timestamp is taken
+immediately before encoding and queueing the application message; the tool
+then flushes its nonblocking TCP buffer. Responses are timed inside the
+application decode callback, or inside the ITCH receiver callback. These
+are client application boundaries, including encoding, queueing, socket I/O,
+server work and client decoding, not kernel or NIC timestamps.
+
+The existing `<protocol> accept` and `itch add` rows measure actual submission
+to callback. `sched accept` and `sched itch` measure intended deadline to the
+same callback, including client stalls and waiting for the outstanding-order
+limit. Warmup orders are excluded from both distributions. `late_sends`
+counts measured sends after their intended deadline; `missed_deadlines`
+counts measured orders sent at least one full interval late. Orders are
+never skipped, so this is a count of affected orders, not dropped arrivals.
+`max_send_lateness` is their worst delay. With `--rate 0`, there is no open-loop
+schedule: intended equals actual and scheduling counters are zero.
+Nanosecond units do not imply nanosecond clock resolution.
+
+The older OUCH measurements above exclude intended-deadline delay; a new
+per-protocol comparison must include both distributions and recorded host
+load. Tail attribution and saturation conclusions from these measurements
+are hypotheses, not established by latency alone.

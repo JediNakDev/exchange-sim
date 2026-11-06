@@ -106,6 +106,13 @@ For each completion record: task ID, actual branch/commit, changed scope, tests 
 
 All prior eight continuation processes have ended. The earlier shared-host scheduling hold caused deferred child checks; no new benchmark slot has been released. Use focused checks during fixes and record exact evidence. Historical child evidence remains below and in the registry.
 
+## FIXP runtime continuation checkpoint (2026-11-05)
+
+- Task `8764c2d4-02f0-40c6-ba0f-7682e846f89a`, checkout `/Users/jedi/.t3/worktrees/lob/t3-59ca89aa`, branch `t3/wire-fixp-sbe-runtime`.
+- Preserved interrupted implementation in `878634b`; merged parent `b2e6b02` with `d3fd99d`. Runtime adapter, socket client, five FIXP E2E cases, allocation traffic and benchmark protocol selection implemented. No gateway API change or gateway-owned file edits.
+- Initial release `-j4 -Werror`: 845/845; all three benchmark smokes complete with zero loss/rejects. Logs in `output/runtime-sbe/` in this checkout. Debug/Linux gates were already running at the resource coordination hold.
+- Longer smokes exposed benchmark cancel ClOrdID capacity: reserve twice total orders for every protocol. Repeat allocation run failed on iteration 9 because AAPL noise takers could consume asserted OUCH order lifetimes. Move asserted orders to bot-free MSFT, keep bots active on AAPL. These corrections need fresh validation.
+- Next: merge parent with committed SBE QA fixes, finish current debug/Linux gates, await parent's serial slot before repeat checks and 18 common-setting perf measurements. Host load reached 90/36/16 during concurrent builds; no comparable measurement claimed from those smokes.
 ## SBE gateway QA completion (2026-11-05, child a8748a28)
 
 - Checkout `/Users/jedi/.t3/worktrees/lob/t3-73fbba65`, branch `fixp-sbe-qa-fixes`. Preserved reproducer commit `6b28f17`, existing partial implementation and untracked `output/`. Fix commit `096f9fd`; parent integrated through `89db302` (merge `31820a1`).
@@ -116,3 +123,5 @@ All prior eight continuation processes have ended. The earlier shared-host sched
 - Behavioral mutation checks remove each SBE-01/02/03/05 fix and confirm regression failures: `output/logs/mutations.log`, individual `output/logs/mutant-sbe-{01,02,03,05}.log`. Restored production fixes before final gates. Reused baseline failures from `output/logs/baseline_fixp.log`; 39/39 focused checks before final assertions in `output/logs/resume-focused.log`.
 - Final macOS release gate: 857/858, with only the newly added command-count assertion failing because close triggers cancel-on-disconnect (`output/logs/final-release.log`). Corrected that assertion; final focused SBE recheck 40/40 (`output/logs/final-focused.log`). Every other release test passed, including `fuzz_regression.sbe_order_entry` and both SBE allocation checks. No production change after the full gate.
 - Shared-host scheduling instruction arrived while Docker was already compiling. It uses the pre-correction test snapshot and will fail the same assertion; the chained clang gate will not start. Local debug/all were gated behind the failed release command and did not start. Remaining: focused ASan/UBSan and corrected Linux g++/clang++ plus make all, only after parent releases a build slot. Logs: `output/logs/final-linux.log`; preserve failed gate evidence. Runtime owner in `t3-59ca89aa` will integrate after parent merges these QA commits; its files were not edited here.
+
+- Runtime follow-up: initial ASan/UBSan 842/842 and Linux g++/clang++ 845/845 passed (`output/runtime-sbe/{debug,linux}.log`). Benchmark REVIEW-SRV-02 fixed in `d6eb71c`: retain intended deadlines, both latency distributions, late and missed deadline counters; direct recorder regressions in `b585294` await serial validation slot. Parent SBE QA `89a4d87` merged before final tests.

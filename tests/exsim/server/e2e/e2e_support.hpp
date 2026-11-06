@@ -2,7 +2,7 @@
 #define TESTS_EXSIM_SERVER_E2E_E2E_SUPPORT_HPP
 
 // End-to-end support: a real ServerRuntime on its own thread with OS-picked
-// loopback ports, real OUCH / FIX / MoldUDP64 clients and the admin console
+// loopback ports, real OUCH / FIX / FIXP-SBE / MoldUDP64 clients and the admin console
 // in the test thread. Every wait is bounded (wait_until) and polls with a
 // 1 ms idle step.
 
@@ -31,9 +31,12 @@ namespace exsim::e2e {
 
 namespace fix44 = exsim::protocol::fix44;
 namespace ouch42 = exsim::protocol::ouch42;
+namespace sbe = exsim::protocol::sbe_order_entry;
 using gateway::fix::FixInboundMessageInfo;
+using gateway::fixp_sbe::FixpSbeReceivedMessageInfo;
 using server::ServerRuntime;
 using server::runtime::FixGateway;
+using server::runtime::FixpSbeGateway;
 using server::runtime::OuchGateway;
 
 inline constexpr Price kDollar = kPriceScale;
@@ -42,11 +45,12 @@ inline constexpr int kWaitMs = 5000;
 
 // AAPL continuous, MSFT pre-open; OUCH users ALICE and BOB (cancel on
 // disconnect), OUCH user KEEP (no cancel on disconnect), FIX users CAROL and
-// DAVE; bot users MM1 and NT1.
+// DAVE, SBE over FIXP users ERIN and FRANK; bot users MM1 and NT1.
 inline const char* const kE2eBaseConfig = R"(
 [exchange]
 ouch_port = 0
 fix_port = 0
+fixp_sbe_port = 0
 admin_port = 0
 heartbeat_interval_ms = 1000
 max_connections = 16
@@ -111,6 +115,18 @@ password = dave
 protocol = fix44
 session_id = 4
 owner = 4
+
+[user ERIN]
+password = erin
+protocol = fixp_sbe
+session_id = 6
+owner = 6
+
+[user FRANK]
+password = frank
+protocol = fixp_sbe
+session_id = 7
+owner = 7
 
 [user MM1]
 password = mm1
@@ -193,6 +209,7 @@ public:
         }
         ouch_ = runtime_->listen_endpoint<OuchGateway>();
         fix_ = runtime_->listen_endpoint<FixGateway>();
+        fixp_sbe_ = runtime_->listen_endpoint<FixpSbeGateway>();
         admin_ = runtime_->admin_endpoint();
         retransmission_ = runtime_->retransmission_endpoint();
         thread_ = std::thread([this] { run(); });
@@ -206,6 +223,7 @@ public:
     [[nodiscard]] bool started() const noexcept { return start_failure_.empty(); }
     [[nodiscard]] net::Ipv4Endpoint ouch() const noexcept { return ouch_; }
     [[nodiscard]] net::Ipv4Endpoint fix() const noexcept { return fix_; }
+    [[nodiscard]] net::Ipv4Endpoint fixp_sbe() const noexcept { return fixp_sbe_; }
     [[nodiscard]] net::Ipv4Endpoint admin() const noexcept { return admin_; }
     [[nodiscard]] net::Ipv4Endpoint retransmission() const noexcept { return retransmission_; }
 
@@ -267,7 +285,7 @@ private:
 
     std::unique_ptr<ServerRuntime> runtime_;
     std::string start_failure_;
-    net::Ipv4Endpoint ouch_{}, fix_{}, admin_{}, retransmission_{};
+    net::Ipv4Endpoint ouch_{}, fix_{}, fixp_sbe_{}, admin_{}, retransmission_{};
     std::thread thread_;
     std::atomic<bool> finished_{false};
     std::atomic<int> allocation_phase_{0};
@@ -504,6 +522,139 @@ inline fix44::OrderCancelRequest fix_cancel(std::string_view original, std::stri
     request.symbol.assign(symbol);
     request.side = side;
     return request;
+}
+
+// ---- SBE over FIXP client recorder ---------------------------------------------------------------
+
+struct FixpSbeRecorder {
+    struct Report {
+        std::uint16_t template_id;
+        std::uint64_t cl_ord_id;
+        std::uint64_t server_sequence_number;
+        bool retransmitted;
+        Quantity last_quantity;  // trades only
+        Quantity leaves_quantity;
+        std::uint8_t reason;     // ExsimRejectReasonCode or ExsimCancelReasonCode
+    };
+    std::vector<Report> reports;  // execution and mass cancel reports, in delivery order
+    int negotiation_responses = 0;
+    int establishment_acks = 0;
+    std::uint64_t last_establishment_next_sequence_number = 0;
+    int negotiation_rejects = 0;
+    int establishment_rejects = 0;
+    int cancel_rejects = 0;
+    int business_message_rejects = 0;
+    int not_applied = 0;
+    std::vector<sbe::TerminationCode> terminate_codes;
+
+    void on_negotiation_response(const sbe::NegotiationResponse&) { ++negotiation_responses; }
+    void on_negotiation_reject(const sbe::NegotiationReject&) { ++negotiation_rejects; }
+    void on_establishment_ack(const sbe::EstablishmentAck& ack) {
+        ++establishment_acks;
+        last_establishment_next_sequence_number = ack.next_seq_no;
+    }
+    void on_establishment_reject(const sbe::EstablishmentReject&) { ++establishment_rejects; }
+    void on_terminate(const sbe::Terminate& terminate) { terminate_codes.push_back(terminate.code); }
+
+    void on_application_message(const FixpSbeReceivedMessageInfo& info, const sbe::ExecutionReportNew& report) {
+        record(sbe::TemplateId::ExecutionReportNew, report.cl_ord_id, info, 0, report.leaves_qty, 0);
+    }
+    void on_application_message(const FixpSbeReceivedMessageInfo& info, const sbe::ExecutionReportTrade& report) {
+        record(sbe::TemplateId::ExecutionReportTrade, report.cl_ord_id, info, report.last_qty, report.leaves_qty, 0);
+    }
+    void on_application_message(const FixpSbeReceivedMessageInfo& info, const sbe::ExecutionReportCancel& report) {
+        record(sbe::TemplateId::ExecutionReportCancel, report.cl_ord_id, info, 0, report.leaves_qty,
+               static_cast<std::uint8_t>(report.cancel_reason));
+    }
+    void on_application_message(const FixpSbeReceivedMessageInfo& info, const sbe::ExecutionReportReplace& report) {
+        record(sbe::TemplateId::ExecutionReportReplace, report.cl_ord_id, info, 0, report.leaves_qty, 0);
+    }
+    void on_application_message(const FixpSbeReceivedMessageInfo& info, const sbe::ExecutionReportReject& report) {
+        record(sbe::TemplateId::ExecutionReportReject, report.cl_ord_id, info, 0, 0,
+               static_cast<std::uint8_t>(report.exsim_reject_reason));
+    }
+    void on_application_message(const FixpSbeReceivedMessageInfo&, const sbe::OrderCancelReject&) { ++cancel_rejects; }
+    void on_application_message(const FixpSbeReceivedMessageInfo& info, const sbe::OrderMassCancelReport& report) {
+        record(sbe::TemplateId::OrderMassCancelReport, report.cl_ord_id, info, 0, 0, 0);
+    }
+    void on_application_message(const FixpSbeReceivedMessageInfo&, const sbe::BusinessMessageReject&) {
+        ++business_message_rejects;
+    }
+    void on_application_message(const FixpSbeReceivedMessageInfo&, const sbe::NotApplied&) { ++not_applied; }
+
+    [[nodiscard]] const Report* find(sbe::TemplateId template_id, std::uint64_t cl_ord_id) const {
+        for (const Report& report : reports) {
+            if (report.template_id == sbe::template_id_value(template_id) && report.cl_ord_id == cl_ord_id) {
+                return &report;
+            }
+        }
+        return nullptr;
+    }
+    [[nodiscard]] bool has(sbe::TemplateId template_id, std::uint64_t cl_ord_id) const {
+        return find(template_id, cl_ord_id) != nullptr;
+    }
+    [[nodiscard]] Quantity filled(std::uint64_t cl_ord_id) const {
+        Quantity total = 0;
+        for (const Report& report : reports) {
+            if (report.template_id == sbe::template_id_value(sbe::TemplateId::ExecutionReportTrade) &&
+                report.cl_ord_id == cl_ord_id) {
+                total += report.last_quantity;
+            }
+        }
+        return total;
+    }
+
+private:
+    void record(sbe::TemplateId template_id, std::uint64_t cl_ord_id, const FixpSbeReceivedMessageInfo& info,
+                Quantity last_quantity, Quantity leaves_quantity, std::uint8_t reason) {
+        reports.push_back({sbe::template_id_value(template_id), cl_ord_id, info.server_sequence_number,
+                           info.retransmitted, last_quantity, leaves_quantity, reason});
+    }
+};
+
+using FixpSbeSession = client::FixpSbeTcpSession<FixpSbeRecorder>;
+
+// The storage behind `credentials` must outlive the session.
+inline gateway::fixp_sbe::FixpSbeClientSettings fixp_sbe_settings(std::string_view credentials) {
+    gateway::fixp_sbe::FixpSbeClientSettings settings;
+    settings.credentials = credentials;
+    settings.keepalive_interval_ms = 1000;
+    return settings;
+}
+
+inline sbe::NewOrderSingle sbe_limit_order(std::uint64_t cl_ord_id, Side side, Quantity quantity, Price price,
+                                           std::string_view symbol = "AAPL") {
+    sbe::NewOrderSingle order;
+    order.cl_ord_id = cl_ord_id;
+    order.price_mantissa = price;
+    order.order_qty = static_cast<std::uint32_t>(quantity);
+    order.symbol = sbe::wire_symbol_from(Symbol(symbol));
+    order.side = side == Side::BUY ? sbe::SideCode::Buy : sbe::SideCode::Sell;
+    order.ord_type = sbe::OrdTypeCode::Limit;
+    order.time_in_force = sbe::TimeInForceCode::Day;
+    return order;
+}
+
+inline sbe::OrderCancelReplaceRequest sbe_replace(std::uint64_t original, std::uint64_t cl_ord_id, Quantity quantity,
+                                                  Price price) {
+    sbe::OrderCancelReplaceRequest request;
+    request.cl_ord_id = cl_ord_id;
+    request.orig_cl_ord_id = original;
+    request.price_mantissa = price;
+    request.order_qty = static_cast<std::uint32_t>(quantity);
+    return request;
+}
+
+inline sbe::OrderCancelRequest sbe_cancel(std::uint64_t original, std::uint64_t cl_ord_id) {
+    sbe::OrderCancelRequest request;
+    request.cl_ord_id = cl_ord_id;
+    request.orig_cl_ord_id = original;
+    return request;
+}
+
+template <class Message>
+bool send_sbe(FixpSbeSession& session, const Message& message) {
+    return session.client().send(message, net::realtime_ns()) != 0 && session.flush();
 }
 
 // ---- market data -----------------------------------------------------------------------------------

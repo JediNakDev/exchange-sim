@@ -3,15 +3,16 @@
 //
 //   exsim_w2w_bench [--rate N] [--orders N] [--warmup N] [--window N]
 //                   [--busy-poll] [--server-cpu N] [--client-cpu N]
+//                   [--protocol ouch|fix|fixp_sbe]
 //
 // The server runs in this process on its own thread (the same
-// ServerRuntime as exsim_server: OUCH, FIX, admin, ITCH feed, no bots, no
-// journal). The client thread sends OUCH Enter Orders at a fixed rate
+// ServerRuntime as exsim_server: OUCH, FIX, FIXP, admin, ITCH feed, no bots, no
+// journal). The client thread sends orders over the selected protocol at a fixed rate
 // (--rate per second; 0 = as fast as possible with at most --window orders
 // waiting for their acceptance) and cancels each order once it is accepted.
 // For every order it measures, on the client's monotonic clock:
 //
-//   ouch accept   Enter Order written to the socket -> Order Accepted read
+//   <wire> accept Enter Order written to the socket -> acknowledgement read
 //   itch add      Enter Order written to the socket -> ITCH Add Order read
 //                 from the market-data feed (UDP)
 //
@@ -37,12 +38,14 @@ namespace {
 
 using namespace exsim;
 namespace ouch42 = exsim::protocol::ouch42;
+namespace sbe = exsim::protocol::sbe_order_entry;
 
 struct BenchOptions {
     std::uint64_t orders_per_second = 20'000;
     std::uint64_t measured_orders = 100'000;
     std::uint64_t warmup_orders = 10'000;
     std::uint64_t window = 64;  // only with --rate 0
+    std::string_view protocol = "ouch";
     bool busy_poll = false;
     int server_cpu = -1;
     int client_cpu = -1;
@@ -51,7 +54,7 @@ struct BenchOptions {
 void print_usage() {
     std::fprintf(stderr,
                  "usage: exsim_w2w_bench [--rate N] [--orders N] [--warmup N] [--window N] [--busy-poll]\n"
-                 "                       [--server-cpu N] [--client-cpu N]\n");
+                 "                       [--server-cpu N] [--client-cpu N] [--protocol ouch|fix|fixp_sbe]\n");
 }
 
 bool parse_unsigned(std::string_view text, std::uint64_t maximum, std::uint64_t& value_out) {
@@ -76,7 +79,10 @@ bool parse_arguments(int argc, char** argv, BenchOptions& options) {
         if (index + 1 >= argc) return false;
         const std::string_view value = argv[++index];
         std::uint64_t number = 0;
-        if (flag == "--rate") {
+        if (flag == "--protocol") {
+            if (value != "ouch" && value != "fix" && value != "fixp_sbe") return false;
+            options.protocol = value;
+        } else if (flag == "--rate") {
             if (!parse_unsigned(value, 10'000'000, options.orders_per_second)) return false;
         } else if (flag == "--orders") {
             if (!parse_unsigned(value, 2'000'000, options.measured_orders) || options.measured_orders == 0) {
@@ -99,14 +105,16 @@ bool parse_arguments(int argc, char** argv, BenchOptions& options) {
     return true;
 }
 
-std::string bench_config_text(std::uint64_t total_orders) {
+std::string bench_config_text(std::uint64_t total_orders, std::string_view protocol) {
     // Every order uses a fresh token; each produces an accept and a cancel.
-    const std::uint64_t tokens = total_orders + 1024;
+    // FIX and FIXP also reserve each cancel ClOrdID for the day.
+    const std::uint64_t tokens = total_orders * 2 + 1024;
     const std::uint64_t stored_messages = total_orders * 2 + 1024;
-    const std::uint64_t stored_bytes = total_orders * 128 + (1u << 20);
+    const std::uint64_t stored_bytes = total_orders * 1024 + (1u << 20);
     return "[exchange]\n"
            "ouch_port = 0\n"
            "fix_port = 0\n"
+           "fixp_sbe_port = 0\n"
            "admin_port = 0\n"
            "heartbeat_interval_ms = 1000\n"
            "max_connections = 4\n"
@@ -128,16 +136,22 @@ std::string bench_config_text(std::uint64_t total_orders) {
            "initial_phase = continuous\n"
            "[user W2W]\n"
            "password = w2w\n"
-           "protocol = ouch42\n"
+           "protocol = " + std::string(protocol == "ouch" ? "ouch42" : protocol) + "\n"
            "session_id = 1\n"
            "owner = 1\n";
 }
 
 // Client-side bookkeeping, sized up front.
 struct LatencyRecorder {
-    std::vector<std::uint64_t> send_time_ns;   // per order index
+    std::vector<std::uint64_t> send_time_ns;   // before encoding and queueing
+    std::vector<std::uint64_t> intended_time_ns;  // fixed-rate deadline, per order index
     std::vector<std::uint64_t> accept_latency_ns;
     std::vector<std::uint64_t> itch_add_latency_ns;
+    std::vector<std::uint64_t> scheduled_accept_latency_ns;
+    std::vector<std::uint64_t> scheduled_itch_add_latency_ns;
+    std::uint64_t late_sends = 0;
+    std::uint64_t missed_deadlines = 0;
+    std::uint64_t max_send_lateness_ns = 0;
     std::vector<std::uint32_t> orders_to_cancel;
     std::uint64_t warmup_orders = 0;
     std::uint64_t accepted_orders = 0;
@@ -148,6 +162,9 @@ struct LatencyRecorder {
 
     explicit LatencyRecorder(std::uint64_t total_orders, std::uint64_t warmup) : warmup_orders(warmup) {
         send_time_ns.assign(total_orders, 0);
+        intended_time_ns.assign(total_orders, 0);
+        scheduled_accept_latency_ns.reserve(total_orders);
+        scheduled_itch_add_latency_ns.reserve(total_orders);
         accept_latency_ns.reserve(total_orders);
         itch_add_latency_ns.reserve(total_orders);
         orders_to_cancel.reserve(total_orders);
@@ -162,15 +179,50 @@ struct LatencyRecorder {
         return index;
     }
 
-    // OUCH
-    void on_order_accepted(const ouch42::OrderAccepted& message, std::uint64_t) {
+    void accepted(std::uint32_t index) {
         const std::uint64_t now = net::monotonic_ns();
-        const std::uint32_t index = order_index_from_token(message.token);
-        if (index >= warmup_orders) accept_latency_ns.push_back(now - send_time_ns[index]);
+        if (index >= send_time_ns.size()) {
+            ++rejected_orders;
+            return;
+        }
+        if (index >= warmup_orders) {
+            accept_latency_ns.push_back(now - send_time_ns[index]);
+            scheduled_accept_latency_ns.push_back(now - intended_time_ns[index]);
+        }
         ++accepted_orders;
         last_accept_time_ns = now;
         orders_to_cancel.push_back(index);
     }
+    void on_order_accepted(const ouch42::OrderAccepted& message, std::uint64_t) {
+        accepted(order_index_from_token(message.token));
+    }
+    void on_logon(const gateway::fix::FixInboundMessageInfo&) {}
+    void on_execution_report(const protocol::fix44::ExecutionReport& report,
+                             const gateway::fix::FixInboundMessageInfo&) {
+        if (report.execution_type == '0') {
+            std::array<char, 14> token{};
+            const auto id = report.client_order_id.view();
+            std::copy_n(id.begin(), std::min(id.size(), token.size()), token.begin());
+            accepted(order_index_from_token(token));
+        } else if (report.execution_type == '4') ++canceled_orders;
+        else if (report.execution_type == '8') ++rejected_orders;
+    }
+    void on_order_cancel_reject(const protocol::fix44::OrderCancelReject&, const gateway::fix::FixInboundMessageInfo&) {
+        ++rejected_orders;
+    }
+    void on_order_mass_cancel_report(const protocol::fix44::OrderMassCancelReport&, const gateway::fix::FixInboundMessageInfo&) {}
+    void on_session_reject(const protocol::fix44::Reject&, const gateway::fix::FixInboundMessageInfo&) { ++rejected_orders; }
+    void on_logout(std::string_view) {}
+    void on_application_message(const gateway::fixp_sbe::FixpSbeReceivedMessageInfo&,
+                                const sbe::ExecutionReportNew& report) {
+        accepted(static_cast<std::uint32_t>(report.cl_ord_id - 1));
+    }
+    void on_application_message(const gateway::fixp_sbe::FixpSbeReceivedMessageInfo&,
+                                const sbe::ExecutionReportCancel&) { ++canceled_orders; }
+    void on_application_message(const gateway::fixp_sbe::FixpSbeReceivedMessageInfo&,
+                                const sbe::ExecutionReportReject&) { ++rejected_orders; }
+    void on_application_message(const gateway::fixp_sbe::FixpSbeReceivedMessageInfo&,
+                                const sbe::OrderCancelReject&) { ++rejected_orders; }
     void on_order_canceled(const ouch42::OrderCanceled&, std::uint64_t) { ++canceled_orders; }
     void on_order_rejected(const ouch42::OrderRejected&, std::uint64_t) { ++rejected_orders; }
 
@@ -180,10 +232,121 @@ struct LatencyRecorder {
         if (message.empty() || message[0] != 'A') return;
         const std::uint64_t index = itch_add_orders++;
         if (index >= warmup_orders && index < send_time_ns.size()) {
-            itch_add_latency_ns.push_back(net::monotonic_ns() - send_time_ns[index]);
+            const std::uint64_t now = net::monotonic_ns();
+            itch_add_latency_ns.push_back(now - send_time_ns[index]);
+            scheduled_itch_add_latency_ns.push_back(now - intended_time_ns[index]);
         }
     }
     void on_end_of_session(std::uint64_t) {}
+};
+
+// Client-only adapter; the server still dispatches gateways at compile time.
+class BenchSession {
+public:
+    BenchSession(LatencyRecorder& recorder, std::string_view protocol, std::uint64_t total)
+        : protocol_(protocol), ouch_(recorder), fix_(recorder, fix_settings(total)), sbe_(recorder, sbe_settings()) {}
+    bool connect(server::ServerRuntime& runtime) {
+        if (protocol_ == "ouch") {
+            return ouch_.connect_and_login(runtime.listen_endpoint<server::runtime::OuchGateway>(),
+                                           {"W2W", "w2w", ""}, 0);
+        }
+        if (protocol_ == "fix") {
+            return fix_.connect_and_logon(runtime.listen_endpoint<server::runtime::FixGateway>(), true);
+        }
+        return sbe_.connect_and_negotiate(runtime.listen_endpoint<server::runtime::FixpSbeGateway>(),
+                                          client::random_fixp_session_uuid());
+    }
+    bool ready() {
+        if (protocol_ == "ouch") return ouch_.client().state() == gateway::ouch::OuchClientState::LoggedIn;
+        if (protocol_ == "fix") return fix_.client().active();
+        return sbe_.established();
+    }
+    bool connected() const {
+        if (protocol_ == "ouch") return ouch_.connected();
+        if (protocol_ == "fix") return fix_.connected();
+        return sbe_.connected();
+    }
+    void poll() {
+        if (protocol_ == "ouch") ouch_.poll();
+        else if (protocol_ == "fix") fix_.poll();
+        else sbe_.poll();
+    }
+    void flush() {
+        if (protocol_ == "ouch") ouch_.flush();
+        else if (protocol_ == "fix") fix_.flush();
+        else sbe_.flush();
+    }
+    bool enter_order(const ouch42::EnterOrder& order, std::uint64_t now) {
+        if (protocol_ == "ouch") return ouch_.client().enter_order(order, now);
+        if (protocol_ == "fix") {
+            protocol::fix44::NewOrderSingle message;
+            message.client_order_id.assign(token_text(order.token));
+            message.symbol.assign("BENCH");
+            message.side = Side::BUY;
+            message.quantity = order.shares;
+            message.order_type = OrdType::Limit;
+            message.price = order.price;
+            message.has_price = true;
+            message.time_in_force = TimeInForce::Day;
+            message.transact_time = net::realtime_ns();
+            return fix_.client().send_new_order_single(message, client::fix_time_now());
+        }
+        sbe::NewOrderSingle message;
+        message.cl_ord_id = LatencyRecorder::order_index_from_token(order.token) + 1;
+        message.symbol = sbe::wire_symbol_from(Symbol("BENCH"));
+        message.side = sbe::SideCode::Buy;
+        message.ord_type = sbe::OrdTypeCode::Limit;
+        message.time_in_force = sbe::TimeInForceCode::Day;
+        message.order_qty = order.shares;
+        message.price_mantissa = order.price;
+        return sbe_.client().send(message, net::realtime_ns()) != 0;
+    }
+    bool cancel_order(const ouch42::CancelOrder& order, std::uint64_t now) {
+        if (protocol_ == "ouch") return ouch_.client().cancel_order(order, now);
+        if (protocol_ == "fix") {
+            protocol::fix44::OrderCancelRequest message;
+            message.original_client_order_id.assign(token_text(order.token));
+            auto cancel_token = order.token;
+            cancel_token[0] = 'C';
+            message.client_order_id.assign(token_text(cancel_token));
+            message.symbol.assign("BENCH");
+            message.side = Side::BUY;
+            return fix_.client().send_order_cancel_request(message, client::fix_time_now());
+        }
+        sbe::OrderCancelRequest message;
+        message.orig_cl_ord_id = LatencyRecorder::order_index_from_token(order.token) + 1;
+        message.cl_ord_id = message.orig_cl_ord_id + total_id_offset;
+        return sbe_.client().send(message, net::realtime_ns()) != 0;
+    }
+    void logout() {
+        if (protocol_ == "ouch") ouch_.client().logout(net::monotonic_ns());
+        else if (protocol_ == "fix") fix_.client().logout("benchmark complete", client::fix_time_now());
+        else sbe_.client().terminate(sbe::TerminationCode::Finished, "benchmark complete", net::realtime_ns());
+        flush();
+    }
+private:
+    static constexpr std::uint64_t total_id_offset = 10'000'000;
+    static std::string_view token_text(const std::array<char, 14>& token) {
+        std::string_view text(token.data(), token.size());
+        return text.substr(0, text.find(' '));
+    }
+    static gateway::fix::FixClientSettings fix_settings(std::uint64_t total) {
+        gateway::fix::FixClientSettings settings;
+        settings.sender_comp_id = "W2W";
+        settings.password = "w2w";
+        settings.store_max_messages = total * 2 + 1024;
+        settings.store_max_bytes = total * 1024 + (1u << 20);
+        return settings;
+    }
+    static gateway::fixp_sbe::FixpSbeClientSettings sbe_settings() {
+        gateway::fixp_sbe::FixpSbeClientSettings settings;
+        settings.credentials = "W2W:w2w";
+        return settings;
+    }
+    std::string_view protocol_;
+    client::OuchTcpSession<LatencyRecorder> ouch_;
+    client::FixTcpSession<LatencyRecorder> fix_;
+    client::FixpSbeTcpSession<LatencyRecorder> sbe_;
 };
 
 struct PercentileSummary {
@@ -226,7 +389,7 @@ int main(int argc, char** argv) {
 
     server::ServerConfig config;
     std::string error;
-    if (!server::parse_config(bench_config_text(total_orders), config, error)) {
+    if (!server::parse_config(bench_config_text(total_orders, options.protocol), config, error)) {
         std::fprintf(stderr, "exsim_w2w_bench: config: %s\n", error.c_str());
         return 1;
     }
@@ -268,18 +431,17 @@ int main(int argc, char** argv) {
         std::fprintf(stderr, "exsim_w2w_bench: client thread: %s\n", pin_message.c_str());
     }
 
-    client::OuchTcpSession<LatencyRecorder> session(recorder);
-    bool logged_in = session.connect_and_login(runtime->listen_endpoint<server::runtime::OuchGateway>(),
-                                               {"W2W", "w2w", ""}, 0);
+    BenchSession session(recorder, options.protocol, total_orders);
+    bool logged_in = session.connect(*runtime);
     int exit_status = 0;
     if (logged_in) {
         // Wait for the System Event that follows Login Accepted.
         const std::uint64_t deadline = net::monotonic_ns() + 2'000'000'000;
-        while (session.client().state() != gateway::ouch::OuchClientState::LoggedIn &&
+        while (!session.ready() &&
                net::monotonic_ns() < deadline) {
             session.poll();
         }
-        logged_in = session.client().state() == gateway::ouch::OuchClientState::LoggedIn;
+        logged_in = session.ready();
     }
     if (!logged_in) {
         std::fprintf(stderr, "exsim_w2w_bench: login failed\n");
@@ -318,7 +480,7 @@ int main(int argc, char** argv) {
         std::size_t cancels_sent = 0;
         while (recorder.canceled_orders < total_orders || recorder.itch_add_orders < total_orders) {
             const std::uint64_t now = net::monotonic_ns();
-            if (now > run_deadline_ns || !session.connected()) {
+            if (now > run_deadline_ns || !session.connected() || recorder.rejected_orders != 0 || feed.stats().messages_lost != 0) {
                 exit_status = 2;
                 break;
             }
@@ -330,9 +492,17 @@ int main(int argc, char** argv) {
             if (may_send) {
                 write_token(order.token, sent_orders);
                 const std::uint64_t send_ns = net::monotonic_ns();
+                const std::uint64_t intended_ns = interval_ns == 0 ? send_ns : start_ns + sent_orders * interval_ns;
                 recorder.send_time_ns[sent_orders] = send_ns;
+                recorder.intended_time_ns[sent_orders] = intended_ns;
+                if (sent_orders >= options.warmup_orders && interval_ns != 0 && send_ns > intended_ns) {
+                    const std::uint64_t lateness = send_ns - intended_ns;
+                    ++recorder.late_sends;
+                    if (lateness >= interval_ns) ++recorder.missed_deadlines;
+                    recorder.max_send_lateness_ns = std::max(recorder.max_send_lateness_ns, lateness);
+                }
                 if (sent_orders == options.warmup_orders) first_measured_send_ns = send_ns;
-                if (!session.client().enter_order(order, send_ns)) {
+                if (!session.enter_order(order, send_ns)) {
                     exit_status = 2;
                     break;
                 }
@@ -347,7 +517,7 @@ int main(int argc, char** argv) {
                 for (; cancels_sent < recorder.orders_to_cancel.size(); ++cancels_sent) {
                     write_token(cancel.token, recorder.orders_to_cancel[cancels_sent]);
                     cancel.shares = 0;
-                    if (!session.client().cancel_order(cancel, net::monotonic_ns())) break;
+                    if (!session.cancel_order(cancel, net::monotonic_ns())) break;
                 }
                 session.flush();
             }
@@ -359,8 +529,13 @@ int main(int argc, char** argv) {
         std::printf("exsim_w2w_bench: server poll=%s rate=%s orders=%" PRIu64 " warmup=%" PRIu64 "\n",
                     options.busy_poll ? "busy" : "blocking", rate_description.c_str(), options.measured_orders,
                     options.warmup_orders);
-        print_summary("ouch accept", summarize(recorder.accept_latency_ns));
+        print_summary(options.protocol == "ouch" ? "ouch accept" : options.protocol == "fix" ? "fix accept" : "sbe accept", summarize(recorder.accept_latency_ns));
         print_summary("itch add", summarize(recorder.itch_add_latency_ns));
+        print_summary("sched accept", summarize(recorder.scheduled_accept_latency_ns));
+        print_summary("sched itch", summarize(recorder.scheduled_itch_add_latency_ns));
+        std::printf("schedule     late_sends=%" PRIu64 " missed_deadlines=%" PRIu64
+                    " max_send_lateness=%" PRIu64 " ns (missed means at least one interval late)\n",
+                    recorder.late_sends, recorder.missed_deadlines, recorder.max_send_lateness_ns);
         const double measured_seconds =
             double(recorder.last_accept_time_ns - first_measured_send_ns) / 1'000'000'000.0;
         std::printf("throughput   accepted_orders_per_second=%.0f (plus one cancel per order)\n",
@@ -368,8 +543,8 @@ int main(int argc, char** argv) {
         std::printf("feed         retransmission_requests=%" PRIu64 " messages_lost=%" PRIu64
                     " rejected_orders=%" PRIu64 "%s\n",
                     feed.stats().requests_sent, feed.stats().messages_lost, recorder.rejected_orders,
-                    exit_status == 2 ? " (run timed out or the connection dropped)" : "");
-        if (session.client().logout(net::monotonic_ns())) session.flush();
+                    exit_status == 2 ? " (run incomplete: timeout, disconnect or reject)" : "");
+        session.logout();
     }
     runtime->request_shutdown();
     const std::uint64_t shutdown_deadline = net::monotonic_ns() + 5'000'000'000;
