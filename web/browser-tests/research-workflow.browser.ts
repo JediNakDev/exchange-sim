@@ -338,3 +338,19 @@ test("timing units preserve nanoseconds and invalidate review only when assumpti
   await expect(launch).toBeEnabled();
   expect(preview?.config.latency.feedLatencyNs).toBe("2");
 });
+
+test("paired run and fill inspection retain named experiment and comparison direction", async ({ page }) => {
+  await installService(page, new MockResearchService());
+  await page.goto("/compare?baseline=exp_fixedspreadw2&candidate=exp_fixedspreadw4");
+  const evidence = page.getByRole("heading", { name: "Candidate impact across matched seeds" }).locator("..").locator("..");
+  await evidence.getByRole("link", { name: /./ }).first().click();
+  const context = page.getByRole("region", { name: "Research context" });
+  await expect(context.getByText("Baseline", { exact: true })).toBeVisible();
+  await expect(context.getByRole("link", { name: /Fixed spread/ })).toBeVisible();
+  const query = new URL(page.url()).search;
+  await page.getByRole("link", { name: "Inspect events", exact: true }).click();
+  await expect(context.getByText("Baseline", { exact: true })).toBeVisible();
+  expect(new URL(page.url()).search).toBe(query);
+  await context.getByRole("link", { name: "Return to baseline / candidate comparison" }).click();
+  await expect(page).toHaveURL(/baseline=exp_fixedspreadw2&candidate=exp_fixedspreadw4/);
+});

@@ -82,3 +82,21 @@ test("execution outcomes lead with residual and signed costs rather than P&L", a
   for (const text of ["Completion and execution cost", "9,007,199,254,740,993", "-0.00005", "USD", "shares", "unavailable", "Residual opportunity cost"]) expect(html).toContain(text);
   expect(html).not.toContain("Net P&amp;L (USD)");
 });
+
+test("neutral metric preference is not presented as equality", async () => {
+  const { comparison } = await fixtures();
+  const metric = comparison.metricComparisons.find((item) => item.metricKey === "ending_position")!;
+  metric.betterDirection = "neither";
+  metric.dispersion = { ...metric.dispersion, sampleCount: 3, tiedCount: 3 };
+  comparison.metricComparisons = [metric];
+  const html = renderToStaticMarkup(<PairedSeedAnalysis comparison={comparison} />);
+  expect(html).toContain("preference counts not applicable");
+  expect(html).not.toContain("better / worse / tied:");
+});
+
+test("execution comparison carries benchmark, quantity scope and volume horizon definitions", async () => {
+  const { comparison } = await fixtures();
+  comparison.metricComparisons.push({ ...comparison.metricComparisons[0], metricKey: "completion_ratio", unit: "ratio" });
+  const html = renderToStaticMarkup(<PairedSeedAnalysis comparison={comparison} />);
+  for (const text of ["Execution comparison definitions", "exchange mid at parent declaration", "Positive signed costs", "filled shares only", "opportunity cost is unavailable", "last parent fill", "including own trades"]) expect(html).toContain(text);
+});

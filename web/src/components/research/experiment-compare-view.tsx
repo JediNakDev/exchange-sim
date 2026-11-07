@@ -102,7 +102,7 @@ function MetricComparisonTable({ metricComparisons }: { metricComparisons: ApiSc
                 <TableCell className="text-right font-mono tabular-nums">{formatMetricValue(dispersion.minimumDifference, metricComparison.unit, { signDisplay: "always" })}</TableCell>
                 <TableCell className="text-right font-mono tabular-nums">{formatMetricValue(dispersion.maximumDifference, metricComparison.unit, { signDisplay: "always" })}</TableCell>
                 <TableCell className="text-right font-mono tabular-nums">
-                  {dispersion.candidateBetterCount} / {dispersion.candidateWorseCount} / {dispersion.tiedCount}
+                  {metricComparison.betterDirection === "neither" ? "Not applicable" : `${dispersion.candidateBetterCount} / ${dispersion.candidateWorseCount} / ${dispersion.tiedCount}`}
                 </TableCell>
                 <TableCell className="font-mono tabular-nums">
                   <div className="flex flex-wrap gap-x-3">

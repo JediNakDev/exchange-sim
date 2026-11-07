@@ -28,12 +28,18 @@ export function PairedSeedAnalysis({ comparison }: { comparison: ApiSchemas["Exp
         <CardDescription>Candidate minus baseline. Costs and completion must be judged together. Synthetic seed results do not establish real-market profitability.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
+        {comparison.metricComparisons.some((item) => item.metricKey === "completion_ratio" && item.dispersion.sampleCount > 0) ? <section className="rounded-md border bg-muted/30 p-3 text-sm" aria-label="Execution comparison definitions">
+          <h3 className="font-medium">Read costs with completion</h3>
+          <p className="mt-1">Costs use the exchange mid at parent declaration, not each child’s arrival mid. Positive signed costs are worse for buys and sells. Decision slippage excludes fees; executed cost including fees adds net fees.</p>
+          <p className="mt-2">Costs cover filled shares only, in USD or USD/share as labeled. Unexecuted opportunity cost is unavailable. A lower cost on fewer filled shares is not an unconditional improvement.</p>
+          <p className="mt-2">Participation divides parent fills by all market-traded shares from declaration through the last parent fill, including own trades. Different last-fill times mean different volume horizons.</p>
+        </section> : null}
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {priorities.map((item) => <div key={metricId(item)} className="border-l-2 border-primary/40 pl-3 text-sm">
             <p className="text-muted-foreground">{metricLabel(item.metricKey, item.horizonNs)}</p>
             <p className="font-mono text-lg tabular-nums">{formatMetricValue(item.dispersion.meanDifference, item.unit, { signDisplay: "always" })} <span className="text-xs">{METRIC_UNIT_LABEL[item.unit]}</span></p>
             <p>{interpretPairedDifference(item)}</p>
-            <p className="text-xs text-muted-foreground">n = {item.dispersion.sampleCount}; better / worse / tied: {item.dispersion.candidateBetterCount} / {item.dispersion.candidateWorseCount} / {item.dispersion.tiedCount}</p>
+            <p className="text-xs text-muted-foreground">n = {item.dispersion.sampleCount}; {item.betterDirection === "neither" ? "preference counts not applicable" : `better / worse / tied: ${item.dispersion.candidateBetterCount} / ${item.dispersion.candidateWorseCount} / ${item.dispersion.tiedCount}`}</p>
           </div>)}
         </div>
         <Field className="max-w-md">
@@ -59,8 +65,8 @@ export function PairedSeedAnalysis({ comparison }: { comparison: ApiSchemas["Exp
           <Table className="text-xs"><TableHeader><TableRow><TableHead>Seed</TableHead><TableHead>Baseline</TableHead><TableHead>Candidate</TableHead><TableHead>Difference ({METRIC_UNIT_LABEL[metric.unit]})</TableHead></TableRow></TableHeader>
             <TableBody>{metric.perSeed.map((pair) => <TableRow key={pair.masterSeed}>
               <TableCell className="font-mono">{pair.masterSeed}</TableCell>
-              <TableCell><Link className="underline font-mono" href={`/runs/${pair.baselineRunId}`}>{pair.baselineValue === null ? "Unavailable" : formatMetricValue(pair.baselineValue, metric.unit)}</Link></TableCell>
-              <TableCell><Link className="underline font-mono" href={`/runs/${pair.candidateRunId}`}>{pair.candidateValue === null ? "Unavailable" : formatMetricValue(pair.candidateValue, metric.unit)}</Link></TableCell>
+              <TableCell><Link className="underline font-mono" href={`/runs/${pair.baselineRunId}?${new URLSearchParams({ baseline: comparison.baseline.experimentId, candidate: comparison.candidate.experimentId }).toString()}`}>{pair.baselineValue === null ? "Unavailable" : formatMetricValue(pair.baselineValue, metric.unit)}</Link></TableCell>
+              <TableCell><Link className="underline font-mono" href={`/runs/${pair.candidateRunId}?${new URLSearchParams({ baseline: comparison.baseline.experimentId, candidate: comparison.candidate.experimentId }).toString()}`}>{pair.candidateValue === null ? "Unavailable" : formatMetricValue(pair.candidateValue, metric.unit)}</Link></TableCell>
               <TableCell className="font-mono">{pair.difference === null ? "Unavailable" : formatMetricValue(pair.difference, metric.unit, { signDisplay: "always" })}</TableCell>
             </TableRow>)}</TableBody>
           </Table>

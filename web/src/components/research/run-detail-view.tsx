@@ -14,6 +14,7 @@ import { ApiFailureAlert } from "@/components/research/api-failure-alert";
 import { PageHeading } from "@/components/research/page-heading";
 import { isTerminalRunState, RunStateBadge } from "@/components/research/run-state-badge";
 import { ExecutionSummaryPanel } from "@/components/research/execution-summary-panel";
+import { RunResearchContext, useComparisonContext } from "@/components/research/run-research-context";
 import { TraderRunOutcomes } from "@/components/research/trader-run-outcomes";
 import { RunSeriesChart } from "@/components/research/run-series-chart";
 import { validStepEventCount } from "@/lib/api/research-workflow";
@@ -158,7 +159,7 @@ function SummaryPanel({ summary }: { summary: ApiSchemas["RunSummary"] }) {
         <CardContent>
           <DefinitionRows
             rows={[
-              ["Submitted / accepted / rejected", `${summary.orders.submittedOrderCount} / ${summary.orders.acceptedOrderCount} / ${summary.orders.rejectedOrderCount}`],
+              ["New orders submitted / accepted / rejected", `${summary.orders.submittedOrderCount} / ${summary.orders.acceptedOrderCount} / ${summary.orders.rejectedOrderCount}`],
               ["Canceled (cancel races lost)", `${summary.orders.canceledOrderCount} (${summary.orders.cancelRaceLostCount})`],
               ["Fills (maker / taker)", `${summary.orders.fillCount} (${summary.orders.makerFillCount} / ${summary.orders.takerFillCount})`],
               ["Filled / submitted shares", `${formatIntegerText(summary.orders.filledShares)} / ${formatIntegerText(summary.orders.submittedShares)}`],
@@ -175,7 +176,7 @@ function SummaryPanel({ summary }: { summary: ApiSchemas["RunSummary"] }) {
       <Card size="sm">
         <CardHeader>
           <CardTitle>Markouts</CardTitle>
-          <CardDescription>Positive signed markouts indicate favorable post-fill movement; negative values indicate adverse selection. Totals include available fills only. Horizons not yet reached or past run end are censored, not zero.</CardDescription>
+          <CardDescription>Signed markout uses exchange mid: buy = future mid - fill price; sell = fill price - future mid. It includes the initial spread edge, so it is not pure post-fill mid-price drift. The mean weights eligible shares, not fills. Totals include available fills only. Horizons not yet reached or past run end are censored, not zero.</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
@@ -274,7 +275,7 @@ function ManifestPanel({ manifest }: { manifest: ApiSchemas["RunManifest"] }) {
       <Card size="sm">
         <CardHeader>
           <CardTitle>Provenance</CardTitle>
-          <CardDescription>Everything needed to reproduce this run byte for byte.</CardDescription>
+          <CardDescription>Recorded assumptions and artifact identities. Reproduction also requires the original executable; format version labels alone do not identify it. API run IDs and wall-clock envelopes can differ between repeats.</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           <DefinitionRows
@@ -317,6 +318,7 @@ function ManifestPanel({ manifest }: { manifest: ApiSchemas["RunManifest"] }) {
 
 export function RunDetailView() {
   const { runId } = useParams<{ runId: string }>();
+  const comparisonQuery = useComparisonContext();
   const apiClient = getBrowserApiClient();
   const runResource = useApiResource(`run:${runId}`, async () => unwrapApiResult(await apiClient.GET("/v1/runs/{runId}", { params: { path: { runId } } })), (latestRun) =>
     isTerminalRunState(latestRun.state) ? null : ACTIVE_RUN_POLL_INTERVAL_MS,
@@ -357,11 +359,12 @@ export function RunDetailView() {
               onRunChanged={() => runResource.reload()}
             />
             <Button asChild size="sm">
-              <Link href={`/runs/${run.runId}/inspect`}>Inspect events</Link>
+              <Link href={`/runs/${run.runId}/inspect${comparisonQuery}`}>Inspect events</Link>
             </Button>
           </>
         }
       />
+      <RunResearchContext experimentId={run.experimentId} />
       <div className="run-progress-strip">
         <span>
           Events processed <span className="font-mono tabular-nums">{formatIntegerText(run.progress.processedCanonicalEventCount)}</span>
@@ -388,7 +391,7 @@ export function RunDetailView() {
       {summaryResource.data ? <TraderRunOutcomes summary={summaryResource.data} /> : null}
       <nav aria-label="Continue research" className="flex flex-wrap items-center gap-3 rounded-md border p-3 text-sm">
         <span className="text-muted-foreground">Next decision</span>
-        <Button asChild size="sm" variant="outline"><Link href={`/runs/${run.runId}/inspect`}>Explain fills and queue events</Link></Button>
+        <Button asChild size="sm" variant="outline"><Link href={`/runs/${run.runId}/inspect${comparisonQuery}`}>Explain fills and queue events</Link></Button>
         <Button asChild size="sm" variant="outline"><Link href={`/experiments/new?from=${encodeURIComponent(run.experimentId)}`}>Create variant</Link></Button>
         <Button asChild size="sm" variant="outline"><Link href={`/compare?baseline=${encodeURIComponent(run.experimentId)}`}>Compare against this experiment</Link></Button>
       </nav>

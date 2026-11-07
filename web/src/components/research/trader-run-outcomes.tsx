@@ -25,10 +25,10 @@ export function TraderRunOutcomes({ summary }: { summary: ApiSchemas["RunSummary
     <dl className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">{facts.map(([label, value]) => <div key={label}><dt className="text-xs text-muted-foreground">{label}</dt><dd className="mt-1 break-words font-mono text-base tabular-nums">{value}</dd></div>)}</dl>
     <p className="mt-4 max-w-4xl text-xs leading-relaxed text-muted-foreground">{execution
       ? "Positive signed costs are worse for buys and sells. Shortfall includes net fees; slippage excludes fees. Both cover filled quantity only. Residual opportunity cost is unavailable, so lower cost with lower completion is not an unconditional improvement."
-      : "Net P&L includes inventory valuation and fees. Spread capture alone is not profit. Read signed markouts with eligible fill counts to assess post-fill price movement, alongside inventory and drawdown."}</p>
+      : "Net P&L includes inventory valuation and fees. Spread capture alone is not profit. Read signed markouts with eligible exposure alongside inventory and drawdown; markouts include the initial spread edge."}</p>
     {!execution ? <div className="mt-4 border-t pt-3">
       <h3 className="text-sm font-medium">Post-fill markouts</h3>
-      <p className="mt-1 text-xs text-muted-foreground">Signed USD/share, derived; positive is favorable. Eligible counts vary by horizon. Censored horizons are excluded.</p>
+      <p className="mt-1 text-xs text-muted-foreground">Quantity-weighted USD/share against exchange mid: buy = future mid - fill price; sell = fill price - future mid. Positive is favorable and includes the initial spread edge. Eligible exposure varies by horizon; censored observations are excluded.</p>
       {summary.markouts.length === 0 ? <p className="mt-2 text-sm">No markout horizons reported.</p> : <dl className="mt-3 flex flex-wrap gap-x-8 gap-y-3">{summary.markouts.map((markout) => <div key={markout.horizonNs}>
         <dt className="text-xs text-muted-foreground">{formatDurationNs(markout.horizonNs)}</dt>
         <dd className="font-mono text-sm">{markout.availableFillCount === "0" ? "Unavailable" : formatDecimalForDisplay(markout.meanMarkoutPerShare, { signDisplay: "always" })}</dd>

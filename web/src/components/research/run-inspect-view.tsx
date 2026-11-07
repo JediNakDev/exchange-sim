@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ApiFailureAlert } from "@/components/research/api-failure-alert";
+import { RunResearchContext, useComparisonContext } from "@/components/research/run-research-context";
 import { PageHeading } from "@/components/research/page-heading";
 import { isTerminalRunState, RunStateBadge } from "@/components/research/run-state-badge";
 import { ArtifactPageControls } from "@/components/research/artifact-page-controls";
@@ -212,14 +213,16 @@ function FocusPanel({
       <Card size="sm">
         <CardHeader>
           <CardTitle>
-            Order {order.orderId}: {order.side} {order.quantity} @ {order.price}
+            Order {order.orderId}: latest chain state
           </CardTitle>
           <CardDescription>
-            {humanizeEnumValue(order.finalStatus)}, {order.cumulativeQuantity} filled in {order.fillCount} fills. Matching {lifecycle.matchingRule}.
+            Client order chain {order.clientOrderId}, as of event {order.lastEventPosition}; latest exchange order {order.orderId}: {order.side} {order.quantity} @ {order.price}. {humanizeEnumValue(order.finalStatus)}, {order.cumulativeQuantity} filled in {order.fillCount} fills across the chain. Matching {lifecycle.matchingRule}. These totals are not a snapshot at the selected fill.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           {focusedFill ? (
+            <div className="space-y-2">
+            <p className="rounded-md border bg-muted/30 p-3 text-sm" aria-label="Selected fill identity"><strong>Selected fill:</strong> order {focusedFill.orderId}, event {focusedFill.eventPosition}, match {focusedFill.matchId}; {focusedFill.side} {focusedFill.quantity} @ {focusedFill.price}. The lifecycle below spans the replacement chain; its latest state can have another exchange order ID.</p>
             <div className="flex flex-wrap gap-1.5 text-xs">
               <EventPositionButton label="Submit" eventPosition={focusedFill.relatedEvents.strategySubmitEventPosition} onSelectEventPosition={onSelectEventPosition} />
               <EventPositionButton label="Arrival" eventPosition={focusedFill.relatedEvents.exchangeArrivalEventPosition} onSelectEventPosition={onSelectEventPosition} />
@@ -228,7 +231,7 @@ function FocusPanel({
               <EventPositionButton label="Aggressor arrival" eventPosition={focusedFill.relatedEvents.aggressorArrivalEventPosition} onSelectEventPosition={onSelectEventPosition} />
               <EventPositionButton label="Fill" eventPosition={focusedFill.relatedEvents.fillEventPosition} onSelectEventPosition={onSelectEventPosition} />
               <EventPositionButton label="Fill report delivered" eventPosition={focusedFill.relatedEvents.fillReportDeliveredEventPosition} onSelectEventPosition={onSelectEventPosition} />
-            </div>
+            </div></div>
           ) : null}
           <ol className="relative flex flex-col gap-1 border-l pl-3 text-xs" aria-label="Order lifecycle timeline">
             {lifecycle.stages.map((lifecycleStage) => (
@@ -239,6 +242,8 @@ function FocusPanel({
                 <span className="font-mono text-muted-foreground tabular-nums">{formatSimulationTimeNs(lifecycleStage.simulationTimeNs, 6)}</span>
                 <span className="font-medium">{humanizeEnumValue(lifecycleStage.stageKind)}</span>
                 <VisibilityBadge visibility={lifecycleStage.visibility} />
+                {lifecycleStage.quantity !== null ? <span>quantity {lifecycleStage.quantity}</span> : null}
+                {lifecycleStage.leavesQuantity !== null ? <span>remaining {lifecycleStage.leavesQuantity}</span> : null}
                 <span className="text-muted-foreground">{lifecycleStage.detail}</span>
               </li>
             ))}
@@ -297,7 +302,7 @@ function FocusPanel({
               Fill {focusedFill.matchId}: {focusedFill.side} {focusedFill.quantity} @ {focusedFill.price} ({focusedFill.liquidityRole})
             </CardTitle>
             <CardDescription>
-              Counterparty {humanizeEnumValue(focusedFill.counterpartyActor)}. Mid at fill {formatDecimalForDisplay(focusedFill.midAtFill)}, spread capture {formatDecimalForDisplay(focusedFill.spreadCapturePerShare, { signDisplay: "always" })} per share, fee{" "}
+              Order {focusedFill.orderId} at event {focusedFill.eventPosition}. Counterparty {humanizeEnumValue(focusedFill.counterpartyActor)}. Mid at fill {formatDecimalForDisplay(focusedFill.midAtFill)}, spread capture {formatDecimalForDisplay(focusedFill.spreadCapturePerShare, { signDisplay: "always" })} per share, fee{" "}
               {formatDecimalForDisplay(focusedFill.feePerShare)} per share.
             </CardDescription>
           </CardHeader>
@@ -377,6 +382,7 @@ export function RunInspectView() {
 }
 
 function RunInspection({ runId }: { runId: string }) {
+  const comparisonQuery = useComparisonContext();
   const apiClient = getBrowserApiClient();
   const [focusedEventPosition, setFocusedEventPosition] = useState("0");
   const [jumpTargetText, setJumpTargetText] = useState("");
@@ -468,12 +474,13 @@ function RunInspection({ runId }: { runId: string }) {
         description={
           <span>
             <span className="font-mono text-xs">{run.runId}</span>{" / "} seed <span className="font-mono">{run.masterSeed}</span>, {formatIntegerText(processedEventCount)} events processed.{" "}
-            <Link className="underline" href={`/runs/${run.runId}`}>
+            <Link className="underline" href={`/runs/${run.runId}${comparisonQuery}`}>
               Run summary
             </Link>
           </span>
         }
       />
+      <RunResearchContext experimentId={run.experimentId} />
       {runResource.failure ? <ApiFailureAlert failure={runResource.failure} title="Run status is stale. Showing the last known event range." onRetry={runResource.reload} /> : null}
       <div
         role="group"

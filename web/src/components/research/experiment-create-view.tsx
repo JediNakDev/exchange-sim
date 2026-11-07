@@ -4,7 +4,7 @@
 // research service validates and flattens the configuration (preview) before the
 // person can start runs, so the assumptions shown are the service's own reading.
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -234,6 +234,17 @@ function ExperimentEditor({ parentId, intent }: { parentId: string | null; inten
     }
     return groupedIssues;
   }, [isPreviewCurrent, previewOutcome, requestFailure]);
+
+  useEffect(() => {
+    const issues = requestFailure?.fieldIssues ?? previewOutcome?.preview.fieldIssues ?? [];
+    for (const issue of issues) {
+      const control = document.getElementById(`field-${issue.fieldPath.replaceAll("/", "-")}`);
+      if (control) {
+        control.focus();
+        break;
+      }
+    }
+  }, [previewOutcome, requestFailure]);
 
   if (serviceResource.failure) return <ApiFailureAlert failure={serviceResource.failure} title="Could not load executable strategies" onRetry={serviceResource.reload} />;
   if (parentResource.failure) return <ApiFailureAlert failure={parentResource.failure} title="Could not load the source experiment" onRetry={parentResource.reload} />;
@@ -466,6 +477,7 @@ function ExperimentEditor({ parentId, intent }: { parentId: string | null; inten
 
           <details className="rounded-lg border p-4" open={issuesByFieldPath.size > 0 || undefined}>
             <summary className="cursor-pointer text-sm font-semibold">Market scenario: background liquidity and order flow</summary>
+            <p className="mt-3 text-xs text-muted-foreground">Supported research stresses: background liquidity, taker order flow and delivery latency. Scheduled price jumps, halts, packet gaps and recovery scenarios are not available in this deterministic research workflow. Protocol fault testing is a separate mode.</p>
             <div className="pt-4">
                 <FieldSet>
                   <FieldLegend>Scenario</FieldLegend>
@@ -498,7 +510,7 @@ function ExperimentEditor({ parentId, intent }: { parentId: string | null; inten
             <div className="pt-4">
                 <FieldSet>
                   <FieldLegend>Latency</FieldLegend>
-                  <FieldDescription>Each path is configured separately. Feed: exchange to strategy market data. Order entry: strategy to exchange. Acknowledgment: exchange to strategy reports. Cancel: strategy cancel to exchange.</FieldDescription>
+                  <FieldDescription>Each path is configured separately. Feed: exchange to strategy market data. Order entry: strategy to exchange. Acknowledgment: exchange to strategy reports. Cancel / replace: quote cancellation and replacement requests to exchange; both share this configured path.</FieldDescription>
                   <FieldGroup className="grid gap-3 md:grid-cols-2">
                     <Field>
                       <FieldLabel htmlFor="latency-model">Model</FieldLabel>
@@ -515,7 +527,7 @@ function ExperimentEditor({ parentId, intent }: { parentId: string | null; inten
                     <TextField label="Feed" unit="ns" fieldPath="/config/latency/feedLatencyNs" inputMode="numeric" value={latency.feedLatencyNs} description={exactDurationDescription(latency.feedLatencyNs)} onValueChange={(latencyNs) => updateDraft((nextDraft) => void (nextDraft.config.latency.feedLatencyNs = latencyNs))} issuesByFieldPath={issuesByFieldPath} />
                     <TextField label="Order entry" unit="ns" fieldPath="/config/latency/orderEntryLatencyNs" inputMode="numeric" value={latency.orderEntryLatencyNs} description={exactDurationDescription(latency.orderEntryLatencyNs)} onValueChange={(latencyNs) => updateDraft((nextDraft) => void (nextDraft.config.latency.orderEntryLatencyNs = latencyNs))} issuesByFieldPath={issuesByFieldPath} />
                     <TextField label="Acknowledgment" unit="ns" fieldPath="/config/latency/acknowledgmentLatencyNs" inputMode="numeric" value={latency.acknowledgmentLatencyNs} description={exactDurationDescription(latency.acknowledgmentLatencyNs)} onValueChange={(latencyNs) => updateDraft((nextDraft) => void (nextDraft.config.latency.acknowledgmentLatencyNs = latencyNs))} issuesByFieldPath={issuesByFieldPath} />
-                    <TextField label="Cancel" unit="ns" fieldPath="/config/latency/cancelLatencyNs" inputMode="numeric" value={latency.cancelLatencyNs} description={exactDurationDescription(latency.cancelLatencyNs)} onValueChange={(latencyNs) => updateDraft((nextDraft) => void (nextDraft.config.latency.cancelLatencyNs = latencyNs))} issuesByFieldPath={issuesByFieldPath} />
+                    <TextField label="Cancel / replace" unit="ns" fieldPath="/config/latency/cancelLatencyNs" inputMode="numeric" value={latency.cancelLatencyNs} description={exactDurationDescription(latency.cancelLatencyNs)} onValueChange={(latencyNs) => updateDraft((nextDraft) => void (nextDraft.config.latency.cancelLatencyNs = latencyNs))} issuesByFieldPath={issuesByFieldPath} />
                     <TextField label="Jitter" unit="ns" fieldPath="/config/latency/jitterNs" inputMode="numeric" value={latency.jitterNs} onValueChange={(latencyNs) => updateDraft((nextDraft) => void (nextDraft.config.latency.jitterNs = latencyNs))} issuesByFieldPath={issuesByFieldPath} />
                     <TextField label="Strategy compute" unit="ns" description="Decision to departure, before order entry or cancel latency." fieldPath="/config/latency/strategyComputeNs" inputMode="numeric" value={latency.strategyComputeNs ?? "0"} onValueChange={(latencyNs) => updateDraft((nextDraft) => void (nextDraft.config.latency.strategyComputeNs = latencyNs))} issuesByFieldPath={issuesByFieldPath} />
                     <Field orientation="horizontal" className="md:col-span-2">
