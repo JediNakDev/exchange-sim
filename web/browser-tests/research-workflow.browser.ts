@@ -273,3 +273,34 @@ test("capability discovery does not offer an unknown strategy without an editor"
   await expect(page.getByRole("option", { name: "Future strategy" })).toHaveCount(0);
   await expect(page.getByRole("option").first()).toBeVisible();
 });
+
+test("library tasks and baseline-candidate selection lead to paired evidence", async ({ page }) => {
+  await installService(page, new MockResearchService());
+  await page.goto("/experiments");
+  await expect(page.getByRole("link", { name: "Research execution", exact: true })).toHaveAttribute("href", "/experiments/new?intent=execution");
+  await expect(page.getByRole("link", { name: "Research market making", exact: true })).toHaveAttribute("href", "/experiments/new?intent=market-making");
+  const selection = page.getByRole("checkbox", { name: /for comparison$/ });
+  await expect(selection).toHaveCount(2);
+  await selection.nth(0).focus();
+  await page.keyboard.press("Space");
+  await expect(selection.nth(0)).toBeChecked();
+  await expect(page).toHaveURL(/\/experiments$/);
+  await selection.nth(1).check();
+  await page.getByRole("link", { name: "Compare selected", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Candidate impact across matched seeds" })).toBeVisible();
+  await expect(page.getByLabel("Paired difference to inspect")).toBeVisible();
+  await page.getByLabel("Paired difference to inspect").click();
+  await page.getByRole("option", { name: /Max drawdown/ }).click();
+  await expect(page.getByText("Negative differences favor the candidate.", { exact: false })).toBeVisible();
+});
+
+test("experiment overview exposes analysis and interrupted-work distinctions", async ({ page }) => {
+  await installService(page, new MockResearchService());
+  await page.goto("/experiments/exp_fixedspreadw2");
+  const overview = page.getByRole("region", { name: "Experiment overview" });
+  await expect(overview.getByText("Seeds with completed runs")).toBeVisible();
+  await expect(overview.getByText("Failed or cancelled runs")).toBeVisible();
+  await overview.getByRole("link", { name: "Analyze a completed run" }).click();
+  await expect(page.getByRole("heading", { name: "P&L and inventory risk" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Post-fill markouts" })).toBeVisible();
+});

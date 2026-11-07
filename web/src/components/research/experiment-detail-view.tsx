@@ -15,7 +15,7 @@ import { PageHeading } from "@/components/research/page-heading";
 import { isTerminalRunState, RunStateBadge } from "@/components/research/run-state-badge";
 import { useApiResource } from "@/hooks/use-api-resource";
 import { describeApiFailure, getBrowserApiClient, unwrapApiResult, type ApiSchemas } from "@/lib/api/exsim-api-client";
-import { formatIntegerText, formatSimulationTimeNs, formatWallClockTime } from "@/lib/exact-decimal-format";
+import { formatDurationNs, formatIntegerText, formatSimulationTimeNs, formatWallClockTime } from "@/lib/exact-decimal-format";
 import { humanizeEnumValue } from "@/lib/research-labels";
 import { cn } from "@/lib/utils";
 
@@ -55,6 +55,10 @@ export function ExperimentDetailView() {
 
   const recordedSeeds = new Set(runList?.items.map((run) => run.masterSeed));
   const missingSeeds = experiment.config.seedSet.masterSeeds.filter((seed) => !recordedSeeds.has(seed));
+  const completedRuns = runList?.items.filter((run) => run.state === "completed") ?? [];
+  const failedRuns = runList?.items.filter((run) => run.state === "failed" || run.state === "cancelled") ?? [];
+  const activeRuns = runList?.items.filter((run) => !isTerminalRunState(run.state)) ?? [];
+  const completedSeeds = new Set(completedRuns.map((run) => run.masterSeed));
   const startMissing = async () => {
     if (starting.current) return;
     starting.current = true;
@@ -107,6 +111,23 @@ export function ExperimentDetailView() {
         }
       />
       {experiment.description ? <p className="text-sm">{experiment.description}</p> : null}
+      <section className="rounded-lg border bg-card p-5" aria-label="Experiment overview">
+        <h2 className="text-base font-medium">Research progress</h2>
+        <p className="mt-1 text-sm text-muted-foreground">{humanizeEnumValue(experiment.config.strategy.strategyKind)} on {experiment.config.instrument.symbol}; {formatDurationNs(experiment.config.bounds.endSimulationTimeNs)} per seed. Change one assumption in a variant, then compare completed runs on common seeds.</p>
+        <dl className="my-4 grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <div><dt className="text-xs text-muted-foreground">Seeds with completed runs</dt><dd className="text-xl tabular-nums">{runList ? `${completedSeeds.size} / ${experiment.config.seedSet.masterSeeds.length}` : "Unavailable"}</dd></div>
+          <div><dt className="text-xs text-muted-foreground">Active or paused runs</dt><dd className="text-xl tabular-nums">{runList ? activeRuns.length : "Unavailable"}</dd></div>
+          <div><dt className="text-xs text-muted-foreground">Failed or cancelled runs</dt><dd className="text-xl tabular-nums">{runList ? failedRuns.length : "Unavailable"}</dd></div>
+          <div><dt className="text-xs text-muted-foreground">Seeds without a run</dt><dd className="text-xl tabular-nums">{runList ? missingSeeds.length : "Unavailable"}</dd></div>
+        </dl>
+        {runListResource.failure ? <p className="mb-3 text-sm text-destructive">Progress is stale. Refresh the run list before drawing conclusions.</p> : null}
+        <div className="flex flex-wrap gap-2">
+          {completedRuns[0] ? <Button asChild size="sm" variant="outline"><Link href={`/runs/${completedRuns[0].runId}`}>Analyze a completed run</Link></Button> : null}
+          {activeRuns[0] ? <Button asChild size="sm" variant="outline"><Link href={`/runs/${activeRuns[0].runId}`}>Monitor an active run</Link></Button> : null}
+          {failedRuns[0] ? <Button asChild size="sm" variant="outline"><Link href={`/runs/${failedRuns[0].runId}`}>Review interrupted run</Link></Button> : null}
+        </div>
+        <p className="mt-3 text-xs text-muted-foreground">{experiment.config.seedSet.masterSeeds.length < 2 ? "One seed is a demonstration. Use multiple paired seeds to assess variability." : "Seed variability describes this synthetic scenario. It does not establish live-market performance."} Failed and cancelled runs are not successful observations.</p>
+      </section>
       <div className="flex flex-col gap-5">
         <Card size="sm">
           <CardHeader>
@@ -144,7 +165,7 @@ export function ExperimentDetailView() {
                       className="cursor-pointer focus-visible:bg-accent focus-visible:outline-none"
                       onClick={() => router.push(`/runs/${run.runId}`)}
                       onKeyDown={(keyboardEvent) => {
-                        if (keyboardEvent.key === "Enter") router.push(`/runs/${run.runId}`);
+                        if (keyboardEvent.target === keyboardEvent.currentTarget && keyboardEvent.key === "Enter") router.push(`/runs/${run.runId}`);
                       }}
                     >
                       <TableCell className="font-mono text-xs">

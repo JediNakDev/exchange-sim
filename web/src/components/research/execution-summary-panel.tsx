@@ -29,7 +29,7 @@ export function ExecutionSummaryPanel({ summary }: { summary: ApiSchemas["RunSum
   return (
     <Card size="sm" className="xl:col-span-2">
       <CardHeader>
-        <CardTitle>Parent instruction and benchmark evidence</CardTitle>
+        <CardTitle>Parent-order execution</CardTitle>
         <CardDescription className="flex flex-wrap items-center gap-2">
           <Badge variant="outline">{WINDOW_LABEL[execution.observationStatus]}</Badge>
           {!execution.parentDeclared ? "Parent metrics are unavailable before the scheduled decision." : "A completed simulation can still leave unexecuted parent shares."}

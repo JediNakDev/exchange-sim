@@ -273,3 +273,22 @@ Worktree paths and evidence commits follow in completion reports. Parent remaini
 
 
 - FER-01 production repair committed `75d9960`. New independent narrow re-check launched from that source: `node:delegated-task:command%3Amcp%3Adbfd70d4-c620-498e-9be2-f818534d0cbb%3Adelegate-task%3A2381f721-7ac4-4b86-b44f-253466ec20db`, GPT/xhigh, harness isolation. Report target `docs/reviews/FILL_IDENTITY_RECHECK_2026-11-07.md`; use the new copied standalone build `slpULgNACN27FJgew-XPE`, not the old candidate. Scope includes current ledger/related events, same-order siblings, cancellation and paging. No production edit, new native/Next build or unrelated broad audit. Parent awaits this and API review `ec50c01c` via notifications.
+
+## Trader UX and research critique planning, 2026-11-08
+
+User requested a strict quant-trader review, including possible full UX replacement, with a plan and task list first. Plan: [TRADER_UX_REVIEW_PLAN_2026-11-08.md](reviews/TRADER_UX_REVIEW_PLAN_2026-11-08.md). T01-T02 complete: current product/release context read; execution, market-making, research-validation and first-use lenses defined. T03-T15 remain open, starting with an observed browser walkthrough of the identified build before source inspection. The proposed 80% unaided-use target has a predeclared capability denominator and critical-task gates; no usability pass is claimed.
+
+Parent checkout `/Volumes/PortableSSD/Documents/programming/lob`, branch `exchange-simulator`. No delegates launched, no commit created, no tests/builds needed for planning, no product code/live services/research data changed. Preserved untracked `.claude/` and `output/`. Next: identify review build and dataset; capture current flow evidence, then evaluate persona tasks and produce prioritized findings, replacement flow and implementation backlog.
+
+### Trader UX implementation authorized, 2026-11-08
+
+User approved implementation. Parent owns library/navigation/experiment overview, integration and browser checks. Existing docs and source inspected; this is an expert/source review, not an unaided human test. Shared preview status reports unavailable; try preview_open before choosing fallback. Retain current visual tokens and exact API contracts. Frontend-design skill applied. Two GPT gpt-6.1-sol/high harness-worktree tasks launched from current committed parent, with no live operations or C++ changes:
+
+- Setup task `node:delegated-task:command%3Amcp%3A961726a6-a279-4e3d-8735-7951cbaa0f6b%3Adelegate-task%3A35cc6b57-ae4d-4eaa-843e-dcbbf7b4078b`: owns experiment-create-view and dedicated setup helpers/tests/report. Task-oriented execution/MM entry, progressive disclosure, timing units and preview/launch clarity. Parent library will link intent=execution and intent=market-making. Preserve from= variant semantics.
+- Analytics task `node:delegated-task:command%3Amcp%3A961726a6-a279-4e3d-8735-7951cbaa0f6b%3Adelegate-task%3A522dbbd4-80da-430d-a3d1-077010006798`: owns compare, run-detail, execution-summary and dedicated analytics helpers/tests/report. Outcome hierarchy, paired seeds/comparability and decision-relevant evidence charts. No changes to global CSS or parent-owned views.
+
+Checkout paths, commits and check receipts follow in completion notifications. No polling. Next: parent implements library task entry and experiment decision overview; integrate child commits serially on completion, then build and focused browser/reliability checks. No product changes or release yet.
+
+### Trader workflow parent integration checkpoint
+
+Analytics source f1cd1d1 integrated as e4d5bb7 from `/Users/jedi/.t3/worktrees/lob/t3-686c35ac`; handoff 54418f8 read via report. Parent library now has task entry, ordered baseline/candidate selection and research-task filtering; experiment overview distinguishes completed seeds, active runs, interrupted runs and missing seeds. New browser cases cover both continuations. Frontend95 pass/5 pre-existing skips, type/lint/build pass; selected browser5 pass (4.7s). Native inventory-aware pass; TWAP/sweep initially stops at changed heading, restored in source pending final rebuild/rerun. Logs and evidence: reviews/TRADER_WORKFLOW_IMPLEMENTATION_2026-11-08.md. Setup delegate still outstanding, resume on completion only. No deployment or production data changes.
