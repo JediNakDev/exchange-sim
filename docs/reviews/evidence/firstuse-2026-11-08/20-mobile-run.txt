@@ -1,0 +1,204 @@
+Skip to research content
+exsim.
+Experiments
+Compare
+Connections
+Research
+Run analysis
+Seed 901
+completed
+run_3725454d3f7f6f3f / exp_fd2f08f19ca37165, deterministic research, interactive synthetic
+Inspect events
+Events processed 1,241
+Simulated time 3.000 s of 3 s
+summary final at event 1241
+
+Run complete. Residual position 500 shares, residual open orders 0.
+
+Completion and execution cost
+
+final summary at event 1241
+
+Parent filled / requested (shares)
+500 / 500
+Parent completion (ratio)
+1.000000
+Parent residual quantity (shares)
+0
+Executed cost including fees (USD)
+5.00000
+Decision slippage, executed quantity (USD)
+3.50000
+
+Positive signed costs are worse for buys and sells. Shortfall includes net fees; slippage excludes fees. Both cover filled quantity only. Residual opportunity cost is unavailable, so lower cost with lower completion is not an unconditional improvement.
+
+Next decision
+Explain fills and queue events
+Create variant
+Compare against this experiment
+Equity (USD)
+last value in bucket, buckets of 10 ms
+0.76s
+2.26s
+3s
+999990
+999993
+999996
+999999
+1000002
+Inventory (shares)
+last value in bucket, buckets of 10 ms
+0.76s
+2.26s
+3s
+0
+150
+300
+450
+600
+Drawdown (USD)
+last value in bucket, buckets of 10 ms
+0.76s
+2.26s
+3s
+0
+3
+6
+9
+12
+Summary
+Manifest
+State history
+Parent-order execution
+Execution window observed
+A completed simulation can still leave unexecuted parent shares.
+Parent instruction
+buy 500 shares
+Filled parent shares
+500
+Fill notional (USD)
+50,008.5000
+Net fees paid (USD)
+1.5000
+Exchange mid at decision
+100.01000
+Delivered mid at decision
+100.01000
+Parent decision time
+1.000000 s
+First parent fill
+1.000112 s
+Last parent fill
+1.900123 s
+Participation market volume (shares)
+3,941
+Parent completion(derived)
+1.000000
+Parent residual quantity
+0
+Decision slippage, executed quantity
+3.50000
+Decision slippage per filled share(derived)
+0.007000
+Executed cost including fees
+5.00000
+Executed cost per filled share(derived)
+0.010000
+Participation through last parent fill(derived)
+0.126871
+
+Costs use the exchange-truth mid at the parent decision, which may differ from the delivered mid. Positive signed costs mean worse execution for either side. Decision slippage excludes fees; implementation shortfall includes net fees. Lower filled-quantity costs do not resolve completion risk. Costs cover filled quantity only; residual opportunity cost is unavailable. Total costs are in USD; per-share costs are in USD/share. Participation uses all market trades after declaration through the last parent fill, including own trades.
+
+Ledger
+Equity = cash + position x mark (exchange mid). Net P&L = realized + unrealized - fees.
+Initial cash
+1,000,000.0000
+Cash
+949,990.0000
+Position (shares)
+500
+Mark
+100.02000
+Equity
+1,000,000.00000
+Gross realized P&L
+0.0000
+Unrealized P&L
++1.50000
+Net fees paid
+1.5000
+Net P&L
+0.00000
+Average cost basis (derived)
+100.017000
+Spread capture total
+-6.00000
+Orders and risk
+filled shares of own orders divided by shares accepted by the exchange (new orders plus replace increases, including orders later cancelled)
+Submitted / accepted / rejected
+6 / 6 / 0
+Canceled (cancel races lost)
+0 (0)
+Fills (maker / taker)
+8 (0 / 8)
+Filled / submitted shares
+500 / 500
+Fill rate by shares (derived)
+1.000000
+Quote exposure time
+0 ns
+Max long / short (shares)
+500 / 0
+Orders blocked by risk
+0
+Max drawdown
+10.00000
+Drawdown peak to trough
+n/a to 2.000 s
+Markouts
+Positive signed markouts indicate favorable post-fill movement; negative values indicate adverse selection. Totals include available fills only. Horizons not yet reached or past run end are censored, not zero.
+Horizon	Available	No mark	Censored	Total (USD)	Mean per share (derived)
+100 ms	8	0	0	-6.00000	-0.012000
+1 s	8	0	0	-6.00000	-0.012000
+5 s	0	0	8	Unavailable: no eligible fills	n/a
+Latency observed
+Configured value versus what the event log shows.
+Path	Configured	Samples	Min	Max
+feed	50 µs	210	50.479 µs	69.871 µs
+order entry	100 µs	6	111.917 µs	123.1 µs
+acknowledgment	100 µs	14	101.072 µs	119.247 µs
+cancel	80 µs	0	n/a	n/a
+All metrics
+Exact metrics come from the fixed-point ledger; derived ones are rounded half-to-even after the fact.
+Metric	Value	Unit	Exactness
+Net P&L	0.00000	USD	exact
+Ending equity	1,000,000.00000	USD	exact
+Gross realized P&L	0.0000	USD	exact
+Unrealized P&L	1.50000	USD	exact
+Net fees paid	1.5000	USD	exact
+Ending position	500	shares	exact
+Max long position	500	shares	exact
+Max short position	0	shares	exact
+Max drawdown	10.00000	USD	exact
+Fills	8	count	exact
+Filled shares	500	shares	exact
+Maker fills	0	count	exact
+Taker fills	8	count	exact
+Fill rate (shares)	1.000000	ratio	derived
+Orders submitted	6	count	exact
+Orders canceled	0	count	exact
+Cancel races lost	0	count	exact
+Spread capture	-6.00000	USD	exact
+Markout total @ 100 ms	-6.00000	USD	exact
+Markout total @ 1 s	-6.00000	USD	exact
+Markout total @ 5 s	0.00000	USD	exact
+Quote exposure time	0 ns	time	exact
+Parent completion	1.000000	ratio	derived
+Parent residual quantity	0	shares	exact
+Decision slippage, executed quantity	3.50000	USD	exact
+Decision slippage per filled share	0.007000	USD/share	derived
+Executed cost including fees	5.00000	USD	exact
+Executed cost per filled share	0.010000	USD/share	derived
+Participation through last parent fill	0.126871	ratio	derived
+exsim research
+3

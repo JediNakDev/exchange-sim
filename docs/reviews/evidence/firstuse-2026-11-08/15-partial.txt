@@ -1,0 +1,181 @@
+Skip to research content
+exsim.
+
+Strategy research, explained.
+
+Experiments
+Compare
+Connections
+Interactive synthetic
+
+Controlled markets.
+Reproducible experiments.
+
+Build an experiment
+Simulated time
+Research
+Run analysis
+Research mode
+Single venue
+Seed 902
+paused
+run_ae5052bf56a0bdd3 / exp_637e1eed01b1ded8, deterministic research, interactive synthetic
+Resume
+Step events
+Cancel
+Inspect events
+Events processed 103
+Simulated time 0.134 s of 3 s
+summary partial at event 103
+P&L and inventory risk
+
+partial summary at event 103
+
+Net P&L (USD)
++1.83600
+Realized / unrealized P&L (USD)
++0.6800 / +0.85000
+Ending position (shares)
+-85
+Max long / short (shares)
+15 / -85
+Max drawdown (USD)
+0.00000
+
+Net P&L includes inventory valuation and fees. Spread capture alone is not profit. Read signed markouts with eligible fill counts to assess post-fill price movement, alongside inventory and drawdown.
+
+Post-fill markouts
+
+Signed USD/share, derived; positive is favorable. Eligible counts vary by horizon. Censored horizons are excluded.
+
+100 ms
++0.010000
+1 eligible fills; 0 no mark; 4 censored
+1 s
+Unavailable
+0 eligible fills; 0 no mark; 5 censored
+5 s
+Unavailable
+0 eligible fills; 0 no mark; 5 censored
+Next decision
+Explain fills and queue events
+Create variant
+Compare against this experiment
+Equity (USD)
+last value in bucket, buckets of 447.658 µs
+0.035447658s
+0.134297249s
+1000000
+1000000.2
+1000000.4
+1000000.6
+1000000.8
+Inventory (shares)
+last value in bucket, buckets of 447.658 µs
+0.035447658s
+0.134297249s
+0
+2
+4
+6
+8
+Drawdown (USD)
+last value in bucket, buckets of 447.658 µs
+0.035447658s
+0.134297249s
+0
+1
+2
+3
+4
+Summary
+Manifest
+State history
+Ledger
+Equity = cash + position x mark (exchange mid). Net P&L = realized + unrealized - fees.
+Initial cash
+1,000,000.0000
+Cash
+1,008,501.8360
+Position (shares)
+-85
+Mark
+100.00000
+Equity
+1,000,001.83600
+Gross realized P&L
++0.6800
+Unrealized P&L
++0.85000
+Net fees paid
+-0.3060
+Net P&L
++1.83600
+Average cost basis (derived)
+100.010000
+Spread capture total
++1.53000
+Orders and risk
+filled shares of own orders divided by shares accepted by the exchange (new orders plus replace increases, including orders later cancelled)
+Submitted / accepted / rejected
+2 / 2 / 0
+Canceled (cancel races lost)
+0 (0)
+Fills (maker / taker)
+5 (5 / 0)
+Filled / submitted shares
+153 / 253
+Fill rate by shares (derived)
+0.604743
+Quote exposure time
+134.117 ms
+Max long / short (shares)
+15 / -85
+Orders blocked by risk
+0
+Max drawdown
+0.00000
+Drawdown peak to trough
+n/a to n/a
+Markouts
+Positive signed markouts indicate favorable post-fill movement; negative values indicate adverse selection. Totals include available fills only. Horizons not yet reached or past run end are censored, not zero.
+Horizon	Available	No mark	Censored	Total (USD)	Mean per share (derived)
+100 ms	1	0	4	+0.19000	+0.010000
+1 s	0	0	5	Unavailable: no eligible fills	n/a
+5 s	0	0	5	Unavailable: no eligible fills	n/a
+Latency observed
+Configured value versus what the event log shows.
+Path	Configured	Samples	Min	Max
+feed	50 µs	15	53.171 µs	67.882 µs
+order entry	100 µs	2	113.246 µs	113.246 µs
+acknowledgment	100 µs	16	100.133 µs	119.375 µs
+cancel	80 µs	4	94.414 µs	103.421 µs
+All metrics
+Exact metrics come from the fixed-point ledger; derived ones are rounded half-to-even after the fact.
+Metric	Value	Unit	Exactness
+Net P&L	1.83600	USD	exact
+Ending equity	1,000,001.83600	USD	exact
+Gross realized P&L	0.6800	USD	exact
+Unrealized P&L	0.85000	USD	exact
+Net fees paid	-0.3060	USD	exact
+Ending position	-85	shares	exact
+Max long position	15	shares	exact
+Max short position	-85	shares	exact
+Max drawdown	0.00000	USD	exact
+Fills	5	count	exact
+Filled shares	153	shares	exact
+Maker fills	5	count	exact
+Taker fills	0	count	exact
+Fill rate (shares)	0.604743	ratio	derived
+Orders submitted	2	count	exact
+Orders canceled	0	count	exact
+Cancel races lost	0	count	exact
+Spread capture	1.53000	USD	exact
+Markout total @ 100 ms	0.19000	USD	exact
+Markout total @ 1 s	0.00000	USD	exact
+Markout total @ 5 s	0.00000	USD	exact
+Quote exposure time	134.117 ms	time	exact
+exsim research
+Inspect the assumptions behind every result.
+step accepted; run is paused
+1
