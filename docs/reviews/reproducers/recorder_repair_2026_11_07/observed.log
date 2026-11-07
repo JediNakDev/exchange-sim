@@ -1,0 +1,35 @@
+binary_sha256 b6f020104ebf1cdf38015c4004187024bce92a17d58e937945623c5e2b2f9b8a
+reconciled /v1/runs/run_c0ec506efaf384c2 events 116364 time_ns 162500155372 fills 5472 position 500 cash 954658.7460 fees -730.8160 open 1
+missing_cache_restart_preserves_progress_cause_summary_and_rejects_events
+reconciled /v1/runs/run_e452c39d27893cf2 events 116364 time_ns 162500155372 fills 5472 position 500 cash 954658.7460 fees -730.8160 open 1
+healthy_run_completed_after_older_native_failure {'processedCanonicalEventCount': '228', 'simulationTimeNs': '200000000', 'endSimulationTimeNs': '200000000'}
+reconciled /v1/runs/run_f8782e70ef698ef7 events 116364 time_ns 162500155372 fills 5472 position 500 cash 954658.7460 fees -730.8160 open 1
+post_clear_failure_contained_without_recorder_reentry
+reconciled /v1/runs/run_e3cb5ec658318248 events 100000 time_ns 139400426431 fills 4702 position 42 cash 999770.6320 fees -629.2120 open 2
+finalization_retains_native_cause_before_cache_error runner artifacts could not be written: command journal write failed; run artifacts could not be persisted: cannot write /tmp/exsim-recorder-independent-8ee86f1-complete/cancel-failure/data/runs/run_e3cb5ec658318248/events.bin.tmp
+missing_summary_never_fabricates_zero_accounting
+reconciled /v1/runs/run_db7e1ed314831817 events 1015 time_ns 1268146888 fills 50 position -67 cash 1006739.4000 fees -6.5900 open 1
+control_persistence_failure_contained step
+reconciled /v1/runs/run_6fc7b671948614e4 events 1002 time_ns 1265602818 fills 49 position 33 cash 996740.2000 fees -6.3900 open 2
+control_persistence_failure_contained resume
+queued_cancel_startup_faults_contained_and_failure_releases_admission
+reconciled /v1/runs/run_1f0757cb04b0ecd5 events 1002 time_ns 1265602818 fills 49 position 33 cash 996740.2000 fees -6.3900 open 2
+partial_terminal_cache_requires_operator_recovery exsim_api: cannot load run /tmp/exsim-recorder-independent-8ee86f1-complete/partial-terminal/data/runs/run_1f0757cb04b0ecd5: terminal run is missing summary.json
+cache_rejected near_tib_count actual_bytes 24 stored run artifacts are unreadable: artifact file length does not match its record count: /tmp/exsim-recorder-independent-8ee86f1-complete/cache-bounds/data/runs/run_72a9d5006150a4dc/events.bin
+cache_rejected uint64_count actual_bytes 24 stored run artifacts are unreadable: artifact file length does not match its record count: /tmp/exsim-recorder-independent-8ee86f1-complete/cache-bounds/data/runs/run_72a9d5006150a4dc/events.bin
+cache_rejected truncated actual_bytes 45623 stored run artifacts are unreadable: artifact file length does not match its record count: /tmp/exsim-recorder-independent-8ee86f1-complete/cache-bounds/data/runs/run_72a9d5006150a4dc/events.bin
+cache_rejected trailing actual_bytes 45625 stored run artifacts are unreadable: artifact file length does not match its record count: /tmp/exsim-recorder-independent-8ee86f1-complete/cache-bounds/data/runs/run_72a9d5006150a4dc/events.bin
+cache_rejected wrong_record_size actual_bytes 24 stored run artifacts are unreadable: unreadable artifact file /tmp/exsim-recorder-independent-8ee86f1-complete/cache-bounds/data/runs/run_72a9d5006150a4dc/events.bin
+cache_rejected over_256m actual_bytes 268435624 stored run artifacts are unreadable: inspection cache exceeds its 256 MiB payload limit: /tmp/exsim-recorder-independent-8ee86f1-complete/cache-bounds/data/runs/run_72a9d5006150a4dc/events.bin
+execution_exact twap_execution buy qty 334 cost -2.00000 fees -1.0020
+execution_exact twap_execution sell qty 500 cost 17.00000 fees -1.5000
+execution_exact immediate_sweep_execution buy qty 500 cost 3.25000 fees -1.5000
+execution_exact immediate_sweep_execution sell qty 500 cost 16.30000 fees -1.5000
+wrong_strategy_same_seed_excluded ['no master seed has a reproduced completed run in both experiments']
+legacy_summary_readable_and_substitution_excluded_after_restart
+uncertain_control_key_reserved_after_restart
+concurrent_same_key_one_resource_and_validation_reservation_released
+successful_creation_response_replayed_after_restart
+legacy_jsonl_key_replayed_without_rewrite
+no_liquidity_null_costs_and_observed_zero_completion
+ALL_REPAIR_RECHECKS_PASSED
