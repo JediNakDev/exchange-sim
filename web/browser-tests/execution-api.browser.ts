@@ -1,9 +1,31 @@
 import { expect, test, type Page } from "@playwright/test";
 import { spawn } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
+import { readdirSync, readFileSync, readlinkSync, statSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
 import { resolve, join } from "node:path";
 import type { ApiSchemas } from "../src/lib/api/exsim-api-client";
+
+function standaloneInventory() {
+  const entries: Record<string, string> = {};
+  function visit(directory: string, prefix: string) {
+    for (const entry of readdirSync(directory, { withFileTypes: true })) {
+      const path = join(directory, entry.name);
+      const relative = join(prefix, entry.name);
+      if (entry.isDirectory()) {
+        entries[relative] = "directory";
+        visit(path, relative);
+      } else if (entry.isSymbolicLink()) {
+        entries[relative] = `link:${readlinkSync(path)}`;
+      } else {
+        entries[relative] = `${createHash("sha256").update(readFileSync(path)).digest("hex")}:${statSync(path).mode & 0o111}`;
+      }
+    }
+  }
+  visit(resolve(".next/standalone"), "");
+  return entries;
+}
 
 // Real process, ephemeral port and private disposable data. No mock execution
 // implementation and no request can reach the installed service.
@@ -65,6 +87,7 @@ async function startReviewed(page: Page, name: string) {
 }
 
 test("a trader compares real TWAP and sweep runs with explicit parent costs and residuals", async ({ page }) => {
+  const releaseBefore = standaloneInventory();
   const api = await isolatedApi();
   try {
     await page.goto("/experiments/new");
@@ -105,7 +128,10 @@ test("a trader compares real TWAP and sweep runs with explicit parent costs and 
     expect(comparison.comparable).toBe(true);
     expect(comparison.seedPairing.pairedSeeds).toEqual(["11"]);
     expect(comparison.metricComparisons.find((metric) => metric.metricKey === "completion_ratio")?.dispersion.sampleCount).toBe(1);
-  } finally { await api.stop(); }
+  } finally {
+    await api.stop();
+    expect(standaloneInventory()).toEqual(releaseBefore);
+  }
 });
 
 test("inventory-aware quoting is reviewed and executed by the advertised C++ strategy", async ({ page }) => {
