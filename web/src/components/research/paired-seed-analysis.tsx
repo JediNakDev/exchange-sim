@@ -1,0 +1,71 @@
+"use client";
+
+import Link from "next/link";
+import { useState } from "react";
+import { Bar, BarChart, CartesianGrid, ReferenceLine, XAxis, YAxis } from "recharts";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Field, FieldLabel } from "@/components/ui/field";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import type { ApiSchemas } from "@/lib/api/exsim-api-client";
+import { decimalTextToChartFloat } from "@/lib/chart-derived-floats";
+import { formatMetricValue, metricLabel, METRIC_UNIT_LABEL } from "@/lib/research-labels";
+import { interpretPairedDifference, priorityComparisonMetrics } from "@/lib/trader-analytics";
+
+const metricId = (metric: ApiSchemas["MetricComparison"]) => `${metric.metricKey}:${metric.horizonNs ?? ""}`;
+
+export function PairedSeedAnalysis({ comparison }: { comparison: ApiSchemas["ExperimentComparison"] }) {
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const priorities = priorityComparisonMetrics(comparison.metricComparisons);
+  const metric = comparison.metricComparisons.find((item) => metricId(item) === selectedId) ?? priorities.find((item) => item.dispersion.sampleCount > 0) ?? priorities[0] ?? comparison.metricComparisons[0];
+  if (!comparison.comparable || !metric) return null;
+  const rows = metric.perSeed.map((pair) => ({ ...pair, differencePosition: decimalTextToChartFloat(pair.difference) }));
+  return (
+    <Card size="sm">
+      <CardHeader>
+        <CardTitle>Candidate impact across matched seeds</CardTitle>
+        <CardDescription>Candidate minus baseline. Costs and completion must be judged together. Synthetic seed results do not establish real-market profitability.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {priorities.map((item) => <div key={metricId(item)} className="border-l-2 border-primary/40 pl-3 text-sm">
+            <p className="text-muted-foreground">{metricLabel(item.metricKey, item.horizonNs)}</p>
+            <p className="font-mono text-lg tabular-nums">{formatMetricValue(item.dispersion.meanDifference, item.unit, { signDisplay: "always" })} <span className="text-xs">{METRIC_UNIT_LABEL[item.unit]}</span></p>
+            <p>{interpretPairedDifference(item)}</p>
+            <p className="text-xs text-muted-foreground">n = {item.dispersion.sampleCount}; better / worse / tied: {item.dispersion.candidateBetterCount} / {item.dispersion.candidateWorseCount} / {item.dispersion.tiedCount}</p>
+          </div>)}
+        </div>
+        <Field className="max-w-md">
+          <FieldLabel htmlFor="paired-metric">Paired difference to inspect</FieldLabel>
+          <Select value={metricId(metric)} onValueChange={setSelectedId}>
+            <SelectTrigger id="paired-metric" className="w-full"><SelectValue /></SelectTrigger>
+            <SelectContent>{comparison.metricComparisons.map((item) => <SelectItem key={metricId(item)} value={metricId(item)}>{metricLabel(item.metricKey, item.horizonNs)}</SelectItem>)}</SelectContent>
+          </Select>
+        </Field>
+        <p className="text-sm">{interpretPairedDifference(metric)}. {metric.betterDirection === "neither" ? "No preferred sign." : `${metric.betterDirection === "lower" ? "Negative" : "Positive"} differences favor the candidate.`} Available pairs: {metric.dispersion.sampleCount} of {comparison.seedPairing.pairedSeeds.length}. {metric.dispersion.sampleCount < 2 ? "Dispersion and standard error require at least two observations." : "Read individual differences alongside the mean; standard error is not a confidence interval."}</p>
+        {metric.dispersion.sampleCount > 0 ? <ChartContainer config={{ differencePosition: { label: "Candidate minus baseline", color: "var(--chart-2)" } }} className="h-56 w-full aspect-auto">
+          <BarChart data={rows} accessibilityLayer margin={{ left: 12, right: 12, bottom: 16 }}>
+            <CartesianGrid vertical={false} />
+            <XAxis dataKey="masterSeed" tickLine={false} label={{ value: "Master seed", position: "bottom", offset: 0 }} />
+            <YAxis width={80} tickLine={false} label={{ value: METRIC_UNIT_LABEL[metric.unit], angle: -90, position: "insideLeft" }} />
+            <ReferenceLine y={0} stroke="var(--foreground)" />
+            <ChartTooltip content={<ChartTooltipContent labelFormatter={(_label, payload) => `Seed ${payload?.[0]?.payload?.masterSeed ?? ""}`} formatter={(_value, _name, item) => <span className="font-mono">{formatMetricValue(item.payload.difference, metric.unit, { signDisplay: "always" })} {METRIC_UNIT_LABEL[metric.unit]}</span>} />} />
+            <Bar dataKey="differencePosition" fill="var(--color-differencePosition)" isAnimationActive={false} />
+          </BarChart>
+        </ChartContainer> : <p className="rounded-md border p-4 text-sm text-muted-foreground">No available paired values for this metric. Missing observations are excluded, never plotted as zero.</p>}
+        <p className="text-xs text-muted-foreground">Plot positions are approximate. The table retains service values ({metric.exactness === "derived_float" ? "derived" : "exact"}); missing values are unavailable. Zero means tied, not missing. Open either run to inspect the outcome.</p>
+        <div className="max-h-72 overflow-auto rounded-md border">
+          <Table className="text-xs"><TableHeader><TableRow><TableHead>Seed</TableHead><TableHead>Baseline</TableHead><TableHead>Candidate</TableHead><TableHead>Difference ({METRIC_UNIT_LABEL[metric.unit]})</TableHead></TableRow></TableHeader>
+            <TableBody>{metric.perSeed.map((pair) => <TableRow key={pair.masterSeed}>
+              <TableCell className="font-mono">{pair.masterSeed}</TableCell>
+              <TableCell><Link className="underline font-mono" href={`/runs/${pair.baselineRunId}`}>{pair.baselineValue === null ? "Unavailable" : formatMetricValue(pair.baselineValue, metric.unit)}</Link></TableCell>
+              <TableCell><Link className="underline font-mono" href={`/runs/${pair.candidateRunId}`}>{pair.candidateValue === null ? "Unavailable" : formatMetricValue(pair.candidateValue, metric.unit)}</Link></TableCell>
+              <TableCell className="font-mono">{pair.difference === null ? "Unavailable" : formatMetricValue(pair.difference, metric.unit, { signDisplay: "always" })}</TableCell>
+            </TableRow>)}</TableBody>
+          </Table>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}

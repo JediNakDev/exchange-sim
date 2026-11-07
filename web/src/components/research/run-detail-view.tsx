@@ -14,6 +14,7 @@ import { ApiFailureAlert } from "@/components/research/api-failure-alert";
 import { PageHeading } from "@/components/research/page-heading";
 import { isTerminalRunState, RunStateBadge } from "@/components/research/run-state-badge";
 import { ExecutionSummaryPanel } from "@/components/research/execution-summary-panel";
+import { TraderRunOutcomes } from "@/components/research/trader-run-outcomes";
 import { RunSeriesChart } from "@/components/research/run-series-chart";
 import { validStepEventCount } from "@/lib/api/research-workflow";
 import { useApiResource } from "@/hooks/use-api-resource";
@@ -174,7 +175,7 @@ function SummaryPanel({ summary }: { summary: ApiSchemas["RunSummary"] }) {
       <Card size="sm">
         <CardHeader>
           <CardTitle>Markouts</CardTitle>
-          <CardDescription>Fills whose horizon passes the run end are censored, not counted as zero.</CardDescription>
+          <CardDescription>Positive signed markouts indicate favorable post-fill movement; negative values indicate adverse selection. Totals include available fills only. Horizons not yet reached or past run end are censored, not zero.</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
@@ -195,7 +196,7 @@ function SummaryPanel({ summary }: { summary: ApiSchemas["RunSummary"] }) {
                   <TableCell className="text-right font-mono tabular-nums">{markout.availableFillCount}</TableCell>
                   <TableCell className="text-right font-mono tabular-nums">{markout.unavailableFillCount}</TableCell>
                   <TableCell className="text-right font-mono tabular-nums">{markout.censoredFillCount}</TableCell>
-                  <TableCell className="text-right font-mono tabular-nums">{formatDecimalForDisplay(markout.totalMarkout, { signDisplay: "always" })}</TableCell>
+                  <TableCell className="text-right font-mono tabular-nums">{markout.availableFillCount === "0" ? "Unavailable: no eligible fills" : formatDecimalForDisplay(markout.totalMarkout, { signDisplay: "always" })}</TableCell>
                   <TableCell className="text-right font-mono tabular-nums">{formatDecimalForDisplay(markout.meanMarkoutPerShare, { signDisplay: "always" })}</TableCell>
                 </TableRow>
               ))}
@@ -383,14 +384,14 @@ export function RunDetailView() {
           <span className="font-mono">{run.terminalDiagnostics.residualPositionShares}</span> shares, residual open orders <span className="font-mono">{run.terminalDiagnostics.residualOpenOrderCount}</span>.
         </p>
       ) : null}
-      {summaryResource.data ? (
-        <dl className="run-result-strip" aria-label="Run outcomes">
-          <div><dt>Net P&L (USD)</dt><dd className={summaryResource.data.accounting.netPnl?.startsWith("-") ? "text-destructive" : "text-primary"}>{formatDecimalForDisplay(summaryResource.data.accounting.netPnl, { signDisplay: "always" })}</dd></div>
-          <div><dt>Ending position (shares)</dt><dd>{formatDecimalForDisplay(summaryResource.data.accounting.positionShares)}</dd></div>
-          <div><dt>Filled shares</dt><dd>{formatIntegerText(summaryResource.data.orders.filledShares)}</dd></div>
-          <div><dt>Max drawdown (USD)</dt><dd>{formatDecimalForDisplay(summaryResource.data.risk.maxDrawdown)}</dd></div>
-        </dl>
-      ) : null}
+      {summaryResource.failure ? <ApiFailureAlert failure={summaryResource.failure} title="Summary unavailable or stale. Refresh before interpreting outcomes." onRetry={summaryResource.reload} /> : null}
+      {summaryResource.data ? <TraderRunOutcomes summary={summaryResource.data} /> : null}
+      <nav aria-label="Continue research" className="flex flex-wrap items-center gap-3 rounded-md border p-3 text-sm">
+        <span className="text-muted-foreground">Next decision</span>
+        <Button asChild size="sm" variant="outline"><Link href={`/runs/${run.runId}/inspect`}>Explain fills and queue events</Link></Button>
+        <Button asChild size="sm" variant="outline"><Link href={`/experiments/new?from=${encodeURIComponent(run.experimentId)}`}>Create variant</Link></Button>
+        <Button asChild size="sm" variant="outline"><Link href={`/compare?baseline=${encodeURIComponent(run.experimentId)}`}>Compare against this experiment</Link></Button>
+      </nav>
       {seriesResource.data ? (
         <div className="grid gap-4 lg:grid-cols-3">
           {seriesResource.data.series.map((timeSeries) => (
@@ -405,7 +406,6 @@ export function RunDetailView() {
           <TabsTrigger value="history">State history</TabsTrigger>
         </TabsList>
         <TabsContent value="summary">
-          {summaryResource.failure ? <ApiFailureAlert failure={summaryResource.failure} onRetry={summaryResource.reload} /> : null}
           {summaryResource.data ? <SummaryPanel summary={summaryResource.data} /> : <p className="text-sm text-muted-foreground">Loading summary...</p>}
         </TabsContent>
         <TabsContent value="manifest">

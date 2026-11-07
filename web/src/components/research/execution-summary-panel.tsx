@@ -29,7 +29,7 @@ export function ExecutionSummaryPanel({ summary }: { summary: ApiSchemas["RunSum
   return (
     <Card size="sm" className="xl:col-span-2">
       <CardHeader>
-        <CardTitle>Parent-order execution</CardTitle>
+        <CardTitle>Parent instruction and benchmark evidence</CardTitle>
         <CardDescription className="flex flex-wrap items-center gap-2">
           <Badge variant="outline">{WINDOW_LABEL[execution.observationStatus]}</Badge>
           {!execution.parentDeclared ? "Parent metrics are unavailable before the scheduled decision." : "A completed simulation can still leave unexecuted parent shares."}
@@ -48,7 +48,7 @@ export function ExecutionSummaryPanel({ summary }: { summary: ApiSchemas["RunSum
               </div>
             ))}
           </dl>
-          <p className="mt-4 text-xs leading-relaxed text-muted-foreground">Costs use the exchange-truth mid at the parent decision, which may differ from the delivered mid. Positive signed costs mean worse execution for either side. Costs cover filled quantity only; residual opportunity cost is unavailable. Total costs are in USD; per-share costs are in USD/share. Participation uses all market trades after declaration through the last parent fill, including own trades.</p>
+          <p className="mt-4 text-xs leading-relaxed text-muted-foreground">Costs use the exchange-truth mid at the parent decision, which may differ from the delivered mid. Positive signed costs mean worse execution for either side. Decision slippage excludes fees; implementation shortfall includes net fees. Lower filled-quantity costs do not resolve completion risk. Costs cover filled quantity only; residual opportunity cost is unavailable. Total costs are in USD; per-share costs are in USD/share. Participation uses all market trades after declaration through the last parent fill, including own trades.</p>
         </div>
       </CardContent>
     </Card>

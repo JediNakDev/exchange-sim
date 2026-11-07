@@ -15,6 +15,7 @@ import { Field, FieldLabel } from "@/components/ui/field";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ApiFailureAlert } from "@/components/research/api-failure-alert";
+import { PairedSeedAnalysis } from "@/components/research/paired-seed-analysis";
 import { PageHeading } from "@/components/research/page-heading";
 import { SeriesLineChart, type SeriesChartRow } from "@/components/research/series-line-chart";
 import { readExperiments } from "@/lib/api/research-workflow";
@@ -155,13 +156,19 @@ export function ExperimentCompareView() {
 
   return (
     <>
-      <PageHeading title="Compare experiments" description="Change one assumption. Compare the same seeds. Follow the difference back to a fill." />
+      <PageHeading title="Compare experiments" description="Judge candidate outcomes against a baseline on matched seeds, then inspect the runs behind the difference." />
       {experimentList.failure ? <ApiFailureAlert failure={experimentList.failure} onRetry={experimentList.reload} /> : null}
       <div className="comparison-selectors flex flex-wrap gap-5 rounded-lg border bg-card p-5">
         <ExperimentSelect label="Baseline" value={baselineExperimentId} experiments={experiments} onValueChange={(experimentId) => selectExperiment("baseline", experimentId)} />
         <ExperimentSelect label="Candidate" value={candidateExperimentId} experiments={experiments} onValueChange={(experimentId) => selectExperiment("candidate", experimentId)} />
       </div>
-      {comparisonResource.failure ? <ApiFailureAlert failure={comparisonResource.failure} title="Comparison unavailable" onRetry={comparisonResource.reload} /> : null}
+      {!baselineExperimentId || !candidateExperimentId ? (
+        <p className="rounded-md border p-4 text-sm text-muted-foreground">
+          Choose a baseline and candidate to evaluate their shared completed seeds.
+          {baselineExperimentId ? <> <Link className="underline text-foreground" href={`/experiments/new?from=${encodeURIComponent(baselineExperimentId)}`}>Create a candidate from this baseline</Link>.</> : null}
+        </p>
+      ) : null}
+      {comparisonResource.failure ? <ApiFailureAlert failure={comparisonResource.failure} title="Comparison unavailable or stale. Refresh before interpreting results." onRetry={comparisonResource.reload} /> : null}
       {comparisonResource.isLoading ? <p className="text-sm text-muted-foreground">Computing comparison...</p> : null}
       {comparison ? (
         <>
@@ -182,7 +189,7 @@ export function ExperimentCompareView() {
             <Card size="sm">
               <CardHeader>
                 <CardTitle>Paired seeds</CardTitle>
-                <CardDescription>Only reproduced, completed runs enter this paired comparison.</CardDescription>
+                <CardDescription>Only reproduced, completed runs enter this paired comparison. Failed, incomplete and unpaired runs are excluded; this can bias the result.</CardDescription>
               </CardHeader>
               <CardContent className="flex flex-col gap-1 text-sm">
                 <p>
@@ -246,6 +253,9 @@ export function ExperimentCompareView() {
             </Card>
           </div>
 
+          <PairedSeedAnalysis key={`${comparison.baseline.experimentId}:${comparison.candidate.experimentId}`} comparison={comparison} />
+
+          {comparison.comparable ? <>
           <div className="flex flex-wrap items-end gap-3">
             <Field className="w-64">
               <FieldLabel htmlFor="charted-seed">Charted runs</FieldLabel>
@@ -257,7 +267,7 @@ export function ExperimentCompareView() {
                   <SelectItem value={ALL_SEEDS}>Mean across paired seeds (derived)</SelectItem>
                   {comparison.seedPairing.pairedSeeds.map((masterSeed) => (
                     <SelectItem key={masterSeed} value={masterSeed}>
-                      Seed {masterSeed} (exact)
+                      Seed {masterSeed} (recorded values)
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -295,6 +305,7 @@ export function ExperimentCompareView() {
               <MetricComparisonTable metricComparisons={comparison.metricComparisons} />
             </CardContent>
           </Card>
+          </> : null}
         </>
       ) : null}
     </>
