@@ -3,6 +3,7 @@
 // Read-only status of the real-time protocol mode: OUCH/FIX sessions, ITCH feed
 // gaps and injected faults. Nothing here can change the service.
 
+import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -43,6 +44,11 @@ export function ConnectionsView() {
         }
       />
       {connections.failure ? <ApiFailureAlert failure={connections.failure} onRetry={connections.reload} /> : null}
+      {status?.serviceState === "not_running" ? <section className="rounded-md border bg-card p-4 text-sm" aria-label="Protocol mode unavailable">
+        <h2 className="font-medium">Real-time protocol service is not running here</h2>
+        <p className="mt-1 text-muted-foreground">Deterministic research runs do not create OUCH/FIX sessions or ITCH feed connections. This read-only page cannot start gateways or configure faults. Start a separate protocol service using the server setup instructions when testing an external client.</p>
+        <Link className="mt-3 inline-block underline" href="/experiments">Return to research experiments</Link>
+      </section> : null}
       {status ? (
         <div className="grid gap-4 xl:grid-cols-2">
           <Card size="sm" className="xl:col-span-2">
@@ -68,6 +74,7 @@ export function ConnectionsView() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
+                  {status.sessions.length === 0 ? <TableRow><TableCell colSpan={12} className="text-muted-foreground">No order-entry sessions reported. {status.serviceState === "not_running" ? "Start the separate protocol service before connecting clients." : "Connect an external client to the running protocol service to observe sessions here."}</TableCell></TableRow> : null}
                   {status.sessions.map((session) => (
                     <TableRow key={session.sessionId}>
                       <TableCell className="font-mono">{session.sessionId}</TableCell>
@@ -92,6 +99,7 @@ export function ConnectionsView() {
               </Table>
             </CardContent>
           </Card>
+          {status.feeds.length === 0 ? <Card size="sm"><CardHeader><CardTitle>Market data feeds</CardTitle><CardDescription>No feeds reported. Deterministic research book views are available from each run’s event inspector; protocol feeds require the separate real-time service.</CardDescription></CardHeader></Card> : null}
           {status.feeds.map((feed) => (
             <Card size="sm" key={feed.feedId}>
               <CardHeader>
@@ -153,6 +161,7 @@ export function ConnectionsView() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
+                  {status.faults.length === 0 ? <TableRow><TableCell colSpan={6} className="text-muted-foreground">No protocol fault scenarios reported. Configure faults in the separate protocol service; this page reports their state. Delayed-data research experiments are available through the Latency section in experiment setup.</TableCell></TableRow> : null}
                   {status.faults.map((fault) => (
                     <TableRow key={fault.faultId}>
                       <TableCell>{humanizeEnumValue(fault.faultKind)}</TableCell>

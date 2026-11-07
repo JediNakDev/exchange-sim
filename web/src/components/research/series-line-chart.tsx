@@ -4,6 +4,8 @@
 // are approximate floats from chart-derived-floats.ts; tooltips always show the
 // API's original decimal strings.
 
+import { useId } from "react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
@@ -22,16 +24,17 @@ export interface SeriesLineDefinition {
 export type SeriesChartRow = { simulationTimeSeconds: number; bucketEndTimeNs: string } & Record<string, number | string | null>;
 
 export function SeriesLineChart({ title, description, rows, lines }: { title: string; description?: string; rows: SeriesChartRow[]; lines: SeriesLineDefinition[] }) {
+  const descriptionId = useId();
   const chartConfig: ChartConfig = Object.fromEntries(lines.map((line) => [line.valueKey, { label: line.label, color: line.color }]));
   return (
     <Card size="sm" className="chart-panel">
       <CardHeader>
         <CardTitle>{title}</CardTitle>
-        {description ? <CardDescription>{description}</CardDescription> : null}
+        <CardDescription id={descriptionId}>{description ?? "Recorded samples over simulated time"}. Plot positions are approximate; sampled values are available below.</CardDescription>
       </CardHeader>
       <CardContent>
         <ChartContainer config={chartConfig} className="aspect-auto h-48 w-full">
-          <LineChart data={rows} margin={{ left: 4, right: 8, top: 4, bottom: 0 }}>
+          <LineChart accessibilityLayer aria-label={title} aria-describedby={descriptionId} data={rows} margin={{ left: 4, right: 8, top: 4, bottom: 0 }}>
             <CartesianGrid vertical={false} strokeDasharray="3 4" />
             <XAxis dataKey="simulationTimeSeconds" type="number" domain={["dataMin", "dataMax"]} tickLine={false} axisLine={false} tickFormatter={(tickSeconds: number) => `${tickSeconds}s`} />
             <YAxis tickLine={false} axisLine={false} width={64} domain={["auto", "auto"]} />
@@ -64,6 +67,15 @@ export function SeriesLineChart({ title, description, rows, lines }: { title: st
             ))}
           </LineChart>
         </ChartContainer>
+        <details className="mt-3 text-xs">
+          <summary className="cursor-pointer rounded-sm font-medium focus-visible:outline-2 focus-visible:outline-ring">Read sampled values for {title}</summary>
+          <p className="my-2 text-muted-foreground">All returned chart samples, with original service values. Sampling and aggregation follow the description above; this is not a full-resolution event export. Missing values are unavailable, not zero.</p>
+          <div className="max-h-64 overflow-auto rounded-md border">
+            <Table aria-label={`${title} sampled values`} className="text-xs"><TableHeader><TableRow><TableHead>Bucket end (ns)</TableHead>{lines.map((line) => <TableHead key={line.textKey}>{line.label}</TableHead>)}</TableRow></TableHeader>
+              <TableBody>{rows.map((row) => <TableRow key={row.bucketEndTimeNs}><TableCell className="font-mono">{row.bucketEndTimeNs}</TableCell>{lines.map((line) => <TableCell key={line.textKey} className="font-mono">{row[line.textKey] ?? "Unavailable"}</TableCell>)}</TableRow>)}</TableBody>
+            </Table>
+          </div>
+        </details>
       </CardContent>
     </Card>
   );

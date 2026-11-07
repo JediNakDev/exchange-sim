@@ -6,7 +6,7 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useState, type KeyboardEvent } from "react";
+import { useRef, useState, type KeyboardEvent } from "react";
 import { ChevronFirstIcon, ChevronLastIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsLeftIcon, ChevronsRightIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -383,6 +383,12 @@ export function RunInspectView() {
 
 function RunInspection({ runId }: { runId: string }) {
   const comparisonQuery = useComparisonContext();
+  const explanationRef = useRef<HTMLDivElement>(null);
+  const selectionOriginRef = useRef<HTMLTableRowElement | null>(null);
+  const readExplanation = () => {
+    explanationRef.current?.focus();
+    explanationRef.current?.scrollIntoView({ block: "start" });
+  };
   const apiClient = getBrowserApiClient();
   const [focusedEventPosition, setFocusedEventPosition] = useState("0");
   const [jumpTargetText, setJumpTargetText] = useState("");
@@ -538,12 +544,14 @@ function RunInspection({ runId }: { runId: string }) {
             <div>{strategyBook.failure ? <ApiFailureAlert failure={strategyBook.failure} onRetry={strategyBook.reload} /> : <BookLadder title="Strategy-visible" bookView={strategyBook.data} />}</div>
           </div>
         </div>
-        <div className="flex min-w-0 flex-col gap-3">
+        <div ref={explanationRef} tabIndex={-1} role="region" aria-label="Selected order explanation" className="flex min-w-0 scroll-mt-24 flex-col gap-3 rounded-md focus-visible:outline-2 focus-visible:outline-ring">
+          {focusedOrderId ? <Button size="sm" variant="outline" className="self-start" onClick={() => { selectionOriginRef.current?.focus(); selectionOriginRef.current?.scrollIntoView({ block: "center" }); }}>Return to selected row</Button> : null}
           {selectedFillResource.failure ? <ApiFailureAlert failure={selectedFillResource.failure} title="Could not refresh the selected fill" onRetry={selectedFillResource.reload} /> : null}
           <FocusPanel focusedFill={focusedFill} lifecycle={lifecycleResource.data} lifecycleFailure={lifecycleResource.failure} onRetryLifecycle={lifecycleResource.reload} onSelectEventPosition={selectEventPosition} />
         </div>
       </div>
 
+      <p role="status" aria-live="polite" className="text-sm text-muted-foreground">{selectedFill ? `Selected fill ${selectedFill.matchId}, order ${selectedFill.orderId}, event ${selectedFill.eventPosition}. Read explanation is available on the selected row.` : focusedOrderId ? `Selected order ${focusedOrderId}. Read explanation is available on the selected row.` : "Select a fill or an own order to explain it."}</p>
       <Tabs defaultValue="fills">
         <TabsList>
           <TabsTrigger value="fills">Fills</TabsTrigger>
@@ -577,10 +585,10 @@ function RunInspection({ runId }: { runId: string }) {
                     tabIndex={0}
                     data-state={fill.eventPosition === selectedFill?.eventPosition && fill.orderId === selectedFill?.orderId ? "selected" : undefined}
                     className="cursor-pointer focus-visible:outline-2 focus-visible:outline-ring"
-                    onClick={() => focusFill(fill)}
-                    onKeyDown={(keyboardEvent) => keyboardEvent.key === "Enter" && focusFill(fill)}
+                    onClick={(event) => { selectionOriginRef.current = event.currentTarget; focusFill(fill); }}
+                    onKeyDown={(event) => { if (event.target === event.currentTarget && event.key === "Enter") { selectionOriginRef.current = event.currentTarget; focusFill(fill); } }}
                   >
-                    <TableCell className="font-mono">{fill.matchId}</TableCell>
+                    <TableCell className="font-mono">{fill.matchId}{fill.eventPosition === selectedFill?.eventPosition && fill.orderId === selectedFill?.orderId ? <Button size="xs" variant="outline" className="ml-2" onClick={(event) => { event.stopPropagation(); readExplanation(); }}>Read explanation</Button> : null}</TableCell>
                     <TableCell className="text-right font-mono tabular-nums">{fill.eventPosition}</TableCell>
                     <TableCell className="text-right font-mono tabular-nums">{formatSimulationTimeNs(fill.simulationTimeNs, 6)}</TableCell>
                     <TableCell className="font-mono">{fill.orderId}</TableCell>
@@ -622,10 +630,10 @@ function RunInspection({ runId }: { runId: string }) {
                     tabIndex={0}
                     data-state={order.orderId === focusedOrderId ? "selected" : undefined}
                     className="cursor-pointer focus-visible:outline-2 focus-visible:outline-ring"
-                    onClick={() => focusOrder(order)}
-                    onKeyDown={(keyboardEvent) => keyboardEvent.key === "Enter" && focusOrder(order)}
+                    onClick={(event) => { selectionOriginRef.current = event.currentTarget; focusOrder(order); }}
+                    onKeyDown={(event) => { if (event.target === event.currentTarget && event.key === "Enter") { selectionOriginRef.current = event.currentTarget; focusOrder(order); } }}
                   >
-                    <TableCell className="font-mono">{order.orderId}</TableCell>
+                    <TableCell className="font-mono">{order.orderId}{order.orderId === focusedOrderId && selectedFill === null ? <Button size="xs" variant="outline" className="ml-2" onClick={(event) => { event.stopPropagation(); readExplanation(); }}>Read explanation</Button> : null}</TableCell>
                     <TableCell className="font-mono">{order.clientOrderId}</TableCell>
                     <TableCell className="text-right font-mono tabular-nums">
                       #{order.submitEventPosition} {formatSimulationTimeNs(order.submitSimulationTimeNs, 6)}

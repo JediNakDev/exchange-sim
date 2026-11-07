@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { Bar, BarChart, CartesianGrid, ReferenceLine, XAxis, YAxis } from "recharts";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldLabel } from "@/components/ui/field";
@@ -16,6 +16,7 @@ import { interpretPairedDifference, priorityComparisonMetrics } from "@/lib/trad
 const metricId = (metric: ApiSchemas["MetricComparison"]) => `${metric.metricKey}:${metric.horizonNs ?? ""}`;
 
 export function PairedSeedAnalysis({ comparison }: { comparison: ApiSchemas["ExperimentComparison"] }) {
+  const chartDescriptionId = useId();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const priorities = priorityComparisonMetrics(comparison.metricComparisons);
   const metric = comparison.metricComparisons.find((item) => metricId(item) === selectedId) ?? priorities.find((item) => item.dispersion.sampleCount > 0) ?? priorities[0] ?? comparison.metricComparisons[0];
@@ -49,9 +50,9 @@ export function PairedSeedAnalysis({ comparison }: { comparison: ApiSchemas["Exp
             <SelectContent>{comparison.metricComparisons.map((item) => <SelectItem key={metricId(item)} value={metricId(item)}>{metricLabel(item.metricKey, item.horizonNs)}</SelectItem>)}</SelectContent>
           </Select>
         </Field>
-        <p className="text-sm">{interpretPairedDifference(metric)}. {metric.betterDirection === "neither" ? "No preferred sign." : `${metric.betterDirection === "lower" ? "Negative" : "Positive"} differences favor the candidate.`} Available pairs: {metric.dispersion.sampleCount} of {comparison.seedPairing.pairedSeeds.length}. {metric.dispersion.sampleCount < 2 ? "Dispersion and standard error require at least two observations." : "Read individual differences alongside the mean; standard error is not a confidence interval."}</p>
+        <p id={chartDescriptionId} className="text-sm">{interpretPairedDifference(metric)}. {metric.betterDirection === "neither" ? "No preferred sign." : `${metric.betterDirection === "lower" ? "Negative" : "Positive"} differences favor the candidate.`} Available pairs: {metric.dispersion.sampleCount} of {comparison.seedPairing.pairedSeeds.length}. {metric.dispersion.sampleCount < 2 ? "Dispersion and standard error require at least two observations." : "Read individual differences alongside the mean; standard error is not a confidence interval."}</p>
         {metric.dispersion.sampleCount > 0 ? <ChartContainer config={{ differencePosition: { label: "Candidate minus baseline", color: "var(--chart-2)" } }} className="h-56 w-full aspect-auto">
-          <BarChart data={rows} accessibilityLayer margin={{ left: 12, right: 12, bottom: 16 }}>
+          <BarChart aria-label={`Paired difference: ${metricLabel(metric.metricKey, metric.horizonNs)} (${METRIC_UNIT_LABEL[metric.unit]})`} aria-describedby={chartDescriptionId} data={rows} accessibilityLayer margin={{ left: 12, right: 12, bottom: 16 }}>
             <CartesianGrid vertical={false} />
             <XAxis dataKey="masterSeed" tickLine={false} label={{ value: "Master seed", position: "bottom", offset: 0 }} />
             <YAxis width={80} tickLine={false} label={{ value: METRIC_UNIT_LABEL[metric.unit], angle: -90, position: "insideLeft" }} />

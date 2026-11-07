@@ -103,7 +103,7 @@ function TimingInput({ id, label, value, onValueChange, invalid }: { id: string;
   const displayed = inputDraft?.storedValue === value ? inputDraft.text : converted ?? value;
   return (
     <div className="flex gap-2">
-      <Input id={id} value={displayed} inputMode={unit === "ns" ? "numeric" : "decimal"} className="min-w-0 font-mono" aria-describedby={`${id}-help`} aria-invalid={invalid || converted === null || undefined}
+      <Input id={id} value={displayed} inputMode={unit === "ns" ? "numeric" : "decimal"} className="min-w-0 font-mono" aria-describedby={`${id}-help${invalid ? ` ${id}-error` : ""}`} aria-invalid={invalid || converted === null || undefined}
         onChange={(event) => {
           const text = event.target.value;
           const next = unitValueInNanoseconds(text, unit);
@@ -150,7 +150,7 @@ function TextField({
       </FieldLabel>
       {isTiming ? <TimingInput id={inputId} label={label} value={value} onValueChange={onValueChange} invalid={fieldIssues.length > 0} /> : <Input
         id={inputId}
-        aria-describedby={description ? helpId : undefined}
+        aria-describedby={[description ? helpId : null, fieldIssues.length > 0 ? `${inputId}-error` : null].filter(Boolean).join(" ") || undefined}
         value={value}
         inputMode={inputMode}
         aria-invalid={fieldIssues.length > 0 || undefined}
@@ -158,7 +158,7 @@ function TextField({
         onChange={(changeEvent) => onValueChange(changeEvent.target.value)}
       />}
       {isTiming ? <FieldDescription id={helpId}>{exactDurationDescription(value) ?? "Enter a nonnegative duration with whole-nanosecond precision."}{description && description !== exactDurationDescription(value) ? ` · ${description}` : ""}</FieldDescription> : description ? <FieldDescription id={helpId}>{description}</FieldDescription> : null}
-      {fieldIssues.length > 0 ? <FieldError errors={fieldIssues.map((issue) => ({ message: issue }))} /> : null}
+      {fieldIssues.length > 0 ? <FieldError id={`${inputId}-error`} errors={fieldIssues.map((issue) => ({ message: issue }))} /> : null}
     </Field>
   );
 }

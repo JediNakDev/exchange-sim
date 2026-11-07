@@ -354,3 +354,65 @@ test("paired run and fill inspection retain named experiment and comparison dire
   await context.getByRole("link", { name: "Return to baseline / candidate comparison" }).click();
   await expect(page).toHaveURL(/baseline=exp_fixedspreadw2&candidate=exp_fixedspreadw4/);
 });
+
+test("keyboard fill selection announces and reaches its explanation without losing the row", async ({ page }) => {
+  await installService(page, new MockResearchService());
+  await page.goto("/runs/run_fsw2seed303/inspect");
+  const row = page.getByRole("table", { name: "Recorded fills" }).locator("tbody tr").first();
+  await row.focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("status").filter({ hasText: /Selected fill/ })).toBeVisible();
+  await expect(row).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(row.getByRole("button", { name: "Read explanation" })).toBeFocused();
+  await page.keyboard.press("Enter");
+  const explanation = page.getByRole("region", { name: "Selected order explanation" });
+  await expect(explanation).toBeFocused();
+  await expect(explanation.getByLabel("Selected fill identity")).toBeVisible();
+  await explanation.getByRole("button", { name: "Return to selected row" }).click();
+  await expect(row).toBeFocused();
+});
+
+test("time-series charts have distinct names and a keyboard-readable sampled alternative", async ({ page }) => {
+  await installService(page, new MockResearchService());
+  await page.goto("/runs/run_fsw2seed303");
+  for (const title of ["Equity (USD)", "Inventory (shares)", "Drawdown (USD)"]) {
+    await expect(page.getByRole("application", { name: title, exact: true })).toHaveCount(1);
+    await page.getByText(`Read sampled values for ${title}`, { exact: true }).focus();
+    await page.keyboard.press("Enter");
+    const table = page.getByRole("table", { name: `${title} sampled values`, exact: true });
+    await expect(table).toBeVisible();
+    expect(await table.locator("tbody tr").count()).toBeGreaterThan(0);
+  }
+});
+
+test("protocol empty states explain the separate mode and offer a research continuation", async ({ page }) => {
+  await installService(page, new MockResearchService(), async (route, request, forward) => {
+    if (!new URL(request.url).pathname.endsWith("/connections")) return false;
+    const status = await (await forward()).json();
+    await route.fulfill({ status: 200, json: { ...status, serviceState: "not_running", sessions: [], feeds: [], faults: [] } });
+    return true;
+  });
+  await page.goto("/connections");
+  await expect(page.getByRole("heading", { name: "Real-time protocol service is not running here" })).toBeVisible();
+  await expect(page.getByText(/No order-entry sessions reported/)).toBeVisible();
+  await expect(page.getByText(/No protocol fault scenarios reported/)).toBeVisible();
+  await page.getByRole("link", { name: "Return to research experiments" }).click();
+  await expect(page).toHaveURL(/\/experiments$/);
+});
+
+test("a field-specific service error opens its section and focuses the invalid input", async ({ page }) => {
+  await installService(page, new MockResearchService(), async (route, request) => {
+    if (!new URL(request.url).pathname.endsWith("/experiment-previews")) return false;
+    await route.fulfill({ status: 422, json: { error: { ...failure.error, code: "validation_failed", retryable: false, fieldIssues: [{ fieldPath: "/config/latency/feedLatencyNs", issue: "Feed latency must be nonnegative." }] } } });
+    return true;
+  });
+  await page.goto("/experiments/new");
+  await page.getByRole("button", { name: "Review assumptions" }).click();
+  const input = page.getByRole("textbox", { name: /^Feed/ });
+  await expect(input).toBeVisible();
+  await expect(input).toBeFocused();
+  await expect(input).toHaveAttribute("aria-invalid", "true");
+  await expect(input).toHaveAccessibleDescription(/Feed latency must be nonnegative/);
+  await expect(page.getByRole("button", { name: /Create and start/ })).toBeDisabled();
+});
