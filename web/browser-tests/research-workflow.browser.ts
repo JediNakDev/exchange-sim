@@ -416,3 +416,14 @@ test("a field-specific service error opens its section and focuses the invalid i
   await expect(input).toHaveAccessibleDescription(/Feed latency must be nonnegative/);
   await expect(page.getByRole("button", { name: /Create and start/ })).toBeDisabled();
 });
+
+test("changing an order deep link on the same inspection route resets the explanation", async ({ page }) => {
+  const service = new MockResearchService();
+  const orders = await requestJson<ApiSchemas["OwnOrderPage"]>(service, "/v1/runs/run_fsw2seed303/orders?limit=2");
+  expect(orders.items.length).toBe(2);
+  await installService(page, service);
+  await page.goto(`/runs/run_fsw2seed303/inspect?order=${orders.items[0].orderId}`);
+  await expect(page.getByRole("heading", { name: `Order ${orders.items[0].orderId}: latest chain state`, exact: true })).toBeVisible();
+  await page.evaluate((orderId) => window.history.pushState(null, "", `/runs/run_fsw2seed303/inspect?order=${orderId}`), orders.items[1].orderId);
+  await expect(page.getByRole("heading", { name: `Order ${orders.items[1].orderId}: latest chain state`, exact: true })).toBeVisible();
+});

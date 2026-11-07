@@ -16,6 +16,7 @@ import { isTerminalRunState, RunStateBadge } from "@/components/research/run-sta
 import { ExecutionSummaryPanel } from "@/components/research/execution-summary-panel";
 import { RunResearchContext, useComparisonContext } from "@/components/research/run-research-context";
 import { ExecutionTracePanel } from "@/components/research/execution-trace-panel";
+import { RequestDiagnosticsPanel } from "@/components/research/request-diagnostics-panel";
 import { RunAuditControls } from "@/components/research/run-audit-controls";
 import { TraderRunOutcomes } from "@/components/research/trader-run-outcomes";
 import { RunSeriesChart } from "@/components/research/run-series-chart";
@@ -127,6 +128,7 @@ function SummaryPanel({ summary }: { summary: ApiSchemas["RunSummary"] }) {
   return (
     <div className="grid gap-4 xl:grid-cols-2">
       <ExecutionSummaryPanel summary={summary} />
+      <div className="xl:col-span-2"><RequestDiagnosticsPanel diagnostics={summary.orders.requestDiagnostics} /></div>
       <Card size="sm">
         <CardHeader>
           <CardTitle>Ledger</CardTitle>

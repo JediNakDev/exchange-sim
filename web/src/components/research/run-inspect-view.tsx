@@ -343,7 +343,8 @@ export function FocusPanel({
 
 export function RunInspectView() {
   const { runId } = useParams<{ runId: string }>();
-  return <RunInspection key={runId} runId={runId} />;
+  const linkedOrder = initialOrderId(useSearchParams().get("order"));
+  return <RunInspection key={`${runId}:${linkedOrder ?? "none"}`} runId={runId} />;
 }
 
 function RunInspection({ runId }: { runId: string }) {

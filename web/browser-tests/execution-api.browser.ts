@@ -31,7 +31,7 @@ function standaloneInventory() {
 // implementation and no request can reach the installed service.
 async function isolatedApi() {
   const data = mkdtempSync(join(tmpdir(), "exsim-browser-execution-"));
-  const child = spawn(process.env.EXSIM_API_BINARY ?? resolve("../build/release/exsim_api"), ["--bind", "127.0.0.1", "--port", "3763", "--data-dir", data, "--source-revision", "5394b84", "--release-id", "persona-browser-test"], { stdio: ["ignore", "pipe", "pipe"] });
+  const child = spawn(process.env.EXSIM_API_BINARY ?? resolve("../build/release/exsim_api"), ["--bind", "127.0.0.1", "--port", "3763", "--data-dir", data, "--source-revision", process.env.EXSIM_API_SOURCE_REVISION ?? "5394b84", "--release-id", "persona-browser-test"], { stdio: ["ignore", "pipe", "pipe"] });
   let output = "";
   let diagnostics = "";
   const exited = new Promise<void>((done) => child.once("close", () => done()));
@@ -215,7 +215,7 @@ test("native evidence UI excludes censored windows, pins attempts and exports a 
     await expect(page.getByRole("heading", { name: "Native execution trace" })).toBeVisible();
     await page.getByRole("tab", { name: "Manifest", exact: true }).click();
     await expect(page.getByText("Recorded source revision", { exact: true })).toBeVisible();
-    await expect(page.getByText("5394b84", { exact: true })).toBeVisible();
+    await expect(page.getByText(process.env.EXSIM_API_SOURCE_REVISION ?? "5394b84", { exact: true })).toBeVisible();
     const auditEvent = page.waitForEvent("download");
     await page.getByRole("button", { name: "Download complete audit" }).click();
     const download = await auditEvent;
@@ -249,4 +249,48 @@ test("native evidence UI excludes censored windows, pins attempts and exports a 
     const horizon = page.getByRole("row").filter({ has: page.getByRole("cell", { name: "Markout total @ 5 s", exact: false }) });
     await expect(horizon).toContainText("n/a");
   } finally { await api.stop(); rmSync(downloadDirectory, { recursive: true, force: true }); }
+});
+
+test("native MM diagnostics expose replacement failures and replacement-chain FIFO evidence", async ({ page }) => {
+  const api = await isolatedApi();
+  const call = async <T>(path: string, body?: unknown): Promise<T> => {
+    const response = await fetch(`${api.baseUrl}${path}`, body === undefined ? {} : { method: "POST", headers: { "Content-Type": "application/json", "Idempotency-Key": `mm-persona-${Date.now()}-${Math.random().toString(36).slice(2)}` }, body: JSON.stringify(body) });
+    expect(response.ok, response.ok ? "" : await response.clone().text()).toBe(true);
+    return response.json();
+  };
+  try {
+    const fixture = JSON.parse(readFileSync(resolve("../docs/reviews/PERSONA_MM_EVIDENCE_2026-11-08/baseline.json"), "utf8")) as ApiSchemas["Experiment"];
+    const config = structuredClone(fixture.config);
+    config.seedSet.masterSeeds = ["103"];
+    const runStudy = async (name: string, config: ApiSchemas["ExperimentConfig"]) => {
+      const experiment = await call<ApiSchemas["Experiment"]>("/v1/experiments", { name, derivedFromBaselineId: fixture.derivedFromBaselineId, config });
+      const run = await call<ApiSchemas["Run"]>("/v1/runs", { experimentId: experiment.experimentId, masterSeed: "103", startPaused: false });
+      await expect.poll(async () => (await call<ApiSchemas["Run"]>(`/v1/runs/${run.runId}`)).state).toBe("completed");
+      return { experiment, run };
+    };
+    const baseline = await runStudy("Native MM baseline", config);
+    const slow = structuredClone(config);
+    slow.latency.cancelLatencyNs = "100000000";
+    const candidate = await runStudy("Native MM delayed replacements", slow);
+    await page.goto(`/runs/${candidate.run.runId}`);
+    const diagnostics = page.getByRole("table", { name: "Outbound request diagnostics", exact: true });
+    const replaces = diagnostics.getByRole("row").filter({ has: page.getByRole("cell", { name: "Replace", exact: true }) });
+    await expect(replaces).toContainText("505");
+    await expect(replaces).toContainText("unknown_order: 504");
+    const newOrders = diagnostics.getByRole("row").filter({ has: page.getByRole("cell", { name: "New order", exact: true }) });
+    await expect(newOrders).toContainText("3 /");
+    await page.goto(`/runs/${candidate.run.runId}/inspect?order=7`);
+    await expect(page.getByRole("heading", { name: "Replacement transit" })).toBeVisible();
+    await expect(page.getByText(/Observed causal fill race/)).toBeVisible();
+    await page.goto(`/runs/${baseline.run.runId}/inspect`);
+    await page.getByRole("table", { name: "Recorded fills" }).locator("tbody tr").first().click();
+    await expect(page.getByLabel("Selected fill identity")).toContainText("order 7, event 45");
+    await expect(page.getByRole("heading", { name: "Order 12: latest chain state" })).toBeVisible();
+    const fifo = page.getByRole("table", { name: "FIFO queue evidence", exact: true });
+    await expect(fifo.getByRole("row").filter({ hasText: "#51" })).toContainText("12");
+    await page.goto(`/compare?baseline=${baseline.experiment.experimentId}&candidate=${candidate.experiment.experimentId}`);
+    await expect(page.getByRole("table", { name: "Comparison markout coverage" })).toContainText("135665");
+    await page.getByText("Request and quote-update diagnostics by selected attempt", { exact: true }).click();
+    await expect(page.getByRole("table", { name: "Outbound request diagnostics", exact: true }).last()).toContainText("unknown_order: 504");
+  } finally { await api.stop(); }
 });
