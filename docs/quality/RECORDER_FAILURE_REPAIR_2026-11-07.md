@@ -66,7 +66,19 @@ The oversized file fixture is sparse and does not construct a large payload.
 
 ## Remaining checks and limits
 
-A fresh independent repair review and Linux GCC/Clang checks remain necessary.
+Fresh independent review `2a2bd1b`, integrated as `5c97846`, cleared IAR-01 and
+SC-01 within its stated scope, with no new confirmed defect. Its private HTTP
+probes independently reconcile fill-based accounting, restart evidence, uncertain
+keys, native journal/post-clear failures and safe malformed-cache rejection. The
+original positive accounting/idempotency assertions also pass unchanged.
+Same-pass fairness and pause-persistence failure have source-level independent
+coverage; the parent's native tests cover same-pass fairness at runtime. The
+review reproduces the accepted partial-terminal-cache startup rejection rather
+than claiming arbitrary storage failures always permit restart. See
+[independent report](../reviews/RECORDER_FAILURE_REPAIR_RECHECK_2026-11-07.md).
+
+Fresh [Linux GCC/Clang checks](LINUX_RECORDER_REPAIR_2026-11-07.md) now pass
+71/71 each with warning-free API builds and failed empty selections.
 The earlier Linux64 receipts apply to `7ca1014`, not this changed backend. The
 frontend82 checks remain evidence for its unchanged source; frontend independent
 selected-fill clearance is still pending after the last reviewer hit a limit.

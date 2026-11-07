@@ -12,7 +12,7 @@ The recording shows the production Next.js frontend using real C++ runs, includi
 
 ## Research workflow
 
-1. **Configure.** Start from a narrow or wide quoting baseline, or copy a saved experiment as a variant. Choose fixed-spread or inventory-aware quoting. Set market-agent parameters, common seeds, feed/order/acknowledgment/cancel delays, fees, risk limits and a simulation bound. Review the assumptions before starting.
+1. **Configure.** Start from a quoting or parent-order execution baseline, or copy a saved experiment as a variant. Choose fixed-spread or inventory-aware quoting, TWAP or immediate sweep. Set market agents, common seeds, feed/order/acknowledgment/cancel delays, fees, risk limits and a simulation bound. Execution forms include side, parent quantity, observation window, price protection and child cap. Review the assumptions before starting.
 2. **Run.** Let simulated time advance to completion, or start paused and step scheduler events. Each run owns its engine, RNG streams and accounting state. A partially started batch stays saved; its experiment page starts only missing seeds.
 3. **Compare.** See changed assumptions, aligned equity/inventory/drawdown charts, per-seed differences, sample standard deviation and standard error. Only completed runs whose native evidence reproduces under the expected configuration and seed enter the paired result. Comparison values come from that fresh execution.
 4. **Explain.** Inspect the event timeline, exchange truth versus the delivered strategy view, FIFO quantity ahead, order lifecycles, fill roles, fees and markouts. A completed run can retain inventory and resting orders; the summary reports both.
@@ -90,7 +90,27 @@ bun run build
 bun run test:e2e
 ```
 
-Latest integration repair checks: **932** macOS release tests, **928** ASan/UBSan tests, **143** focused server TSan tests, and **9** real-binary HTTP contract tests covering all 23 operations. Linux GCC and Clang each passed **53** focused API/runtime checks and built both service binaries after the repairs. The earlier combined Linux snapshot passed 927 tests with each compiler. Current quality checkpoint: **64** focused C++ API tests in release and ASan/UBSan, **76** frontend invariants, **13** browser cases including two actual Next-proxy/C++ workflows, and **9** real-binary HTTP contract cases. Typecheck, lint and production build passed. Deployment tooling: **40** disposable fixture checks. These new checks do not replace the historical C++ integration evidence.
+The current API repair passes **71/71** focused cases in release and ASan/UBSan.
+Independent fault/restart probes cleared the reviewed recorder-failure and cache-allocation
+findings, including fill-based accounting checks. Fresh Linux GCC/Clang checks
+also pass **71/71** each with warning-free API builds. The separate selected-fill
+frontend re-check remains pending.
+
+Frontend evidence is **82** invariants, typecheck, lint and a production build;
+the selected-fill fix passes its unchanged reviewer reproducer and three focused
+browser regressions. The earlier execution checkpoint passed **13** browser cases,
+including two actual Next-proxy/C++ workflows, and **9** real-binary HTTP contract
+cases covering all 23 operations. Deployment tooling passes **40** disposable
+fixture checks. These counts cover different revisions and are not added together.
+
+Historical combined integration evidence is **932** macOS release tests, **928**
+ASan/UBSan tests and **143** focused server TSan tests. Linux GCC and Clang each
+passed **53** focused API/runtime checks after those repairs; the earlier combined
+Linux snapshot passed 927 tests with each compiler. Current scoped checks do not
+replace that historical engine/protocol evidence. Exact current evidence:
+[recorder repair](docs/quality/RECORDER_FAILURE_REPAIR_2026-11-07.md),
+[independent re-check](docs/reviews/RECORDER_FAILURE_REPAIR_RECHECK_2026-11-07.md),
+[fill identity repair](docs/quality/FILL_IDENTITY_REPAIR_2026-11-07.md).
 
 Five new regressions fail the reviewed pre-fix code and pass the repairs. Exact revisions, logs and limits: [integration fixes](docs/reviews/INTEGRATION_FIXES_2026-11-06.md), [working checkpoint](docs/WORK_PLAN.md), [fuzzing](docs/FUZZING.md).
 

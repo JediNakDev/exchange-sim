@@ -122,7 +122,7 @@ Restore verifies the backup and the restored bytes, and refuses any existing tar
 3. In the maintenance window, edit the host plists to the new absolute API/frontend pair and external data path, then bootstrap the selected jobs. With changed ProgramArguments, `kickstart` alone does not reload the plist: boot out then bootstrap it. Repeat local readiness, private Serve readiness and the product checks required by the release evidence. Record both selected paths, revision pair, build ID, result and log locations. Nothing in `research_delivery.py` promotes automatically.
 4. On a failed promotion, block ingress and boot out the candidate jobs. Retain their logs and data for diagnosis. Restore saved plist paths to the previous release pair, bootstrap, and repeat readiness. Binary rollback against current data is allowed only when backward compatibility is known. Otherwise restore the pre-change backup to a **new** directory and point the old API at it. Preserve failed-candidate data. A data rollback loses mutations after the backup; decide that explicitly before reopening access. The script never replaces a data directory or switches supervisors.
 
-LaunchAgent logs are files, not a health gate. There is no committed rotation/retention policy or log collector. Inspect startup errors, skipped-record messages and restart loops; monitor free disk space for data, backup and log volumes. During maintenance with writers stopped, archive the configured stdout/stderr logs to a private timestamped location and restart with new files, or configure an operator-managed rotation policy that reopens files safely. Moving a live log file does not force a process to reopen it. Do not commit logs containing experiment names, idempotency keys, private Serve URLs or filesystem paths. The API idempotency write error path has a separate static audit finding, so absence of a log error is not a durability guarantee.
+LaunchAgent logs are files, not a health gate. There is no committed rotation/retention policy or log collector. Inspect startup errors, skipped-record messages and restart loops; monitor free disk space for data, backup and log volumes. During maintenance with writers stopped, archive the configured stdout/stderr logs to a private timestamped location and restart with new files, or configure an operator-managed rotation policy that reopens files safely. Moving a live log file does not force a process to reopen it. Do not commit logs containing private experiment names, idempotency keys, Serve URLs or filesystem paths. The [durability repair](reviews/API_DURABILITY_2026-11-07.md) propagates persistence failures and retains uncertain reservations; absence of a log error alone remains insufficient evidence of persistence.
 
 Focused, disposable tooling checks (no build or real service/data access):
 
@@ -130,7 +130,13 @@ Focused, disposable tooling checks (no build or real service/data access):
 python3 -B scripts/deployment/test_research_delivery.py
 ```
 
-CI currently exercises C++ tests/tools and research determinism, but does not run this tool, frontend checks, real API/frontend contract checks or a packaged release/restore drill. Integration owners should add appropriate gates separately. The audit and evidence limits are in [DELIVERY_AUDIT_2026-11-07.md](reviews/DELIVERY_AUDIT_2026-11-07.md).
+The `research-web` CI job now runs frozen frontend installation, generated-type
+drift checks, types/lint/invariants, a production build, browser recovery and real
+Next-proxy/C++ workflows, the native HTTP contract and the 40 delivery fixtures.
+The existing jobs cover C++ tests/tools and research determinism. CI does not
+promote a release or perform a real-host data restore. The historical audit and
+its original evidence limits are preserved in
+[DELIVERY_AUDIT_2026-11-07.md](reviews/DELIVERY_AUDIT_2026-11-07.md).
 
 
 ## 2026-11-07 storage upgrade precautions

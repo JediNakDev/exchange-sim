@@ -7,23 +7,24 @@ Updated 2026-11-07. This is a recovery checkpoint, not live delegate status. Kee
 Read this rollup and [quality/PLAN_2026-11-07.md](quality/PLAN_2026-11-07.md) first. Earlier tables below are historical recovery/delegation records; read their detailed reports only for the relevant task.
 
 - Parent branch: `exchange-simulator`. First frontend recovery, durable API, TWAP/sweep browser workflow, Linux gates and FER-01 repair are integrated. Source details and receipts: [quality/INTEGRATION_2026-11-07.md](quality/INTEGRATION_2026-11-07.md), [quality/FILL_IDENTITY_REPAIR_2026-11-07.md](quality/FILL_IDENTITY_REPAIR_2026-11-07.md).
-- Integrated API review `ec50c01c` completed as `05c0f71`, merged `df01ab7`. IAR-01 reproduced native recorder failure retaining an actionable run and starving later runs; SC-01 found allocation before cache-length checks. Parent repair now passes API71 release/ASan, a warning-free API build and the original defect assertion's expected invalidation. Details: [quality/RECORDER_FAILURE_REPAIR_2026-11-07.md](quality/RECORDER_FAILURE_REPAIR_2026-11-07.md). Fresh independent repair review and Linux GCC/Clang checks are next; historical Linux64 is not evidence for this changed backend.
-- Current frontend: 82 ordinary invariants, type/lint/build; FER-01 unchanged independent reproducer plus three ordinary stationary/pending/off-page browser cases pass. Its independent repair re-check `2381f721` failed at a provider usage limit and gives no clearance. Commission a fresh narrow GPT re-check. Do not add historical and current counts or claim sixteen ordinary browser cases were rerun; sixteen are discovered by CI.
+- Integrated API review `ec50c01c` completed as `05c0f71`, merged `df01ab7`. Repair `8ee86f1` passes API71 release/ASan, native HTTP9/all23 operations and warning-free builds. Fresh independent re-check `2a2bd1b`, integrated `5c97846`, clears IAR-01/SC-01 within scope, with independent fill-based accounting and restart probes. Linux GCC/Clang now each pass API71 and API builds, warning-free. Details: [quality/RECORDER_FAILURE_REPAIR_2026-11-07.md](quality/RECORDER_FAILURE_REPAIR_2026-11-07.md), [quality/LINUX_RECORDER_REPAIR_2026-11-07.md](quality/LINUX_RECORDER_REPAIR_2026-11-07.md). Historical Linux64 is not the repair evidence.
+- Current frontend: 82 ordinary invariants, type/lint/build; FER-01 unchanged independent reproducer plus three ordinary stationary/pending/off-page browser cases pass. Its earlier independent repair re-check `2381f721` failed at a provider limit and gives no clearance. A fresh narrow GPT re-check below is running. Do not add historical and current counts or claim sixteen ordinary browser cases were rerun; sixteen are discovered by CI.
 - Deployment remains the old installed pair. Copied `production-20261107-candidate-7ca1014` is NOT promotable because it contains FER-01 and IAR-01. After clearance, create a fresh verified bundle, check active-run quiescence, take a consistent offline full-data backup, preflight a restored copy, promote and publish. Old writable API binaries cannot read new per-key idempotency protection.
 - Preserve `.claude/`, `output/` and interrupted worktrees. No new PR, push, production restart or private-data mutation in this quality pass yet.
+- Fresh copied `production-20261107-candidate-8ee86f1` is prepared with API source `8ee86f1`, frontend source `75d9960`, build ID `slpULgNACN27FJgew-XPE`, Node v24.22.1. Inventory verify and checkout-independent private startup/proxy/HTML/static readiness plus TWAP preview pass. Logs `/tmp/exsim-candidate-8ee86f1-{package,preflight}.log`; the first preflight attempt had only a fixture field-name error, preserved separately. This is not promotion or restored-real-data evidence; wait for frontend review, then recheck quiescence and perform offline backup/restore preflight.
 
-### Active independent checks at `8ee86f1`
+### Independent checks at `8ee86f1`
 
-Both new tasks use GPT `gpt-6.1-sol` / xhigh in separate harness worktrees.
-Checkouts and result commits will be recorded from completion notifications.
+Both tasks use GPT `gpt-6.1-sol` / xhigh in separate harness worktrees.
+Remaining checkout/result pointers will be recorded from completion notifications.
 
 | Scope | Full harness task ID | Checks and next action |
 | --- | --- | --- |
-| Recorder failure / cache bounds | `node:delegated-task:command%3Amcp%3Ac5871c80-7318-4575-b3f9-3687f8548075%3Adelegate-task%3Aexsim-20261107-iar01-repair-review-8ee86f1` | Report-only source review and private HTTP failure/restart probes against the hash-verified parent API binary. No Docker/full suite. Resolve any findings, then run fresh focused Linux71 GCC/Clang serially. |
+| Recorder failure / cache bounds | `node:delegated-task:command%3Amcp%3Ac5871c80-7318-4575-b3f9-3687f8548075%3Adelegate-task%3Aexsim-20261107-iar01-repair-review-8ee86f1` | Complete; `/Users/jedi/.t3/worktrees/lob/t3-8c2c07d0`, `t3/review-exchange-simulator-repair`. Report/tests `2a2bd1b` integrated `5c97846`; child record `fdc64fc`. No new confirmed defect. Log `/tmp/exsim-recorder-independent-8ee86f1-complete.log`. Fresh parent Linux71 GCC/Clang also passes. |
 | Selected-fill identity | `node:delegated-task:command%3Amcp%3Ac5871c80-7318-4575-b3f9-3687f8548075%3Adelegate-task%3Aexsim-20261107-fer01-fresh-review-8ee86f1` | Report-only new independent re-check of FER-01, unchanged original browser reproducer plus three ordinary focused cases. Owns test port3762; no production access. |
 
-Completion wakes the parent. Do not poll or wait on these running tasks. Next
-release remains blocked on their results and fresh backend portability evidence.
+Completion wakes the parent. Do not poll or wait on the running frontend task.
+Release promotion remains blocked on its result and the real-data restore drill.
 
 ## User decisions and constraints
 
