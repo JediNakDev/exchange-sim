@@ -12,6 +12,19 @@ Read this rollup and [quality/PLAN_2026-11-07.md](quality/PLAN_2026-11-07.md) fi
 - Deployment remains the old installed pair. Copied `production-20261107-candidate-7ca1014` is NOT promotable because it contains FER-01 and IAR-01. After clearance, create a fresh verified bundle, check active-run quiescence, take a consistent offline full-data backup, preflight a restored copy, promote and publish. Old writable API binaries cannot read new per-key idempotency protection.
 - Preserve `.claude/`, `output/` and interrupted worktrees. No new PR, push, production restart or private-data mutation in this quality pass yet.
 
+### Active independent checks at `8ee86f1`
+
+Both new tasks use GPT `gpt-6.1-sol` / xhigh in separate harness worktrees.
+Checkouts and result commits will be recorded from completion notifications.
+
+| Scope | Full harness task ID | Checks and next action |
+| --- | --- | --- |
+| Recorder failure / cache bounds | `node:delegated-task:command%3Amcp%3Ac5871c80-7318-4575-b3f9-3687f8548075%3Adelegate-task%3Aexsim-20261107-iar01-repair-review-8ee86f1` | Report-only source review and private HTTP failure/restart probes against the hash-verified parent API binary. No Docker/full suite. Resolve any findings, then run fresh focused Linux71 GCC/Clang serially. |
+| Selected-fill identity | `node:delegated-task:command%3Amcp%3Ac5871c80-7318-4575-b3f9-3687f8548075%3Adelegate-task%3Aexsim-20261107-fer01-fresh-review-8ee86f1` | Report-only new independent re-check of FER-01, unchanged original browser reproducer plus three ordinary focused cases. Owns test port3762; no production access. |
+
+Completion wakes the parent. Do not poll or wait on these running tasks. Next
+release remains blocked on their results and fresh backend portability evidence.
+
 ## User decisions and constraints
 
 - Goal remains a low-latency C++ exchange simulator with realistic protocols, strong testing, and no allocations on declared hot paths.
