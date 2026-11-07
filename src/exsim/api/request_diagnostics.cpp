@@ -48,8 +48,11 @@ void write_replace_transits(ApiJsonWriter& json, std::span<const CanonicalEventR
         if (event.kind == CanonicalEventKind::StrategyReplaceSubmitted) submit = position;
         if (event.kind != CanonicalEventKind::ReplaceArrivedAtExchange || submit == kNoEventPosition) continue;
         std::uint64_t fill = kNoEventPosition;
-        for (const auto prior : positions) if (prior > submit && prior < position && events[prior].kind == CanonicalEventKind::OrderFilled &&
-            (events[prior].order_id == event.order_id || events[prior].buy_leg_order_id == event.order_id || events[prior].sell_leg_order_id == event.order_id)) fill = prior;
+        // Rejected arrivals can have no exchange ID. The submission records
+        // the resting order that the replacement intended to change.
+        const OrderId submitted_order_id = events[submit].order_id;
+        for (const auto prior : positions) if (submitted_order_id != 0 && prior > submit && prior < position && events[prior].kind == CanonicalEventKind::OrderFilled &&
+            (events[prior].order_id == submitted_order_id || events[prior].buy_leg_order_id == submitted_order_id || events[prior].sell_leg_order_id == submitted_order_id)) fill = prior;
         json.begin_object().key("submitEventPosition").unsigned_text(submit).key("arrivalEventPosition").unsigned_text(position);
         json.key("transitNs").unsigned_text(event.simulation_time_ns - events[submit].simulation_time_ns);
         json.key("fillBeforeArrivalEventPosition"); if (fill == kNoEventPosition) json.null(); else json.unsigned_text(fill);

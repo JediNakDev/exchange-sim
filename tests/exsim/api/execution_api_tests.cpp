@@ -638,6 +638,13 @@ TEST_CASE(execution_api, replace_diagnostics_preserve_request_denominators_and_a
     const CanonicalEventKind kinds[]={CanonicalEventKind::StrategyReplaceSubmitted,CanonicalEventKind::OrderFilled,CanonicalEventKind::ReplaceArrivedAtExchange,
         CanonicalEventKind::OrderRejected,CanonicalEventKind::StrategyReplaceSubmitted,CanonicalEventKind::ReplaceArrivedAtExchange,CanonicalEventKind::OrderRejected};
     for(std::size_t i=0;i<events.size();++i) { auto& e=events[i];e.kind=kinds[i];e.simulation_time_ns=i*100;e.order_id=7;e.actor=EventActor::ResearchStrategy;e.present=kIsOwnOrder; }
+    // Native unknown-order arrivals omit the exchange ID. Fill events can
+    // identify the resting order through their trade legs instead.
+    events[2].order_id = 0;
+    events[5].order_id = 0;
+    events[1].order_id = 0;
+    events[1].buy_leg_order_id = 7;
+    events[1].sell_leg_order_id = 9;
     events[3].rejected_command=CommandType::Replace;events[3].reject_reason=RejectReason::UnknownOrder;
     events[6].rejected_command=CommandType::Replace;events[6].reject_reason=RejectReason::UnknownOrder;
     std::vector<std::uint64_t> positions={0,1,2,3,4,5,6};
