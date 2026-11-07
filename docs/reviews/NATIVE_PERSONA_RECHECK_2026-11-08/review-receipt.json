@@ -1,0 +1,34 @@
+{
+  "root": "/var/folders/99/cjkytqh130n5xq3vzsr3f17c0000gn/T/native-persona-recheck-vze8ztor",
+  "binaries": {
+    "/var/folders/99/cjkytqh130n5xq3vzsr3f17c0000gn/T/native-persona-recheck-vze8ztor/original-exsim_api": "7da1c8685bf5f4abf023da9ac993dd8054359599e04c864b2e12c4b92e752a6b",
+    "/var/folders/99/cjkytqh130n5xq3vzsr3f17c0000gn/T/native-persona-recheck-vze8ztor/original-exsim_research": "62486d9fdd0eef7c16223b97f92505cb024666c027869866e4a6cdcf611eff21"
+  },
+  "phases": [
+    {
+      "script": "probe.py",
+      "seconds": 2.704758458,
+      "exit": 0
+    },
+    {
+      "script": "restart_probe.py",
+      "seconds": 1.3837761249999998,
+      "exit": 0
+    },
+    {
+      "script": "supplemental_probe.py",
+      "seconds": 0.1968764579999993,
+      "exit": 0
+    },
+    {
+      "script": "mm_probe.py",
+      "seconds": 0.04867270799999979,
+      "exit": 0
+    },
+    {
+      "script": "restart_probe.py-cross",
+      "seconds": 0.5410007080000003,
+      "exit": 0
+    }
+  ]
+}
