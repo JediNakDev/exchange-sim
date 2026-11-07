@@ -28,11 +28,11 @@ export function TraderRunOutcomes({ summary }: { summary: ApiSchemas["RunSummary
       : "Net P&L includes inventory valuation and fees. Spread capture alone is not profit. Read signed markouts with eligible exposure alongside inventory and drawdown; markouts include the initial spread edge."}</p>
     {!execution ? <div className="mt-4 border-t pt-3">
       <h3 className="text-sm font-medium">Post-fill markouts</h3>
-      <p className="mt-1 text-xs text-muted-foreground">Quantity-weighted USD/share against exchange mid: buy = future mid - fill price; sell = fill price - future mid. Positive is favorable and includes the initial spread edge. Eligible exposure varies by horizon; censored observations are excluded.</p>
+      <p className="mt-1 text-xs text-muted-foreground">Quantity-weighted USD/share against exchange mid: buy = future mid - fill price; sell = fill price - future mid. Positive is favorable and includes the initial spread edge. Per-share mean = sum(signed markout per share × eligible fill shares) / available shares. Eligible shares have an observed exchange mid at the horizon; no-mark and censored fills are excluded. Eligibility varies by horizon.</p>
       {summary.markouts.length === 0 ? <p className="mt-2 text-sm">No markout horizons reported.</p> : <dl className="mt-3 flex flex-wrap gap-x-8 gap-y-3">{summary.markouts.map((markout) => <div key={markout.horizonNs}>
-        <dt className="text-xs text-muted-foreground">{formatDurationNs(markout.horizonNs)}</dt>
+        <dt className="text-xs text-muted-foreground">{formatDurationNs(markout.horizonNs)} ({markout.horizonNs} ns)</dt>
         <dd className="font-mono text-sm">{markout.availableFillCount === "0" ? "Unavailable" : formatDecimalForDisplay(markout.meanMarkoutPerShare, { signDisplay: "always" })}</dd>
-        <dd className="text-xs text-muted-foreground">{markout.availableFillCount} eligible fills; {markout.unavailableFillCount} no mark; {markout.censoredFillCount} censored</dd>
+        <dd className="text-xs text-muted-foreground">{markout.availableShares ?? "Unavailable"} eligible shares; {markout.availableFillCount} eligible fills; {markout.unavailableFillCount} no mark; {markout.censoredFillCount} censored</dd>
       </div>)}</dl>}
     </div> : null}
     {!execution && summary.accounting.markUnavailableReason ? <p className="mt-2 text-sm text-destructive">Terminal valuation unavailable: {humanizeEnumValue(summary.accounting.markUnavailableReason)}</p> : null}

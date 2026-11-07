@@ -5,7 +5,7 @@
 // ahead of it in the FIFO queue, and what the fill did to inventory and P&L.
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { useRef, useState, type KeyboardEvent } from "react";
 import { ChevronFirstIcon, ChevronLastIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsLeftIcon, ChevronsRightIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -25,6 +25,8 @@ import { useApiResource } from "@/hooks/use-api-resource";
 import { getBrowserApiClient, unwrapApiResult, type ApiSchemas } from "@/lib/api/exsim-api-client";
 import { formatDecimalForDisplay, formatDurationNs, formatIntegerText, formatSimulationTimeNs, offsetUnsignedIntegerText } from "@/lib/exact-decimal-format";
 import { humanizeEnumValue } from "@/lib/research-labels";
+import { LifecycleRepairEvidence } from "@/components/research/run-inspect-evidence";
+import { initialOrderId } from "@/lib/inspection-order-link";
 import { cn } from "@/lib/utils";
 
 const EVENT_WINDOW_RADIUS = 12n;
@@ -85,7 +87,7 @@ function EventWindowTable({
                 }}
               >
                 <TableCell className="text-right font-mono tabular-nums">{canonicalEvent.eventPosition}</TableCell>
-                <TableCell className="text-right font-mono tabular-nums">{formatSimulationTimeNs(canonicalEvent.simulationTimeNs, 6)}</TableCell>
+                <TableCell className="text-right font-mono tabular-nums">{formatSimulationTimeNs(canonicalEvent.simulationTimeNs, 9)}</TableCell>
                 <TableCell className="text-muted-foreground">{humanizeEnumValue(canonicalEvent.stage)}</TableCell>
                 <TableCell>{humanizeEnumValue(canonicalEvent.eventKind)}</TableCell>
                 <TableCell>{canonicalEvent.isOwnOrder ? <Badge variant="secondary">own</Badge> : humanizeEnumValue(canonicalEvent.actor)}</TableCell>
@@ -183,7 +185,7 @@ function EventPositionButton({ eventPosition, label, onSelectEventPosition }: { 
   );
 }
 
-function FocusPanel({
+export function FocusPanel({
   focusedFill,
   lifecycle,
   lifecycleFailure,
@@ -239,9 +241,10 @@ function FocusPanel({
                 <button type="button" className="font-mono underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-ring" onClick={() => onSelectEventPosition(lifecycleStage.eventPosition)}>
                   #{lifecycleStage.eventPosition}
                 </button>
-                <span className="font-mono text-muted-foreground tabular-nums">{formatSimulationTimeNs(lifecycleStage.simulationTimeNs, 6)}</span>
+                <span className="font-mono text-muted-foreground tabular-nums">{formatSimulationTimeNs(lifecycleStage.simulationTimeNs, 9)}</span>
                 <span className="font-medium">{humanizeEnumValue(lifecycleStage.stageKind)}</span>
                 <VisibilityBadge visibility={lifecycleStage.visibility} />
+                <span className="font-mono">Exchange order {lifecycleStage.orderId ?? "unavailable"}{lifecycleStage.replacedOldOrderId != null ? `, replaces ${lifecycleStage.replacedOldOrderId}` : ""}</span>
                 {lifecycleStage.quantity !== null ? <span>quantity {lifecycleStage.quantity}</span> : null}
                 {lifecycleStage.leavesQuantity !== null ? <span>remaining {lifecycleStage.leavesQuantity}</span> : null}
                 <span className="text-muted-foreground">{lifecycleStage.detail}</span>
@@ -249,52 +252,14 @@ function FocusPanel({
             ))}
           </ol>
           <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs md:grid-cols-4">
-            <span>Order entry {formatDurationNs(lifecycle.latency.orderEntryNs)}</span>
-            <span>Acknowledgment {formatDurationNs(lifecycle.latency.acknowledgmentNs)}</span>
-            <span>Cancel {formatDurationNs(lifecycle.latency.cancelNs)}</span>
-            <span>Submit to first fill {formatDurationNs(lifecycle.latency.submitToFirstFillNs)}</span>
+            <span>Order entry {lifecycle.latency.orderEntryNs ?? "Unavailable"} ns</span>
+            <span>Acknowledgment {lifecycle.latency.acknowledgmentNs ?? "Unavailable"} ns</span>
+            <span>Cancel {lifecycle.latency.cancelNs ?? "Unavailable"} ns</span>
+            <span>Submit to first fill {lifecycle.latency.submitToFirstFillNs ?? "Unavailable"} ns</span>
           </div>
         </CardContent>
       </Card>
-      <Card size="sm">
-        <CardHeader>
-          <CardTitle>FIFO queue ahead</CardTitle>
-          <CardDescription>Shares resting at the same price with earlier time priority. Exact simulated truth unless marked estimated.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table className="text-xs">
-            <TableHeader>
-              <TableRow>
-                <TableHead>Event</TableHead>
-                <TableHead>Reason</TableHead>
-                <TableHead className="text-right">Shares ahead</TableHead>
-                <TableHead className="text-right">Orders ahead</TableHead>
-                <TableHead className="text-right">Level total</TableHead>
-                <TableHead>Source</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {lifecycle.fifoAheadEvidence.map((evidence) => (
-                <TableRow key={`${evidence.eventPosition}-${evidence.reason}`} tabIndex={0} className="cursor-pointer" onClick={() => onSelectEventPosition(evidence.eventPosition)} onKeyDown={(keyboardEvent) => keyboardEvent.key === "Enter" && onSelectEventPosition(evidence.eventPosition)}>
-                  <TableCell className="font-mono">#{evidence.eventPosition}</TableCell>
-                  <TableCell>{humanizeEnumValue(evidence.reason)}</TableCell>
-                  <TableCell className="text-right font-mono tabular-nums">{evidence.sharesAhead}</TableCell>
-                  <TableCell className="text-right font-mono tabular-nums">{evidence.ordersAhead}</TableCell>
-                  <TableCell className="text-right font-mono tabular-nums">{evidence.levelTotalShares}</TableCell>
-                  <TableCell>{evidence.source === "exact_simulated_truth" ? "exact" : "estimated"}</TableCell>
-                </TableRow>
-              ))}
-              {lifecycle.fifoAheadEvidence.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-muted-foreground">
-                    The order never rested, so it had no queue position.
-                  </TableCell>
-                </TableRow>
-              ) : null}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <LifecycleRepairEvidence lifecycle={lifecycle} onSelectEventPosition={onSelectEventPosition} />
       {focusedFill ? (
         <Card size="sm">
           <CardHeader>
@@ -358,7 +323,7 @@ function FocusPanel({
               <TableBody>
                 {focusedFill.markouts.map((markout) => (
                   <TableRow key={markout.horizonNs}>
-                    <TableCell>{formatDurationNs(markout.horizonNs)}</TableCell>
+                    <TableCell>{formatDurationNs(markout.horizonNs)} ({markout.horizonNs} ns)</TableCell>
                     <TableCell>
                       <Badge variant={markout.status === "available" ? "secondary" : "outline"}>{humanizeEnumValue(markout.status)}</Badge>
                     </TableCell>
@@ -382,8 +347,10 @@ export function RunInspectView() {
 }
 
 function RunInspection({ runId }: { runId: string }) {
+  const searchParams = useSearchParams();
   const comparisonQuery = useComparisonContext();
   const explanationRef = useRef<HTMLDivElement>(null);
+  const artifactListRef = useRef<HTMLDivElement>(null);
   const selectionOriginRef = useRef<HTMLTableRowElement | null>(null);
   const readExplanation = () => {
     explanationRef.current?.focus();
@@ -392,7 +359,8 @@ function RunInspection({ runId }: { runId: string }) {
   const apiClient = getBrowserApiClient();
   const [focusedEventPosition, setFocusedEventPosition] = useState("0");
   const [jumpTargetText, setJumpTargetText] = useState("");
-  const [focusedOrderId, setFocusedOrderId] = useState<string | null>(null);
+  const [focusedOrderId, setFocusedOrderId] = useState<string | null>(() => initialOrderId(searchParams.get("order")));
+  const [selectionHasOrigin, setSelectionHasOrigin] = useState(false);
   const [selectedFill, setSelectedFill] = useState<ApiSchemas["Fill"] | null>(null);
   const fillsCursor = useCursorHistory();
   const ordersCursor = useCursorHistory();
@@ -445,11 +413,13 @@ function RunInspection({ runId }: { runId: string }) {
   const selectEventPosition = (eventPosition: string) => setFocusedEventPosition(offsetUnsignedIntegerText(eventPosition, 0n, "0", maximumEventPosition));
   const stepEventPosition = (stepOffset: bigint) => setFocusedEventPosition(offsetUnsignedIntegerText(focusedEventPosition, stepOffset, "0", maximumEventPosition));
   const focusFill = (fill: ApiSchemas["Fill"]) => {
+    setSelectionHasOrigin(true);
     setSelectedFill(fill);
     setFocusedOrderId(fill.orderId);
     selectEventPosition(fill.eventPosition);
   };
   const focusOrder = (order: ApiSchemas["OwnOrderSummary"]) => {
+    setSelectionHasOrigin(true);
     setSelectedFill(null);
     setFocusedOrderId(order.orderId);
     selectEventPosition(order.submitEventPosition);
@@ -545,14 +515,14 @@ function RunInspection({ runId }: { runId: string }) {
           </div>
         </div>
         <div ref={explanationRef} tabIndex={-1} role="region" aria-label="Selected order explanation" className="flex min-w-0 scroll-mt-24 flex-col gap-3 rounded-md focus-visible:outline-2 focus-visible:outline-ring">
-          {focusedOrderId ? <Button size="sm" variant="outline" className="self-start" onClick={() => { selectionOriginRef.current?.focus(); selectionOriginRef.current?.scrollIntoView({ block: "center" }); }}>Return to selected row</Button> : null}
+          {focusedOrderId ? <Button size="sm" variant="outline" className="self-start" onClick={() => { const target = selectionOriginRef.current?.isConnected ? selectionOriginRef.current : artifactListRef.current; target?.focus(); target?.scrollIntoView({ block: "center" }); }}>{selectionHasOrigin ? "Return to selected row" : "Return to fills and own orders"}</Button> : null}
           {selectedFillResource.failure ? <ApiFailureAlert failure={selectedFillResource.failure} title="Could not refresh the selected fill" onRetry={selectedFillResource.reload} /> : null}
           <FocusPanel focusedFill={focusedFill} lifecycle={lifecycleResource.data} lifecycleFailure={lifecycleResource.failure} onRetryLifecycle={lifecycleResource.reload} onSelectEventPosition={selectEventPosition} />
         </div>
       </div>
 
-      <p role="status" aria-live="polite" className="text-sm text-muted-foreground">{selectedFill ? `Selected fill ${selectedFill.matchId}, order ${selectedFill.orderId}, event ${selectedFill.eventPosition}. Read explanation is available on the selected row.` : focusedOrderId ? `Selected order ${focusedOrderId}. Read explanation is available on the selected row.` : "Select a fill or an own order to explain it."}</p>
-      <Tabs defaultValue="fills">
+      <p role="status" aria-live="polite" className="text-sm text-muted-foreground">{selectedFill ? `Selected fill ${selectedFill.matchId}, order ${selectedFill.orderId}, event ${selectedFill.eventPosition}. Read explanation is available on the selected row.` : focusedOrderId ? `Selected order ${focusedOrderId}. Its lifecycle explanation is above.` : "Select a fill or an own order to explain it."}</p>
+      <Tabs ref={artifactListRef} tabIndex={-1} aria-label="Fills and own orders" defaultValue="fills">
         <TabsList>
           <TabsTrigger value="fills">Fills</TabsTrigger>
           <TabsTrigger value="orders">Own orders</TabsTrigger>
@@ -590,7 +560,7 @@ function RunInspection({ runId }: { runId: string }) {
                   >
                     <TableCell className="font-mono">{fill.matchId}{fill.eventPosition === selectedFill?.eventPosition && fill.orderId === selectedFill?.orderId ? <Button size="xs" variant="outline" className="ml-2" onClick={(event) => { event.stopPropagation(); readExplanation(); }}>Read explanation</Button> : null}</TableCell>
                     <TableCell className="text-right font-mono tabular-nums">{fill.eventPosition}</TableCell>
-                    <TableCell className="text-right font-mono tabular-nums">{formatSimulationTimeNs(fill.simulationTimeNs, 6)}</TableCell>
+                    <TableCell className="text-right font-mono tabular-nums">{formatSimulationTimeNs(fill.simulationTimeNs, 9)}</TableCell>
                     <TableCell className="font-mono">{fill.orderId}</TableCell>
                     <TableCell>{fill.side}</TableCell>
                     <TableCell className="text-right font-mono tabular-nums">{fill.price}</TableCell>
@@ -636,7 +606,7 @@ function RunInspection({ runId }: { runId: string }) {
                     <TableCell className="font-mono">{order.orderId}{order.orderId === focusedOrderId && selectedFill === null ? <Button size="xs" variant="outline" className="ml-2" onClick={(event) => { event.stopPropagation(); readExplanation(); }}>Read explanation</Button> : null}</TableCell>
                     <TableCell className="font-mono">{order.clientOrderId}</TableCell>
                     <TableCell className="text-right font-mono tabular-nums">
-                      #{order.submitEventPosition} {formatSimulationTimeNs(order.submitSimulationTimeNs, 6)}
+                      #{order.submitEventPosition} {formatSimulationTimeNs(order.submitSimulationTimeNs, 9)}
                     </TableCell>
                     <TableCell>{order.side}</TableCell>
                     <TableCell className="text-right font-mono tabular-nums">{order.price}</TableCell>
