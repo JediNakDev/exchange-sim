@@ -334,6 +334,8 @@ std::string ResearchRun::render_manifest_json() const {
 std::string ResearchRun::render_summary_json() const {
     std::lock_guard lock(mutex_);
     if (is_terminal(state_) && !final_summary_json_.empty()) return final_summary_json_;
+    if (is_terminal(state_) && !driver_ && !artifacts_loaded_)
+        throw ApiFailure(409, "artifact_not_ready", "the failed run has no persisted summary; in-memory accounting was lost at restart");
     return render_summary_locked();
 }
 

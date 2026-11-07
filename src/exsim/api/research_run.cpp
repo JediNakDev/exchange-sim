@@ -131,11 +131,16 @@ ApiFailure invalid_transition(ApiRunState state, const std::string& action) {
 
 // ---- Binary artifact files ------------------------------------------------------
 
+// Maximum payload of each API inspection cache, on both write and lazy read.
+constexpr std::uint64_t kMaxArtifactPayloadBytes = 256ull * 1024 * 1024;
+
 constexpr std::uint64_t kArtifactFileMagic = 0x6578'7369'6d61'7069ull;  // "exsimapi"
 
 template <typename Record>
 void write_records(const std::filesystem::path& path, const std::vector<Record>& records) {
     static_assert(std::is_trivially_copyable_v<Record>);
+    if (records.size() > kMaxArtifactPayloadBytes / sizeof(Record))
+        throw research::ArtifactError("inspection cache exceeds its 256 MiB payload limit: " + path.string());
     const std::filesystem::path temporary = path.string() + ".tmp";
     {
         std::ofstream out(temporary, std::ios::binary | std::ios::trunc);
@@ -153,14 +158,25 @@ void write_records(const std::filesystem::path& path, const std::vector<Record>&
 
 template <typename Record>
 std::vector<Record> read_records(const std::filesystem::path& path) {
-    std::ifstream in(path, std::ios::binary);
-    std::uint64_t header[3] = {};
-    in.read(reinterpret_cast<char*>(header), sizeof(header));
-    if (!in || header[0] != kArtifactFileMagic || header[1] != sizeof(Record) || header[2] > (std::uint64_t{1} << 40) / sizeof(Record))
+    if (!std::filesystem::is_regular_file(path))
         throw research::ArtifactError("unreadable artifact file " + path.string());
+    std::ifstream in(path, std::ios::binary | std::ios::ate);
+    const auto file_end = in.tellg();
+    std::uint64_t header[3] = {};
+    if (!in || file_end < static_cast<std::streamoff>(sizeof(header)))
+        throw research::ArtifactError("unreadable artifact file " + path.string());
+    in.seekg(0);
+    in.read(reinterpret_cast<char*>(header), sizeof(header));
+    if (!in || header[0] != kArtifactFileMagic || header[1] != sizeof(Record))
+        throw research::ArtifactError("unreadable artifact file " + path.string());
+    // Check the opened file's length before trusting its count or allocating.
+    const auto payload_bytes = static_cast<std::uint64_t>(file_end) - sizeof(header);
+    if (payload_bytes % sizeof(Record) != 0 || header[2] != payload_bytes / sizeof(Record))
+        throw research::ArtifactError("artifact file length does not match its record count: " + path.string());
+    if (payload_bytes > kMaxArtifactPayloadBytes)
+        throw research::ArtifactError("inspection cache exceeds its 256 MiB payload limit: " + path.string());
     std::vector<Record> records(static_cast<std::size_t>(header[2]));
-    if (!records.empty())
-        in.read(reinterpret_cast<char*>(records.data()), static_cast<std::streamsize>(records.size() * sizeof(Record)));
+    if (!records.empty()) in.read(reinterpret_cast<char*>(records.data()), static_cast<std::streamsize>(payload_bytes));
     if (!in) throw research::ArtifactError("truncated artifact file " + path.string());
     return records;
 }
@@ -488,6 +504,11 @@ std::unique_ptr<ResearchRun> ResearchRun::load(const std::filesystem::path& run_
             run->artifacts_loaded_ = false;
         } else if (run->state_ != ApiRunState::Failed) {
             throw research::ArtifactError("terminal run is missing its inspection artifacts");
+        } else {
+            const auto summary_path = run_directory / "summary.json";
+            if (std::filesystem::is_regular_file(summary_path)) run->final_summary_json_ = research::read_text_file(summary_path);
+            // Preserve recorded progress, but missing inspection data is not an empty log.
+            run->artifacts_loaded_ = false;
         }
         // A failed startup/shutdown or artifact write may have no cache. Retain
         // its original diagnostics/history instead of rewriting it on every load.
@@ -550,13 +571,16 @@ bool ResearchRun::activate() {
     if (state_ != ApiRunState::Queued) return false;
     try {
         ensure_driver_locked();
+        transition_locked(ApiRunState::Running, "started");
+        if (parameters_.start_paused) transition_locked(ApiRunState::Paused, "startPaused: paused before the first event");
+        return true;
     } catch (const std::exception& error) {
-        fail_locked("failed_internal_error", std::string("the simulation could not start: ") + error.what());
+        fail_execution_locked(error.what());
+        return false;
+    } catch (...) {
+        fail_execution_locked("unknown simulation startup failure");
         return false;
     }
-    transition_locked(ApiRunState::Running, "started");
-    if (parameters_.start_paused) transition_locked(ApiRunState::Paused, "startPaused: paused before the first event");
-    return true;
 }
 
 research::RunStop ResearchRun::step_driver_locked() {
@@ -618,6 +642,40 @@ void ResearchRun::fail_locked(const std::string& outcome_code, const std::string
         final_simulation_time_ns_ = driver_->core().now();
     }
     transition_locked(ApiRunState::Failed, message);
+}
+
+// Preserve available evidence without invoking a writer that already failed.
+// Cleanup and terminal state must survive even an unwritable failure record.
+void ResearchRun::fail_execution_locked(std::string_view error) noexcept {
+    const ApiRunState previous = state_;
+    state_ = ApiRunState::Failed;
+    try {
+        std::uint64_t open_orders = 0;
+        for (const OwnOrderRecord& order : artifacts_.orders)
+            if (order.accepted_position != kNoEventPosition && !order.done) ++open_orders;
+        const auto position = driver_ ? driver_->core().ledger().state().position : 0;
+        final_simulation_time_ns_ = driver_ ? driver_->core().now() : final_simulation_time_ns_;
+        diagnostics_ = TerminalDiagnosticsRecord{"failed_internal_error", "run execution failed: " + std::string(error), position, open_orders};
+        if (driver_) {
+            canonical_event_digest_hex_ = research::format_hex64(driver_->core().digests().event_digest);
+            ledger_digest_hex_ = research::format_hex64(driver_->core().digests().ledger_digest);
+        }
+        history_.push_back({previous, state_, current_unix_milliseconds(), processed_event_count_locked(), final_simulation_time_ns_, diagnostics_->message});
+        final_summary_json_ = render_summary_locked();
+    } catch (...) {
+        // Allocation/formatting failure cannot retain a live simulation either.
+    }
+    if (!final_summary_json_.empty()) {
+        try {
+            persist_artifacts_locked();
+        } catch (...) {
+            // A small summary can survive even when large cache writes fail.
+            try { research::write_file_atomically(parameters_.run_directory / "summary.json", final_summary_json_); } catch (...) {}
+        }
+    }
+    try { persist_record_locked(); } catch (...) {}
+    driver_.reset();
+    builder_.reset();
 }
 
 void ResearchRun::finish_locked(research::RunStop stop, const std::string& requester_reason) {
@@ -698,10 +756,12 @@ void ResearchRun::finish_locked(research::RunStop stop, const std::string& reque
         persist_record_locked();
     } catch (const std::exception& error) {
         const std::string persistence_error = "run artifacts could not be persisted: " + std::string(error.what());
+        const std::string failure_message = terminal_state == ApiRunState::Failed
+                                                ? diagnostics_->message + "; " + persistence_error : persistence_error;
         diagnostics_->outcome_code = "failed_internal_error";
-        diagnostics_->message = persistence_error;
+        diagnostics_->message = failure_message;
         history_.push_back({state_, ApiRunState::Failed, current_unix_milliseconds(), processed_event_count_locked(),
-                            simulation_time_locked(), persistence_error});
+                            simulation_time_locked(), failure_message});
         state_ = ApiRunState::Failed;
         // Keep accurate accounting available in memory even if its cache failed.
         final_summary_json_ = render_summary_locked();
@@ -712,7 +772,7 @@ void ResearchRun::finish_locked(research::RunStop stop, const std::string& reque
         }
         driver_.reset();
         builder_.reset();
-        throw research::ArtifactError(persistence_error);
+        throw research::ArtifactError(failure_message);
     }
     driver_.reset();
     builder_.reset();
@@ -722,45 +782,86 @@ bool ResearchRun::advance_running_slice(std::uint64_t max_steps) {
     std::lock_guard lock(mutex_);
     if (state_ != ApiRunState::Running || !driver_) return false;
     const auto started = std::chrono::steady_clock::now();
-    for (std::uint64_t steps = 0; steps < max_steps; ++steps) {
-        const RunStop stop = step_driver_locked();
-        if (stop == RunStop::Completed || stop == RunStop::Failed || stop == RunStop::Cancelled) {
+    bool time_accounted = false;
+    const auto account_time = [&] {
+        if (!time_accounted) {
             running_wall_seconds_ += std::chrono::duration<double>(std::chrono::steady_clock::now() - started).count();
-            finish_locked(stop);
-            return false;
+            time_accounted = true;
         }
+    };
+    try {
+        for (std::uint64_t steps = 0; steps < max_steps; ++steps) {
+            const RunStop stop = step_driver_locked();
+            if (stop == RunStop::Completed || stop == RunStop::Failed || stop == RunStop::Cancelled) {
+                account_time();
+                finish_locked(stop);
+                return false;
+            }
+        }
+        account_time();
+        check_limits_locked();
+        return state_ == ApiRunState::Running;
+    } catch (const std::exception& error) {
+        account_time();
+        if (driver_) fail_execution_locked(error.what());
+        throw;
+    } catch (...) {
+        account_time();
+        if (driver_) fail_execution_locked("unknown simulation execution failure");
+        throw;
     }
-    running_wall_seconds_ += std::chrono::duration<double>(std::chrono::steady_clock::now() - started).count();
-    check_limits_locked();
-    return state_ == ApiRunState::Running;
 }
 
 void ResearchRun::pause(const std::string& reason) {
     std::lock_guard lock(mutex_);
     if (state_ != ApiRunState::Running) throw invalid_transition(state_, "pause");
-    transition_locked(ApiRunState::Paused, reason.empty() ? "paused by request" : reason);
+    try {
+        transition_locked(ApiRunState::Paused, reason.empty() ? "paused by request" : reason);
+    } catch (const std::exception& error) {
+        if (driver_) fail_execution_locked(error.what());
+        throw;
+    } catch (...) {
+        if (driver_) fail_execution_locked("unknown simulation control failure");
+        throw;
+    }
 }
 
 void ResearchRun::resume(const std::string& reason) {
     std::lock_guard lock(mutex_);
     if (state_ != ApiRunState::Paused) throw invalid_transition(state_, "resume");
-    transition_locked(ApiRunState::Running, reason.empty() ? "resumed by request" : reason);
+    try {
+        transition_locked(ApiRunState::Running, reason.empty() ? "resumed by request" : reason);
+    } catch (const std::exception& error) {
+        if (driver_) fail_execution_locked(error.what());
+        throw;
+    } catch (...) {
+        if (driver_) fail_execution_locked("unknown simulation control failure");
+        throw;
+    }
 }
 
 void ResearchRun::step(std::uint64_t canonical_event_count, const std::string& reason) {
     std::lock_guard lock(mutex_);
     if (state_ != ApiRunState::Paused || !driver_) throw invalid_transition(state_, "step");
-    const std::uint64_t target = artifacts_.events.size() + canonical_event_count;
-    while (artifacts_.events.size() < target) {
-        const RunStop stop = step_driver_locked();
-        if (stop == RunStop::Completed || stop == RunStop::Failed || stop == RunStop::Cancelled) {
-            finish_locked(stop);
-            return;
+    try {
+        const std::uint64_t target = artifacts_.events.size() + canonical_event_count;
+        while (artifacts_.events.size() < target) {
+            const RunStop stop = step_driver_locked();
+            if (stop == RunStop::Completed || stop == RunStop::Failed || stop == RunStop::Cancelled) {
+                finish_locked(stop);
+                return;
+            }
         }
+        history_.push_back({ApiRunState::Paused, ApiRunState::Paused, current_unix_milliseconds(), processed_event_count_locked(),
+                            simulation_time_locked(), reason.empty() ? "stepped " + std::to_string(canonical_event_count) + " canonical events" : reason});
+        persist_record_locked();
+    } catch (const std::exception& error) {
+        if (driver_) fail_execution_locked(error.what());
+        throw;
+    } catch (...) {
+        if (driver_) fail_execution_locked("unknown simulation control failure");
+        throw;
     }
-    history_.push_back({ApiRunState::Paused, ApiRunState::Paused, current_unix_milliseconds(), processed_event_count_locked(),
-                        simulation_time_locked(), reason.empty() ? "stepped " + std::to_string(canonical_event_count) + " canonical events" : reason});
-    persist_record_locked();
 }
 
 void ResearchRun::cancel(const std::string& reason) {
@@ -768,17 +869,20 @@ void ResearchRun::cancel(const std::string& reason) {
     if (is_terminal(state_)) throw invalid_transition(state_, "cancel");
     try {
         ensure_driver_locked();
-    } catch (const std::exception& error) {
-        fail_locked("failed_internal_error", std::string("the simulation could not start: ") + error.what());
-        return;
-    }
-    driver_->core().request_stop();
-    while (true) {
-        const RunStop stop = step_driver_locked();
-        if (stop == RunStop::Completed || stop == RunStop::Failed || stop == RunStop::Cancelled) {
-            finish_locked(stop, stop == RunStop::Cancelled ? reason : std::string());
-            break;
+        driver_->core().request_stop();
+        while (true) {
+            const RunStop stop = step_driver_locked();
+            if (stop == RunStop::Completed || stop == RunStop::Failed || stop == RunStop::Cancelled) {
+                finish_locked(stop, stop == RunStop::Cancelled ? reason : std::string());
+                break;
+            }
         }
+    } catch (const std::exception& error) {
+        if (driver_ || !is_terminal(state_)) fail_execution_locked(error.what());
+        throw;
+    } catch (...) {
+        if (driver_ || !is_terminal(state_)) fail_execution_locked("unknown simulation control failure");
+        throw;
     }
 }
 

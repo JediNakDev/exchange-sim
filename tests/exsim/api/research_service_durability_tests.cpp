@@ -10,6 +10,8 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include <csignal>
+#include <cstdio>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 
@@ -414,4 +416,229 @@ TEST_CASE(api_durability, executor_terminal_write_failure_does_not_claim_complet
     CHECK_EQ(run.find("terminalDiagnostics")->find("outcomeCode")->text, std::string("failed_internal_error"));
     CHECK(run.find("terminalDiagnostics")->find("message")->text.find("could not be persisted") != std::string::npos);
     std::filesystem::remove(temporary);
+}
+
+namespace {
+void expect_probe(bool condition, const char* message) {
+    if (!condition) throw std::runtime_error(message);
+}
+
+template <typename Probe>
+void with_file_limit(std::uint64_t bytes, Probe probe) {
+    const pid_t child = ::fork();
+    REQUIRE(child >= 0);
+    if (child == 0) {
+        ::signal(SIGXFSZ, SIG_IGN);
+        struct rlimit limit {};
+        if (::getrlimit(RLIMIT_FSIZE, &limit) != 0) ::_exit(3);
+        limit.rlim_cur = static_cast<rlim_t>(bytes);
+        if (::setrlimit(RLIMIT_FSIZE, &limit) != 0) ::_exit(4);
+        try { probe(); }
+        catch (const std::exception& error) { std::fprintf(stderr, "I/O probe: %s\n", error.what()); ::_exit(5); }
+        catch (...) { ::_exit(6); }
+        ::_exit(0);
+    }
+    int status = 0;
+    REQUIRE_EQ(::waitpid(child, &status, 0), child);
+    REQUIRE(WIFEXITED(status));
+    CHECK_EQ(WEXITSTATUS(status), 0);
+}
+
+std::string long_experiment(ResearchService& service) {
+    std::string body = experiment_body();
+    const std::string duration = R"("endSimulationTimeNs":"60000000000")";
+    const auto at = body.find(duration);
+    expect_probe(at != std::string::npos, "baseline duration not found");
+    body.replace(at, duration.size(), R"("endSimulationTimeNs":"600000000000")");
+    const auto response = send(service, "POST", "/v1/experiments", body, "io-long-experiment");
+    expect_probe(response.status == 201, "create long experiment");
+    return parse_json(response.body).find("experimentId")->text;
+}
+
+std::string paused_run(ResearchService& service, const std::string& experiment, const std::string& seed) {
+    const auto response = send(service, "POST", "/v1/runs", R"({"experimentId":")" + experiment +
+                               R"(","masterSeed":")" + seed + R"(","startPaused":true})", "io-run-seed-" + seed);
+    expect_probe(response.status == 201, "create paused run");
+    return "/v1/runs/" + parse_json(response.body).find("runId")->text;
+}
+
+std::string completed_small_run(const Directory& directory) {
+    ResearchService service(options(directory));
+    std::string body = experiment_body();
+    const std::string duration = R"("endSimulationTimeNs":"60000000000")";
+    body.replace(body.find(duration), duration.size(), R"("endSimulationTimeNs":"200000000")");
+    const auto experiment = parse_json(send(service, "POST", "/v1/experiments", body).body);
+    const auto run = send(service, "POST", "/v1/runs", R"({"experimentId":")" + experiment.find("experimentId")->text +
+                          R"(","masterSeed":"1"})", "cache-run-key");
+    expect_probe(run.status == 201, "create cache fixture");
+    const std::string path = "/v1/runs/" + parse_json(run.body).find("runId")->text;
+    for (int pass = 0; pass < 1000 && service.run_executor_pass(); ++pass) {}
+    expect_probe(parse_json(send(service, "GET", path).body).find("state")->text == "completed", "complete cache fixture");
+    return path;
+}
+}  // namespace
+
+TEST_CASE(api_io_failure, intermediate_journal_failure_is_terminal_and_releases_capacity) {
+    Directory directory;
+    with_file_limit(65536, [&] {
+        auto config = options(directory);
+        config.max_live_simulations = 1;
+        ResearchService service(config);
+        const auto experiment = long_experiment(service);
+        const auto broken = paused_run(service, experiment, "1");
+        service.run_executor_pass();
+        const auto healthy = paused_run(service, experiment, "2");
+        expect_probe(send(service, "POST", broken + "/step", R"({"canonicalEventCount":100000})", "io-step-first").status == 200, "initial step");
+        expect_probe(send(service, "POST", broken + "/step", R"({"canonicalEventCount":100000})", "io-step-failure").status == 503, "forced journal failure");
+        const auto failed = send(service, "GET", broken);
+        const auto run = parse_json(failed.body);
+        expect_probe(run.find("state")->text == "failed", "broken writer must fail its run");
+        expect_probe(run.find("allowedActions")->items.empty(), "failed writer must expose no controls");
+        expect_probe(run.find("terminalDiagnostics")->find("message")->text.find("command journal write failed") != std::string::npos, "preserve native cause");
+        const auto summary = send(service, "GET", broken + "/summary");
+        expect_probe(summary.status == 200, "retain in-memory summary");
+        expect_probe(parse_json(summary.body).find("accounting")->find("positionShares")->text ==
+                     run.find("terminalDiagnostics")->find("residualPositionShares")->text, "retain actual position");
+        expect_probe(send(service, "POST", broken + "/step", R"({"canonicalEventCount":100000})", "io-step-failure").status == 503, "uncertain key stays reserved");
+        expect_probe(send(service, "POST", broken + "/step", R"({"canonicalEventCount":1})", "io-new-step-key").status == 409, "do not re-enter broken writer");
+        service.run_executor_pass();
+        expect_probe(parse_json(send(service, "GET", healthy).body).find("state")->text == "paused", "release slot for queued run");
+        write(directory.path / "expected-run.json", failed.body);
+        write(directory.path / "expected-summary.json", summary.body);
+    });
+    const auto saved_run = exsim::research::read_text_file(directory.path / "expected-run.json");
+    const auto path = "/v1/runs/" + parse_json(saved_run).find("runId")->text;
+    ResearchService restarted(options(directory));
+    CHECK_EQ(send(restarted, "GET", path).body, saved_run);
+    CHECK_EQ(send(restarted, "GET", path + "/summary").body, exsim::research::read_text_file(directory.path / "expected-summary.json"));
+    CHECK_EQ(send(restarted, "POST", path + "/step", R"({"canonicalEventCount":100000})", "io-step-failure").status, 503);
+    CHECK_EQ(send(restarted, "GET", path + "/events").status, 500); // missing evidence is not an empty successful log
+}
+
+TEST_CASE(api_io_failure, healthy_run_advances_in_the_pass_that_reports_an_older_failure) {
+    Directory directory;
+    with_file_limit(65536, [&] {
+        ResearchService service(options(directory));
+        const auto experiment = long_experiment(service);
+        const auto broken = paused_run(service, experiment, "1");
+        const auto healthy = paused_run(service, experiment, "2");
+        service.run_executor_pass();
+        expect_probe(send(service, "POST", broken + "/step", R"({"canonicalEventCount":100000})", "io-prime-step").status == 200, "prime old recorder");
+        expect_probe(send(service, "POST", broken + "/resume", "{}", "io-resume-broken").status == 200, "resume old run");
+        expect_probe(send(service, "POST", healthy + "/resume", "{}", "io-resume-healthy").status == 200, "resume healthy run");
+        bool reported = false;
+        for (int pass = 0; pass < 100 && !reported; ++pass) {
+            const auto before = parse_json(send(service, "GET", healthy).body).find("progress")->find("processedCanonicalEventCount")->text;
+            try { service.run_executor_pass(); }
+            catch (const exsim::research::ArtifactError&) {
+                reported = true;
+                const auto after = parse_json(send(service, "GET", healthy).body).find("progress")->find("processedCanonicalEventCount")->text;
+                expect_probe(std::stoull(after) > std::stoull(before), "first failure must not starve the later run's slice");
+            }
+        }
+        expect_probe(reported, "reach intermediate failure");
+        expect_probe(parse_json(send(service, "GET", broken).body).find("state")->text == "failed", "contain older failure");
+        const auto before = parse_json(send(service, "GET", healthy).body).find("progress")->find("processedCanonicalEventCount")->text;
+        service.run_executor_pass();
+        const auto after = parse_json(send(service, "GET", healthy).body).find("progress")->find("processedCanonicalEventCount")->text;
+        expect_probe(std::stoull(after) > std::stoull(before), "healthy run continues on later passes");
+    });
+}
+
+TEST_CASE(api_io_failure, cleared_recorder_stream_failure_cannot_be_resumed_or_stepped) {
+    Directory directory;
+    with_file_limit(16 * 1024 * 1024, [&] {
+        ResearchService service(options(directory));
+        const auto path = paused_run(service, long_experiment(service), "1");
+        service.run_executor_pass();
+        expect_probe(send(service, "POST", path + "/step", R"({"canonicalEventCount":100000})", "io-clear-first").status == 200, "prime recorder");
+        expect_probe(send(service, "POST", path + "/step", R"({"canonicalEventCount":100000})", "io-clear-failure").status == 503, "force JSON stream failure");
+        const auto run = parse_json(send(service, "GET", path).body);
+        expect_probe(run.find("state")->text == "failed", "failure after recorder.clear must be terminal");
+        expect_probe(run.find("terminalDiagnostics")->find("message")->text.find("write failed in ") != std::string::npos, "exercise post-clear stream check");
+        expect_probe(send(service, "POST", path + "/step", R"({"canonicalEventCount":1})", "io-clear-again").status == 409, "never subspan a cleared recorder again");
+        expect_probe(send(service, "POST", path + "/resume", "{}", "io-clear-resume").status == 409, "never resume failed writer");
+    });
+}
+
+TEST_CASE(api_io_failure, cancellation_retains_first_writer_error_when_cache_persistence_also_fails) {
+    Directory directory;
+    with_file_limit(65536, [&] {
+        ResearchService service(options(directory));
+        const auto path = paused_run(service, long_experiment(service), "1");
+        service.run_executor_pass();
+        expect_probe(send(service, "POST", path + "/step", R"({"canonicalEventCount":100000})", "io-cancel-prime").status == 200, "prime cancel writer");
+        expect_probe(send(service, "POST", path + "/cancel", "{}", "io-failing-cancel").status == 503, "cancel must report persistence failure");
+        const auto run = parse_json(send(service, "GET", path).body);
+        expect_probe(run.find("state")->text == "failed", "failed cancellation must release the run");
+        expect_probe(run.find("allowedActions")->items.empty(), "failed cancellation cannot retry the writer");
+        const auto message = run.find("terminalDiagnostics")->find("message")->text;
+        expect_probe(message.find("command journal write failed") < message.find("could not be persisted"), "preserve first native cause before secondary cache failure");
+    });
+}
+
+TEST_CASE(api_io_failure, startup_failure_is_terminal_for_queued_cancel_and_executor_activation) {
+    Directory directory;
+    ResearchService service(options(directory));
+    const auto experiment = long_experiment(service);
+    const auto cancelled = paused_run(service, experiment, "1");
+    const auto activated = paused_run(service, experiment, "2");
+    for (const auto& path : {cancelled, activated}) {
+        const auto run_id = path.substr(path.rfind('/') + 1);
+        write(directory.path / "runs" / run_id / "runner", "blocked");
+    }
+    CHECK_EQ(send(service, "POST", cancelled + "/cancel", "{}", "io-startup-cancel").status, 503);
+    service.run_executor_pass();
+    for (const auto& path : {cancelled, activated}) {
+        const auto run = parse_json(send(service, "GET", path).body);
+        CHECK_EQ(run.find("state")->text, std::string("failed"));
+        CHECK(run.find("allowedActions")->items.empty());
+        CHECK(run.find("terminalDiagnostics")->find("message")->text.find("run execution failed") != std::string::npos);
+    }
+}
+
+TEST_CASE(api_cache_bounds, corrupt_counts_and_trailing_bytes_fail_before_record_allocation) {
+    Directory directory;
+    const auto path = completed_small_run(directory);
+    const auto file = directory.path / "runs" / path.substr(path.rfind('/') + 1) / "events.bin";
+    const auto original = exsim::research::read_text_file(file);
+    std::uint64_t header[3] = {};
+    std::memcpy(header, original.data(), sizeof(header));
+    for (const std::uint64_t count : {(std::uint64_t{1} << 40) / header[1], ~std::uint64_t{0}}) {
+        header[2] = count;
+        write(file, std::string_view(reinterpret_cast<const char*>(header), sizeof(header)));
+        ResearchService restarted(options(directory));
+        const auto response = send(restarted, "GET", path + "/events");
+        CHECK_EQ(response.status, 500);
+        CHECK(response.body.find("length does not match") != std::string::npos);
+    }
+    write(file, original + "x");
+    ResearchService restarted(options(directory));
+    const auto response = send(restarted, "GET", path + "/events");
+    CHECK_EQ(response.status, 500);
+    CHECK(response.body.find("length does not match") != std::string::npos);
+}
+
+TEST_CASE(api_cache_bounds, a_well_sized_sparse_cache_above_the_supported_payload_limit_is_rejected) {
+    Directory directory;
+    const auto path = completed_small_run(directory);
+    const auto file = directory.path / "runs" / path.substr(path.rfind('/') + 1) / "events.bin";
+    std::uint64_t header[3] = {};
+    {
+        std::ifstream stream(file, std::ios::binary);
+        stream.read(reinterpret_cast<char*>(header), sizeof(header));
+    }
+    header[2] = (256ull * 1024 * 1024) / header[1] + 1;
+    {
+        std::ofstream stream(file, std::ios::binary | std::ios::trunc);
+        stream.write(reinterpret_cast<const char*>(header), sizeof(header));
+        stream.seekp(static_cast<std::streamoff>(sizeof(header) + header[1] * header[2] - 1));
+        stream.put('\0');
+        stream.close();
+        REQUIRE(stream.good());
+    }
+    ResearchService restarted(options(directory));
+    const auto response = send(restarted, "GET", path + "/events");
+    CHECK_EQ(response.status, 500);
+    CHECK(response.body.find("256 MiB payload limit") != std::string::npos);
 }

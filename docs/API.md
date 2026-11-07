@@ -222,6 +222,21 @@ canonical-event and active-wall-time bounds in addition to runner bounds. Active
 are failed on service shutdown; completed artifacts remain queryable after restart.
 An abrupt process loss cannot reconstruct the in-memory partial inspection indexes.
 
+An unexpected simulation or recorder I/O error makes the affected run `failed`,
+removes its controls and releases its simulation. The executor still advances
+other healthy runs in that pass before reporting the first error. Available
+progress, residual positions and the first failure cause are retained; saving
+their caches and failure record is best effort when storage itself has failed.
+A failed run may retain a saved summary without inspection caches. After restart,
+missing event evidence is an error, and a missing saved summary returns
+`409 artifact_not_ready` rather than reconstructed zero accounting.
+
+Each local binary inspection cache has a **256 MiB payload limit**, enforced
+on write and lazy read. A reader checks the actual file length against the
+record count before allocating memory, and rejects trailing or truncated bytes.
+Exceeding this limit fails artifact persistence for the run. These caches are
+local indexes, not the native runner's portable export format.
+
 HTTP limits: 32 connections, 1000 requests per connection, 8 KiB request line,
 16 KiB/64 headers, 1 MiB body, 64 JSON nesting levels, and 10 second socket
 read/write timeouts. Excess idempotency keys (100,000 retained by default) reject

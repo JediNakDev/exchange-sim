@@ -225,6 +225,7 @@ private:
     // terminal diagnostics.
     void finish_locked(research::RunStop stop, const std::string& requester_reason = {});
     void fail_locked(const std::string& outcome_code, const std::string& message);
+    void fail_execution_locked(std::string_view error) noexcept;
     void check_limits_locked();
     void persist_record_locked() const;
     void persist_artifacts_locked() const;

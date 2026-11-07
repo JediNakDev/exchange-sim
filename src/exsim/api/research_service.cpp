@@ -13,6 +13,7 @@
 #include <system_error>
 #include <cmath>
 #include <fstream>
+#include <exception>
 #include <iostream>
 #include <random>
 #include <set>
@@ -271,13 +272,25 @@ bool ResearchService::run_executor_pass() {
     std::size_t live = 0;
     for (const auto& run : runs)
         if (run->holds_simulation()) ++live;
+    std::exception_ptr first_failure;
     for (const auto& run : runs) {
         if (live >= options_.max_live_simulations) break;
-        if (run->state() == ApiRunState::Queued && run->activate()) ++live;
+        try {
+            if (run->state() == ApiRunState::Queued && run->activate()) ++live;
+        } catch (...) {
+            if (!first_failure) first_failure = std::current_exception();
+        }
     }
     bool still_running = false;
-    for (const auto& run : runs)
-        if (run->state() == ApiRunState::Running && run->advance_running_slice(options_.executor_slice_steps)) still_running = true;
+    for (const auto& run : runs) {
+        try {
+            if (run->state() == ApiRunState::Running && run->advance_running_slice(options_.executor_slice_steps)) still_running = true;
+        } catch (...) {
+            if (!first_failure) first_failure = std::current_exception();
+        }
+    }
+    // Report the first error only after every healthy run receives its slice.
+    if (first_failure) std::rethrow_exception(first_failure);
     return still_running;
 }
 
@@ -288,6 +301,8 @@ void ResearchService::executor_loop() {
             busy = run_executor_pass();
         } catch (const std::exception& error) {
             std::cerr << "exsim_api: executor pass failed: " << error.what() << "\n";
+        } catch (...) {
+            std::cerr << "exsim_api: executor pass failed: unknown exception\n";
         }
         std::unique_lock lock(executor_mutex_);
         if (executor_stop_requested_) return;
