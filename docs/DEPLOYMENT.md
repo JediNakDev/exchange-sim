@@ -11,7 +11,7 @@ make -j4 build/release/exsim_api EXTRA_CXXFLAGS=-Werror
 (cd web && bun install --frozen-lockfile && bun run build)
 ```
 
-`next.config.ts` enables standalone output. Node.js runs the standalone Next.js server; Bun manages dependencies and builds. Keep run data outside releases. A release is source-checkout independent, not portable across arbitrary OS/architecture/Node versions. Native dependencies and the API must match the target. The host still needs its own Node runtime and service configuration.
+`next.config.ts` enables standalone output and disables ISR disk flushing so runtime route caches do not add files inside the verified release. Node.js runs the standalone Next.js server; Bun manages dependencies and builds. Keep run data outside releases. A release is source-checkout independent, not portable across arbitrary OS/architecture/Node versions. Native dependencies and the API must match the target. The host still needs its own Node runtime and service configuration.
 
 Use the stdlib-only Python 3.9+ tool from the repository root to copy **already validated** artifacts. Set `API_REVISION` and `WEB_REVISION` to their actual full 40-character source commit SHAs from the build evidence. They can differ. Setting them to the current checkout SHA does not establish the provenance of an older binary. Set `RELEASE` to a new name under an existing release parent directory.
 
@@ -74,10 +74,10 @@ After loopback readiness, repeat `ready --release "$RELEASE" --frontend-url "htt
 ## Installed macOS deployment
 
 The 2026-11-07 paired release runs copied artifacts under
-`$HOME/Library/Application Support/exsim/releases/production-20261107-8ee86f1/`,
+`$HOME/Library/Application Support/exsim/releases/production-20261107-a0b3c8d/`,
 independent of the external-drive checkout. The API is `api/exsim_api` from source
-`8ee86f1`; the frontend is `frontend/server.js` from source `75d9960`, Next build
-`slpULgNACN27FJgew-XPE`, running on Node v24.22.1. The previous 2026-11-06 pair
+`8ee86f1`; the frontend is `frontend/server.js` from source `a0b3c8d`, Next build
+`1S7lB4_DnycLm77V_UTS_`, running on Node v24.22.1. The previous 2026-11-06 pair
 is retained. Persistent data stays at
 `$HOME/Library/Application Support/exsim/research-data/`. Offline backup, restored
 data compatibility, local/private readiness and exact provenance are recorded in

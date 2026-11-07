@@ -9,8 +9,8 @@
 
 [![Parent-order execution evidence](execution-summary.png)](execution-walkthrough.mp4)
 
-The new clip shows real completed C++ runs from the paired 2026-11-07 production
-release. A sell parent of 500 shares uses a 100-share child cap and seed 17, with
+The new clip shows real completed C++ runs from the final paired 2026-11-07
+production release, including its cache-only frontend rebuild. A sell parent of 500 shares uses a 100-share child cap and seed 17, with
 a 0.1-second start and two-second execution window. TWAP fills 200 and retains 300
 unexecuted shares. The sweep variant uses the same assumptions and seed and
 fills 500. This is one synthetic demonstration, not a trading recommendation.
@@ -28,7 +28,7 @@ or fabricated chart values were used.
 The silent 1440x900, 27.4-second clip was captured in isolated Chromium through private
 Tailscale HTTPS. The shared preview opened, but two automation snapshots timed
 out, so capture used Playwright. Final capture responses and scene timings are
-at `/tmp/exsim-execution-tour-20261107/evidence.json`; the creation pass is at
+at `/tmp/exsim-execution-tour-20261107-cachefix/evidence.json`; the creation pass is at
 `/tmp/exsim-execution-demo-20261107-final/evidence.json`. The final capture observed
 35 successful API responses with no exceptions or failed responses. The H.264 MP4 was decoded
 end to end without errors. Source/build identity and restore/promotion evidence:

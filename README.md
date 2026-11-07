@@ -119,6 +119,11 @@ replace that historical engine/protocol evidence. Exact current evidence:
 The paired release was promoted after a verified offline backup and restored-data
 preflight preserved existing runs, inspection responses and native comparisons.
 [Release identity, checks and operational limits](docs/quality/RELEASE_2026-11-07.md).
+A post-use check also caught runtime route-cache additions. The final frontend
+keeps those writes out of the release, and a new browser invariant checks the
+whole standalone tree before/after use. The corrected build passes two real
+C++ browser flows, five async/navigation probes and full post-tour readiness.
+[Cache correction and receipts](docs/quality/RELEASE_CACHE_REPAIR_2026-11-07.md).
 
 Five new regressions fail the reviewed pre-fix code and pass the repairs. Exact revisions, logs and limits: [integration fixes](docs/reviews/INTEGRATION_FIXES_2026-11-06.md), [working checkpoint](docs/WORK_PLAN.md), [fuzzing](docs/FUZZING.md).
 
