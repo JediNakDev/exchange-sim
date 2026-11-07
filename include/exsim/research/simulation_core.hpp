@@ -267,6 +267,7 @@ public:
     bool strategy_replace_order(ClOrdId cl_ord_id, Price price, Quantity new_total_qty) noexcept;
     void strategy_wake_at(Timestamp time) noexcept;
     void strategy_declare_parent_order(Side side, Quantity qty) noexcept;
+    void record_execution_decision(const ExecutionDecision& row) noexcept;
     [[nodiscard]] sim::Rng& strategy_rng() noexcept { return strategy_rng_; }
     [[nodiscard]] std::int64_t strategy_position_headroom(Side side, ClOrdId excluded_order) const noexcept;
 

@@ -113,7 +113,10 @@ struct RunCreateParameters {
     bool start_paused = false;
     std::int64_t created_at_unix_ms = 0;
     std::filesystem::path run_directory;  // <data>/runs/<runId>
+    std::uint64_t creation_ordinal = 0; // zero for legacy records
     std::string service_build_id;
+    std::string executable_path;
+    std::string provenance_json = "null";
 };
 
 // Query parameters already validated by the router.
@@ -160,6 +163,13 @@ struct RunComparisonInputs {
     };
     std::vector<SamplePoint> samples;
     Timestamp end_time_ns = 0;
+    bool execution_eligible = true;
+    std::string observation_status = "not_applicable";
+    Timestamp window_end_ns = 0;
+    std::vector<research::ExecutionDecision> decisions;
+    std::uint64_t decision_count = 0;
+    std::string request_diagnostics_json;
+    std::string markouts_json;
 };
 
 class ResearchRun {
@@ -178,7 +188,10 @@ public:
     [[nodiscard]] const std::string& experiment_id() const noexcept { return parameters_.experiment_id; }
     [[nodiscard]] std::uint64_t master_seed() const noexcept { return parameters_.master_seed; }
     [[nodiscard]] std::int64_t created_at_unix_ms() const noexcept { return parameters_.created_at_unix_ms; }
+    [[nodiscard]] std::uint64_t creation_ordinal() const noexcept { return parameters_.creation_ordinal; }
     [[nodiscard]] ApiRunState state() const;
+    std::string render_audit_export_json(std::optional<std::uint64_t> artifact, std::uint64_t offset) const;
+    std::string render_execution_trace_json(const PageQuery& page) const;
     // True while the run holds a live simulation (running or paused).
     [[nodiscard]] bool holds_simulation() const;
 
@@ -213,7 +226,7 @@ public:
     [[nodiscard]] std::string render_book_json(std::optional<std::uint64_t> event_position, EventVisibility view,
                                                std::size_t depth) const;
     // Null unless the run completed.
-    [[nodiscard]] std::optional<RunComparisonInputs> comparison_inputs() const;
+    [[nodiscard]] std::optional<RunComparisonInputs> comparison_inputs(const PageQuery* trace_page = nullptr) const;
 
 private:
     ResearchRun() = default;

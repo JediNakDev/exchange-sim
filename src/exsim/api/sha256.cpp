@@ -3,6 +3,8 @@
 #include <array>
 #include <cstdint>
 #include <cstdio>
+#include <fstream>
+#include <stdexcept>
 
 namespace exsim::api {
 
@@ -80,6 +82,33 @@ std::string sha256_hex(std::string_view bytes) {
         std::snprintf(buffer, sizeof(buffer), "%08x", word);
         hex += buffer;
     }
+    return hex;
+}
+
+std::string sha256_file_hex(const std::filesystem::path& path) {
+    std::ifstream input(path, std::ios::binary);
+    if (!input) throw std::runtime_error("cannot open artifact for SHA256");
+    std::array<std::uint32_t, 8> state = {0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19};
+    unsigned char block[128]{};
+    std::uint64_t total = 0;
+    std::size_t remaining = 0;
+    for (;;) {
+        input.read(reinterpret_cast<char*>(block), 64);
+        remaining = static_cast<std::size_t>(input.gcount());
+        total += remaining;
+        if (remaining < 64) break;
+        compress_block(state, block);
+    }
+    if (input.bad()) throw std::runtime_error("cannot read artifact for SHA256");
+    block[remaining] = 0x80;
+    const std::size_t length = remaining + 9 <= 64 ? 64 : 128;
+    for (std::size_t i = remaining + 1; i < length; ++i) block[i] = 0;
+    for (int i = 0; i < 8; ++i) block[length - 1 - i] = static_cast<unsigned char>((total * 8) >> (8 * i));
+    compress_block(state, block);
+    if (length == 128) compress_block(state, block + 64);
+    std::string hex;
+    char text[9];
+    for (const auto word : state) { std::snprintf(text, sizeof(text), "%08x", word); hex += text; }
     return hex;
 }
 

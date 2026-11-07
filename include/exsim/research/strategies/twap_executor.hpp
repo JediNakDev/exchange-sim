@@ -31,14 +31,14 @@ public:
 
     void on_start(StrategyContext& context) noexcept { context.wake_at(child_.parameters().start_ns); }
     void on_market_data(const MarketDataUpdate&, StrategyContext&) noexcept {}
-    void on_execution_report(const ExecutionReport& report, StrategyContext&) noexcept { (void)child_.on_report(report); }
+    void on_execution_report(const ExecutionReport& report, StrategyContext& context) noexcept { child_.observe_report(report, context); }
 
     void on_wakeup(StrategyContext& context) noexcept {
         const auto& parameters = child_.parameters();
         if (next_slice_ == 0) context.declare_parent_order(parameters.side, parameters.parent_qty);
         if (next_slice_ >= slice_count_) return;
         const std::uint64_t target = std::uint64_t{parameters.parent_qty} * (next_slice_ + 1) / slice_count_;
-        if (target > child_.filled_qty()) (void)child_.send_child(context, target - child_.filled_qty());
+        (void)child_.send_child(context, target > child_.filled_qty() ? target - child_.filled_qty() : 0, target);
         ++next_slice_;
         if (next_slice_ < slice_count_) context.wake_at(parameters.start_ns + next_slice_ * parameters.slice_interval_ns);
     }

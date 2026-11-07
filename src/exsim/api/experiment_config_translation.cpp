@@ -666,7 +666,21 @@ ConfigTranslationResult translate_experiment_config(const JsonValue& config, std
         std::string message = error.what();
         const std::string line_prefix = "line " + std::to_string(error.line()) + ": ";
         if (error.line() != 0 && message.rfind(line_prefix, 0) == 0) message.erase(0, line_prefix.size());
-        semantic(runner_text.pointer_for_line(error.line()), "rejected by the research runner: " + message);
+        std::string pointer = runner_text.pointer_for_line(error.line());
+        if (error.line() == 0) {
+            for (const auto& [key, field] : {std::pair{"slice_interval", "sliceIntervalNs"}, {"execution_duration", "executionDurationNs"},
+                                           {"parent_qty", "parentQuantity"}, {"start must", "startTimeNs"}, {"limit_offset_ticks", "limitOffsetTicks"},
+                                           {"at most 1000000 TWAP", "sliceIntervalNs"}})
+                if (message.starts_with(key)) pointer = child_pointer(child_pointer(root, "strategy"), field);
+            if (message == "slice_interval must be positive") message = "Slice interval must be greater than 0 s (integer nanoseconds, minimum 1 ns)";
+            else if (message == "parent_qty must be a positive multiple of lot_size") message = "Parent quantity must be a positive multiple of the instrument lot size (shares)";
+            else if (message == "execution_duration exceeds 7 days") message = "Execution window must be at most 7 days (604800 seconds)";
+            else if (message == "execution_duration must be at least one slice_interval") message = "Execution window must be at least one slice interval (nanoseconds)";
+            else if (message == "start must be before the run duration ends") message = "Execution start must be before simulation end (nanoseconds)";
+            else if (message == "limit_offset_ticks must be at most 100000") message = "Price protection must be at most 100000 ticks";
+            else if (message == "at most 1000000 TWAP slices") message = "Slice interval must produce at most 1000000 scheduled slices within the execution window";
+        }
+        semantic(pointer, "rejected by the research runner: " + message);
         return result;
     } catch (const std::exception& error) {
         semantic(root, std::string("rejected by the research runner: ") + error.what());

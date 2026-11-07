@@ -114,6 +114,10 @@ bool StrategyContext::replace_order(ClOrdId cl_ord_id, Price price, Quantity new
 }
 void StrategyContext::wake_at(Timestamp time) noexcept { core_.strategy_wake_at(time); }
 void StrategyContext::declare_parent_order(Side side, Quantity qty) noexcept { core_.strategy_declare_parent_order(side, qty); }
+void StrategyContext::record_execution_decision(const ExecutionDecision& row) noexcept { core_.record_execution_decision(row); }
+void SimulationCore::record_execution_decision(const ExecutionDecision& row) noexcept {
+    if (!recorder_.decisions.push(row)) fail(TerminationReason::RecorderOverflow, row.time);
+}
 sim::Rng& StrategyContext::rng() noexcept { return core_.strategy_rng(); }
 
 // ---- Background agents ----------------------------------------------------

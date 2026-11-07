@@ -5,18 +5,20 @@
 #include "exsim/api/research_run.hpp"
 #include "exsim/research/json.hpp"
 #include "simulation_driver.hpp"
+#include "exsim/api/request_diagnostics.hpp"
+#include "exsim/api/markout_values.hpp"
 
 #include <algorithm>
 #include <cstdlib>
 #include <unistd.h>
 #include <cmath>
+#include <fstream>
 
 namespace exsim::api {
 
 namespace {
 
 constexpr std::uint64_t kMaxEventsScannedPerPage = 1'000'000;
-constexpr std::size_t kMaxFifoEvidenceEntries = 500;
 
 const char* fill_liquidity_role(research::Liquidity liquidity) noexcept { return to_api_liquidity(liquidity); }
 
@@ -167,12 +169,25 @@ std::vector<RunComparisonInputs::Metric> summary_metrics(const research::Experim
     add("taker_fill_count", std::to_string(metrics.taker_fill_count), "count");
     add("fill_rate", fill_rate, "ratio", "derived_float");
     add("submitted_order_count", std::to_string(metrics.new_orders_submitted), "count");
+    add("new_order_rejected_count", std::to_string(metrics.orders_rejected), "count");
+    add("cancel_request_count", std::to_string(metrics.cancel_requests_submitted), "count");
+    add("cancel_rejected_count", std::to_string(metrics.cancel_requests_rejected), "count");
+    add("replace_request_count", std::to_string(metrics.replace_requests_submitted), "count");
+    add("replace_rejected_count", std::to_string(metrics.replace_requests_rejected), "count");
     add("canceled_order_count", std::to_string(metrics.orders_canceled_by_request), "count");
     add("cancel_race_lost_count", std::to_string(metrics.cancel_requests_rejected), "count");
     add("spread_capture_total", doubled(metrics.spread_capture_total_times_two), "currency");
-    for (std::size_t horizon = 0; horizon < config.metrics.markout_horizon_count; ++horizon)
-        add("markout_total", doubled(metrics.markouts[horizon].total_times_two), "currency", "exact_fixed_point",
-            config.metrics.markout_horizons_ns[horizon]);
+    for (std::size_t horizon = 0; horizon < config.metrics.markout_horizon_count; ++horizon) {
+        const auto& row = metrics.markouts[horizon];
+        const auto ns = config.metrics.markout_horizons_ns[horizon];
+        add("markout_total", markout_total_value(row), "currency", "exact_fixed_point", ns);
+        add("markout_per_share", markout_per_share_value(row),
+            "currency_per_share", "derived_float", ns);
+        add("markout_eligible_shares", std::to_string(row.measured_qty), "shares", "exact_fixed_point", ns);
+        add("markout_eligible_fills", std::to_string(row.measured), "count", "exact_fixed_point", ns);
+        add("markout_no_mark_fills", std::to_string(row.unavailable), "count", "exact_fixed_point", ns);
+        add("markout_censored_fills", std::to_string(row.censored + metrics.fill_count - row.measured - row.unavailable - row.censored), "count", "exact_fixed_point", ns);
+    }
     add("quote_exposure_time", std::to_string(metrics.any_side_exposure_ns), "nanoseconds");
     const auto& parent = metrics.parent;
     std::optional<std::string> completion, residual, slippage, slippage_per_share, shortfall, shortfall_per_share, participation;
@@ -333,7 +348,36 @@ std::string ResearchRun::render_manifest_json() const {
 
 std::string ResearchRun::render_summary_json() const {
     std::lock_guard lock(mutex_);
-    if (is_terminal(state_) && !final_summary_json_.empty()) return final_summary_json_;
+    if (is_terminal(state_) && !final_summary_json_.empty()) {
+        auto summary = research::parse_json(final_summary_json_);
+        for (auto& member : summary.members) {
+            if (member.name == "orders" && !member.value.find("requestDiagnostics")) {
+                ApiJsonWriter evidence; write_request_diagnostics(evidence, artifacts_.events);
+                member.value.members.push_back({"requestDiagnostics", research::parse_json(evidence.take())});
+            }
+            if (member.name == "markouts") for (auto& horizon : member.value.items) {
+                if (horizon.find("availableShares")) continue;
+                std::uint64_t ns = 0, shares = 0;
+                if (const auto* value = horizon.find("horizonNs")) (void)parse_unsigned_integer_text(value->text, ns);
+                for (const auto& row : artifacts_.markouts) if (row.horizon_ns == ns && row.status == research::MarkoutStatus::Measured) shares += row.qty;
+                horizon.members.push_back({"availableShares", research::parse_json("\"" + std::to_string(shares) + "\"")});
+            }
+        }
+        for (auto& member : summary.members) if (member.name == "metrics") {
+            for (auto& metric : member.value.items) {
+                const auto* key = metric.find("metricKey");
+                if (!key || (key->text != "markout_total" && key->text != "markout_per_share")) continue;
+                for (const auto& group : summary.members) if (group.name == "markouts") for (const auto& horizon : group.value.items) {
+                    if (horizon.find("horizonNs")->text != metric.find("horizonNs")->text || horizon.find("availableFillCount")->text != "0") continue;
+                    for (auto& value : metric.members) {
+                        if (value.name == "value") value.value = research::parse_json("null");
+                        if (value.name == "unavailableReason") value.value = research::parse_json("\"no_measured_markout_shares\"");
+                    }
+                }
+            }
+        }
+        return serialize_json_value(summary);
+    }
     if (is_terminal(state_) && !driver_ && !artifacts_loaded_)
         throw ApiFailure(409, "artifact_not_ready", "the failed run has no persisted summary; in-memory accounting was lost at restart");
     return render_summary_locked();
@@ -415,6 +459,7 @@ std::string ResearchRun::render_summary_locked() const {
     json.key("rejectedOrderCount").unsigned_text(metrics.orders_rejected);
     json.key("canceledOrderCount").unsigned_text(metrics.orders_canceled_by_request);
     json.key("cancelRaceLostCount").unsigned_text(metrics.cancel_requests_rejected);
+    json.key("requestDiagnostics"); write_request_diagnostics(json, artifacts_.events);
     json.key("fillCount").unsigned_text(metrics.fill_count);
     json.key("makerFillCount").unsigned_text(metrics.maker_fill_count);
     json.key("takerFillCount").unsigned_text(metrics.taker_fill_count);
@@ -451,9 +496,10 @@ std::string ResearchRun::render_summary_locked() const {
         json.begin_object();
         json.key("horizonNs").unsigned_text(config.metrics.markout_horizons_ns[horizon]);
         json.key("availableFillCount").unsigned_text(markout.measured);
+        json.key("availableShares").unsigned_text(markout.measured_qty);
         json.key("censoredFillCount").unsigned_text(markout.censored + pending);
         json.key("unavailableFillCount").unsigned_text(markout.unavailable);
-        json.key("totalMarkout").string(doubled(markout.total_times_two));
+        json.key("totalMarkout"); if (markout.measured_qty) json.string(doubled(markout.total_times_two)); else json.null();
         json.key("meanMarkoutPerShare");
         if (markout.measured_qty == 0) json.null();
         else
@@ -526,7 +572,7 @@ std::string ResearchRun::render_summary_locked() const {
     for (const auto& metric : summary_metrics(config, inputs))
         write_metric(json, metric.metric_key.c_str(), metric.value, metric.unit.c_str(), metric.exactness.c_str(), metric.horizon_ns,
                      is_execution_metric(metric.metric_key) ? execution_unavailable_reason(config, metrics.parent, metric.metric_key) :
-                     (metric.metric_key == "fill_rate" ? "no shares submitted" : mark_unavailable_reason));
+                     (metric.metric_key.starts_with("markout_") ? "no_measured_markout_shares" : metric.metric_key == "fill_rate" ? "no shares submitted" : mark_unavailable_reason));
     json.end_array();
     json.end_object();
     return json.take();
@@ -724,6 +770,8 @@ std::string ResearchRun::render_order_lifecycle_json(OrderId order_id) const {
         }
         json.begin_object();
         json.key("stageKind").string(stage_kind);
+        json.key("orderId"); write_unsigned_or_null(json, event.has(kHasOrderId), event.order_id);
+        json.key("replacedOldOrderId"); write_unsigned_or_null(json, event.replaced_old_order_id != 0, event.replaced_old_order_id);
         json.key("eventPosition").unsigned_text(position);
         json.key("simulationTimeNs").unsigned_text(event.simulation_time_ns);
         json.key("visibility").string(to_api_string(event.visibility));
@@ -738,72 +786,13 @@ std::string ResearchRun::render_order_lifecycle_json(OrderId order_id) const {
     }
     json.end_array();
 
-    // FIFO evidence from the exchange-truth book, including the initial
-    // resting state. Runner arrival evidence may describe pre-command state.
-    json.key("fifoAheadEvidence").begin_array();
-    std::size_t evidence_count = 0;
-    const auto write_evidence = [&](std::uint64_t position, const char* reason, Price price, std::uint64_t ahead, std::uint64_t orders_ahead,
-                                    std::uint64_t level) {
-        if (evidence_count++ >= kMaxFifoEvidenceEntries) return;
-        json.begin_object();
-        json.key("eventPosition").unsigned_text(position);
-        json.key("simulationTimeNs").unsigned_text(events[position].simulation_time_ns);
-        json.key("reason").string(reason);
-        json.key("source").string("exact_simulated_truth");
-        json.key("price").string(format_price_units(price));
-        json.key("sharesAhead").unsigned_text(ahead);
-        json.key("ordersAhead").unsigned_text(orders_ahead);
-        json.key("levelTotalShares").unsigned_text(level);
-        json.end_object();
-    };
     std::vector<OrderId> order_ids;
     for (const auto& [alias, index] : artifacts_.order_by_exchange_order_id)
         if (&artifacts_.orders[index] == order) order_ids.push_back(alias);
-    if (order->arrival_position != kNoEventPosition) {
-        std::uint64_t rested_position = order->arrival_position;
-        for (const std::uint64_t position : order->event_positions)
-            if (events[position].kind == CanonicalEventKind::OrderRested) {
-                rested_position = position;
-                break;
-            }
-        ExchangeTruthBook book;
-        const std::uint64_t last = std::min<std::uint64_t>(order->last_position, events.size() - 1);
-        for (std::uint64_t position = 0; position <= last; ++position) {
-            const CanonicalEventRecord& event = events[position];
-            ExchangeTruthBook::QueuePosition before;
-            OrderId tracked = 0;
-            if (position > rested_position) {
-                for (const OrderId candidate : order_ids) {
-                    before = book.queue_position(candidate);
-                    if (before.found) {
-                        tracked = candidate;
-                        break;
-                    }
-                }
-            }
-            const bool touches_order = tracked != 0 && event.has(kHasOrderId) &&
-                                       (event.order_id == tracked || event.buy_leg_order_id == tracked || event.sell_leg_order_id == tracked);
-            if (touches_order && event.kind == CanonicalEventKind::OrderFilled)
-                write_evidence(position, "immediately_before_fill", before.price, before.shares_ahead, before.orders_ahead, before.level_shares);
-            if (touches_order && event.kind == CanonicalEventKind::OrderCanceled)
-                write_evidence(position, "immediately_before_cancel", before.price, before.shares_ahead, before.orders_ahead, before.level_shares);
-            book.apply(event);
-            if (position == rested_position && event.kind == CanonicalEventKind::OrderRested) {
-                const auto rested = book.queue_position(event.order_id);
-                if (rested.found)
-                    write_evidence(position, "rested", rested.price, rested.shares_ahead, rested.orders_ahead, rested.level_shares);
-            }
-            if (tracked != 0 && !touches_order) {
-                const ExchangeTruthBook::QueuePosition after = book.queue_position(tracked);
-                if (after.found && after.shares_ahead < before.shares_ahead) {
-                    const char* reason = event.kind == CanonicalEventKind::OrderFilled ? "queue_advanced_by_fill" : "queue_advanced_by_cancel";
-                    write_evidence(position, reason, after.price, after.shares_ahead, after.orders_ahead, after.level_shares);
-                }
-            }
-        }
-    }
-    json.end_array();
-
+    json.key("fifoAheadEvidence");
+    const bool truncated = write_fifo_evidence(json, events, order_ids, order->last_position);
+    json.key("fifoEvidenceTruncated").boolean(truncated);
+    json.key("replaceTransits"); write_replace_transits(json, events, order->event_positions);
     json.key("latency").begin_object();
     json.key("orderEntryNs");
     write_unsigned_or_null(json, order->arrival_position != kNoEventPosition,
@@ -1019,7 +1008,7 @@ std::string ResearchRun::render_book_json(std::optional<std::uint64_t> event_pos
 
 // ---- Comparison inputs ------------------------------------------------------------------------------
 
-std::optional<RunComparisonInputs> ResearchRun::comparison_inputs() const {
+std::optional<RunComparisonInputs> ResearchRun::comparison_inputs(const PageQuery* trace_page) const {
     std::lock_guard lock(mutex_);
     if (state_ != ApiRunState::Completed) return std::nullopt;
     // Re-execute the enclosing API run's config and seed. Only recorded build
@@ -1051,11 +1040,35 @@ std::optional<RunComparisonInputs> ResearchRun::comparison_inputs() const {
         options.build.compiler = text(*build, "compiler");
         auto driver = make_simulation_driver(config, parameters_.master_seed, std::move(options));
         RunComparisonInputs inputs;
+        std::vector<CanonicalEventRecord> request_evidence;
         inputs.run_id = parameters_.run_id;
         inputs.master_seed = parameters_.master_seed;
         for (;;) {
             const auto stop = driver->step();
             if (stop == research::RunStop::FlushRequired || stop == research::RunStop::Completed) {
+                for (const auto& row : driver->core().recorder().lifecycle.records()) {
+                    CanonicalEventRecord event;
+                    event.actor = EventActor::ResearchStrategy;
+                    event.present = kIsOwnOrder;
+                    event.client_order_id = row.cl_ord_id;
+                    event.simulation_time_ns = row.time;
+                    event.rejected_command = row.request;
+                    event.reject_reason = row.reject_reason;
+                    if (row.stage == research::LifecycleStage::StrategySubmitted)
+                        event.kind = row.request == CommandType::NewOrder ? CanonicalEventKind::StrategyOrderSubmitted :
+                            row.request == CommandType::Cancel ? CanonicalEventKind::StrategyCancelSubmitted : CanonicalEventKind::StrategyReplaceSubmitted;
+                    else if (row.stage == research::LifecycleStage::ExchangeArrival)
+                        event.kind = row.request == CommandType::NewOrder ? CanonicalEventKind::OrderArrivedAtExchange :
+                            row.request == CommandType::Cancel ? CanonicalEventKind::CancelArrivedAtExchange : CanonicalEventKind::ReplaceArrivedAtExchange;
+                    else if (row.stage == research::LifecycleStage::ExchangeRejected) event.kind = CanonicalEventKind::OrderRejected;
+                    else continue;
+                    request_evidence.push_back(event);
+                }
+                for (const auto& decision : driver->core().recorder().decisions.records()) {
+                    if (trace_page && inputs.decision_count >= trace_page->start_index &&
+                        inputs.decision_count - trace_page->start_index < trace_page->limit) inputs.decisions.push_back(decision);
+                    ++inputs.decision_count;
+                }
                 for (const auto& sample : driver->core().recorder().samples.records())
                     inputs.samples.push_back({sample.time, sample.has_mark, sample.equity_times_two, sample.position});
                 if (stop == research::RunStop::Completed) break;
@@ -1077,9 +1090,29 @@ std::optional<RunComparisonInputs> ResearchRun::comparison_inputs() const {
                 research::read_text_file(recorded / name) != research::read_text_file(scratch.path / name))
                 return std::nullopt;
         }
+        if (std::filesystem::exists(recorded / research::kExecutionTraceFileName) &&
+            research::read_text_file(recorded / research::kExecutionTraceFileName) != research::read_text_file(scratch.path / research::kExecutionTraceFileName)) return std::nullopt;
         const auto& core = driver->core();
         inputs.end_time_ns = core.now();
+        if (is_execution_strategy(config)) {
+            inputs.window_end_ns = config.strategy.parent.start_ns + config.strategy.parent.execution_duration_ns;
+            inputs.execution_eligible = core.now() >= inputs.window_end_ns;
+            inputs.observation_status = inputs.execution_eligible ? "window_observed" : "censored_run_end";
+        }
         inputs.metrics = summary_metrics(config, {core.ledger().state(), core.metrics(), core.mark_times_two(), core.now()});
+        ApiJsonWriter diagnostics; write_request_diagnostics(diagnostics, request_evidence);
+        inputs.request_diagnostics_json = diagnostics.take();
+        ApiJsonWriter coverage; coverage.begin_array();
+        for (std::size_t index = 0; index < config.metrics.markout_horizon_count; ++index) {
+            const auto& markout = core.metrics().markouts[index];
+            coverage.begin_object().key("horizonNs").unsigned_text(config.metrics.markout_horizons_ns[index]);
+            coverage.key("availableFillCount").unsigned_text(markout.measured).key("availableShares").unsigned_text(markout.measured_qty);
+            coverage.key("censoredFillCount").unsigned_text(core.metrics().fill_count - markout.measured - markout.unavailable);
+            coverage.key("unavailableFillCount").unsigned_text(markout.unavailable);
+            coverage.key("totalMarkout").optional_string(markout_total_value(markout));
+            coverage.key("meanMarkoutPerShare").optional_string(markout_per_share_value(markout)).end_object();
+        }
+        coverage.end_array(); inputs.markouts_json = coverage.take();
         return inputs;
     } catch (const research::ArtifactError&) {
         return std::nullopt;
@@ -1087,5 +1120,6 @@ std::optional<RunComparisonInputs> ResearchRun::comparison_inputs() const {
         return std::nullopt;
     }
 }
+
 
 }  // namespace exsim::api

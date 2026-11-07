@@ -293,6 +293,7 @@ std::string render_manifest(const RunCreateParameters& parameters) {
     json.key("schemaVersion").string("exsim.run-manifest/1");
     json.key("runId").string(parameters.run_id);
     json.key("experimentId").string(parameters.experiment_id);
+    json.key("provenance").raw(parameters.provenance_json);
     json.key("parentRunId").null();
     json.key("mode").string("deterministic_research");
     json.key("marketWorld").string(translated.market_world);
@@ -390,6 +391,7 @@ void ResearchRun::persist_record_locked() const {
     json.key("masterSeed").unsigned_text(parameters_.master_seed);
     json.key("startPaused").boolean(parameters_.start_paused);
     json.key("createdAtUnixMs").signed_text(parameters_.created_at_unix_ms);
+    json.key("creationOrdinal").unsigned_text(parameters_.creation_ordinal);
     json.key("state").string(to_api_string(state_));
     json.key("finalSimulationTimeNs").unsigned_text(final_simulation_time_ns_);
     json.key("history").begin_array();
@@ -452,6 +454,7 @@ std::unique_ptr<ResearchRun> ResearchRun::load(const std::filesystem::path& run_
     run->parameters_.run_id = text_member(record, "runId");
     run->parameters_.experiment_id = text_member(record, "experimentId");
     run->parameters_.master_seed = unsigned_member(record, "masterSeed");
+    if (record.find("creationOrdinal")) run->parameters_.creation_ordinal = unsigned_member(record, "creationOrdinal");
     run->parameters_.config = std::move(config);
     run->parameters_.run_directory = run_directory;
     std::int64_t created = 0;
@@ -560,9 +563,10 @@ void ResearchRun::ensure_driver_locked() {
     options.run_id = research::make_run_id(parameters_.config->runner_config.name,
                                          research::experiment_config_hash(parameters_.config->runner_config), parameters_.master_seed);
     options.config_source_text = parameters_.config->runner_config_text;
-    options.build = research::current_build_info("");
+    options.build = research::current_build_info(parameters_.executable_path);
     options.overwrite = true;
     driver_ = make_simulation_driver(parameters_.config->runner_config, parameters_.master_seed, std::move(options));
+    research::write_file_atomically(parameters_.run_directory / "runner" / "provenance.json", parameters_.provenance_json + "\n");
     builder_ = std::make_unique<CanonicalEventBuilder>(parameters_.config->runner_config);
 }
 

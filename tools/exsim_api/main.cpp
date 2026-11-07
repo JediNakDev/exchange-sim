@@ -19,6 +19,9 @@
 #include <string_view>
 
 #include <pthread.h>
+#ifdef __APPLE__
+#include <mach-o/dyld.h>
+#endif
 
 namespace {
 
@@ -27,7 +30,9 @@ constexpr std::string_view kUsage =
     "  --port N           TCP port (default 7600; 0 picks an ephemeral port)\n"
     "  --bind ADDRESS     IPv4 address to bind (default 127.0.0.1; v1 has no access control)\n"
     "  --data-dir DIR     experiments, runs and artifacts (default ./exsim-api-data)\n"
-    "  --max-live-runs N  simulations held at once, running or paused (default 8)\n";
+    "  --max-live-runs N  simulations held at once, running or paused (default 8)\n"
+    "  --source-revision ID  supplied source revision; omitted means unavailable\n"
+    "  --release-id ID       supplied release identity; omitted means unavailable\n";
 
 bool parse_unsigned_argument(std::string_view text, std::uint64_t maximum, std::uint64_t& value) {
     if (text.empty() || text.size() > 20) return false;
@@ -46,6 +51,15 @@ bool parse_unsigned_argument(std::string_view text, std::uint64_t maximum, std::
 int main(int argument_count, char** arguments) {
     exsim::api::HttpServerOptions server_options;
     exsim::api::ResearchServiceOptions service_options;
+#ifdef __APPLE__
+    std::uint32_t length = 0;
+    _NSGetExecutablePath(nullptr, &length);
+    std::string executable(length, '\0');
+    if (_NSGetExecutablePath(executable.data(), &length) != 0) return 1;
+    service_options.executable_path = std::filesystem::canonical(executable.c_str()).string();
+#else
+    service_options.executable_path = std::filesystem::canonical("/proc/self/exe").string();
+#endif
     for (int index = 1; index < argument_count; ++index) {
         const std::string_view flag = arguments[index];
         if (flag == "--help" || flag == "-h") {
@@ -62,6 +76,10 @@ int main(int argument_count, char** arguments) {
             server_options.port = static_cast<std::uint16_t>(number);
         } else if (flag == "--bind") {
             server_options.bind_address = std::string(value);
+        } else if (flag == "--source-revision") {
+            service_options.source_revision = value;
+        } else if (flag == "--release-id") {
+            service_options.release_id = value;
         } else if (flag == "--data-dir") {
             service_options.data_directory = std::string(value);
         } else if (flag == "--max-live-runs" && parse_unsigned_argument(value, 256, number) && number > 0) {

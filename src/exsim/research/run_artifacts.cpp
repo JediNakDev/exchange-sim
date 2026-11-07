@@ -142,6 +142,7 @@ std::string make_run_id(std::string_view experiment_name, std::uint64_t config_h
 }
 
 bool is_run_artifact_file_name(std::string_view name) noexcept {
+    if (name == kExecutionTraceFileName || name == "execution-decisions.jsonl.tmp" || name == "provenance.json" || name == "provenance.json.tmp") return true;
     for (const std::string_view artifact_name : kRunArtifactFileNames) {
         if (name == artifact_name) return true;
         if (name.size() == artifact_name.size() + kAtomicWriteSuffix.size() && name.substr(0, artifact_name.size()) == artifact_name &&
@@ -177,6 +178,12 @@ void prepare_run_directory(const std::filesystem::path& directory, bool overwrit
         std::filesystem::create_directories(directory, error);
         if (error) throw ArtifactError("cannot create directory " + directory.string() + ": " + error.message());
         return;
+    }
+    for (const auto optional_name : {kExecutionTraceFileName, std::string_view("provenance.json")}) {
+        std::filesystem::remove(directory / optional_name, error);
+        if (error) throw ArtifactError("cannot remove optional artifact: " + error.message());
+        std::filesystem::remove(directory / (std::string(optional_name) + ".tmp"), error);
+        if (error) throw ArtifactError("cannot remove optional artifact temporary: " + error.message());
     }
     for (const std::string_view artifact_name : kRunArtifactFileNames) {
         std::filesystem::path artifact_path = directory / artifact_name;
@@ -470,6 +477,7 @@ void RunArtifactWriter::begin() {
     ledger_jsonl_ = open_stream(directory / "ledger.jsonl");
     markouts_jsonl_ = open_stream(directory / "markouts.jsonl");
     series_csv_ = open_stream(directory / "series.csv", kSeriesHeader);
+    decisions_jsonl_ = open_stream(directory / kExecutionTraceFileName);
     begun_ = true;
     write_status();
 }
@@ -481,13 +489,14 @@ void RunArtifactWriter::drain(RunRecorder& recorder) {
     write_fill_records(recorder);
     write_markout_records(recorder);
     write_series_samples(recorder);
+    write_execution_decisions(recorder);
     recorder.clear();
     check_streams();
 }
 
 void RunArtifactWriter::check_streams() {
     const bool good = commands_jsonl_.good() && events_jsonl_.good() && lifecycle_jsonl_.good() && ledger_jsonl_.good() &&
-                      markouts_jsonl_.good() && series_csv_.good();
+                      markouts_jsonl_.good() && series_csv_.good() && decisions_jsonl_.good();
     if (!good) throw ArtifactError("write failed in " + options_.run_directory.string());
 }
 
@@ -756,8 +765,9 @@ void RunArtifactWriter::finish(RunRecorder& recorder) {
     ledger_jsonl_.close();
     markouts_jsonl_.close();
     series_csv_.close();
+    decisions_jsonl_.close();
     if (commands_jsonl_.fail() || events_jsonl_.fail() || lifecycle_jsonl_.fail() || ledger_jsonl_.fail() ||
-        markouts_jsonl_.fail() || series_csv_.fail())
+        markouts_jsonl_.fail() || series_csv_.fail() || decisions_jsonl_.fail())
         throw ArtifactError("closing artifact streams failed in " + options_.run_directory.string());
 
     const RunDigests& digests = core_.digests();
@@ -768,6 +778,27 @@ void RunArtifactWriter::finish(RunRecorder& recorder) {
                           render_summary_json(core_, strategy_, options_.run_id, replay_verified_));
     finished_ = true;
     write_status();
+}
+
+void RunArtifactWriter::write_execution_decisions(const RunRecorder& recorder) {
+    for (const auto& row : recorder.decisions.records()) {
+        JsonWriter json;
+        json.begin_object().key("index").integer_text(decisions_written_++);
+        json.key("time_ns").integer_text(row.time).key("kind").string(row.report ? "child_report" : "decision");
+        json.key("target_qty").integer_text(row.target).key("known_filled_qty").integer_text(row.filled);
+        json.key("requested_qty").integer_text(row.requested).key("outstanding_qty").integer_text(row.outstanding);
+        json.key("headroom").signed_integer_text(row.headroom).key("child_cap").integer_text(row.child_cap);
+        json.key("submitted_qty").integer_text(row.submitted).key("child_client_order_id").integer_text(row.child);
+        json.key("source_time_ns").integer_text(row.source_time).key("source_sequence").integer_text(row.source_sequence);
+        json.key("has_touch").boolean(row.has_touch).key("touch").signed_integer_text(row.touch).key("limit").signed_integer_text(row.limit);
+        json.key("reason").string(row.reason);
+        json.key("exchange_time_ns").integer_text(row.result.exchange_time).key("order_id").integer_text(row.result.order_id);
+        json.key("match_id").integer_text(row.result.match_id).key("report_qty").integer_text(row.result.qty);
+        json.key("report_leaves_qty").integer_text(row.result.leaves_qty).key("report_cum_qty").integer_text(row.result.cum_qty);
+        json.key("reject_reason").string(to_string(row.result.reject_reason)).key("cancel_reason").string(to_string(row.result.cancel_reason));
+        json.end_object();
+        decisions_jsonl_ << json.take() << '\n';
+    }
 }
 
 }  // namespace exsim::research

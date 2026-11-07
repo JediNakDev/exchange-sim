@@ -34,6 +34,28 @@ namespace exsim::research {
 
 class SimulationCore;
 
+// Separate evidence stream: never contributes to canonical command/event identity.
+struct ExecutionDecision {
+    Timestamp time = 0;
+    Timestamp source_time = 0;
+    std::uint64_t source_sequence = 0;
+    std::uint64_t target = 0;
+    std::uint64_t filled = 0;
+    std::uint64_t requested = 0;
+    std::int64_t headroom = 0;
+    Quantity child_cap = 0;
+    Quantity submitted = 0;
+    Quantity outstanding = 0;
+    ClOrdId child = 0;
+    Price touch = 0;
+    Price limit = 0;
+    bool has_touch = false;
+    bool report = false;
+    ExecutionReport result{};
+    // Static strings only; copied/serialized before the recorder is cleared.
+    const char* reason = "submitted";
+};
+
 enum class RiskRejectReason : std::uint8_t {
     None = 0,
     InvalidQuantity = 1,    // zero or not a lot multiple
@@ -170,6 +192,7 @@ public:
     // Records the parent order for execution metrics: decision time is now,
     // the arrival benchmark is the exchange mid at this simulated time.
     void declare_parent_order(Side side, Quantity qty) noexcept;
+    void record_execution_decision(const ExecutionDecision& row) noexcept;
 
     // The strategy's own seeded RNG stream ("strategy").
     [[nodiscard]] sim::Rng& rng() noexcept;

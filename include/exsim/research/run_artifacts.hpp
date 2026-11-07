@@ -52,6 +52,7 @@ inline constexpr std::string_view kRunArtifactFileNames[] = {
     "manifest.json", "experiment.conf", "status.json",    "commands.journal", "commands.jsonl", "events.jsonl",
     "lifecycle.jsonl", "ledger.jsonl",  "markouts.jsonl", "series.csv",       "summary.json",
 };
+inline constexpr std::string_view kExecutionTraceFileName = "execution-decisions.jsonl";
 inline constexpr std::string_view kAtomicWriteSuffix = ".tmp";
 
 // True for a name in kRunArtifactFileNames, or such a name plus kAtomicWriteSuffix.
@@ -137,6 +138,7 @@ private:
     void write_fill_records(const RunRecorder& recorder);
     void write_markout_records(const RunRecorder& recorder);
     void write_series_samples(const RunRecorder& recorder);
+    void write_execution_decisions(const RunRecorder& recorder);
     void check_streams();
 
     const SimulationCore& core_;
@@ -150,6 +152,8 @@ private:
     std::ofstream ledger_jsonl_;
     std::ofstream markouts_jsonl_;
     std::ofstream series_csv_;
+    std::ofstream decisions_jsonl_;
+    std::uint64_t decisions_written_ = 0;
     std::string line_buffer_;
     std::chrono::system_clock::time_point wall_started_;
     std::chrono::steady_clock::time_point steady_started_;

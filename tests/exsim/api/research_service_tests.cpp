@@ -460,7 +460,16 @@ TEST_CASE(api_service, comparison_pairs_completed_runs_by_seed) {
         const JsonValue& dispersion = *metric.find("dispersion");
         const std::uint64_t counted = unsigned_text(dispersion.find("candidateBetterCount")->text) +
                                       unsigned_text(dispersion.find("candidateWorseCount")->text) + unsigned_text(dispersion.find("tiedCount")->text);
-        CHECK_EQ(counted, unsigned_text(dispersion.find("sampleCount")->text));
+        if (metric.find("betterDirection")->text == "neither") {
+            CHECK_EQ(unsigned_text(dispersion.find("candidateBetterCount")->text), 0u);
+            CHECK_EQ(unsigned_text(dispersion.find("candidateWorseCount")->text), 0u);
+            std::size_t equal = 0;
+            for (const auto& pair : metric.find("perSeed")->items) {
+                const auto* a = pair.find("baselineValue"); const auto* b = pair.find("candidateValue");
+                if (a->kind == JsonValue::Kind::String && b->kind == JsonValue::Kind::String && a->text == b->text) ++equal;
+            }
+            CHECK_EQ(unsigned_text(dispersion.find("tiedCount")->text), equal);
+        } else CHECK_EQ(counted, unsigned_text(dispersion.find("sampleCount")->text));
     }
     for (const JsonValue& aligned : comparison.body.find("alignedSeries")->items) {
         const std::size_t bucket_count = aligned.find("bucketEndTimesNs")->items.size();

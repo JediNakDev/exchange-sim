@@ -582,6 +582,40 @@ paths:
                 $ref: "#/components/schemas/OrderLifecycle"
         default:
           $ref: "#/components/responses/ErrorResponse"
+  /v1/runs/{runId}/execution-trace:
+    get:
+      tags: [artifacts]
+      operationId: getExecutionTrace
+      summary: Bounded deterministic native execution decisions and delivered child reports.
+      parameters:
+        - $ref: "#/components/parameters/RunIdPath"
+        - {"$ref": "#/components/parameters/Cursor"}
+        - {"$ref": "#/components/parameters/Limit"}
+      responses:
+        "200":
+          description: Exact native evidence.
+          content:
+            application/json:
+              schema: {"$ref": "#/components/schemas/ExecutionTracePage"}
+        default:
+          $ref: "#/components/responses/ErrorResponse"
+  /v1/runs/{runId}/audit-export:
+    get:
+      tags: [artifacts]
+      operationId: getAuditExport
+      summary: Complete terminal native inventory or at most 64 KiB of one fixed-name artifact.
+      parameters:
+        - $ref: "#/components/parameters/RunIdPath"
+        - {"name": "artifactIndex", "in": "query", "required": false, "schema": {"$ref": "#/components/schemas/UnsignedIntegerString"}}
+        - {"name": "offset", "in": "query", "required": false, "schema": {"$ref": "#/components/schemas/UnsignedIntegerString"}}
+      responses:
+        "200":
+          description: Exact native evidence.
+          content:
+            application/json:
+              schema: {"$ref": "#/components/schemas/AuditExportResponse"}
+        default:
+          $ref: "#/components/responses/ErrorResponse"
   /v1/runs/{runId}/fills:
     get:
       tags: [artifacts]
@@ -670,6 +704,12 @@ paths:
         clients can show what is missing. Comparing an experiment with itself is
         rejected with 409 `comparison_not_paired`.
       parameters:
+        - name: runSelection
+          in: query
+          required: false
+          description: Opaque r1_ token returned by a prior response, comma separated explicit run IDs, or none. Pins at most one eligible attempt per experiment/seed. Ineligible pinned evidence returns 409; never falls back to a retry.
+          schema:
+            type: string
         - name: baselineExperimentId
           in: query
           required: true
@@ -997,7 +1037,7 @@ components:
       description: Whether FIFO-ahead quantity is the engine's exact queue or an estimate from limited market data.
     FifoEvidenceReason:
       type: string
-      enum: [rested, queue_advanced_by_fill, queue_advanced_by_cancel, immediately_before_fill, immediately_before_cancel]
+      enum: [rested, replace_priority_kept, replace_priority_reset, queue_advanced_by_fill, queue_advanced_by_cancel, immediately_before_fill, immediately_before_cancel]
     MarkoutStatus:
       type: string
       enum: [available, censored_past_run_end, unavailable_no_mark]
@@ -1033,6 +1073,16 @@ components:
         - cancel_race_lost_count
         - spread_capture_total
         - markout_total
+        - markout_per_share
+        - new_order_rejected_count
+        - cancel_request_count
+        - cancel_rejected_count
+        - replace_request_count
+        - replace_rejected_count
+        - markout_eligible_shares
+        - markout_eligible_fills
+        - markout_no_mark_fills
+        - markout_censored_fills
         - quote_exposure_time
         - completion_ratio
         - residual_qty
@@ -1105,6 +1155,13 @@ components:
         - invalid_state_transition
         - action_not_supported_for_mode
         - artifact_not_ready
+        - evidence_unavailable
+        - not_execution_strategy
+        - selected_run_ineligible
+        - run_not_terminal
+        - artifact_unsafe
+        - artifact_too_large
+        - artifact_changed
         - unsupported_market_world
         - unsupported_schema_version
         - comparison_not_paired
@@ -1935,6 +1992,7 @@ components:
         - artifactEncodings
         - matchingRule
       properties:
+        provenance: {"oneOf": [{"$ref": "#/components/schemas/BuildProvenance"}, {"type": "null"}]}
         schemaVersion:
           type: string
           const: exsim.run-manifest/1
@@ -2094,6 +2152,7 @@ components:
       additionalProperties: false
       required: [submittedOrderCount, acceptedOrderCount, rejectedOrderCount, canceledOrderCount, cancelRaceLostCount, fillCount, makerFillCount, takerFillCount, filledShares, submittedShares, fillRateByShares, quoteExposureTimeNs]
       properties:
+        requestDiagnostics: {"type": "array", "items": {"$ref": "#/components/schemas/RequestDiagnostic"}}
         submittedOrderCount:
           $ref: "#/components/schemas/UnsignedIntegerString"
         acceptedOrderCount:
@@ -2104,7 +2163,7 @@ components:
           $ref: "#/components/schemas/UnsignedIntegerString"
         cancelRaceLostCount:
           $ref: "#/components/schemas/UnsignedIntegerString"
-          description: Cancels that arrived after the order had already fully filled (rejected unknown_order).
+          description: Legacy count of exchange-rejected cancel requests, all reasons. Use requestDiagnostics and lifecycle fill evidence for causal classification.
         fillCount:
           $ref: "#/components/schemas/UnsignedIntegerString"
         makerFillCount:
@@ -2148,6 +2207,7 @@ components:
       additionalProperties: false
       required: [horizonNs, availableFillCount, unavailableFillCount, censoredFillCount, totalMarkout, meanMarkoutPerShare]
       properties:
+        availableShares: {"$ref": "#/components/schemas/UnsignedIntegerString"}
         horizonNs:
           $ref: "#/components/schemas/NanosecondDuration"
         availableFillCount:
@@ -2159,8 +2219,10 @@ components:
           $ref: "#/components/schemas/UnsignedIntegerString"
           description: Fills whose horizon falls past the run end. In a partial summary, horizons not yet reached are counted here too.
         totalMarkout:
-          $ref: "#/components/schemas/MarkoutAmount"
-          description: Sum over available fills only; censored fills are excluded, not zero-filled.
+          description: Null when no measured shares exist; measured zero remains a value.
+          oneOf:
+            - $ref: "#/components/schemas/MarkoutAmount"
+            - type: "null"
         meanMarkoutPerShare:
           oneOf:
             - $ref: "#/components/schemas/DerivedDecimal"
@@ -2510,6 +2572,8 @@ components:
       additionalProperties: false
       required: [stageKind, eventPosition, simulationTimeNs, visibility, quantity, leavesQuantity, matchId, detail]
       properties:
+        orderId: {"oneOf": [{"$ref": "#/components/schemas/UnsignedIntegerString"}, {"type": "null"}]}
+        replacedOldOrderId: {"oneOf": [{"$ref": "#/components/schemas/UnsignedIntegerString"}, {"type": "null"}]}
         stageKind:
           $ref: "#/components/schemas/LifecycleStageKind"
         eventPosition:
@@ -2537,6 +2601,10 @@ components:
       additionalProperties: false
       required: [eventPosition, simulationTimeNs, reason, source, price, sharesAhead, ordersAhead, levelTotalShares]
       properties:
+        queuePositionAvailable: { type: boolean, description: "False at a priority-losing replacement before its matching/re-rest; queue quantities are then null." }
+        orderId: {"$ref": "#/components/schemas/UnsignedIntegerString"}
+        replacedOldOrderId: {"oneOf": [{"$ref": "#/components/schemas/UnsignedIntegerString"}, {"type": "null"}]}
+        priorityKept: {"oneOf": [{"type": "boolean"}, {"type": "null"}]}
         eventPosition:
           $ref: "#/components/schemas/UnsignedIntegerString"
         simulationTimeNs:
@@ -2548,12 +2616,18 @@ components:
         price:
           $ref: "#/components/schemas/PriceDecimal"
         sharesAhead:
-          $ref: "#/components/schemas/UnsignedIntegerString"
+          oneOf:
+            - $ref: "#/components/schemas/UnsignedIntegerString"
+            - type: "null"
           description: Shares with strictly earlier priority at the same price level and side.
         ordersAhead:
-          $ref: "#/components/schemas/UnsignedIntegerString"
+          oneOf:
+            - $ref: "#/components/schemas/UnsignedIntegerString"
+            - type: "null"
         levelTotalShares:
-          $ref: "#/components/schemas/UnsignedIntegerString"
+          oneOf:
+            - $ref: "#/components/schemas/UnsignedIntegerString"
+            - type: "null"
           description: All shares at the level, including this order.
     OrderLatencyBreakdown:
       type: object
@@ -2584,6 +2658,8 @@ components:
       additionalProperties: false
       required: [runId, order, matchingRule, stages, fifoAheadEvidence, latency, fillMatchIds, relatedEventPositions]
       properties:
+        fifoEvidenceTruncated: {"type": "boolean"}
+        replaceTransits: {"type": "array", "items": {"$ref": "#/components/schemas/ReplaceTransit"}}
         runId:
           $ref: "#/components/schemas/RunId"
         order:
@@ -2907,11 +2983,12 @@ components:
         candidateBetterCount:
           type: integer
           minimum: 0
-          description: Per the metric's betterDirection.
+          description: Per betterDirection; zero is a not-applicable sentinel when direction is neither. It does not mean equality.
         candidateWorseCount:
           type: integer
           minimum: 0
         tiedCount:
+          description: Actual exact zero differences, including neutral metrics.
           type: integer
           minimum: 0
     MetricComparison:
@@ -2995,6 +3072,9 @@ components:
       additionalProperties: false
       required: [schemaVersion, baseline, candidate, comparable, incomparabilityReasons, seedPairing, assumptionDifferences, metricComparisons, alignedSeries]
       properties:
+        selectionPolicy: {"type": "string", "enum": ["most_recent_eligible_in_creation_order", "explicit_run_selection"]}
+        runSelection: {"type": "string"}
+        attemptLedger: {"type": "array", "items": {"$ref": "#/components/schemas/ComparisonSeedAttempts"}}
         schemaVersion:
           type: string
           const: exsim.comparison/1
@@ -3157,3 +3237,266 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/FaultScenarioStatus"
+
+    BuildProvenance:
+      type: "object"
+      additionalProperties: false
+      required: ["sourceRevision", "releaseId", "executableSha256"]
+      properties:
+        sourceRevision:
+          oneOf:
+            - {"type": "string"}
+            - {"type": "null"}
+        releaseId:
+          oneOf:
+            - {"type": "string"}
+            - {"type": "null"}
+        executableSha256:
+          oneOf:
+            - {"type": "string"}
+            - {"type": "null"}
+    RequestDiagnostic:
+      type: "object"
+      additionalProperties: false
+      required: ["requestKind", "submittedCount", "exchangeRejectedCount", "rejectReasons"]
+      properties:
+        arrivalTransit:
+          type: object
+          additionalProperties: false
+          required: [sampleCount, minNs, maxNs, meanNs]
+          properties:
+            sampleCount: { $ref: "#/components/schemas/UnsignedIntegerString" }
+            minNs: { oneOf: [ { $ref: "#/components/schemas/NanosecondDuration" }, { type: "null" } ] }
+            maxNs: { oneOf: [ { $ref: "#/components/schemas/NanosecondDuration" }, { type: "null" } ] }
+            meanNs: { oneOf: [ { $ref: "#/components/schemas/DerivedDecimal" }, { type: "null" } ] }
+        requestKind:
+          $ref: "#/components/schemas/CommandKind"
+        submittedCount:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        exchangeRejectedCount:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        rejectReasons:
+          type: "array"
+          items:
+            type: "object"
+            additionalProperties: false
+            required: ["reason", "count"]
+            properties:
+              reason:
+                $ref: "#/components/schemas/RejectReason"
+              count:
+                $ref: "#/components/schemas/UnsignedIntegerString"
+    ReplaceTransit:
+      type: "object"
+      additionalProperties: false
+      required: ["submitEventPosition", "arrivalEventPosition", "transitNs", "fillBeforeArrivalEventPosition"]
+      properties:
+        submitEventPosition:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        arrivalEventPosition:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        transitNs:
+          $ref: "#/components/schemas/NanosecondDuration"
+        fillBeforeArrivalEventPosition:
+          oneOf:
+            - {"$ref": "#/components/schemas/UnsignedIntegerString"}
+            - {"type": "null"}
+    ComparisonAttempt:
+      type: "object"
+      additionalProperties: false
+      required: ["runId", "state", "selected", "eligible", "reason", "observationStatus", "windowEndTimeNs", "observedThroughTimeNs", "digests", "requestDiagnostics", "markouts"]
+      properties:
+        creationOrdinal: { oneOf: [ { $ref: "#/components/schemas/UnsignedIntegerString" }, { type: "null" } ] }
+        runId:
+          $ref: "#/components/schemas/RunId"
+        state:
+          $ref: "#/components/schemas/RunState"
+        selected:
+          type: "boolean"
+        eligible:
+          type: "boolean"
+        reason:
+          type: "string"
+        observationStatus:
+          type: "string"
+        windowEndTimeNs:
+          oneOf:
+            - {"$ref": "#/components/schemas/NanosecondTimestamp"}
+            - {"type": "null"}
+        observedThroughTimeNs:
+          oneOf:
+            - {"$ref": "#/components/schemas/NanosecondTimestamp"}
+            - {"type": "null"}
+        digests:
+          $ref: "#/components/schemas/RunArtifactDigests"
+        requestDiagnostics:
+          oneOf:
+            - {"type": "array", "items": {"$ref": "#/components/schemas/RequestDiagnostic"}}
+            - {"type": "null"}
+        markouts:
+          oneOf:
+            - {"type": "array", "items": {"$ref": "#/components/schemas/MarkoutHorizonSummary"}}
+            - {"type": "null"}
+    ComparisonSeedAttempts:
+      type: "object"
+      additionalProperties: false
+      required: ["experimentId", "masterSeed", "selectedRunId", "attempts"]
+      properties:
+        selectionReason: { type: string, enum: [selected, no_selected_eligible_attempt, unlaunched] }
+        experimentId:
+          $ref: "#/components/schemas/ExperimentId"
+        masterSeed:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        selectedRunId:
+          oneOf:
+            - {"$ref": "#/components/schemas/RunId"}
+            - {"type": "null"}
+        attempts:
+          type: "array"
+          items:
+            $ref: "#/components/schemas/ComparisonAttempt"
+    ExecutionTraceRow:
+      type: "object"
+      additionalProperties: false
+      required: ["index", "kind", "simulationTimeNs", "cumulativeTargetQuantity", "knownFilledQuantity", "parentResidualQuantity", "requestedQuantity", "outstandingQuantity", "positionHeadroom", "childCapQuantity", "submittedQuantity", "childClientOrderId", "deliveredSourceSequence", "deliveredSourceTimeNs", "deliveredTouch", "limitPrice", "reason", "report"]
+      properties:
+        index:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        kind:
+          type: "string"
+          enum: ["decision", "child_report"]
+        simulationTimeNs:
+          $ref: "#/components/schemas/NanosecondTimestamp"
+        cumulativeTargetQuantity:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        knownFilledQuantity:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        parentResidualQuantity:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        requestedQuantity:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        outstandingQuantity:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        positionHeadroom:
+          $ref: "#/components/schemas/SignedIntegerString"
+        childCapQuantity:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        submittedQuantity:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        childClientOrderId:
+          oneOf:
+            - {"$ref": "#/components/schemas/UnsignedIntegerString"}
+            - {"type": "null"}
+        deliveredSourceSequence:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        deliveredSourceTimeNs:
+          $ref: "#/components/schemas/NanosecondTimestamp"
+        deliveredTouch:
+          oneOf:
+            - {"$ref": "#/components/schemas/PriceDecimal"}
+            - {"type": "null"}
+        limitPrice:
+          oneOf:
+            - {"$ref": "#/components/schemas/PriceDecimal"}
+            - {"type": "null"}
+        reason:
+          type: "string"
+        report:
+          oneOf:
+            - {"type": "object", "additionalProperties": false, "required": ["kind", "exchangeTimeNs", "orderId", "matchId", "quantity", "leavesQuantity", "cumulativeQuantity", "rejectReason", "cancelReason"], "properties": {"kind": {"type": "string"}, "exchangeTimeNs": {"$ref": "#/components/schemas/NanosecondTimestamp"}, "orderId": {"$ref": "#/components/schemas/UnsignedIntegerString"}, "matchId": {"$ref": "#/components/schemas/UnsignedIntegerString"}, "quantity": {"$ref": "#/components/schemas/UnsignedIntegerString"}, "leavesQuantity": {"$ref": "#/components/schemas/UnsignedIntegerString"}, "cumulativeQuantity": {"$ref": "#/components/schemas/UnsignedIntegerString"}, "rejectReason": {"type": "string"}, "cancelReason": {"type": "string"}}}
+            - {"type": "null"}
+    ExecutionTracePage:
+      type: "object"
+      additionalProperties: false
+      required: ["runId", "windowEndTimeNs", "startTimeNs", "parentQuantity", "finalTargetTimeNs", "finalTargetQuantity", "observationStatus", "totalCount", "items", "page"]
+      properties:
+        verification: { type: string, enum: [native_reproduction_and_replay_verified, recorded_terminal_partial] }
+        runId:
+          $ref: "#/components/schemas/RunId"
+        windowEndTimeNs:
+          $ref: "#/components/schemas/NanosecondTimestamp"
+        startTimeNs:
+          $ref: "#/components/schemas/NanosecondTimestamp"
+        parentQuantity:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        finalTargetTimeNs:
+          $ref: "#/components/schemas/NanosecondTimestamp"
+        finalTargetQuantity:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        observationStatus:
+          type: "string"
+        totalCount:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        items:
+          type: "array"
+          items:
+            $ref: "#/components/schemas/ExecutionTraceRow"
+        page:
+          $ref: "#/components/schemas/PageInfo"
+    AuditInventoryItem:
+      type: "object"
+      additionalProperties: false
+      required: ["artifactIndex", "name", "present", "sizeBytes", "sha256"]
+      properties:
+        artifactIndex:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        name:
+          type: "string"
+        present:
+          type: "boolean"
+        sizeBytes:
+          oneOf:
+            - {"$ref": "#/components/schemas/UnsignedIntegerString"}
+            - {"type": "null"}
+        sha256:
+          oneOf:
+            - {"type": "string"}
+            - {"type": "null"}
+    AuditInventory:
+      type: "object"
+      additionalProperties: false
+      required: ["runId", "schemaVersion", "state", "reproductionSupported", "verificationCommand", "reproductionCommand", "items"]
+      properties:
+        runId:
+          $ref: "#/components/schemas/RunId"
+        schemaVersion:
+          type: "string"
+          const: "exsim.audit-export/1"
+        state:
+          $ref: "#/components/schemas/RunState"
+        reproductionSupported:
+          type: "boolean"
+        verificationCommand:
+          type: "string"
+        reproductionCommand:
+          oneOf:
+            - {"type": "string"}
+            - {"type": "null"}
+        items:
+          type: "array"
+          items:
+            $ref: "#/components/schemas/AuditInventoryItem"
+    AuditArtifactChunk:
+      type: "object"
+      additionalProperties: false
+      required: ["runId", "artifactIndex", "offset", "contentHex", "nextOffset"]
+      properties:
+        runId:
+          $ref: "#/components/schemas/RunId"
+        artifactIndex:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        offset:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        contentHex:
+          type: "string"
+          maxLength: 131072
+          pattern: "^[0-9a-f]*$"
+        nextOffset:
+          oneOf:
+            - {"$ref": "#/components/schemas/UnsignedIntegerString"}
+            - {"type": "null"}
+
+    AuditExportResponse:
+      oneOf:
+        - $ref: "#/components/schemas/AuditInventory"
+        - $ref: "#/components/schemas/AuditArtifactChunk"

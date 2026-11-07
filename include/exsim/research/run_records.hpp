@@ -215,14 +215,14 @@ class RunRecorder {
 public:
     RunRecorder(std::size_t command_capacity, std::size_t record_capacity, std::size_t flush_margin)
         : commands(command_capacity), lifecycle(record_capacity), fills(record_capacity), samples(record_capacity),
-          markouts(record_capacity), flush_margin_(flush_margin) {}
+          markouts(record_capacity), decisions(record_capacity), flush_margin_(flush_margin) {}
 
     // True when any buffer is within the flush margin of its capacity.
     [[nodiscard]] bool needs_flush() const noexcept {
-        return near_full(commands) || near_full(lifecycle) || near_full(fills) || near_full(samples) || near_full(markouts);
+        return near_full(commands) || near_full(lifecycle) || near_full(fills) || near_full(samples) || near_full(markouts) || near_full(decisions);
     }
     [[nodiscard]] bool empty() const noexcept {
-        return commands.size() + lifecycle.size() + fills.size() + samples.size() + markouts.size() == 0;
+        return commands.size() + lifecycle.size() + fills.size() + samples.size() + markouts.size() + decisions.size() == 0;
     }
     void clear() noexcept {
         commands.clear();
@@ -230,6 +230,7 @@ public:
         fills.clear();
         samples.clear();
         markouts.clear();
+        decisions.clear();
     }
 
     BoundedRecordBuffer<CommandRecord> commands;
@@ -237,6 +238,7 @@ public:
     BoundedRecordBuffer<FillRecord> fills;
     BoundedRecordBuffer<SeriesSample> samples;
     BoundedRecordBuffer<MarkoutRecord> markouts;
+    BoundedRecordBuffer<ExecutionDecision> decisions;
 
 private:
     template <typename Record>

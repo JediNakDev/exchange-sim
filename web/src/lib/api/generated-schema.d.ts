@@ -312,6 +312,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/runs/{runId}/execution-trace": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Bounded deterministic native execution decisions and delivered child reports. */
+        get: operations["getExecutionTrace"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/runs/{runId}/audit-export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Complete terminal native inventory or at most 64 KiB of one fixed-name artifact. */
+        get: operations["getAuditExport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/runs/{runId}/fills": {
         parameters: {
             query?: never;
@@ -540,7 +574,7 @@ export interface components {
          */
         QueueEvidenceSource: "exact_simulated_truth" | "estimated_from_market_data";
         /** @enum {string} */
-        FifoEvidenceReason: "rested" | "queue_advanced_by_fill" | "queue_advanced_by_cancel" | "immediately_before_fill" | "immediately_before_cancel";
+        FifoEvidenceReason: "rested" | "replace_priority_kept" | "replace_priority_reset" | "queue_advanced_by_fill" | "queue_advanced_by_cancel" | "immediately_before_fill" | "immediately_before_cancel";
         /**
          * @description Horizons past the run end are censored, never reported as zero.
          * @enum {string}
@@ -552,7 +586,7 @@ export interface components {
          */
         MarkConvention: "exchange_mid" | "strategy_visible_mid" | "last_trade_price";
         /** @enum {string} */
-        MetricKey: "net_pnl" | "equity" | "gross_realized_pnl" | "unrealized_pnl" | "net_fees" | "ending_position" | "max_long_position" | "max_short_position" | "max_drawdown" | "fill_count" | "filled_shares" | "maker_fill_count" | "taker_fill_count" | "fill_rate" | "submitted_order_count" | "canceled_order_count" | "cancel_race_lost_count" | "spread_capture_total" | "markout_total" | "quote_exposure_time" | "completion_ratio" | "residual_qty" | "decision_slippage_total" | "decision_slippage_per_share" | "implementation_shortfall_total" | "implementation_shortfall_per_share" | "participation_rate";
+        MetricKey: "net_pnl" | "equity" | "gross_realized_pnl" | "unrealized_pnl" | "net_fees" | "ending_position" | "max_long_position" | "max_short_position" | "max_drawdown" | "fill_count" | "filled_shares" | "maker_fill_count" | "taker_fill_count" | "fill_rate" | "submitted_order_count" | "canceled_order_count" | "cancel_race_lost_count" | "spread_capture_total" | "markout_total" | "markout_per_share" | "new_order_rejected_count" | "cancel_request_count" | "cancel_rejected_count" | "replace_request_count" | "replace_rejected_count" | "markout_eligible_shares" | "markout_eligible_fills" | "markout_no_mark_fills" | "markout_censored_fills" | "quote_exposure_time" | "completion_ratio" | "residual_qty" | "decision_slippage_total" | "decision_slippage_per_share" | "implementation_shortfall_total" | "implementation_shortfall_per_share" | "participation_rate";
         /** @enum {string} */
         MetricUnit: "currency" | "currency_per_share" | "shares" | "count" | "ratio" | "nanoseconds";
         /** @enum {string} */
@@ -575,7 +609,7 @@ export interface components {
         /** @enum {string} */
         AssumptionCategory: "market_world" | "scenario" | "instrument" | "strategy" | "seeds" | "latency" | "fees" | "risk" | "accounting" | "bounds" | "queue_model";
         /** @enum {string} */
-        ErrorCode: "invalid_request" | "validation_failed" | "not_found" | "idempotency_key_required" | "idempotency_key_reused_with_different_request" | "invalid_state_transition" | "action_not_supported_for_mode" | "artifact_not_ready" | "unsupported_market_world" | "unsupported_schema_version" | "comparison_not_paired" | "internal_error" | "service_unavailable";
+        ErrorCode: "invalid_request" | "validation_failed" | "not_found" | "idempotency_key_required" | "idempotency_key_reused_with_different_request" | "invalid_state_transition" | "action_not_supported_for_mode" | "artifact_not_ready" | "evidence_unavailable" | "not_execution_strategy" | "selected_run_ineligible" | "run_not_terminal" | "artifact_unsafe" | "artifact_too_large" | "artifact_changed" | "unsupported_market_world" | "unsupported_schema_version" | "comparison_not_paired" | "internal_error" | "service_unavailable";
         ErrorResponseBody: {
             error: components["schemas"]["ApiError"];
         };
@@ -960,6 +994,7 @@ export interface components {
             seriesEncoding: components["schemas"]["SchemaVersion"];
         };
         RunManifest: {
+            provenance?: components["schemas"]["BuildProvenance"] | null;
             /** @constant */
             schemaVersion: "exsim.run-manifest/1";
             runId: components["schemas"]["RunId"];
@@ -1038,11 +1073,12 @@ export interface components {
             markUnavailableReason: string | null;
         };
         OrderActivitySummary: {
+            requestDiagnostics?: components["schemas"]["RequestDiagnostic"][];
             submittedOrderCount: components["schemas"]["UnsignedIntegerString"];
             acceptedOrderCount: components["schemas"]["UnsignedIntegerString"];
             rejectedOrderCount: components["schemas"]["UnsignedIntegerString"];
             canceledOrderCount: components["schemas"]["UnsignedIntegerString"];
-            /** @description Cancels that arrived after the order had already fully filled (rejected unknown_order). */
+            /** @description Legacy count of exchange-rejected cancel requests, all reasons. Use requestDiagnostics and lifecycle fill evidence for causal classification. */
             cancelRaceLostCount: components["schemas"]["UnsignedIntegerString"];
             fillCount: components["schemas"]["UnsignedIntegerString"];
             makerFillCount: components["schemas"]["UnsignedIntegerString"];
@@ -1064,14 +1100,15 @@ export interface components {
             maxDrawdownTroughTimeNs: components["schemas"]["NanosecondTimestamp"] | null;
         };
         MarkoutHorizonSummary: {
+            availableShares?: components["schemas"]["UnsignedIntegerString"];
             horizonNs: components["schemas"]["NanosecondDuration"];
             availableFillCount: components["schemas"]["UnsignedIntegerString"];
             /** @description Fills with no two-sided mark at the fill or at the horizon (`unavailable_no_mark`). */
             unavailableFillCount: components["schemas"]["UnsignedIntegerString"];
             /** @description Fills whose horizon falls past the run end. In a partial summary, horizons not yet reached are counted here too. */
             censoredFillCount: components["schemas"]["UnsignedIntegerString"];
-            /** @description Sum over available fills only; censored fills are excluded, not zero-filled. */
-            totalMarkout: components["schemas"]["MarkoutAmount"];
+            /** @description Null when no measured shares exist; measured zero remains a value. */
+            totalMarkout: components["schemas"]["MarkoutAmount"] | null;
             meanMarkoutPerShare: components["schemas"]["DerivedDecimal"] | null;
         };
         LatencyMeasurement: {
@@ -1222,6 +1259,8 @@ export interface components {
             page: components["schemas"]["PageInfo"];
         };
         LifecycleStage: {
+            orderId?: components["schemas"]["UnsignedIntegerString"] | null;
+            replacedOldOrderId?: components["schemas"]["UnsignedIntegerString"] | null;
             stageKind: components["schemas"]["LifecycleStageKind"];
             eventPosition: components["schemas"]["UnsignedIntegerString"];
             simulationTimeNs: components["schemas"]["NanosecondTimestamp"];
@@ -1232,16 +1271,21 @@ export interface components {
             detail: string;
         };
         FifoAheadEvidence: {
+            /** @description False at a priority-losing replacement before its matching/re-rest; queue quantities are then null. */
+            queuePositionAvailable?: boolean;
+            orderId?: components["schemas"]["UnsignedIntegerString"];
+            replacedOldOrderId?: components["schemas"]["UnsignedIntegerString"] | null;
+            priorityKept?: boolean | null;
             eventPosition: components["schemas"]["UnsignedIntegerString"];
             simulationTimeNs: components["schemas"]["NanosecondTimestamp"];
             reason: components["schemas"]["FifoEvidenceReason"];
             source: components["schemas"]["QueueEvidenceSource"];
             price: components["schemas"]["PriceDecimal"];
             /** @description Shares with strictly earlier priority at the same price level and side. */
-            sharesAhead: components["schemas"]["UnsignedIntegerString"];
-            ordersAhead: components["schemas"]["UnsignedIntegerString"];
+            sharesAhead: components["schemas"]["UnsignedIntegerString"] | null;
+            ordersAhead: components["schemas"]["UnsignedIntegerString"] | null;
             /** @description All shares at the level, including this order. */
-            levelTotalShares: components["schemas"]["UnsignedIntegerString"];
+            levelTotalShares: components["schemas"]["UnsignedIntegerString"] | null;
         };
         OrderLatencyBreakdown: {
             /** @description Exchange arrival minus strategy submit. */
@@ -1253,6 +1297,8 @@ export interface components {
             submitToFirstFillNs: components["schemas"]["NanosecondDuration"] | null;
         };
         OrderLifecycle: {
+            fifoEvidenceTruncated?: boolean;
+            replaceTransits?: components["schemas"]["ReplaceTransit"][];
             runId: components["schemas"]["RunId"];
             order: components["schemas"]["OwnOrderSummary"];
             /** @enum {string} */
@@ -1382,9 +1428,10 @@ export interface components {
             standardErrorOfMean: components["schemas"]["DerivedDecimal"] | null;
             minimumDifference: components["schemas"]["ExactDecimal"] | null;
             maximumDifference: components["schemas"]["ExactDecimal"] | null;
-            /** @description Per the metric's betterDirection. */
+            /** @description Per betterDirection; zero is a not-applicable sentinel when direction is neither. It does not mean equality. */
             candidateBetterCount: number;
             candidateWorseCount: number;
+            /** @description Actual exact zero differences, including neutral metrics. */
             tiedCount: number;
         };
         MetricComparison: {
@@ -1415,6 +1462,10 @@ export interface components {
             candidateMean: (components["schemas"]["DerivedDecimal"] | null)[];
         };
         ExperimentComparison: {
+            /** @enum {string} */
+            selectionPolicy?: "most_recent_eligible_in_creation_order" | "explicit_run_selection";
+            runSelection?: string;
+            attemptLedger?: components["schemas"]["ComparisonSeedAttempts"][];
             /** @constant */
             schemaVersion: "exsim.comparison/1";
             baseline: components["schemas"]["ExperimentReference"];
@@ -1486,6 +1537,124 @@ export interface components {
             feeds: components["schemas"]["MarketDataFeedStatus"][];
             faults: components["schemas"]["FaultScenarioStatus"][];
         };
+        BuildProvenance: {
+            sourceRevision: string | null;
+            releaseId: string | null;
+            executableSha256: string | null;
+        };
+        RequestDiagnostic: {
+            arrivalTransit?: {
+                sampleCount: components["schemas"]["UnsignedIntegerString"];
+                minNs: components["schemas"]["NanosecondDuration"] | null;
+                maxNs: components["schemas"]["NanosecondDuration"] | null;
+                meanNs: components["schemas"]["DerivedDecimal"] | null;
+            };
+            requestKind: components["schemas"]["CommandKind"];
+            submittedCount: components["schemas"]["UnsignedIntegerString"];
+            exchangeRejectedCount: components["schemas"]["UnsignedIntegerString"];
+            rejectReasons: {
+                reason: components["schemas"]["RejectReason"];
+                count: components["schemas"]["UnsignedIntegerString"];
+            }[];
+        };
+        ReplaceTransit: {
+            submitEventPosition: components["schemas"]["UnsignedIntegerString"];
+            arrivalEventPosition: components["schemas"]["UnsignedIntegerString"];
+            transitNs: components["schemas"]["NanosecondDuration"];
+            fillBeforeArrivalEventPosition: components["schemas"]["UnsignedIntegerString"] | null;
+        };
+        ComparisonAttempt: {
+            creationOrdinal?: components["schemas"]["UnsignedIntegerString"] | null;
+            runId: components["schemas"]["RunId"];
+            state: components["schemas"]["RunState"];
+            selected: boolean;
+            eligible: boolean;
+            reason: string;
+            observationStatus: string;
+            windowEndTimeNs: components["schemas"]["NanosecondTimestamp"] | null;
+            observedThroughTimeNs: components["schemas"]["NanosecondTimestamp"] | null;
+            digests: components["schemas"]["RunArtifactDigests"];
+            requestDiagnostics: components["schemas"]["RequestDiagnostic"][] | null;
+            markouts: components["schemas"]["MarkoutHorizonSummary"][] | null;
+        };
+        ComparisonSeedAttempts: {
+            /** @enum {string} */
+            selectionReason?: "selected" | "no_selected_eligible_attempt" | "unlaunched";
+            experimentId: components["schemas"]["ExperimentId"];
+            masterSeed: components["schemas"]["UnsignedIntegerString"];
+            selectedRunId: components["schemas"]["RunId"] | null;
+            attempts: components["schemas"]["ComparisonAttempt"][];
+        };
+        ExecutionTraceRow: {
+            index: components["schemas"]["UnsignedIntegerString"];
+            /** @enum {string} */
+            kind: "decision" | "child_report";
+            simulationTimeNs: components["schemas"]["NanosecondTimestamp"];
+            cumulativeTargetQuantity: components["schemas"]["UnsignedIntegerString"];
+            knownFilledQuantity: components["schemas"]["UnsignedIntegerString"];
+            parentResidualQuantity: components["schemas"]["UnsignedIntegerString"];
+            requestedQuantity: components["schemas"]["UnsignedIntegerString"];
+            outstandingQuantity: components["schemas"]["UnsignedIntegerString"];
+            positionHeadroom: components["schemas"]["SignedIntegerString"];
+            childCapQuantity: components["schemas"]["UnsignedIntegerString"];
+            submittedQuantity: components["schemas"]["UnsignedIntegerString"];
+            childClientOrderId: components["schemas"]["UnsignedIntegerString"] | null;
+            deliveredSourceSequence: components["schemas"]["UnsignedIntegerString"];
+            deliveredSourceTimeNs: components["schemas"]["NanosecondTimestamp"];
+            deliveredTouch: components["schemas"]["PriceDecimal"] | null;
+            limitPrice: components["schemas"]["PriceDecimal"] | null;
+            reason: string;
+            report: {
+                kind: string;
+                exchangeTimeNs: components["schemas"]["NanosecondTimestamp"];
+                orderId: components["schemas"]["UnsignedIntegerString"];
+                matchId: components["schemas"]["UnsignedIntegerString"];
+                quantity: components["schemas"]["UnsignedIntegerString"];
+                leavesQuantity: components["schemas"]["UnsignedIntegerString"];
+                cumulativeQuantity: components["schemas"]["UnsignedIntegerString"];
+                rejectReason: string;
+                cancelReason: string;
+            } | null;
+        };
+        ExecutionTracePage: {
+            /** @enum {string} */
+            verification?: "native_reproduction_and_replay_verified" | "recorded_terminal_partial";
+            runId: components["schemas"]["RunId"];
+            windowEndTimeNs: components["schemas"]["NanosecondTimestamp"];
+            startTimeNs: components["schemas"]["NanosecondTimestamp"];
+            parentQuantity: components["schemas"]["UnsignedIntegerString"];
+            finalTargetTimeNs: components["schemas"]["NanosecondTimestamp"];
+            finalTargetQuantity: components["schemas"]["UnsignedIntegerString"];
+            observationStatus: string;
+            totalCount: components["schemas"]["UnsignedIntegerString"];
+            items: components["schemas"]["ExecutionTraceRow"][];
+            page: components["schemas"]["PageInfo"];
+        };
+        AuditInventoryItem: {
+            artifactIndex: components["schemas"]["UnsignedIntegerString"];
+            name: string;
+            present: boolean;
+            sizeBytes: components["schemas"]["UnsignedIntegerString"] | null;
+            sha256: string | null;
+        };
+        AuditInventory: {
+            runId: components["schemas"]["RunId"];
+            /** @constant */
+            schemaVersion: "exsim.audit-export/1";
+            state: components["schemas"]["RunState"];
+            reproductionSupported: boolean;
+            verificationCommand: string;
+            reproductionCommand: string | null;
+            items: components["schemas"]["AuditInventoryItem"][];
+        };
+        AuditArtifactChunk: {
+            runId: components["schemas"]["RunId"];
+            artifactIndex: components["schemas"]["UnsignedIntegerString"];
+            offset: components["schemas"]["UnsignedIntegerString"];
+            contentHex: string;
+            nextOffset: components["schemas"]["UnsignedIntegerString"] | null;
+        };
+        AuditExportResponse: components["schemas"]["AuditInventory"] | components["schemas"]["AuditArtifactChunk"];
     };
     responses: {
         /** @description Any error. The HTTP status and `error.code` agree as listed in docs/API.md. */
@@ -2096,6 +2265,60 @@ export interface operations {
             default: components["responses"]["ErrorResponse"];
         };
     };
+    getExecutionTrace: {
+        parameters: {
+            query?: {
+                /** @description Opaque cursor from a previous page's `page.nextCursor`. Other filters must be repeated unchanged. */
+                cursor?: components["parameters"]["Cursor"];
+                /** @description Maximum items per page. */
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: never;
+            path: {
+                runId: components["parameters"]["RunIdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Exact native evidence. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExecutionTracePage"];
+                };
+            };
+            default: components["responses"]["ErrorResponse"];
+        };
+    };
+    getAuditExport: {
+        parameters: {
+            query?: {
+                artifactIndex?: components["schemas"]["UnsignedIntegerString"];
+                offset?: components["schemas"]["UnsignedIntegerString"];
+            };
+            header?: never;
+            path: {
+                runId: components["parameters"]["RunIdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Exact native evidence. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditExportResponse"];
+                };
+            };
+            default: components["responses"]["ErrorResponse"];
+        };
+    };
     listRunFills: {
         parameters: {
             query?: {
@@ -2158,6 +2381,8 @@ export interface operations {
     compareExperiments: {
         parameters: {
             query: {
+                /** @description Opaque r1_ token returned by a prior response, comma separated explicit run IDs, or none. Pins at most one eligible attempt per experiment/seed. Ineligible pinned evidence returns 409; never falls back to a retry. */
+                runSelection?: string;
                 baselineExperimentId: components["schemas"]["ExperimentId"];
                 candidateExperimentId: components["schemas"]["ExperimentId"];
                 /** @description Upper bound on aligned series points. */

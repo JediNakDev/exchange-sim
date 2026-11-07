@@ -121,6 +121,11 @@ RunReproduction reproduce_run(const std::filesystem::path& run_directory) {
             differing_files += name;
         }
     }
+    if (std::filesystem::exists(run_directory / kExecutionTraceFileName) &&
+        read_text_file(run_directory / kExecutionTraceFileName) != read_text_file(scratch.path() / kExecutionTraceFileName)) {
+        if (!differing_files.empty()) differing_files += ", ";
+        differing_files += kExecutionTraceFileName;
+    }
     if (!differing_files.empty()) {
         result.detail = "re-execution by this build differs in " + differing_files;
         return result;

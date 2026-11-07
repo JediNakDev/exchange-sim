@@ -2,6 +2,7 @@
 
 #include "exsim/api/api_json.hpp"
 #include "exsim/api/sha256.hpp"
+#include "exsim/api/comparison_selection.hpp"
 #include "exsim/research/json.hpp"
 #include "exsim/research/run_artifacts.hpp"
 
@@ -167,7 +168,7 @@ std::vector<std::string_view> canonical_event_kind_names() {
 
 const char* better_direction(std::string_view metric_key) {
     static const std::set<std::string_view> higher = {"net_pnl", "equity", "gross_realized_pnl", "unrealized_pnl", "spread_capture_total",
-                                                     "markout_total", "completion_ratio"};
+                                                     "markout_total", "markout_per_share", "completion_ratio"};
     static const std::set<std::string_view> lower = {"net_fees", "max_drawdown", "cancel_race_lost_count", "residual_qty", "decision_slippage_total",
                                                     "decision_slippage_per_share", "implementation_shortfall_total", "implementation_shortfall_per_share"};
     if (higher.count(metric_key)) return "higher";
@@ -232,6 +233,7 @@ bool valid_resource_id(std::string_view text, std::string_view prefix) {
 // ---- Lifetime ----------------------------------------------------------------------
 
 ResearchService::ResearchService(ResearchServiceOptions options) : options_(std::move(options)) {
+    if (!options_.executable_path.empty()) executable_sha256_ = sha256_file_hex(options_.executable_path);
     for (const auto* directory : {"experiments", "runs", "idempotency"})
         std::filesystem::create_directories(options_.data_directory / directory);
     load_data_directory();
@@ -529,6 +531,8 @@ void ResearchService::load_data_directory() {
     for (const auto& [directory, config] : run_records)
         loaded.push_back(std::shared_ptr<ResearchRun>(ResearchRun::load(directory, config)));
     std::sort(loaded.begin(), loaded.end(), [](const auto& left, const auto& right) {
+        if ((left->creation_ordinal() == 0) != (right->creation_ordinal() == 0)) return left->creation_ordinal() == 0;
+        if (left->creation_ordinal() && right->creation_ordinal()) return left->creation_ordinal() < right->creation_ordinal();
         return left->created_at_unix_ms() != right->created_at_unix_ms() ? left->created_at_unix_ms() < right->created_at_unix_ms()
                                                                          : left->run_id() < right->run_id();
     });
@@ -782,6 +786,13 @@ std::string ResearchService::route_run_get(const HttpRequest& request, const std
         query.max_points = static_cast<std::uint32_t>(integer_query(request, "maxPoints", 500, 2, 5000));
         return run->render_series_json(query);
     }
+    if (view == "audit-export") return run->render_audit_export_json(unsigned_query(request, "artifactIndex"), unsigned_query(request, "offset").value_or(0));
+    if (view == "execution-trace") {
+        PageQuery page;
+        page.limit = integer_query(request, "limit", 100, 1, 1000);
+        page.start_index = cursor_start(request, "execution-trace|" + run_id);
+        return run->render_execution_trace_json(page);
+    }
     if (view == "events") {
         EventPageQuery query;
         const auto from = unsigned_query(request, "fromEventPosition");
@@ -872,12 +883,54 @@ std::string ResearchService::render_comparison(const HttpRequest& request) {
         std::lock_guard lock(state_mutex_);
         runs = runs_in_creation_order_;
     }
-    // Completed runs by seed; a later completed run of the same seed wins.
+    struct Attempt {
+        std::shared_ptr<ResearchRun> run;
+        std::optional<RunComparisonInputs> inputs;
+        std::string reason;
+    };
+    std::vector<Attempt> attempts;
+    const auto selection = query_value(request, "runSelection");
+    std::vector<std::string> pinned;
+    if (selection) {
+        if (selection->starts_with("r1_")) {
+            const auto decoded = decode_run_selection(*selection);
+            if (!decoded) throw invalid_request("runSelection token is invalid");
+            pinned = *decoded;
+        } else {
+        std::size_t start = 0;
+        do {
+            const auto end = selection->find(',', start);
+            pinned.push_back(selection->substr(start, end == std::string::npos ? end : end - start));
+            if (end == std::string::npos) break;
+            start = end + 1;
+        } while (true);
+        }
+        for (const auto& id : pinned) {
+            if (id == "none") continue;
+            const auto found = std::find_if(runs.begin(), runs.end(), [&](const auto& run) { return run->run_id() == id &&
+                (run->experiment_id() == *baseline_id || run->experiment_id() == *candidate_id); });
+            if (found == runs.end()) throw invalid_request("runSelection contains an unknown or unrelated run");
+        }
+    }
+    for (const auto& run : runs) {
+        if (run->experiment_id() != *baseline_id && run->experiment_id() != *candidate_id) continue;
+        Attempt attempt{run, run->comparison_inputs(), ""};
+        if (run->state() != ApiRunState::Completed) attempt.reason = "not_completed";
+        else if (!attempt.inputs) attempt.reason = "native_reproduction_or_replay_failed";
+        else if (!attempt.inputs->execution_eligible) attempt.reason = "execution_window_censored";
+        attempts.push_back(std::move(attempt));
+    }
+    if (selection) for (const auto& attempt : attempts)
+        if (std::find(pinned.begin(), pinned.end(), attempt.run->run_id()) != pinned.end() && !attempt.reason.empty())
+            throw ApiFailure(409, "selected_run_ineligible", "Pinned run is no longer eligible: " + attempt.run->run_id() + ": " + attempt.reason);
     const auto completed_by_seed = [&](const std::string& experiment_id) {
         std::map<std::uint64_t, RunComparisonInputs> by_seed;
-        for (const auto& run : runs) {
-            if (run->experiment_id() != experiment_id) continue;
-            if (auto inputs = run->comparison_inputs()) by_seed[run->master_seed()] = std::move(*inputs);
+        for (const auto& attempt : attempts) {
+            const auto& run = attempt.run;
+            if (run->experiment_id() != experiment_id || !attempt.reason.empty()) continue;
+            if (selection && std::find(pinned.begin(), pinned.end(), run->run_id()) == pinned.end()) continue;
+            if (selection && by_seed.count(run->master_seed())) throw invalid_request("runSelection must select at most one attempt per experiment and seed");
+            by_seed[run->master_seed()] = *attempt.inputs;
         }
         return by_seed;
     };
@@ -913,6 +966,44 @@ std::string ResearchService::render_comparison(const HttpRequest& request) {
     json.key("comparable").boolean(reasons.empty());
     json.key("incomparabilityReasons").begin_array();
     for (const std::string& reason : reasons) json.string(reason);
+    json.end_array();
+    json.key("selectionPolicy").string(selection ? "explicit_run_selection" : "most_recent_eligible_in_creation_order");
+    std::vector<std::string> selected_ids;
+    for (const auto* selected : {&baseline_runs, &candidate_runs}) for (const auto& [seed, input] : *selected) selected_ids.push_back(input.run_id);
+    json.key("runSelection").string(encode_run_selection(selected_ids));
+    json.key("attemptLedger").begin_array();
+    for (const auto* experiment : {baseline.get(), candidate.get()}) {
+        const auto& selected = experiment == baseline.get() ? baseline_runs : candidate_runs;
+        for (const auto seed : experiment->translated->master_seeds) {
+            json.begin_object().key("experimentId").string(experiment->experiment_id).key("masterSeed").unsigned_text(seed);
+            json.key("selectionReason").string(selected.count(seed) ? "selected" : std::any_of(attempts.begin(), attempts.end(), [&](const auto& a) { return a.run->experiment_id() == experiment->experiment_id && a.run->master_seed() == seed; }) ? "no_selected_eligible_attempt" : "unlaunched");
+            json.key("selectedRunId");
+            const auto chosen = selected.find(seed);
+            if (chosen == selected.end()) json.null(); else json.string(chosen->second.run_id);
+            json.key("attempts").begin_array();
+            for (const auto& attempt : attempts) {
+                if (attempt.run->experiment_id() != experiment->experiment_id || attempt.run->master_seed() != seed) continue;
+                const bool picked = chosen != selected.end() && chosen->second.run_id == attempt.run->run_id();
+                json.begin_object().key("runId").string(attempt.run->run_id());
+                json.key("state").string(to_api_string(attempt.run->state()));
+                json.key("creationOrdinal"); if (attempt.run->creation_ordinal()) json.unsigned_text(attempt.run->creation_ordinal()); else json.null();
+                json.key("selected").boolean(picked);
+                json.key("eligible").boolean(attempt.reason.empty());
+                json.key("reason").string(!attempt.reason.empty() ? attempt.reason : picked ? "selected" : selection ? "not_selected" : "superseded_by_later_eligible_attempt");
+                json.key("observationStatus").string(attempt.inputs ? attempt.inputs->observation_status : "unavailable");
+                json.key("windowEndTimeNs"); if (attempt.inputs) json.unsigned_text(attempt.inputs->window_end_ns); else json.null();
+                json.key("observedThroughTimeNs"); if (attempt.inputs) json.unsigned_text(attempt.inputs->end_time_ns); else json.null();
+                const auto run_receipt = research::parse_json(attempt.run->render_run_json());
+                json.key("digests").raw(serialize_json_value(*run_receipt.find("digests")));
+                if (attempt.inputs) {
+                    json.key("requestDiagnostics").raw(attempt.inputs->request_diagnostics_json);
+                    json.key("markouts").raw(attempt.inputs->markouts_json);
+                } else { json.key("requestDiagnostics").null(); json.key("markouts").null(); }
+                json.end_object();
+            }
+            json.end_array().end_object();
+        }
+    }
     json.end_array();
     json.key("seedPairing").begin_object();
     json.key("pairedSeeds").begin_array();
@@ -1040,7 +1131,7 @@ std::string ResearchService::render_comparison(const HttpRequest& request) {
             else json.null();
             json.key("candidateBetterCount").integer_number(better == "higher" ? positive : better == "lower" ? negative : 0);
             json.key("candidateWorseCount").integer_number(better == "higher" ? negative : better == "lower" ? positive : 0);
-            json.key("tiedCount").integer_number(better == "neither" ? static_cast<std::int64_t>(count) : tied);
+            json.key("tiedCount").integer_number(tied);
             json.end_object();
             json.end_object();
         }
@@ -1382,8 +1473,21 @@ std::string ResearchService::create_run(const research::JsonValue& body) {
     parameters.master_seed = seed;
     parameters.start_paused = start_paused != nullptr && start_paused->boolean;
     parameters.created_at_unix_ms = current_unix_milliseconds();
+    {
+        std::lock_guard lock(state_mutex_);
+        parameters.creation_ordinal = runs_in_creation_order_.size() + 1;
+    }
     parameters.run_directory = options_.data_directory / "runs" / parameters.run_id;
     parameters.service_build_id = options_.service_build_id;
+    parameters.executable_path = options_.executable_path;
+    ApiJsonWriter provenance;
+    provenance.begin_object().key("sourceRevision");
+    if (options_.source_revision.empty()) provenance.null(); else provenance.string(options_.source_revision);
+    provenance.key("releaseId"); if (options_.release_id.empty()) provenance.null(); else provenance.string(options_.release_id);
+    provenance.key("executableSha256");
+    if (!executable_sha256_) provenance.null(); else provenance.string(*executable_sha256_);
+    provenance.end_object();
+    parameters.provenance_json = provenance.take();
     auto run = std::make_shared<ResearchRun>(std::move(parameters));
     {
         std::lock_guard lock(state_mutex_);

@@ -35,10 +35,10 @@ public:
     }
 
     void on_market_data(const MarketDataUpdate&, StrategyContext& context) noexcept {
-        if (started_ && !child_.child_in_flight()) sweep(context);
+        if (started_) sweep(context);
     }
 
-    void on_execution_report(const ExecutionReport& report, StrategyContext&) noexcept { (void)child_.on_report(report); }
+    void on_execution_report(const ExecutionReport& report, StrategyContext& context) noexcept { child_.observe_report(report, context); }
 
     [[nodiscard]] std::uint64_t filled_qty() const noexcept { return child_.filled_qty(); }
     [[nodiscard]] std::uint64_t sweeps_sent() const noexcept { return sweeps_sent_; }
@@ -48,7 +48,7 @@ private:
         const auto& parameters = child_.parameters();
         if (child_.remaining_qty() == 0) return;
         if (context.now() > parameters.start_ns + parameters.execution_duration_ns) return;
-        if (child_.send_child(context, child_.remaining_qty())) ++sweeps_sent_;
+        if (child_.send_child(context, child_.remaining_qty(), parameters.parent_qty)) ++sweeps_sent_;
     }
 
     ParentOrderChild child_;

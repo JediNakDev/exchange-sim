@@ -38,6 +38,9 @@ struct ResearchServiceOptions {
     std::size_t max_idempotency_keys = 100'000;
     std::uint64_t executor_slice_steps = 2048;
     std::string service_build_id = "exsim_api/1";
+    std::string executable_path;
+    std::string source_revision; // supplied build metadata; empty means unavailable
+    std::string release_id;
     bool start_executor = true;  // tests drive the executor by hand when false
 };
 
@@ -106,6 +109,7 @@ private:
     std::string new_identifier(std::string_view prefix);
 
     ResearchServiceOptions options_;
+    std::optional<std::string> executable_sha256_;
     mutable std::mutex state_mutex_;  // experiments, runs, idempotency maps
     std::mutex mutation_mutex_;       // serializes mutating requests (idempotency)
     std::map<std::string, std::shared_ptr<const StoredExperiment>> experiments_;
