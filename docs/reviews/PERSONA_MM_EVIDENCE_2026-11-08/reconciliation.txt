@@ -1,0 +1,4 @@
+PASS 2015 fills; position=-199; fees=-271.4460; cash=1021660.6660; net=1749.72100
+PASS horizon=100000000 eligible fills=2014 eligible shares=135665 total=1395.02000 mean=0.010283
+PASS horizon=1000000000 eligible fills=1977 eligible shares=133167 total=1360.44000 mean=0.010216
+PASS horizon=5000000000 eligible fills=1845 eligible shares=124664 total=1365.82000 mean=0.010956

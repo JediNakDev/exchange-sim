@@ -1,0 +1,37 @@
+{
+  "runId": "run_4f97b0a4c54beef3",
+  "experimentId": "exp_61ccdd391b89b2e5",
+  "masterSeed": "101",
+  "mode": "deterministic_research",
+  "marketWorld": "interactive_synthetic",
+  "state": "queued",
+  "allowedActions": [
+    "cancel"
+  ],
+  "progress": {
+    "processedCanonicalEventCount": "0",
+    "simulationTimeNs": "0",
+    "endSimulationTimeNs": "60000000000"
+  },
+  "stateHistory": [
+    {
+      "fromState": null,
+      "toState": "queued",
+      "transitionedAt": "2026-11-07T18:09:03.507Z",
+      "atEventPosition": "0",
+      "atSimulationTimeNs": "0",
+      "reason": "created"
+    }
+  ],
+  "createdAt": "2026-11-07T18:09:03.507Z",
+  "terminalDiagnostics": null,
+  "digests": {
+    "manifestDigest": {
+      "algorithm": "sha256",
+      "hexDigest": "ddcf0b84c4c18f3e56a933fbe0058d246379533ddfcf302a3b9d691e1af3d252"
+    },
+    "canonicalEventDigest": null,
+    "ledgerDigest": null
+  },
+  "parentRunId": null
+}
