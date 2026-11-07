@@ -24,12 +24,9 @@ import { createIdempotencyKey, describeApiFailure, getBrowserApiClient, unwrapAp
 import { formatDecimalForDisplay, formatDurationNs } from "@/lib/exact-decimal-format";
 import { humanizeEnumValue } from "@/lib/research-labels";
 import { cn } from "@/lib/utils";
+import { baselineForIntent, draftFromExperiment, exactDurationDescription, nanosecondsInUnit, strategyIntent, unitValueInNanoseconds, type TimingUnit } from "./experiment-setup";
 
 type ExperimentConfig = ApiSchemas["ExperimentConfig"];
-
-function draftDurationDescription(value: string): string | undefined {
-  return /^(0|[1-9][0-9]{0,19})$/.test(value) ? formatDurationNs(value) : undefined;
-}
 
 const SCENARIO_PARAMETER_LABELS: Record<string, string> = {
   levels: "Price levels per side",
@@ -98,6 +95,30 @@ interface PreviewOutcome {
   experimentIdempotencyKey: string;
 }
 
+function TimingInput({ id, label, value, onValueChange, invalid }: { id: string; label: string; value: string; onValueChange: (value: string) => void; invalid: boolean }) {
+  // Start in ns to preserve existing labels and saved-value inspection. Unit changes
+  // only change presentation; the request always retains the exact ns string.
+  const [unit, setUnit] = useState<TimingUnit>("ns");
+  const [invalidText, setInvalidText] = useState<string | null>(null);
+  const converted = nanosecondsInUnit(value, unit);
+  const displayed = value === "" && invalidText !== null ? invalidText : converted ?? value;
+  return (
+    <div className="flex gap-2">
+      <Input id={id} value={displayed} inputMode={unit === "ns" ? "numeric" : "decimal"} className="min-w-0 font-mono" aria-describedby={`${id}-help`} aria-invalid={invalid || converted === null || undefined}
+        onChange={(event) => {
+          const text = event.target.value;
+          const next = unitValueInNanoseconds(text, unit);
+          setInvalidText(next === null ? text : null);
+          onValueChange(unit === "ns" ? text : next ?? "");
+        }} />
+      <Select value={unit} onValueChange={(next) => setUnit(next as TimingUnit)} disabled={converted === null}>
+        <SelectTrigger aria-label={`Display unit for ${label}`} className="w-20 shrink-0"><SelectValue /></SelectTrigger>
+        <SelectContent>{(["ns", "µs", "ms", "s"] as const).map((option) => <SelectItem key={option} value={option}>{option}</SelectItem>)}</SelectContent>
+      </Select>
+    </div>
+  );
+}
+
 function TextField({
   label,
   fieldPath,
@@ -119,21 +140,24 @@ function TextField({
 }) {
   const inputId = `field-${fieldPath.replaceAll("/", "-")}`;
   const fieldIssues = issuesByFieldPath.get(fieldPath) ?? [];
+  const isTiming = unit === "ns" || unit === "nanoseconds";
+  const helpId = `${inputId}-help`;
   return (
     <Field data-invalid={fieldIssues.length > 0 || undefined}>
       <FieldLabel htmlFor={inputId}>
         {label}
-        {unit ? <span className="font-normal text-muted-foreground">({unit})</span> : null}
+        {unit ? <span className="font-normal text-muted-foreground">({isTiming ? "stored as ns" : unit})</span> : null}
       </FieldLabel>
-      <Input
+      {isTiming ? <TimingInput id={inputId} label={label} value={value} onValueChange={onValueChange} invalid={fieldIssues.length > 0} /> : <Input
         id={inputId}
+        aria-describedby={description ? helpId : undefined}
         value={value}
         inputMode={inputMode}
         aria-invalid={fieldIssues.length > 0 || undefined}
         className={inputMode === "text" ? undefined : "font-mono"}
         onChange={(changeEvent) => onValueChange(changeEvent.target.value)}
-      />
-      {description ? <FieldDescription>{description}</FieldDescription> : null}
+      />}
+      {isTiming ? <FieldDescription id={helpId}>{exactDurationDescription(value) ?? "Enter a nonnegative duration with whole-nanosecond precision."}{description && description !== exactDurationDescription(value) ? ` · ${description}` : ""}</FieldDescription> : description ? <FieldDescription id={helpId}>{description}</FieldDescription> : null}
       {fieldIssues.length > 0 ? <FieldError errors={fieldIssues.map((issue) => ({ message: issue }))} /> : null}
     </Field>
   );
@@ -175,11 +199,13 @@ function AssumptionsTable({ assumptions }: { assumptions: ApiSchemas["Assumption
 }
 
 export function ExperimentCreateView() {
-  const parentId = useSearchParams().get("from");
-  return <ExperimentEditor key={parentId ?? "new"} parentId={parentId} />;
+  const searchParams = useSearchParams();
+  const parentId = searchParams.get("from");
+  const intent = searchParams.get("intent");
+  return <ExperimentEditor key={`${parentId ?? "new"}:${intent ?? "all"}`} parentId={parentId} intent={intent} />;
 }
 
-function ExperimentEditor({ parentId }: { parentId: string | null }) {
+function ExperimentEditor({ parentId, intent }: { parentId: string | null; intent: string | null }) {
   const router = useRouter();
   const apiClient = getBrowserApiClient();
   const serviceResource = useApiResource("service-capabilities", async () => unwrapApiResult(await apiClient.GET("/v1/service")), null);
@@ -195,17 +221,9 @@ function ExperimentEditor({ parentId }: { parentId: string | null }) {
 
   const supportedKinds = serviceResource.data?.executableStrategyKinds.filter((kind) => EDITABLE_STRATEGY_KINDS.includes(kind));
   const executableBaselines = baselineList.data?.items.filter((baseline) => supportedKinds?.includes(baseline.config.strategy.strategyKind)) ?? [];
-  const firstBaseline = executableBaselines[0] ?? null;
+  const firstBaseline = baselineForIntent(executableBaselines, intent);
   const parent = parentResource.data;
-  const draft = editedDraft ?? (parent ? {
-    baselineId: parent.derivedFromBaselineId,
-    name: `${parent.name} variant`,
-    description: parent.description ?? "",
-    parentExperimentId: parent.experimentId,
-    config: structuredClone(parent.config),
-    masterSeedsText: parent.config.seedSet.masterSeeds.join(", "),
-    markoutHorizonsText: parent.config.markoutHorizonsNs.join(", "),
-  } : !parentId && firstBaseline ? draftFromBaseline(firstBaseline) : null);
+  const draft = editedDraft ?? (parent ? draftFromExperiment(parent) : !parentId && firstBaseline ? draftFromBaseline(firstBaseline) : null);
   const createRequest = draft ? buildCreateRequest(draft) : null;
   const createRequestText = createRequest ? JSON.stringify(createRequest) : null;
   const isPreviewCurrent = previewOutcome !== null && previewOutcome.requestText === createRequestText;
@@ -221,6 +239,10 @@ function ExperimentEditor({ parentId }: { parentId: string | null }) {
   if (parentResource.failure) return <ApiFailureAlert failure={parentResource.failure} title="Could not load the source experiment" onRetry={parentResource.reload} />;
   if (baselineList.failure) return <ApiFailureAlert failure={baselineList.failure} title="Could not load baselines" onRetry={baselineList.reload} />;
   if (baselineList.data && supportedKinds && executableBaselines.length === 0) return <p className="text-sm text-muted-foreground">No executable baselines are available. Check the research service and reload this page.</p>;
+  if (!parentId && baselineList.data && supportedKinds && !firstBaseline) return (
+    <Card><CardHeader><CardTitle>Research task unavailable</CardTitle><CardDescription>The service has no executable {intent} baseline. Choose another task or check service capabilities.</CardDescription></CardHeader>
+      <CardContent><Button variant="outline" onClick={() => router.push("/experiments/new")}>Choose another research task</Button></CardContent></Card>
+  );
   if (!draft || !createRequest || !baselineList.data || !supportedKinds) return <p className="text-sm text-muted-foreground">Loading baselines...</p>;
 
   const updateDraft = (applyChange: (nextDraft: ExperimentDraft) => void) => {
@@ -249,7 +271,7 @@ function ExperimentEditor({ parentId }: { parentId: string | null }) {
   };
 
   const createExperimentAndStartRuns = async () => {
-    if (!isPreviewCurrent || isSubmitting || isPreviewing) return;
+    if (!isPreviewCurrent || !previewOutcome.preview.valid || !supportedKinds.includes(draft.config.strategy.strategyKind) || isSubmitting || isPreviewing) return;
     setIsSubmitting(true);
     setRequestFailure(null);
     try {
@@ -274,10 +296,11 @@ function ExperimentEditor({ parentId }: { parentId: string | null }) {
 
   return (
     <>
-      <PageHeading title="New experiment" description="Start from a baseline, change what you are testing, review every assumption, then queue one run per master seed." />
+      <PageHeading title="New experiment" description="Define the trading decision, hold market assumptions constant, then review and launch paired-seed research." />
       {experimentList.failure ? <ApiFailureAlert failure={experimentList.failure} title="Could not load parent experiments" onRetry={experimentList.reload} /> : null}
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.6fr)_minmax(280px,1fr)]">
         <form
+          id="experiment-setup"
           key={draft.baselineId}
           className="experiment-form flex flex-col"
           onSubmit={(submitEvent) => {
@@ -286,8 +309,22 @@ function ExperimentEditor({ parentId }: { parentId: string | null }) {
           }}
         >
           <fieldset aria-label="Experiment configuration" disabled={isSubmitting || isPreviewing} className="flex min-w-0 flex-col gap-5">
+          <section aria-label="Research task" className="border-b pb-5">
+            <h2 className="text-lg font-semibold">What are you testing?</h2>
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              {(["execution", "market-making"] as const).map((task) => {
+                const baseline = baselineForIntent(executableBaselines, task);
+                const selected = strategyIntent(draft.config.strategy.strategyKind) === task;
+                return <Button key={task} type="button" variant={selected ? "secondary" : "outline"} aria-pressed={selected} disabled={!baseline || selected} className="h-auto flex-col items-start gap-1 whitespace-normal px-4 py-3 text-left" onClick={() => { if (baseline) { setEditedDraft(draftFromBaseline(baseline)); setRequestFailure(null); } }}>
+                  <span className="font-semibold">{task === "execution" ? "Execute a parent order" : "Test a market maker"}</span>
+                  <span className="text-xs font-normal text-muted-foreground">{!baseline ? "No executable baseline available" : task === "execution" ? "Completion, execution cost and residual quantity" : "Spread capture, inventory exposure and adverse selection"}</span>
+                </Button>;
+              })}
+            </div>
+            {parent ? <p className="mt-3 text-sm text-muted-foreground">Variant of {parent.name}. Source assumptions are copied exactly. Choosing a different task or baseline replaces them.</p> : null}
+          </section>
           <FieldSet>
-            <FieldLegend>Identity</FieldLegend>
+            <FieldLegend>Experiment and baseline</FieldLegend>
             <FieldGroup className="grid gap-3 md:grid-cols-2">
               <Field>
                 <FieldLabel htmlFor="baseline-select">Baseline</FieldLabel>
@@ -336,30 +373,6 @@ function ExperimentEditor({ parentId }: { parentId: string | null }) {
             </FieldGroup>
           </FieldSet>
 
-          <FieldSet>
-            <FieldLegend>Scenario</FieldLegend>
-            <FieldDescription>
-              <code className="font-mono">{draft.config.scenario.scenarioId}</code>: {draft.config.scenario.description}
-            </FieldDescription>
-            {draft.config.scenario.backgroundAgents.map((agent, agentIndex) => (
-              <FieldGroup key={agent.agentKind} className="grid gap-3 md:grid-cols-2">
-                <p className="text-sm font-medium md:col-span-2">{humanizeEnumValue(agent.agentKind)}</p>
-                {agent.parameters.map((parameter, parameterIndex) => (
-                  <TextField
-                    key={parameter.name}
-                    label={SCENARIO_PARAMETER_LABELS[parameter.name] ?? humanizeEnumValue(parameter.name)}
-                    unit={parameter.unit}
-                    description={parameter.description}
-                    fieldPath={`/config/scenario/backgroundAgents/${agentIndex}/parameters/${parameterIndex}/value`}
-                    value={parameter.value}
-                    onValueChange={(parameterValue) => updateDraft((nextDraft) => void (nextDraft.config.scenario.backgroundAgents[agentIndex].parameters[parameterIndex].value = parameterValue))}
-                    issuesByFieldPath={issuesByFieldPath}
-                  />
-                ))}
-              </FieldGroup>
-            ))}
-          </FieldSet>
-
           {strategyConfig ? (
             <FieldSet>
               <FieldLegend>Research strategy</FieldLegend>
@@ -381,7 +394,7 @@ function ExperimentEditor({ parentId }: { parentId: string | null }) {
               <FieldGroup className="grid gap-3 md:grid-cols-2">
                 <TextField label="Half spread" unit="ticks from the visible mid" fieldPath="/config/strategy/halfSpreadTicks" inputMode="numeric" value={strategyConfig.halfSpreadTicks} onValueChange={(halfSpreadTicks) => updateQuotingStrategy((nextStrategy) => void (nextStrategy.halfSpreadTicks = halfSpreadTicks))} issuesByFieldPath={issuesByFieldPath} />
                 <TextField label="Quote quantity" unit="shares" fieldPath="/config/strategy/quoteQuantity" inputMode="numeric" value={strategyConfig.quoteQuantity} onValueChange={(quoteQuantity) => updateQuotingStrategy((nextStrategy) => void (nextStrategy.quoteQuantity = quoteQuantity))} issuesByFieldPath={issuesByFieldPath} />
-                <TextField label="Requote interval" unit="ns" fieldPath="/config/strategy/requoteIntervalNs" inputMode="numeric" value={strategyConfig.requoteIntervalNs} description={draftDurationDescription(strategyConfig.requoteIntervalNs)} onValueChange={(intervalNs) => updateQuotingStrategy((nextStrategy) => void (nextStrategy.requoteIntervalNs = intervalNs))} issuesByFieldPath={issuesByFieldPath} />
+                <TextField label="Requote interval" unit="ns" fieldPath="/config/strategy/requoteIntervalNs" inputMode="numeric" value={strategyConfig.requoteIntervalNs} description={exactDurationDescription(strategyConfig.requoteIntervalNs)} onValueChange={(intervalNs) => updateQuotingStrategy((nextStrategy) => void (nextStrategy.requoteIntervalNs = intervalNs))} issuesByFieldPath={issuesByFieldPath} />
                 <TextField label="Requote threshold" unit="ticks" description="Minimum move of the desired quote before a resting quote is replaced." fieldPath="/config/strategy/requoteThresholdTicks" inputMode="numeric" value={strategyConfig.requoteThresholdTicks} onValueChange={(thresholdTicks) => updateQuotingStrategy((nextStrategy) => void (nextStrategy.requoteThresholdTicks = thresholdTicks))} issuesByFieldPath={issuesByFieldPath} />
                 {strategyConfig.strategyKind === "inventory_aware_market_maker" ? (
                   <>
@@ -438,7 +451,8 @@ function ExperimentEditor({ parentId }: { parentId: string | null }) {
           ) : null}
 
           <FieldSet>
-            <FieldLegend>Seeds</FieldLegend>
+            <FieldLegend>Run plan</FieldLegend>
+            <TextField label="Simulation end" unit="ns" fieldPath="/config/bounds/endSimulationTimeNs" inputMode="numeric" value={draft.config.bounds.endSimulationTimeNs} description={exactDurationDescription(draft.config.bounds.endSimulationTimeNs)} onValueChange={(endTimeText) => updateDraft((nextDraft) => void (nextDraft.config.bounds.endSimulationTimeNs = endTimeText))} issuesByFieldPath={issuesByFieldPath} />
             <TextField
               label="Master seeds"
               description="One run per seed. Separate with commas or spaces. Use the same seeds as the experiment you will compare against."
@@ -450,73 +464,123 @@ function ExperimentEditor({ parentId }: { parentId: string | null }) {
             />
           </FieldSet>
 
-          <FieldSet>
-            <FieldLegend>Latency</FieldLegend>
-            <FieldDescription>Each path is configured separately. Feed: exchange to strategy market data. Order entry: strategy to exchange. Acknowledgment: exchange to strategy reports. Cancel: strategy cancel to exchange.</FieldDescription>
-            <FieldGroup className="grid gap-3 md:grid-cols-2">
-              <Field>
-                <FieldLabel htmlFor="latency-model">Model</FieldLabel>
-                <Select value={latency.latencyModel} onValueChange={(latencyModel) => updateDraft((nextDraft) => void (nextDraft.config.latency.latencyModel = latencyModel as ApiSchemas["LatencyModelKind"]))}>
-                  <SelectTrigger id="latency-model" className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="constant">constant</SelectItem>
-                    <SelectItem value="uniform_jitter">uniform jitter</SelectItem>
-                  </SelectContent>
-                </Select>
-              </Field>
-              <TextField label="Feed" unit="ns" fieldPath="/config/latency/feedLatencyNs" inputMode="numeric" value={latency.feedLatencyNs} description={draftDurationDescription(latency.feedLatencyNs)} onValueChange={(latencyNs) => updateDraft((nextDraft) => void (nextDraft.config.latency.feedLatencyNs = latencyNs))} issuesByFieldPath={issuesByFieldPath} />
-              <TextField label="Order entry" unit="ns" fieldPath="/config/latency/orderEntryLatencyNs" inputMode="numeric" value={latency.orderEntryLatencyNs} description={draftDurationDescription(latency.orderEntryLatencyNs)} onValueChange={(latencyNs) => updateDraft((nextDraft) => void (nextDraft.config.latency.orderEntryLatencyNs = latencyNs))} issuesByFieldPath={issuesByFieldPath} />
-              <TextField label="Acknowledgment" unit="ns" fieldPath="/config/latency/acknowledgmentLatencyNs" inputMode="numeric" value={latency.acknowledgmentLatencyNs} description={draftDurationDescription(latency.acknowledgmentLatencyNs)} onValueChange={(latencyNs) => updateDraft((nextDraft) => void (nextDraft.config.latency.acknowledgmentLatencyNs = latencyNs))} issuesByFieldPath={issuesByFieldPath} />
-              <TextField label="Cancel" unit="ns" fieldPath="/config/latency/cancelLatencyNs" inputMode="numeric" value={latency.cancelLatencyNs} description={draftDurationDescription(latency.cancelLatencyNs)} onValueChange={(latencyNs) => updateDraft((nextDraft) => void (nextDraft.config.latency.cancelLatencyNs = latencyNs))} issuesByFieldPath={issuesByFieldPath} />
-              <TextField label="Jitter" unit="ns" fieldPath="/config/latency/jitterNs" inputMode="numeric" value={latency.jitterNs} onValueChange={(latencyNs) => updateDraft((nextDraft) => void (nextDraft.config.latency.jitterNs = latencyNs))} issuesByFieldPath={issuesByFieldPath} />
-              <TextField label="Strategy compute" unit="ns" description="Decision to departure, before order entry or cancel latency." fieldPath="/config/latency/strategyComputeNs" inputMode="numeric" value={latency.strategyComputeNs ?? "0"} onValueChange={(latencyNs) => updateDraft((nextDraft) => void (nextDraft.config.latency.strategyComputeNs = latencyNs))} issuesByFieldPath={issuesByFieldPath} />
-              <Field orientation="horizontal" className="md:col-span-2">
-                <Checkbox id="order-channel-fifo" checked={latency.orderChannelFifo ?? true} onCheckedChange={(checkedState) => updateDraft((nextDraft) => void (nextDraft.config.latency.orderChannelFifo = checkedState === true))} />
-                <FieldLabel htmlFor="order-channel-fifo">One FIFO order-entry channel: a cancel never overtakes an earlier order</FieldLabel>
-              </Field>
-            </FieldGroup>
-          </FieldSet>
+          <details className="rounded-lg border p-4" open={issuesByFieldPath.size > 0 || undefined}>
+            <summary className="cursor-pointer text-sm font-semibold">Market scenario: background liquidity and order flow</summary>
+            <div className="pt-4">
+                <FieldSet>
+                  <FieldLegend>Scenario</FieldLegend>
+                  <FieldDescription>
+                    <code className="font-mono">{draft.config.scenario.scenarioId}</code>: {draft.config.scenario.description}
+                  </FieldDescription>
+                  {draft.config.scenario.backgroundAgents.map((agent, agentIndex) => (
+                    <FieldGroup key={agent.agentKind} className="grid gap-3 md:grid-cols-2">
+                      <p className="text-sm font-medium md:col-span-2">{humanizeEnumValue(agent.agentKind)}</p>
+                      {agent.parameters.map((parameter, parameterIndex) => (
+                        <TextField
+                          key={parameter.name}
+                          label={SCENARIO_PARAMETER_LABELS[parameter.name] ?? humanizeEnumValue(parameter.name)}
+                          unit={parameter.unit}
+                          description={parameter.description}
+                          fieldPath={`/config/scenario/backgroundAgents/${agentIndex}/parameters/${parameterIndex}/value`}
+                          value={parameter.value}
+                          onValueChange={(parameterValue) => updateDraft((nextDraft) => void (nextDraft.config.scenario.backgroundAgents[agentIndex].parameters[parameterIndex].value = parameterValue))}
+                          issuesByFieldPath={issuesByFieldPath}
+                        />
+                      ))}
+                    </FieldGroup>
+                  ))}
+                </FieldSet>
+            </div>
+          </details>
 
-          <FieldSet>
-            <FieldLegend>Fees and risk</FieldLegend>
-            <FieldGroup className="grid gap-3 md:grid-cols-2">
-              <TextField label="Fee schedule id" fieldPath="/config/fees/feeScheduleId" inputMode="text" value={draft.config.fees.feeScheduleId} onValueChange={(feeScheduleId) => updateDraft((nextDraft) => void (nextDraft.config.fees.feeScheduleId = feeScheduleId))} issuesByFieldPath={issuesByFieldPath} />
-              <TextField label="Maker fee" unit="USD/share, negative is a rebate" fieldPath="/config/fees/makerFeePerShare" value={draft.config.fees.makerFeePerShare} onValueChange={(feeText) => updateDraft((nextDraft) => void (nextDraft.config.fees.makerFeePerShare = feeText))} issuesByFieldPath={issuesByFieldPath} />
-              <TextField label="Taker fee" unit="USD/share" fieldPath="/config/fees/takerFeePerShare" value={draft.config.fees.takerFeePerShare} onValueChange={(feeText) => updateDraft((nextDraft) => void (nextDraft.config.fees.takerFeePerShare = feeText))} issuesByFieldPath={issuesByFieldPath} />
-              <TextField label="Max absolute position" unit="shares" fieldPath="/config/risk/maxAbsolutePositionShares" inputMode="numeric" value={draft.config.risk.maxAbsolutePositionShares} onValueChange={(limitText) => updateDraft((nextDraft) => void (nextDraft.config.risk.maxAbsolutePositionShares = limitText))} issuesByFieldPath={issuesByFieldPath} />
-              <TextField label="Max open orders" unit="count" fieldPath="/config/risk/maxOpenOrders" inputMode="numeric" value={draft.config.risk.maxOpenOrders} onValueChange={(limitText) => updateDraft((nextDraft) => void (nextDraft.config.risk.maxOpenOrders = limitText))} issuesByFieldPath={issuesByFieldPath} />
-              <TextField label={executionConfig ? "Max child order quantity" : "Max order quantity"} unit="shares" fieldPath="/config/risk/maxOrderQuantity" inputMode="numeric" value={draft.config.risk.maxOrderQuantity} onValueChange={(limitText) => updateDraft((nextDraft) => void (nextDraft.config.risk.maxOrderQuantity = limitText))} issuesByFieldPath={issuesByFieldPath} />
-            </FieldGroup>
-          </FieldSet>
+          <details className="rounded-lg border p-4" open={issuesByFieldPath.size > 0 || undefined}>
+            <summary className="cursor-pointer text-sm font-semibold">Latency: feed, order, acknowledgment and cancel paths</summary>
+            <div className="pt-4">
+                <FieldSet>
+                  <FieldLegend>Latency</FieldLegend>
+                  <FieldDescription>Each path is configured separately. Feed: exchange to strategy market data. Order entry: strategy to exchange. Acknowledgment: exchange to strategy reports. Cancel: strategy cancel to exchange.</FieldDescription>
+                  <FieldGroup className="grid gap-3 md:grid-cols-2">
+                    <Field>
+                      <FieldLabel htmlFor="latency-model">Model</FieldLabel>
+                      <Select value={latency.latencyModel} onValueChange={(latencyModel) => updateDraft((nextDraft) => void (nextDraft.config.latency.latencyModel = latencyModel as ApiSchemas["LatencyModelKind"]))}>
+                        <SelectTrigger id="latency-model" className="w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="constant">constant</SelectItem>
+                          <SelectItem value="uniform_jitter">uniform jitter</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </Field>
+                    <TextField label="Feed" unit="ns" fieldPath="/config/latency/feedLatencyNs" inputMode="numeric" value={latency.feedLatencyNs} description={exactDurationDescription(latency.feedLatencyNs)} onValueChange={(latencyNs) => updateDraft((nextDraft) => void (nextDraft.config.latency.feedLatencyNs = latencyNs))} issuesByFieldPath={issuesByFieldPath} />
+                    <TextField label="Order entry" unit="ns" fieldPath="/config/latency/orderEntryLatencyNs" inputMode="numeric" value={latency.orderEntryLatencyNs} description={exactDurationDescription(latency.orderEntryLatencyNs)} onValueChange={(latencyNs) => updateDraft((nextDraft) => void (nextDraft.config.latency.orderEntryLatencyNs = latencyNs))} issuesByFieldPath={issuesByFieldPath} />
+                    <TextField label="Acknowledgment" unit="ns" fieldPath="/config/latency/acknowledgmentLatencyNs" inputMode="numeric" value={latency.acknowledgmentLatencyNs} description={exactDurationDescription(latency.acknowledgmentLatencyNs)} onValueChange={(latencyNs) => updateDraft((nextDraft) => void (nextDraft.config.latency.acknowledgmentLatencyNs = latencyNs))} issuesByFieldPath={issuesByFieldPath} />
+                    <TextField label="Cancel" unit="ns" fieldPath="/config/latency/cancelLatencyNs" inputMode="numeric" value={latency.cancelLatencyNs} description={exactDurationDescription(latency.cancelLatencyNs)} onValueChange={(latencyNs) => updateDraft((nextDraft) => void (nextDraft.config.latency.cancelLatencyNs = latencyNs))} issuesByFieldPath={issuesByFieldPath} />
+                    <TextField label="Jitter" unit="ns" fieldPath="/config/latency/jitterNs" inputMode="numeric" value={latency.jitterNs} onValueChange={(latencyNs) => updateDraft((nextDraft) => void (nextDraft.config.latency.jitterNs = latencyNs))} issuesByFieldPath={issuesByFieldPath} />
+                    <TextField label="Strategy compute" unit="ns" description="Decision to departure, before order entry or cancel latency." fieldPath="/config/latency/strategyComputeNs" inputMode="numeric" value={latency.strategyComputeNs ?? "0"} onValueChange={(latencyNs) => updateDraft((nextDraft) => void (nextDraft.config.latency.strategyComputeNs = latencyNs))} issuesByFieldPath={issuesByFieldPath} />
+                    <Field orientation="horizontal" className="md:col-span-2">
+                      <Checkbox id="order-channel-fifo" checked={latency.orderChannelFifo ?? true} onCheckedChange={(checkedState) => updateDraft((nextDraft) => void (nextDraft.config.latency.orderChannelFifo = checkedState === true))} />
+                      <FieldLabel htmlFor="order-channel-fifo">One FIFO order-entry channel: a cancel never overtakes an earlier order</FieldLabel>
+                    </Field>
+                  </FieldGroup>
+                </FieldSet>
+            </div>
+          </details>
 
-          <FieldSet>
-            <FieldLegend>Accounting and bounds</FieldLegend>
-            <FieldGroup className="grid gap-3 md:grid-cols-2">
-              <TextField label="Initial cash" unit="USD" fieldPath="/config/initialCash" value={draft.config.initialCash} onValueChange={(cashText) => updateDraft((nextDraft) => void (nextDraft.config.initialCash = cashText))} issuesByFieldPath={issuesByFieldPath} />
-              <TextField label="Markout horizons" unit="ns, comma separated" fieldPath="/config/markoutHorizonsNs" inputMode="text" value={draft.markoutHorizonsText} onValueChange={(horizonsText) => updateDraft((nextDraft) => void (nextDraft.markoutHorizonsText = horizonsText))} issuesByFieldPath={issuesByFieldPath} />
-              <TextField label="Simulation end" unit="ns" fieldPath="/config/bounds/endSimulationTimeNs" inputMode="numeric" value={draft.config.bounds.endSimulationTimeNs} description={formatDurationNs(draft.config.bounds.endSimulationTimeNs.match(/^\d+$/) ? draft.config.bounds.endSimulationTimeNs : "0")} onValueChange={(endTimeText) => updateDraft((nextDraft) => void (nextDraft.config.bounds.endSimulationTimeNs = endTimeText))} issuesByFieldPath={issuesByFieldPath} />
-            </FieldGroup>
-          </FieldSet>
+          <details className="rounded-lg border p-4" open={issuesByFieldPath.size > 0 || undefined}>
+            <summary className="cursor-pointer text-sm font-semibold">Fees and risk: costs, position limits and order caps</summary>
+            <div className="pt-4">
+                <FieldSet>
+                  <FieldLegend>Fees and risk</FieldLegend>
+                  <FieldGroup className="grid gap-3 md:grid-cols-2">
+                    <TextField label="Fee schedule id" fieldPath="/config/fees/feeScheduleId" inputMode="text" value={draft.config.fees.feeScheduleId} onValueChange={(feeScheduleId) => updateDraft((nextDraft) => void (nextDraft.config.fees.feeScheduleId = feeScheduleId))} issuesByFieldPath={issuesByFieldPath} />
+                    <TextField label="Maker fee" unit="USD/share, negative is a rebate" fieldPath="/config/fees/makerFeePerShare" value={draft.config.fees.makerFeePerShare} onValueChange={(feeText) => updateDraft((nextDraft) => void (nextDraft.config.fees.makerFeePerShare = feeText))} issuesByFieldPath={issuesByFieldPath} />
+                    <TextField label="Taker fee" unit="USD/share" fieldPath="/config/fees/takerFeePerShare" value={draft.config.fees.takerFeePerShare} onValueChange={(feeText) => updateDraft((nextDraft) => void (nextDraft.config.fees.takerFeePerShare = feeText))} issuesByFieldPath={issuesByFieldPath} />
+                    <TextField label="Max absolute position" unit="shares" fieldPath="/config/risk/maxAbsolutePositionShares" inputMode="numeric" value={draft.config.risk.maxAbsolutePositionShares} onValueChange={(limitText) => updateDraft((nextDraft) => void (nextDraft.config.risk.maxAbsolutePositionShares = limitText))} issuesByFieldPath={issuesByFieldPath} />
+                    <TextField label="Max open orders" unit="count" fieldPath="/config/risk/maxOpenOrders" inputMode="numeric" value={draft.config.risk.maxOpenOrders} onValueChange={(limitText) => updateDraft((nextDraft) => void (nextDraft.config.risk.maxOpenOrders = limitText))} issuesByFieldPath={issuesByFieldPath} />
+                    <TextField label={executionConfig ? "Max child order quantity" : "Max order quantity"} unit="shares" fieldPath="/config/risk/maxOrderQuantity" inputMode="numeric" value={draft.config.risk.maxOrderQuantity} onValueChange={(limitText) => updateDraft((nextDraft) => void (nextDraft.config.risk.maxOrderQuantity = limitText))} issuesByFieldPath={issuesByFieldPath} />
+                  </FieldGroup>
+                </FieldSet>
+            </div>
+          </details>
 
+          <details className="rounded-lg border p-4" open={issuesByFieldPath.size > 0 || undefined}>
+            <summary className="cursor-pointer text-sm font-semibold">Accounting: initial cash and markout horizons</summary>
+            <div className="pt-4">
+                <FieldSet>
+                  <FieldLegend>Accounting</FieldLegend>
+                  <FieldGroup className="grid gap-3 md:grid-cols-2">
+                    <TextField label="Initial cash" unit="USD" fieldPath="/config/initialCash" value={draft.config.initialCash} onValueChange={(cashText) => updateDraft((nextDraft) => void (nextDraft.config.initialCash = cashText))} issuesByFieldPath={issuesByFieldPath} />
+                    <TextField label="Markout horizons" description={splitListText(draft.markoutHorizonsText).map((value) => exactDurationDescription(value) ?? "Invalid horizon").join(", ")} unit="ns, comma separated" fieldPath="/config/markoutHorizonsNs" inputMode="text" value={draft.markoutHorizonsText} onValueChange={(horizonsText) => updateDraft((nextDraft) => void (nextDraft.markoutHorizonsText = horizonsText))} issuesByFieldPath={issuesByFieldPath} />
+                  </FieldGroup>
+                </FieldSet>
+            </div>
+          </details>
+
+          </fieldset>
+        </form>
+
+        <div className="flex min-w-0 flex-col gap-4 xl:sticky xl:top-22 xl:self-start">
+          <Card size="sm">
+            <CardHeader><CardTitle>Review and launch</CardTitle><CardDescription role="status">{isSubmitting ? "Saving the experiment and starting seed runs..." : isPreviewing ? "Validating assumptions with the research service..." : !supportedKinds.includes(draft.config.strategy.strategyKind) ? "This strategy is not executable on the connected service." : isPreviewCurrent ? previewOutcome.preview.valid ? "Ready to launch. The current configuration passed service review." : "Changes required. Fix the issues below and review again." : previewOutcome ? "Review required. Assumptions changed since the last review." : "Draft. Review assumptions before starting runs."}</CardDescription></CardHeader>
+            <CardContent className="flex flex-col gap-4">
+              <p className="text-sm">{createRequest.config.seedSet.masterSeeds.length} seed runs · {exactDurationDescription(draft.config.bounds.endSimulationTimeNs) ?? "Invalid duration"} per run</p>
           <Field orientation="horizontal">
-            <Checkbox id="start-runs-paused" checked={startRunsPaused} onCheckedChange={(checkedState) => setStartRunsPaused(checkedState === true)} />
+            <Checkbox id="start-runs-paused" disabled={isSubmitting || isPreviewing} checked={startRunsPaused} onCheckedChange={(checkedState) => setStartRunsPaused(checkedState === true)} />
             <FieldLabel htmlFor="start-runs-paused">Start runs paused, to step through them event by event</FieldLabel>
           </Field>
 
           <div className="flex flex-wrap gap-2">
-            <Button type="submit" variant={isPreviewCurrent ? "outline" : "default"}>
+            <Button type="submit" form="experiment-setup" disabled={isSubmitting || isPreviewing || !supportedKinds.includes(draft.config.strategy.strategyKind)} variant={isPreviewCurrent ? "outline" : "default"}>
               {isPreviewing ? "Reviewing..." : "Review assumptions"}
             </Button>
-            <Button type="button" disabled={!isPreviewCurrent || !previewOutcome?.preview.valid || isSubmitting || !supportedKinds.includes(draft.config.strategy.strategyKind)} onClick={() => void createExperimentAndStartRuns()}>
+            <Button type="button" disabled={!isPreviewCurrent || !previewOutcome?.preview.valid || isSubmitting || isPreviewing || !supportedKinds.includes(draft.config.strategy.strategyKind)} onClick={() => void createExperimentAndStartRuns()}>
               {isSubmitting ? "Starting..." : `Create and start ${createRequest.config.seedSet.masterSeeds.length} ${createRequest.config.seedSet.masterSeeds.length === 1 ? "run" : "runs"}`}
             </Button>
           </div>
-          </fieldset>
-        </form>
 
-        <div className="flex flex-col gap-4 xl:sticky xl:top-22 xl:self-start">
+            </CardContent>
+          </Card>
           {requestFailure ? <ApiFailureAlert failure={requestFailure} /> : null}
           <Card size="sm">
             <CardHeader>
@@ -529,6 +593,27 @@ function ExperimentEditor({ parentId }: { parentId: string | null }) {
                     : "Review assumptions to see the full configuration the runs will use."}
               </CardDescription>
             </CardHeader>
+            <CardContent className="pb-4">
+              <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2 text-sm">
+                <dt className="text-muted-foreground">Market</dt><dd>{humanizeEnumValue(draft.config.marketWorld)}</dd>
+                <dt className="text-muted-foreground">Instrument</dt><dd>{draft.config.instrument.symbol} · tick {draft.config.instrument.tickSize} · lot {draft.config.instrument.lotSize}</dd>
+                <dt className="text-muted-foreground">Strategy</dt><dd>{humanizeEnumValue(draft.config.strategy.strategyKind)}</dd>
+                {executionConfig ? <>
+                  <dt className="text-muted-foreground">Parent order</dt><dd>{humanizeEnumValue(executionConfig.parentSide)} {executionConfig.parentQuantity} shares</dd>
+                  <dt className="text-muted-foreground">Start / window</dt><dd>{exactDurationDescription(executionConfig.startTimeNs) ?? "Invalid"} / {exactDurationDescription(executionConfig.executionDurationNs) ?? "Invalid"}</dd>
+                </> : strategyConfig ? <>
+                  <dt className="text-muted-foreground">Quotes</dt><dd>{strategyConfig.quoteQuantity} shares per side, {strategyConfig.halfSpreadTicks} ticks from visible mid</dd>
+                </> : null}
+                <dt className="text-muted-foreground">Seeds</dt><dd className="break-all">{draft.masterSeedsText || "None"}</dd>
+                <dt className="text-muted-foreground">Maker / taker</dt><dd>{draft.config.fees.makerFeePerShare} / {draft.config.fees.takerFeePerShare} USD/share</dd>
+                <dt className="text-muted-foreground">Delay model</dt><dd>{humanizeEnumValue(latency.latencyModel)}</dd>
+                <dt className="text-muted-foreground">Feed / order</dt><dd>{exactDurationDescription(latency.feedLatencyNs) ?? "Invalid"} / {exactDurationDescription(latency.orderEntryLatencyNs) ?? "Invalid"}</dd>
+                <dt className="text-muted-foreground">Ack / cancel</dt><dd>{exactDurationDescription(latency.acknowledgmentLatencyNs) ?? "Invalid"} / {exactDurationDescription(latency.cancelLatencyNs) ?? "Invalid"}</dd>
+                <dt className="text-muted-foreground">Position cap</dt><dd>{draft.config.risk.maxAbsolutePositionShares} shares</dd>
+                <dt className="text-muted-foreground">Mark</dt><dd>{humanizeEnumValue(draft.config.markConvention)}</dd>
+              </dl>
+              <p className="mt-4 text-xs text-muted-foreground">{draft.config.marketWorld === "interactive_synthetic" ? "Seeded synthetic participants share the book. Results describe this market model, not calibrated real-market performance." : "Interpret results under the declared market model."} {executionConfig ? "Completion is an outcome, not a launch guarantee. Compare cost together with filled and residual quantity." : "Assess net P&L with fees, inventory and eligible markouts. One seed cannot establish a robust improvement."} Keep seeds and market assumptions matched when comparing alternatives.</p>
+            </CardContent>
             {isPreviewCurrent ? (
               <CardContent className="flex flex-col gap-3">
                 <div className="flex flex-wrap gap-2 text-sm">
@@ -547,7 +632,10 @@ function ExperimentEditor({ parentId }: { parentId: string | null }) {
                     failure={{ code: "validation_failed", message: "fix these before starting runs", requestId: "preview", retryable: false, fieldIssues: previewOutcome.preview.fieldIssues }}
                   />
                 ) : null}
-                <AssumptionsTable assumptions={previewOutcome.preview.assumptions} />
+                <details open={previewOutcome.preview.fieldIssues.length > 0 || undefined}>
+                  <summary className="cursor-pointer text-sm font-medium">Full service assumptions ({previewOutcome.preview.assumptions.filter((line) => line.differsFromBaseline).length} changed from baseline)</summary>
+                  <div className="mt-3"><AssumptionsTable assumptions={previewOutcome.preview.assumptions} /></div>
+                </details>
               </CardContent>
             ) : null}
           </Card>
