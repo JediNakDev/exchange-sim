@@ -1,0 +1,28 @@
+WEBVTT
+
+00:00:00.182 --> 00:00:02.661
+One parent order, one fixed seed
+
+00:00:02.661 --> 00:00:04.534
+TWAP inventory and accounting
+
+00:00:04.534 --> 00:00:08.760
+TWAP: 200 filled, 300 residual; executed costs only
+
+00:00:08.760 --> 00:00:11.413
+Explain a fill with lifecycle and ledger evidence
+
+00:00:11.413 --> 00:00:13.855
+Copy the assumptions; change TWAP to immediate sweep
+
+00:00:13.855 --> 00:00:16.406
+Review the sweep variant before launch
+
+00:00:16.406 --> 00:00:20.056
+Existing sweep result: completion and cost
+
+00:00:20.056 --> 00:00:22.529
+Pair the same seed and inspect changed assumptions
+
+00:00:22.529 --> 00:00:27.400
+Compare completion, residual and executed costs

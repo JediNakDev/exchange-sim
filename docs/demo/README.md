@@ -2,6 +2,41 @@
 
 [Watch the MP4](exsim-product-walkthrough.mp4) · [Chapter captions](walkthrough.vtt)
 
+## Execution research, 2026-11-07
+
+[Watch TWAP versus immediate sweep](execution-walkthrough.mp4) ·
+[Chapter captions](execution-walkthrough.vtt)
+
+[![Parent-order execution evidence](execution-summary.png)](execution-walkthrough.mp4)
+
+The new clip shows real completed C++ runs from the paired 2026-11-07 production
+release. A sell parent of 500 shares uses a 100-share child cap and seed 17, with
+a 0.1-second start and two-second execution window. TWAP fills 200 and retains 300
+unexecuted shares. The sweep variant uses the same assumptions and seed and
+fills 500. This is one synthetic demonstration, not a trading recommendation.
+
+The recording opens the existing TWAP outcome, inspects a fill, reviews a sweep
+variant, then opens its previously executed result and paired comparison. It
+does not depict that review button creating the already completed sweep run.
+The preceding live creation pass separately exercised both strategies through
+the UI, confirmed native parent metrics/comparison and observed 38 successful
+API responses with no page exceptions or failed API responses. No mock routes
+or fabricated chart values were used.
+
+![Same-seed execution comparison](execution-comparison.png)
+
+The silent 1440x900, 27.4-second clip was captured in isolated Chromium through private
+Tailscale HTTPS. The shared preview opened, but two automation snapshots timed
+out, so capture used Playwright. Final capture responses and scene timings are
+at `/tmp/exsim-execution-tour-20261107/evidence.json`; the creation pass is at
+`/tmp/exsim-execution-demo-20261107-final/evidence.json`. The final capture observed
+35 successful API responses with no exceptions or failed responses. The H.264 MP4 was decoded
+end to end without errors. Source/build identity and restore/promotion evidence:
+[release receipt](../quality/RELEASE_2026-11-07.md). Private host addresses, keys,
+property lists and data backups are not bundled in these assets.
+
+## Market-making walkthrough, 2026-11-06
+
 The silent walkthrough records the production Next.js frontend connected through Tailscale Serve to the real C++ research service. Every experiment, chart, event and fill shown comes from an executed synthetic simulation. It does not use the mock service or fabricated chart data.
 
 | Approximate time | Scene |

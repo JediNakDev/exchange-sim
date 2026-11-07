@@ -73,7 +73,16 @@ After loopback readiness, repeat `ready --release "$RELEASE" --frontend-url "htt
 
 ## Installed macOS deployment
 
-The last recorded demonstration deployment runs copied release artifacts under `$HOME/Library/Application Support/exsim/releases/`, independent of the external-drive source checkout. The C++ API is pinned to `production-20261106`; the redesigned frontend uses `production-20261106-workstation-final`. This is a recorded mixed pair, not evidence of incompatibility or of validation against the latest API source. No host inspection or redeployment was performed by the 2026-11-07 delivery audit. Persistent data is at `$HOME/Library/Application Support/exsim/research-data/`.
+The 2026-11-07 paired release runs copied artifacts under
+`$HOME/Library/Application Support/exsim/releases/production-20261107-8ee86f1/`,
+independent of the external-drive checkout. The API is `api/exsim_api` from source
+`8ee86f1`; the frontend is `frontend/server.js` from source `75d9960`, Next build
+`slpULgNACN27FJgew-XPE`, running on Node v24.22.1. The previous 2026-11-06 pair
+is retained. Persistent data stays at
+`$HOME/Library/Application Support/exsim/research-data/`. Offline backup, restored
+data compatibility, local/private readiness and exact provenance are recorded in
+[the release receipt](quality/RELEASE_2026-11-07.md). The earlier delivery audit
+itself did not perform this promotion.
 
 Two LaunchAgents start at user login and restart on exit:
 
@@ -91,7 +100,7 @@ launchctl kickstart -k gui/$(id -u)/com.jedinak.exsim.api
 launchctl kickstart -k gui/$(id -u)/com.jedinak.exsim.frontend
 ```
 
-Stop the jobs with `launchctl bootout gui/$(id -u)/com.jedinak.exsim.api` and the corresponding frontend label. Their property lists remain available for a later `launchctl bootstrap gui/$(id -u) <plist-path>`.
+Stop the jobs with `launchctl bootout gui/$(id -u)/com.jedinak.exsim.api` and the corresponding frontend label. Wait for `launchctl print` to report each job absent and its process to exit: `bootout` can return while unloading is still in progress. Their property lists remain available for a later `launchctl bootstrap gui/$(id -u) <plist-path>`.
 
 Completed runs persist across service restarts. Runs interrupted while active are marked failed when the service reloads them. Browser comparisons re-execute the expected configuration/seed and do not use unverified outer metric or series caches.
 
@@ -99,7 +108,7 @@ Completed runs persist across service restarts. Runs interrupted while active ar
 
 There is no API-wide snapshot/quiescence endpoint or supervisor lock honored by the C++ writer. Individual atomic file replacements do not make a live multi-file copy consistent. Paused simulations are still live and other HTTP mutations can write experiments, run state and idempotency. **Do not use this workflow against active data.**
 
-For an operator-authorized maintenance window, block ingress, let runs finish/cancel as intended, then boot out both LaunchAgents and confirm they have exited and cannot restart. On other hosts disable the equivalent supervisors. Confirm no manually started API or other writer uses this directory. A port refusing connections alone is not proof that all writers stopped. Keep all writers stopped through backup completion. This audit did not stop any jobs.
+For an operator-authorized maintenance window, block ingress, let runs finish/cancel as intended, then boot out both LaunchAgents and confirm they have exited and cannot restart. On other hosts disable the equivalent supervisors. Confirm no manually started API or other writer uses this directory. A port refusing connections alone is not proof that all writers stopped. Keep all writers stopped through backup completion. The tool does not stop jobs; the actual release maintenance is documented separately.
 
 Set `DATA` to the exact API data root, `BACKUP` to a new directory on private backup storage, and `RESTORED_DATA` to a new disposable destination whose parent exists:
 
@@ -113,7 +122,7 @@ python3 scripts/deployment/research_delivery.py restore \
 
 `--writers-stopped` is the operator's attestation that **all** writers and automatic restarts remain disabled; the script cannot verify that claim. The manifest says `operator-declared-writers-stopped`, never automatically certified consistent. Full inventories before/after copy and of the copy must match, catching observed changes but not proving quiescence. Copy the entire data root including `idempotency.jsonl` when present, native run artifacts, diagnostics, unknown files and empty directories. A new empty API data root may not yet have an idempotency file. Symlinks/special files are rejected. Nothing is filtered, repaired or silently omitted. A backup faithfully preserves existing corruption too.
 
-Restore verifies the backup and the restored bytes, and refuses any existing target. It does not parse/rewrite records or start an API. For an application-level drill, use a **second restored copy**, the exact recorded API binary and separate loopback ports under an operator-approved runbook. Startup can mark previously active runs failed and write data. Verify expected experiments/runs/counts, native manifests/comparisons, cached idempotent responses, and startup logs for skipped records. Do not run the drill on the original backup or real data. No such application restore drill is claimed here. Keep backups private, access-restricted and off the source disk as appropriate; deployment logs/manifests can also contain private paths and identifiers.
+Restore verifies the backup and the restored bytes, and refuses any existing target. It does not parse/rewrite records or start an API. For an application-level drill, use a **second restored copy**, the exact recorded API binary and separate loopback ports under an operator-approved runbook. Startup can mark previously active runs failed and write data. Verify expected experiments/runs/counts, native manifests/comparisons, cached idempotent responses, and startup logs for skipped records. Do not run the drill on the original backup or real data. The 2026-11-07 release performed this drill for saved read responses and native comparison; fixture tests separately verify idempotent-response replay. Keep backups private, access-restricted and off the source disk as appropriate; deployment logs/manifests can also contain private paths and identifiers.
 
 ## Promotion, rollback and logs
 

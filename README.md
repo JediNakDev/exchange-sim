@@ -8,6 +8,9 @@ The first workflow is execution and market-making research. The browser demo use
 
 **[Watch the product walkthrough](docs/demo/exsim-product-walkthrough.mp4)** · [Screens and recording notes](docs/demo/README.md) · [Production setup](docs/DEPLOYMENT.md)
 
+**[TWAP versus immediate sweep](docs/demo/execution-walkthrough.mp4)** shows parent
+completion, residual shares, fill evidence and executed costs on the same seed.
+
 The recording shows the production Next.js frontend using real C++ runs, including experiment creation, pause/step/resume, accounting, fill inspection and a three-seed comparison. The data is synthetic; the results are not evidence of profitability in a live market.
 
 ## Research workflow
@@ -93,8 +96,9 @@ bun run test:e2e
 The current API repair passes **71/71** focused cases in release and ASan/UBSan.
 Independent fault/restart probes cleared the reviewed recorder-failure and cache-allocation
 findings, including fill-based accounting checks. Fresh Linux GCC/Clang checks
-also pass **71/71** each with warning-free API builds. The separate selected-fill
-frontend re-check remains pending.
+also pass **71/71** each with warning-free API builds. Independent selected-fill
+review passes nine focused browser cases, including five new async/navigation
+edge probes now included in ordinary CI coverage.
 
 Frontend evidence is **82** invariants, typecheck, lint and a production build;
 the selected-fill fix passes its unchanged reviewer reproducer and three focused
@@ -111,6 +115,10 @@ replace that historical engine/protocol evidence. Exact current evidence:
 [recorder repair](docs/quality/RECORDER_FAILURE_REPAIR_2026-11-07.md),
 [independent re-check](docs/reviews/RECORDER_FAILURE_REPAIR_RECHECK_2026-11-07.md),
 [fill identity repair](docs/quality/FILL_IDENTITY_REPAIR_2026-11-07.md).
+
+The paired release was promoted after a verified offline backup and restored-data
+preflight preserved existing runs, inspection responses and native comparisons.
+[Release identity, checks and operational limits](docs/quality/RELEASE_2026-11-07.md).
 
 Five new regressions fail the reviewed pre-fix code and pass the repairs. Exact revisions, logs and limits: [integration fixes](docs/reviews/INTEGRATION_FIXES_2026-11-06.md), [working checkpoint](docs/WORK_PLAN.md), [fuzzing](docs/FUZZING.md).
 

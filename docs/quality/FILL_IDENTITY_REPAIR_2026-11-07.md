@@ -14,4 +14,12 @@ The parent added the exact selected event position to the resource key. Consumer
 
 The existing thirteen browser cases and native API release/ASan/Linux64 gates are prior checkpoint evidence, not claimed as rerun for this readonly frontend fix. CI will now discover sixteen ordinary browser cases. The selected-order identity fix was verified using the four targeted browser cases above rather than repeating unrelated engine/protocol suites.
 
-A new independent re-check of this repair is still required. The earlier `production-20261107-candidate-7ca1014` contains FER-01 and must not be promoted; its inventory/readiness checks establish only its old bytes and startup behavior. Rebuild a new candidate after review, preserving source/build identity. The installed production release and private data remain untouched. Integrated API review is still pending separately.
+Fresh independent review `4086a20`, integrated as `c78e044`, clears FER-01 with
+nine targeted browser cases and 16 helper tests, including five additional async
+and navigation probes. Its original assertions remain unchanged. Those five
+new probes also pass against the parent's Node24 artifact and now run in
+ordinary CI. [Independent report](../reviews/FILL_IDENTITY_RECHECK_2026-11-07.md).
+The earlier `production-20261107-candidate-7ca1014` contains FER-01 and remains
+unsuitable; its startup checks never cleared that defect. A fresh paired
+release has since passed backend, Linux, backup/restore and promotion gates.
+[Release receipt](RELEASE_2026-11-07.md).
