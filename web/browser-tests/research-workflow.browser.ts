@@ -168,8 +168,9 @@ test("duration drafts survive keyboard clearing and invalid intermediate text", 
   page.on("pageerror", (error) => errors.push(error.message));
   await installService(page, new MockResearchService());
   await page.goto("/experiments/new");
+  await page.getByText("Latency: feed, order, acknowledgment and cancel paths", { exact: true }).click();
   for (const label of ["Requote interval", "Feed", "Order entry", "Acknowledgment", "Cancel"]) {
-    const input = page.getByLabel(new RegExp(`^${label}`));
+    const input = page.getByRole("textbox", { name: new RegExp(`^${label}`) });
     const original = await input.inputValue();
     await input.press("ControlOrMeta+A");
     await input.press("Backspace");
@@ -303,4 +304,37 @@ test("experiment overview exposes analysis and interrupted-work distinctions", a
   await overview.getByRole("link", { name: "Analyze a completed run" }).click();
   await expect(page.getByRole("heading", { name: "P&L and inventory risk" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Post-fill markouts" })).toBeVisible();
+});
+
+test("timing units preserve nanoseconds and invalidate review only when assumptions change", async ({ page }) => {
+  let preview: ApiSchemas["ExperimentCreateRequest"] | undefined;
+  await installService(page, new MockResearchService(), async (_route, request) => {
+    if (new URL(request.url).pathname === "/v1/experiment-previews") preview = JSON.parse(await request.clone().text());
+    return false;
+  });
+  await page.goto("/experiments/new?intent=market-making");
+  await page.getByText("Latency: feed, order, acknowledgment and cancel paths", { exact: true }).click();
+  const feed = page.getByRole("textbox", { name: /^Feed/ });
+  await page.getByRole("combobox", { name: "Display unit for Feed", exact: true }).click();
+  await page.getByRole("option", { name: "ms", exact: true }).click();
+  await expect(feed).toHaveValue("2");
+  await feed.fill("");
+  await feed.pressSequentially("0.000001");
+  await expect(feed).toHaveValue("0.000001");
+  await page.getByRole("button", { name: "Review assumptions" }).click();
+  const launch = page.getByRole("button", { name: /Create and start/ });
+  await expect(launch).toBeEnabled();
+  expect(preview?.config.latency.feedLatencyNs).toBe("1");
+  await page.getByRole("combobox", { name: "Display unit for Feed", exact: true }).click();
+  await page.getByRole("option", { name: "s", exact: true }).click();
+  await expect(feed).toHaveValue("0.000000001");
+  await expect(launch).toBeEnabled();
+  await feed.fill("0.0000000001");
+  await expect(feed).toHaveValue("0.0000000001");
+  await expect(launch).toBeDisabled();
+  await expect(feed).toHaveAttribute("aria-invalid", "true");
+  await feed.fill("0.000000002");
+  await page.getByRole("button", { name: "Review assumptions" }).click();
+  await expect(launch).toBeEnabled();
+  expect(preview?.config.latency.feedLatencyNs).toBe("2");
 });

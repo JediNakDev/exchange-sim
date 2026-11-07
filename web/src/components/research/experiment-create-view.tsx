@@ -96,22 +96,22 @@ interface PreviewOutcome {
 }
 
 function TimingInput({ id, label, value, onValueChange, invalid }: { id: string; label: string; value: string; onValueChange: (value: string) => void; invalid: boolean }) {
-  // Start in ns to preserve existing labels and saved-value inspection. Unit changes
-  // only change presentation; the request always retains the exact ns string.
-  const [unit, setUnit] = useState<TimingUnit>("ns");
-  const [invalidText, setInvalidText] = useState<string | null>(null);
+  // Choose readable display units once; requests always retain exact ns strings.
+  const [unit, setUnit] = useState<TimingUnit>(() => value.length > 9 ? "s" : value.length > 6 ? "ms" : value.length > 3 ? "µs" : "ns");
+  const [inputDraft, setInputDraft] = useState<{ text: string; storedValue: string } | null>(null);
   const converted = nanosecondsInUnit(value, unit);
-  const displayed = value === "" && invalidText !== null ? invalidText : converted ?? value;
+  const displayed = inputDraft?.storedValue === value ? inputDraft.text : converted ?? value;
   return (
     <div className="flex gap-2">
       <Input id={id} value={displayed} inputMode={unit === "ns" ? "numeric" : "decimal"} className="min-w-0 font-mono" aria-describedby={`${id}-help`} aria-invalid={invalid || converted === null || undefined}
         onChange={(event) => {
           const text = event.target.value;
           const next = unitValueInNanoseconds(text, unit);
-          setInvalidText(next === null ? text : null);
-          onValueChange(unit === "ns" ? text : next ?? "");
+          const storedValue = unit === "ns" ? text : next ?? "";
+          setInputDraft({ text, storedValue });
+          onValueChange(storedValue);
         }} />
-      <Select value={unit} onValueChange={(next) => setUnit(next as TimingUnit)} disabled={converted === null}>
+      <Select value={unit} onValueChange={(next) => { setInputDraft(null); setUnit(next as TimingUnit); }} disabled={converted === null}>
         <SelectTrigger aria-label={`Display unit for ${label}`} className="w-20 shrink-0"><SelectValue /></SelectTrigger>
         <SelectContent>{(["ns", "µs", "ms", "s"] as const).map((option) => <SelectItem key={option} value={option}>{option}</SelectItem>)}</SelectContent>
       </Select>
@@ -315,7 +315,7 @@ function ExperimentEditor({ parentId, intent }: { parentId: string | null; inten
               {(["execution", "market-making"] as const).map((task) => {
                 const baseline = baselineForIntent(executableBaselines, task);
                 const selected = strategyIntent(draft.config.strategy.strategyKind) === task;
-                return <Button key={task} type="button" variant={selected ? "secondary" : "outline"} aria-pressed={selected} disabled={!baseline || selected} className="h-auto flex-col items-start gap-1 whitespace-normal px-4 py-3 text-left" onClick={() => { if (baseline) { setEditedDraft(draftFromBaseline(baseline)); setRequestFailure(null); } }}>
+                return <Button key={task} type="button" variant={selected ? "secondary" : "outline"} aria-pressed={selected} disabled={!baseline} className="h-auto flex-col items-start gap-1 whitespace-normal px-4 py-3 text-left" onClick={() => { if (baseline && !selected) { setEditedDraft(draftFromBaseline(baseline)); setRequestFailure(null); } }}>
                   <span className="font-semibold">{task === "execution" ? "Execute a parent order" : "Test a market maker"}</span>
                   <span className="text-xs font-normal text-muted-foreground">{!baseline ? "No executable baseline available" : task === "execution" ? "Completion, execution cost and residual quantity" : "Spread capture, inventory exposure and adverse selection"}</span>
                 </Button>;

@@ -1,6 +1,6 @@
 # Trader research and UX review plan
 
-Date: 2026-11-08. Status: planning complete; product audit not yet performed.
+Date: 2026-11-08. Status: source audit and scoped workflow implementation complete. See TRADER_WORKFLOW_IMPLEMENTATION_2026-11-08.md for findings, acceptance evidence and remaining research capabilities. The original exploratory checklist below is retained; unchecked items are not silently certified by implementation.
 
 ## Objective and boundaries
 

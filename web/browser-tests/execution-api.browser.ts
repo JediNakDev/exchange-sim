@@ -74,6 +74,12 @@ async function openRun(page: Page) {
   return new URL(page.url()).pathname.split("/").at(-1)!;
 }
 
+async function fillTimingNs(page: Page, label: string, value: string) {
+  await page.getByRole("combobox", { name: `Display unit for ${label}`, exact: true }).click();
+  await page.getByRole("option", { name: "ns", exact: true }).click();
+  await page.getByRole("textbox", { name: new RegExp(`^${label}`) }).fill(value);
+}
+
 async function startReviewed(page: Page, name: string) {
   await page.getByRole("heading", { name: "New experiment" }).scrollIntoViewIfNeeded();
   const nameInput = page.getByLabel("Name", { exact: true });
@@ -90,18 +96,18 @@ test("a trader compares real TWAP and sweep runs with explicit parent costs and 
   const releaseBefore = standaloneInventory();
   const api = await isolatedApi();
   try {
-    await page.goto("/experiments/new");
-    await page.getByLabel("Baseline", { exact: true }).click();
-    await page.getByRole("option", { name: /TWAP/ }).click();
+    await page.goto("/experiments/new?intent=execution");
+    await expect(page.getByLabel("Execution method")).toBeVisible();
     await page.getByLabel(/Master seeds/).fill("11");
     await page.getByLabel(/Parent quantity/).fill("500");
     await page.getByLabel("Parent side", { exact: true }).click();
     await page.getByRole("option", { name: "Sell", exact: true }).click();
-    await page.getByLabel(/Parent start/).fill("100000000");
-    await page.getByLabel(/Execution window/).fill("2000000000");
-    await page.getByLabel(/Slice interval/).fill("1000000000");
+    await fillTimingNs(page, "Parent start", "100000000");
+    await fillTimingNs(page, "Execution window", "2000000000");
+    await fillTimingNs(page, "Slice interval", "1000000000");
+    await page.getByText("Fees and risk: costs, position limits and order caps", { exact: true }).click();
     await page.getByLabel(/Max child order quantity/).fill("100");
-    await page.getByLabel(/Simulation end/).fill("5000000000");
+    await fillTimingNs(page, "Simulation end", "5000000000");
     const baselineId = await startReviewed(page, "Browser TWAP execution");
     const twapRun = await openRun(page);
     await expect(page.getByRole("heading", { name: "Parent-order execution" })).toBeVisible();
@@ -142,7 +148,7 @@ test("inventory-aware quoting is reviewed and executed by the advertised C++ str
     await page.getByRole("option", { name: "Inventory-aware market maker" }).click();
     await page.getByLabel(/Inventory skew/).fill("2");
     await page.getByLabel(/Master seeds/).fill("12");
-    await page.getByLabel(/Simulation end/).fill("2000000000");
+    await fillTimingNs(page, "Simulation end", "2000000000");
     await startReviewed(page, "Browser inventory-aware execution");
     const runId = await openRun(page);
     const manifest: ApiSchemas["RunManifest"] = await (await fetch(`${api.baseUrl}/v1/runs/${runId}/manifest`)).json();
