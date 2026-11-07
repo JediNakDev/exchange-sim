@@ -31,6 +31,17 @@ export const METRIC_LABEL_BY_KEY: Record<ApiSchemas["MetricKey"], string> = {
   cancel_race_lost_count: "Cancel races lost",
   spread_capture_total: "Spread capture",
   markout_total: "Markout total",
+  markout_per_share: "Markout per eligible share",
+  new_order_rejected_count: "New-order rejections",
+  cancel_request_count: "Cancel requests",
+  cancel_rejected_count: "Cancel rejections",
+  replace_request_count: "Replace requests",
+  replace_rejected_count: "Replace rejections",
+  markout_eligible_shares: "Markout eligible shares",
+  markout_eligible_fills: "Markout eligible fills",
+  markout_no_mark_fills: "Markout fills without a mark",
+  markout_censored_fills: "Markout censored fills",
+
   quote_exposure_time: "Quote exposure time",
 };
 

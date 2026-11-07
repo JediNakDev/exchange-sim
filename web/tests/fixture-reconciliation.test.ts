@@ -107,7 +107,8 @@ describe.each(FIXTURE_RUN_IDS)("fixture run %s reconciles", (runId) => {
       const horizonSummary = summary.markouts.find((candidate) => candidate.horizonNs === horizonNs)!;
       expect(BigInt(horizonSummary.availableFillCount)).toBe(availableCount);
       expect(BigInt(horizonSummary.censoredFillCount)).toBe(censoredCount);
-      expect(markUnits(horizonSummary.totalMarkout)).toBe(totalMarkout);
+      if (availableCount === 0n) expect(horizonSummary.totalMarkout).toBeNull();
+      else { expect(horizonSummary.totalMarkout).not.toBeNull(); expect(markUnits(horizonSummary.totalMarkout!)).toBe(totalMarkout); }
     }
     // The 30 s horizon on a 60 s run must censor the second half of fills.
     expect(summary.markouts.find((candidate) => candidate.horizonNs === "30000000000")!.censoredFillCount).not.toBe("0");

@@ -147,6 +147,17 @@ export const BETTER_DIRECTION_BY_METRIC: Record<Schemas["MetricKey"], Schemas["M
   cancel_race_lost_count: "lower",
   spread_capture_total: "higher",
   markout_total: "higher",
+  markout_per_share: "higher",
+  new_order_rejected_count: "neither",
+  cancel_request_count: "neither",
+  cancel_rejected_count: "neither",
+  replace_request_count: "neither",
+  replace_rejected_count: "neither",
+  markout_eligible_shares: "neither",
+  markout_eligible_fills: "neither",
+  markout_no_mark_fills: "neither",
+  markout_censored_fills: "neither",
+
   quote_exposure_time: "neither",
 };
 
