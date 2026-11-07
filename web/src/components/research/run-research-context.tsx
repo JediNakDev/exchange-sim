@@ -12,7 +12,7 @@ export function useComparisonContext() {
   const baseline = params.get("baseline");
   const candidate = params.get("candidate");
   return baseline && candidate && baseline !== candidate
-    ? `?${new URLSearchParams({ baseline, candidate }).toString()}` : "";
+    ? `?${new URLSearchParams({ baseline, candidate, ...(params.get("runSelection") ? { runSelection: params.get("runSelection")! } : {}) }).toString()}` : "";
 }
 
 export function RunResearchContext({ experimentId }: { experimentId: string }) {

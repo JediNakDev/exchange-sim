@@ -227,11 +227,17 @@ describe("run state machine", () => {
   });
 });
 
+test("native-only evidence endpoints explicitly reject synthetic fixture claims", async () => {
+  const params = { path: { runId: FIXTURE_RUN_ID } };
+  expect(expectContractError(harness, await apiClient.GET("/v1/runs/{runId}/execution-trace", { params }), "get", "/v1/runs/{runId}/execution-trace", 409).code).toBe("evidence_unavailable");
+  expect(expectContractError(harness, await apiClient.GET("/v1/runs/{runId}/audit-export", { params }), "get", "/v1/runs/{runId}/audit-export", 409).code).toBe("evidence_unavailable");
+});
+
 afterAll(() => {
   // Every operation in the contract must have been exercised above.
   const openApiPaths = loadOpenApiDocument().paths as Record<string, Record<string, unknown>>;
   const contractOperations = Object.entries(openApiPaths).flatMap(([pathTemplate, pathItem]) => Object.keys(pathItem).filter((method) => method === "get" || method === "post").map((method) => `${method} ${pathTemplate}`));
-  expect(contractOperations).toHaveLength(23);
+  expect(contractOperations).toHaveLength(25);
   const unexercised = contractOperations.filter((operation) => !harness.observedOperations.has(operation));
   expect(unexercised).toEqual([]);
 });

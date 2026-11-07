@@ -715,7 +715,7 @@ export class MockResearchService {
     }
     if (path === "/v1/connections") return this.buildConnectionsStatus();
 
-    const runMatch = /^\/v1\/runs\/([^/]+)(?:\/(manifest|summary|series|events|orders|fills|book))?$/.exec(path);
+    const runMatch = /^\/v1\/runs\/([^/]+)(?:\/(manifest|summary|series|events|orders|fills|book|execution-trace|audit-export))?$/.exec(path);
     const lifecycleMatch = /^\/v1\/runs\/([^/]+)\/orders\/([^/]+)\/lifecycle$/.exec(path);
     if (lifecycleMatch) {
       const run = this.requireRun(lifecycleMatch[1]);
@@ -732,6 +732,9 @@ export class MockResearchService {
     switch (runMatch[2]) {
       case undefined:
         return this.presentRun(run);
+      case "execution-trace":
+      case "audit-export":
+        throw new MockApiError("evidence_unavailable", "Native execution trace and audit export require the C++ research service; synthetic fixtures cannot verify native artifacts.");
       case "manifest":
         return this.buildManifest(run);
       case "summary":

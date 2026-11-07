@@ -16,9 +16,9 @@ export function priorityComparisonMetrics(metrics: ApiSchemas["MetricComparison"
   const execution = metrics.some((metric) => metric.metricKey === "completion_ratio" && metric.dispersion.sampleCount > 0);
   const keys: ApiSchemas["MetricKey"][] = execution
     ? ["completion_ratio", "residual_qty", "implementation_shortfall_total", "decision_slippage_total"]
-    : ["net_pnl", "max_drawdown", "ending_position", "markout_total"];
+    : ["net_pnl", "max_drawdown", "ending_position", "markout_per_share"];
   return keys.flatMap((key) => {
     const matches = metrics.filter((metric) => metric.metricKey === key);
-    return key === "markout_total" ? matches.slice(0, 1) : matches;
+    return key === "markout_per_share" ? matches.slice(0, 1) : matches;
   });
 }

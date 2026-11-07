@@ -15,6 +15,8 @@ import { PageHeading } from "@/components/research/page-heading";
 import { isTerminalRunState, RunStateBadge } from "@/components/research/run-state-badge";
 import { ExecutionSummaryPanel } from "@/components/research/execution-summary-panel";
 import { RunResearchContext, useComparisonContext } from "@/components/research/run-research-context";
+import { ExecutionTracePanel } from "@/components/research/execution-trace-panel";
+import { RunAuditControls } from "@/components/research/run-audit-controls";
 import { TraderRunOutcomes } from "@/components/research/trader-run-outcomes";
 import { RunSeriesChart } from "@/components/research/run-series-chart";
 import { validStepEventCount } from "@/lib/api/research-workflow";
@@ -183,7 +185,8 @@ function SummaryPanel({ summary }: { summary: ApiSchemas["RunSummary"] }) {
             <TableHeader>
               <TableRow>
                 <TableHead>Horizon</TableHead>
-                <TableHead className="text-right">Available</TableHead>
+                <TableHead className="text-right">Eligible fills</TableHead>
+                <TableHead className="text-right">Eligible shares</TableHead>
                 <TableHead className="text-right">No mark</TableHead>
                 <TableHead className="text-right">Censored</TableHead>
                 <TableHead className="text-right">Total (USD)</TableHead>
@@ -195,6 +198,7 @@ function SummaryPanel({ summary }: { summary: ApiSchemas["RunSummary"] }) {
                 <TableRow key={markout.horizonNs}>
                   <TableCell>{formatDurationNs(markout.horizonNs)}</TableCell>
                   <TableCell className="text-right font-mono tabular-nums">{markout.availableFillCount}</TableCell>
+                  <TableCell className="text-right font-mono tabular-nums">{markout.availableShares ?? "Unavailable"}</TableCell>
                   <TableCell className="text-right font-mono tabular-nums">{markout.unavailableFillCount}</TableCell>
                   <TableCell className="text-right font-mono tabular-nums">{markout.censoredFillCount}</TableCell>
                   <TableCell className="text-right font-mono tabular-nums">{markout.availableFillCount === "0" ? "Unavailable: no eligible fills" : formatDecimalForDisplay(markout.totalMarkout, { signDisplay: "always" })}</TableCell>
@@ -282,7 +286,10 @@ function ManifestPanel({ manifest }: { manifest: ApiSchemas["RunManifest"] }) {
             rows={[
               ["Schema", manifest.schemaVersion],
               ["Mode / world", `${manifest.mode} / ${manifest.marketWorld}`],
-              ["Engine build", manifest.engineBuildId],
+              ["Recorded source revision", manifest.provenance?.sourceRevision ?? "Unavailable for this run"],
+              ["Recorded release", manifest.provenance?.releaseId ?? "Unavailable for this run"],
+              ["Executable SHA-256", manifest.provenance?.executableSha256 ?? "Unavailable for this run"],
+              ["Engine format / family", manifest.engineBuildId],
               ["Runner build", manifest.runnerBuildId],
               ["Strategy build", manifest.strategyBuildId],
               ["Config digest", `${manifest.configDigest.algorithm} ${manifest.configDigest.hexDigest}`],
@@ -395,6 +402,8 @@ export function RunDetailView() {
         <Button asChild size="sm" variant="outline"><Link href={`/experiments/new?from=${encodeURIComponent(run.experimentId)}`}>Create variant</Link></Button>
         <Button asChild size="sm" variant="outline"><Link href={`/compare?baseline=${encodeURIComponent(run.experimentId)}`}>Compare against this experiment</Link></Button>
       </nav>
+      {summaryResource.data?.execution ? <ExecutionTracePanel key={run.runId} run={run} /> : null}
+      <RunAuditControls key={`audit:${run.runId}`} run={run} />
       {seriesResource.data ? (
         <div className="grid gap-4 lg:grid-cols-3">
           {seriesResource.data.series.map((timeSeries) => (

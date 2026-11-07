@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
 import { readdirSync, readFileSync, readlinkSync, statSync } from "node:fs";
 import { createHash } from "node:crypto";
@@ -31,7 +31,7 @@ function standaloneInventory() {
 // implementation and no request can reach the installed service.
 async function isolatedApi() {
   const data = mkdtempSync(join(tmpdir(), "exsim-browser-execution-"));
-  const child = spawn(process.env.EXSIM_API_BINARY ?? resolve("../build/release/exsim_api"), ["--bind", "127.0.0.1", "--port", "3763", "--data-dir", data], { stdio: ["ignore", "pipe", "pipe"] });
+  const child = spawn(process.env.EXSIM_API_BINARY ?? resolve("../build/release/exsim_api"), ["--bind", "127.0.0.1", "--port", "3763", "--data-dir", data, "--source-revision", "5394b84", "--release-id", "persona-browser-test"], { stdio: ["ignore", "pipe", "pipe"] });
   let output = "";
   let diagnostics = "";
   const exited = new Promise<void>((done) => child.once("close", () => done()));
@@ -157,4 +157,96 @@ test("inventory-aware quoting is reviewed and executed by the advertised C++ str
     expect(summary.execution).toBeNull();
     await expect(page.getByRole("heading", { name: "Parent-order execution", exact: true })).toHaveCount(0);
   } finally { await api.stop(); }
+});
+
+
+test("native evidence UI excludes censored windows, pins attempts and exports a reproducible audit", async ({ page }) => {
+  test.setTimeout(45_000);
+  const api = await isolatedApi();
+  const downloadDirectory = mkdtempSync(join(tmpdir(), "exsim-persona-audit-"));
+  const call = async <T>(path: string, body?: unknown, key = `persona-${Date.now()}-${Math.random().toString(36).slice(2)}`): Promise<T> => {
+    const response = await fetch(`${api.baseUrl}${path}`, body === undefined ? {} : { method: "POST", headers: { "Content-Type": "application/json", "Idempotency-Key": key }, body: JSON.stringify(body) });
+    expect(response.ok, response.ok ? "" : await response.clone().text()).toBe(true);
+    return response.json();
+  };
+  try {
+    const baselines = await call<ApiSchemas["BaselineConfigurationList"]>("/v1/baselines");
+    const baseline = baselines.items.find((item) => item.config.strategy.strategyKind === "twap_execution")!;
+    const config = structuredClone(baseline.config);
+    config.seedSet.masterSeeds = ["101", "102", "103"];
+    const original = await call<ApiSchemas["Experiment"]>("/v1/experiments", { name: "Native persona baseline", derivedFromBaselineId: baseline.baselineId, config });
+    const launch = async (experimentId: string, seeds: string[]) => {
+      const runs: ApiSchemas["Run"][] = [];
+      for (const masterSeed of seeds) runs.push(await call<ApiSchemas["Run"]>("/v1/runs", { experimentId, masterSeed, startPaused: false }));
+      for (const run of runs) await expect.poll(async () => (await call<ApiSchemas["Run"]>(`/v1/runs/${run.runId}`)).state).toBe("completed");
+      return runs;
+    };
+    const originalRuns = await launch(original.experimentId, config.seedSet.masterSeeds);
+    const censoredConfig = structuredClone(config);
+    censoredConfig.bounds.endSimulationTimeNs = "5000000000";
+    censoredConfig.seedSet.masterSeeds = ["101"];
+    const censored = await call<ApiSchemas["Experiment"]>("/v1/experiments", { name: "Censored candidate", derivedFromBaselineId: baseline.baselineId, parentExperimentId: original.experimentId, config: censoredConfig });
+    await launch(censored.experimentId, ["101"]);
+    await page.goto(`/compare?baseline=${original.experimentId}&candidate=${censored.experimentId}`);
+    await expect(page.getByText(/1 execution windows cut short/)).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Candidate impact across matched seeds" })).toHaveCount(0);
+    await page.getByText("Inspect every planned seed and run attempt", { exact: true }).click();
+    await expect(page.getByRole("table", { name: "Comparison attempt ledger" })).toContainText("censored");
+    const candidateConfig = structuredClone(config);
+    candidateConfig.strategy = { strategyKind: "immediate_sweep_execution", parentSide: "buy", parentQuantity: "500", startTimeNs: "1000000000", executionDurationNs: "30000000000", limitOffsetTicks: "5" };
+    const candidate = await call<ApiSchemas["Experiment"]>("/v1/experiments", { name: "Observed candidate", derivedFromBaselineId: baseline.baselineId, parentExperimentId: original.experimentId, config: candidateConfig });
+    await launch(candidate.experimentId, config.seedSet.masterSeeds);
+    await page.goto(`/compare?baseline=${original.experimentId}&candidate=${candidate.experimentId}`);
+    await page.getByRole("button", { name: "Pin selected attempts" }).click();
+    await expect(page).toHaveURL(/runSelection=/);
+    const pinnedUrl = page.url();
+    await launch(original.experimentId, ["101"]);
+    await page.goto(pinnedUrl);
+    await page.getByText("Inspect every planned seed and run attempt", { exact: true }).click();
+    const selectedRow = page.getByRole("table", { name: "Comparison attempt ledger" }).getByRole("row").filter({ hasText: originalRuns[0].runId });
+    await expect(selectedRow).toContainText("Selected");
+    const receiptEvent = page.waitForEvent("download");
+    await page.getByRole("button", { name: "Download comparison receipt" }).click();
+    const receipt = await receiptEvent;
+    const receiptPath = join(downloadDirectory, "receipt.json");
+    await receipt.saveAs(receiptPath);
+    expect(JSON.parse(readFileSync(receiptPath, "utf8")).query.runSelection).toBe(new URL(pinnedUrl).searchParams.get("runSelection"));
+    await page.goto(`/runs/${originalRuns[1].runId}`);
+    await expect(page.getByRole("heading", { name: "Native execution trace" })).toBeVisible();
+    await page.getByRole("tab", { name: "Manifest", exact: true }).click();
+    await expect(page.getByText("Recorded source revision", { exact: true })).toBeVisible();
+    await expect(page.getByText("5394b84", { exact: true })).toBeVisible();
+    const auditEvent = page.waitForEvent("download");
+    await page.getByRole("button", { name: "Download complete audit" }).click();
+    const download = await auditEvent;
+    const packagePath = join(downloadDirectory, "audit.json");
+    await download.saveAs(packagePath);
+    const output = join(downloadDirectory, "unpacked");
+    const unpack = spawnSync("python3", [resolve("../scripts/research_audit.py"), "unpack", packagePath, output], { encoding: "utf8" });
+    expect(unpack.status, unpack.stderr).toBe(0);
+    expect(readFileSync(join(output, "runner/events.jsonl"), "utf8").trim().split("\n").length).toBeGreaterThan(1000);
+    const verify = spawnSync(resolve("../build/release/exsim_research"), ["verify", join(output, "runner")], { encoding: "utf8" });
+    expect(verify.status, verify.stderr).toBe(0);
+    const shortConfig = structuredClone(config);
+    shortConfig.seedSet.masterSeeds = ["901"];
+    shortConfig.bounds.endSimulationTimeNs = "3000000000";
+    shortConfig.markoutHorizonsNs = ["5000000000"];
+    if (shortConfig.strategy.strategyKind !== "twap_execution") throw new Error("Expected TWAP fixture");
+    shortConfig.strategy.startTimeNs = "1000000000";
+    shortConfig.strategy.executionDurationNs = "1000000000";
+    shortConfig.strategy.sliceIntervalNs = "100000000";
+    const shortA = await call<ApiSchemas["Experiment"]>("/v1/experiments", { name: "Unobserved markout baseline", derivedFromBaselineId: baseline.baselineId, config: shortConfig });
+    await launch(shortA.experimentId, ["901"]);
+    shortConfig.strategy.limitOffsetTicks = "6";
+    const shortB = await call<ApiSchemas["Experiment"]>("/v1/experiments", { name: "Unobserved markout candidate", derivedFromBaselineId: baseline.baselineId, config: shortConfig });
+    await launch(shortB.experimentId, ["901"]);
+    const unobserved = await call<ApiSchemas["ExperimentComparison"]>(`/v1/comparisons?baselineExperimentId=${shortA.experimentId}&candidateExperimentId=${shortB.experimentId}`);
+    const markout = unobserved.metricComparisons.find((item) => item.metricKey === "markout_total")!;
+    expect(markout.dispersion.sampleCount).toBe(0);
+    expect(markout.dispersion.meanDifference).toBeNull();
+    expect(markout.dispersion.tiedCount).toBe(0);
+    await page.goto(`/compare?baseline=${shortA.experimentId}&candidate=${shortB.experimentId}`);
+    const horizon = page.getByRole("row").filter({ has: page.getByRole("cell", { name: "Markout total @ 5 s", exact: false }) });
+    await expect(horizon).toContainText("n/a");
+  } finally { await api.stop(); rmSync(downloadDirectory, { recursive: true, force: true }); }
 });

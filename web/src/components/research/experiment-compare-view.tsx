@@ -8,6 +8,8 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { TriangleAlertIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { ComparisonAuditEvidence } from "@/components/research/comparison-audit-evidence";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -138,9 +140,10 @@ export function ExperimentCompareView() {
   const baselineExperimentId = searchParams.get("baseline") ?? experiments.find((experiment) => experiment.parentExperimentId === null)?.experimentId ?? null;
   const candidateExperimentId = searchParams.get("candidate") ?? experiments.find((experiment) => experiment.parentExperimentId === baselineExperimentId)?.experimentId ?? null;
 
+  const runSelection = searchParams.get("runSelection");
   const comparisonResource = useApiResource(
-    baselineExperimentId && candidateExperimentId ? `comparison:${baselineExperimentId}:${candidateExperimentId}` : null,
-    async () => unwrapApiResult(await apiClient.GET("/v1/comparisons", { params: { query: { baselineExperimentId: baselineExperimentId!, candidateExperimentId: candidateExperimentId!, maxPoints: 240 } } })),
+    baselineExperimentId && candidateExperimentId ? `comparison:${baselineExperimentId}:${candidateExperimentId}:${runSelection ?? "latest"}` : null,
+    async () => unwrapApiResult(await apiClient.GET("/v1/comparisons", { params: { query: { baselineExperimentId: baselineExperimentId!, candidateExperimentId: candidateExperimentId!, ...(runSelection ? { runSelection } : {}), maxPoints: 240 } } })),
     null,
   );
   const comparison = comparisonResource.data;
@@ -148,6 +151,7 @@ export function ExperimentCompareView() {
   const selectExperiment = (role: "baseline" | "candidate", experimentId: string) => {
     const nextSearchParams = new URLSearchParams(searchParams.toString());
     nextSearchParams.set(role, experimentId);
+    nextSearchParams.delete("runSelection");
     if (role === "baseline" && !nextSearchParams.has("candidate") && candidateExperimentId) nextSearchParams.set("candidate", candidateExperimentId);
     if (role === "candidate" && !nextSearchParams.has("baseline") && baselineExperimentId) nextSearchParams.set("baseline", baselineExperimentId);
     setChartedSeed(ALL_SEEDS);
@@ -253,6 +257,12 @@ export function ExperimentCompareView() {
             </Card>
           </div>
 
+          <ComparisonAuditEvidence comparison={comparison} />
+          {comparison.runSelection ? <div className="flex flex-wrap items-center gap-3 rounded-md border bg-card p-3">
+            <Button size="sm" variant="outline" onClick={() => { const params = new URLSearchParams({ baseline: comparison.baseline.experimentId, candidate: comparison.candidate.experimentId, runSelection: comparison.runSelection! }); router.replace(`${pathname}?${params}`); }}>Pin selected attempts</Button>
+            <Button size="sm" variant="outline" onClick={() => { const receipt = { format: "exsim.comparison-receipt/1", query: { baselineExperimentId: comparison.baseline.experimentId, candidateExperimentId: comparison.candidate.experimentId, runSelection: comparison.runSelection }, comparison }; const url = URL.createObjectURL(new Blob([JSON.stringify(receipt, null, 2)], { type: "application/json" })); const link = document.createElement("a"); link.href = url; link.download = "comparison-receipt.json"; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); }}>Download comparison receipt</Button>
+            <p className="text-xs text-muted-foreground">{runSelection ? "Cohort pinned in this URL." : "This URL follows the latest eligible attempts until pinned."} Receipt records selected runs and artifact digests; later attempts remain visible in the ledger.</p>
+          </div> : null}
           <PairedSeedAnalysis key={`${comparison.baseline.experimentId}:${comparison.candidate.experimentId}`} comparison={comparison} />
 
           {comparison.comparable ? <>

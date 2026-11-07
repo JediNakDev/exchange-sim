@@ -1,0 +1,32 @@
+import Link from "next/link";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import type { ApiSchemas } from "@/lib/api/exsim-api-client";
+import { formatDecimalForDisplay, formatDurationNs } from "@/lib/exact-decimal-format";
+import { humanizeEnumValue } from "@/lib/research-labels";
+
+export function ComparisonAuditEvidence({ comparison }: { comparison: ApiSchemas["ExperimentComparison"] }) {
+  const ledger = comparison.attemptLedger;
+  if (!ledger) return <p className="rounded-md border p-3 text-sm">Attempt-level eligibility is unavailable from this service. Do not treat the seed list as an audit of failed, superseded or unlaunched work.</p>;
+  const selected = ledger.flatMap((seed) => seed.attempts.filter((attempt) => attempt.selected).map((attempt) => ({ seed, attempt })));
+  const excluded = ledger.flatMap((seed) => seed.attempts.filter((attempt) => !attempt.eligible));
+  const censored = excluded.filter((attempt) => attempt.observationStatus === "censored_run_end");
+  return <Card size="sm"><CardHeader><CardTitle>Comparison eligibility and selected attempts</CardTitle><CardDescription>{comparison.selectionPolicy === "explicit_run_selection" ? "Pinned run selection. Later attempts do not replace selected evidence." : "Most recent eligible attempt in creation order, once per planned seed and experiment. Pin this cohort before sharing."} Failed, cancelled, incomplete, censored execution windows and failed reproduction are excluded; a fully observed execution window may still leave parent shares unfilled.</CardDescription></CardHeader>
+    <CardContent className="space-y-4">
+      <p className={censored.length ? "rounded-md border border-amber-400 bg-amber-50 p-3 text-sm" : "text-sm"}>{excluded.length} ineligible attempts; {censored.length} execution windows cut short. {ledger.filter((seed) => seed.attempts.length === 0).length} planned seed entries never launched. Inspect reasons below before interpreting directional outcomes.</p>
+      <details><summary className="cursor-pointer text-sm font-medium">Inspect every planned seed and run attempt</summary><div className="mt-3 max-h-96 overflow-auto rounded-md border"><Table className="text-xs" aria-label="Comparison attempt ledger"><TableHeader><TableRow><TableHead>Side / seed</TableHead><TableHead>Run / state</TableHead><TableHead>Selection and eligibility</TableHead><TableHead>Window observed through / deadline</TableHead><TableHead>Artifact digests</TableHead></TableRow></TableHeader><TableBody>
+        {ledger.map((seed) => seed.attempts.length === 0 ? <TableRow key={`${seed.experimentId}:${seed.masterSeed}`}><TableCell>{seed.experimentId === comparison.baseline.experimentId ? "Baseline" : "Candidate"} / {seed.masterSeed}</TableCell><TableCell>No attempt</TableCell><TableCell>Unlaunched</TableCell><TableCell>Unavailable</TableCell><TableCell>Unavailable</TableCell></TableRow> : seed.attempts.map((attempt) => <TableRow key={attempt.runId}>
+          <TableCell>{seed.experimentId === comparison.baseline.experimentId ? "Baseline" : "Candidate"} / <span className="font-mono">{seed.masterSeed}</span></TableCell>
+          <TableCell><Link className="font-mono underline" href={`/runs/${attempt.runId}?${new URLSearchParams({ baseline: comparison.baseline.experimentId, candidate: comparison.candidate.experimentId, ...(comparison.runSelection ? { runSelection: comparison.runSelection } : {}) })}`}>{attempt.runId}</Link><p>{attempt.state}</p></TableCell>
+          <TableCell><strong>{attempt.selected ? "Selected" : attempt.eligible ? "Eligible, not selected" : "Excluded"}</strong><p>{humanizeEnumValue(attempt.reason)}</p><p>{humanizeEnumValue(attempt.observationStatus)}</p></TableCell>
+          <TableCell>{attempt.observedThroughTimeNs === null ? "Unavailable" : formatDurationNs(attempt.observedThroughTimeNs)} / {attempt.windowEndTimeNs === null ? "Not an execution window" : formatDurationNs(attempt.windowEndTimeNs)}</TableCell>
+          <TableCell className="max-w-64 break-all font-mono">events: {attempt.digests.canonicalEventDigest?.hexDigest ?? "Unavailable"}<br />ledger: {attempt.digests.ledgerDigest?.hexDigest ?? "Unavailable"}<br />manifest: {attempt.digests.manifestDigest.hexDigest}</TableCell>
+        </TableRow>))}
+      </TableBody></Table></div></details>
+      {selected.some(({ attempt }) => attempt.markouts?.length) ? <details open><summary className="cursor-pointer text-sm font-medium">Markout eligibility and conditional fill quality</summary>
+        <p className="my-2 text-xs text-muted-foreground">Quantity-weighted signed USD/share against exchange mid: buy = future mid - fill price; sell = fill price - future mid. Includes initial spread edge, not pure mid-price drift. Compare eligible shares and censored coverage alongside conditional values; USD totals describe economic scale.</p>
+        <div className="max-h-80 overflow-auto rounded-md border"><Table aria-label="Comparison markout coverage" className="text-xs"><TableHeader><TableRow><TableHead>Side / seed / horizon</TableHead><TableHead>Eligible shares / fills</TableHead><TableHead>No mark / censored fills</TableHead><TableHead>USD / eligible share</TableHead><TableHead>Total USD</TableHead></TableRow></TableHeader><TableBody>{selected.flatMap(({ seed, attempt }) => (attempt.markouts ?? []).map((markout) => <TableRow key={`${attempt.runId}:${markout.horizonNs}`}>
+          <TableCell>{seed.experimentId === comparison.baseline.experimentId ? "Baseline" : "Candidate"} / {seed.masterSeed} / {formatDurationNs(markout.horizonNs)}</TableCell><TableCell className="font-mono">{markout.availableShares ?? "Unavailable"} / {markout.availableFillCount}</TableCell><TableCell className="font-mono">{markout.unavailableFillCount} / {markout.censoredFillCount}</TableCell><TableCell className="font-mono">{markout.availableFillCount === "0" ? "Unavailable" : formatDecimalForDisplay(markout.meanMarkoutPerShare, { signDisplay: "always" })}</TableCell><TableCell className="font-mono">{markout.availableFillCount === "0" ? "Unavailable" : formatDecimalForDisplay(markout.totalMarkout, { signDisplay: "always" })}</TableCell>
+        </TableRow>))}</TableBody></Table></div></details> : null}
+    </CardContent></Card>;
+}
