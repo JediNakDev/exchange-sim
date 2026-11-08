@@ -126,9 +126,9 @@ function RunControls({ run, onRunChanged, stale }: { run: ApiSchemas["Run"]; onR
 function SummaryPanel({ summary }: { summary: ApiSchemas["RunSummary"] }) {
   const accounting = summary.accounting;
   return (
-    <div className="grid gap-4 xl:grid-cols-2">
+    <div className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-2">
       <ExecutionSummaryPanel summary={summary} />
-      <div className="xl:col-span-2"><RequestDiagnosticsPanel diagnostics={summary.orders.requestDiagnostics} /></div>
+      <div className="min-w-0 xl:col-span-2"><RequestDiagnosticsPanel diagnostics={summary.orders.requestDiagnostics} /></div>
       <Card size="sm">
         <CardHeader>
           <CardTitle>Ledger</CardTitle>

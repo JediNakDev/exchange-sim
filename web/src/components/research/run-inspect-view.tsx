@@ -362,6 +362,10 @@ function RunInspection({ runId }: { runId: string }) {
   const [jumpTargetText, setJumpTargetText] = useState("");
   const [focusedOrderId, setFocusedOrderId] = useState<string | null>(() => initialOrderId(searchParams.get("order")));
   const [selectionHasOrigin, setSelectionHasOrigin] = useState(false);
+  const clearSelectionOrigin = () => {
+    selectionOriginRef.current = null;
+    setSelectionHasOrigin(false);
+  };
   const [selectedFill, setSelectedFill] = useState<ApiSchemas["Fill"] | null>(null);
   const fillsCursor = useCursorHistory();
   const ordersCursor = useCursorHistory();
@@ -522,14 +526,14 @@ function RunInspection({ runId }: { runId: string }) {
         </div>
       </div>
 
-      <p role="status" aria-live="polite" className="text-sm text-muted-foreground">{selectedFill ? `Selected fill ${selectedFill.matchId}, order ${selectedFill.orderId}, event ${selectedFill.eventPosition}. Read explanation is available on the selected row.` : focusedOrderId ? `Selected order ${focusedOrderId}. Its lifecycle explanation is above.` : "Select a fill or an own order to explain it."}</p>
-      <Tabs ref={artifactListRef} tabIndex={-1} aria-label="Fills and own orders" defaultValue="fills">
+      <p role="status" aria-live="polite" className="text-sm text-muted-foreground">{selectedFill ? `Selected fill ${selectedFill.matchId}, order ${selectedFill.orderId}, event ${selectedFill.eventPosition}. ${selectionHasOrigin ? "Read explanation is available on the selected row." : "Its explanation is above. Return goes to fills and own orders."}` : focusedOrderId ? `Selected order ${focusedOrderId}. Its lifecycle explanation is above.` : "Select a fill or an own order to explain it."}</p>
+      <Tabs ref={artifactListRef} tabIndex={-1} aria-label="Fills and own orders" defaultValue="fills" onValueChange={clearSelectionOrigin}>
         <TabsList>
           <TabsTrigger value="fills">Fills</TabsTrigger>
           <TabsTrigger value="orders">Own orders</TabsTrigger>
         </TabsList>
         <TabsContent value="fills">
-          <ArtifactPageControls label="Fills" pageNumber={fillsCursor.pageNumber} count={fillPage.data?.items.length ?? 0} nextCursor={fillPage.data?.page.nextCursor ?? null} isLoading={fillPage.isLoading} onPrevious={fillsCursor.previous} onNext={fillsCursor.next} />
+          <ArtifactPageControls label="Fills" pageNumber={fillsCursor.pageNumber} count={fillPage.data?.items.length ?? 0} nextCursor={fillPage.data?.page.nextCursor ?? null} isLoading={fillPage.isLoading} onPrevious={() => { clearSelectionOrigin(); fillsCursor.previous(); }} onNext={(cursor) => { clearSelectionOrigin(); fillsCursor.next(cursor); }} />
           {fillPage.failure ? <ApiFailureAlert failure={fillPage.failure} onRetry={fillPage.reload} /> : null}
           <div className="event-tape overflow-hidden rounded-md border">
             <Table aria-label="Recorded fills" className="text-xs">
@@ -577,7 +581,7 @@ function RunInspection({ runId }: { runId: string }) {
           </div>
         </TabsContent>
         <TabsContent value="orders">
-          <ArtifactPageControls label="Orders" pageNumber={ordersCursor.pageNumber} count={orderPage.data?.items.length ?? 0} nextCursor={orderPage.data?.page.nextCursor ?? null} isLoading={orderPage.isLoading} onPrevious={ordersCursor.previous} onNext={ordersCursor.next} />
+          <ArtifactPageControls label="Orders" pageNumber={ordersCursor.pageNumber} count={orderPage.data?.items.length ?? 0} nextCursor={orderPage.data?.page.nextCursor ?? null} isLoading={orderPage.isLoading} onPrevious={() => { clearSelectionOrigin(); ordersCursor.previous(); }} onNext={(cursor) => { clearSelectionOrigin(); ordersCursor.next(cursor); }} />
           {orderPage.failure ? <ApiFailureAlert failure={orderPage.failure} onRetry={orderPage.reload} /> : null}
           <div className="max-h-[28rem] overflow-auto rounded-md border">
             <Table aria-label="Recorded own orders" className="text-xs">

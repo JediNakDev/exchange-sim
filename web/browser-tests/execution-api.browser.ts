@@ -118,6 +118,10 @@ test("a trader compares real TWAP and sweep runs with explicit parent costs and 
     await expect(page.getByLabel("Parent execution metrics")).toContainText("Parent residual quantity");
     await expect(page.getByLabel("Parent execution metrics")).toContainText(residual.value!);
     await expect(page.getByText(/Costs cover filled quantity only/)).toBeVisible();
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(page.getByRole("table", { name: "Outbound request diagnostics", exact: true })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390);
+    await page.setViewportSize({ width: 1440, height: 1000 });
     await page.goto(`/experiments/${baselineId}`);
     await page.getByRole("link", { name: "Create variant" }).click();
     await page.getByLabel("Execution method").click();
@@ -288,6 +292,13 @@ test("native MM diagnostics expose replacement failures and replacement-chain FI
     await expect(page.getByRole("heading", { name: "Order 12: latest chain state" })).toBeVisible();
     const fifo = page.getByRole("table", { name: "FIFO queue evidence", exact: true });
     await expect(fifo.getByRole("row").filter({ hasText: "#51" })).toContainText("12");
+    const explanation = page.getByRole("region", { name: "Selected order explanation" });
+    await expect(explanation.getByRole("button", { name: "Return to selected row", exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Next fills", exact: true }).click();
+    await expect(page.getByRole("navigation", { name: "Fills pages" })).toContainText("page 2");
+    await expect(page.getByRole("status").filter({ hasText: /Selected fill/ })).not.toContainText("available on the selected row");
+    await explanation.getByRole("button", { name: "Return to fills and own orders", exact: true }).click();
+    await expect(page.getByLabel("Fills and own orders", { exact: true })).toBeFocused();
     await page.goto(`/compare?baseline=${baseline.experiment.experimentId}&candidate=${candidate.experiment.experimentId}`);
     await expect(page.getByRole("table", { name: "Comparison markout coverage" })).toContainText("135665");
     await page.getByText("Request and quote-update diagnostics by selected attempt", { exact: true }).click();

@@ -20,7 +20,7 @@ export function ComparisonAuditEvidence({ comparison }: { comparison: ApiSchemas
           <TableCell>{seed.experimentId === comparison.baseline.experimentId ? "Baseline" : "Candidate"} / <span className="font-mono">{seed.masterSeed}</span></TableCell>
           <TableCell><Link className="font-mono underline" href={`/runs/${attempt.runId}?${new URLSearchParams({ baseline: comparison.baseline.experimentId, candidate: comparison.candidate.experimentId, ...(comparison.runSelection ? { runSelection: comparison.runSelection } : {}) })}`}>{attempt.runId}</Link><p>{attempt.state}</p></TableCell>
           <TableCell><strong>{attempt.selected ? "Selected" : attempt.eligible ? "Eligible, not selected" : "Excluded"}</strong><p>{humanizeEnumValue(attempt.reason)}</p><p>{humanizeEnumValue(attempt.observationStatus)}</p></TableCell>
-          <TableCell>{attempt.observedThroughTimeNs === null ? "Unavailable" : formatDurationNs(attempt.observedThroughTimeNs)} / {attempt.windowEndTimeNs === null ? "Not an execution window" : formatDurationNs(attempt.windowEndTimeNs)}</TableCell>
+          <TableCell>{attempt.observedThroughTimeNs === null ? "Unavailable" : formatDurationNs(attempt.observedThroughTimeNs)} / {attempt.observationStatus === "not_applicable" ? "Not an execution window" : attempt.windowEndTimeNs === null ? "Deadline unavailable" : formatDurationNs(attempt.windowEndTimeNs)}</TableCell>
           <TableCell className="max-w-64 break-all font-mono">events: {attempt.digests.canonicalEventDigest?.hexDigest ?? "Unavailable"}<br />ledger: {attempt.digests.ledgerDigest?.hexDigest ?? "Unavailable"}<br />manifest: {attempt.digests.manifestDigest.hexDigest}</TableCell>
         </TableRow>))}
       </TableBody></Table></div></details>
