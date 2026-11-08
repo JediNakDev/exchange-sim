@@ -4,7 +4,9 @@
 // Byte sink of the order-entry gateways (docs/SERVER.md 2.4) over one
 // connection's net::TcpServer send buffer. prepare() returning nullptr means
 // the send buffer cannot take the message: the gateway then drops the
-// connection (live output) or pauses (OUCH replay).
+// connection (live output) or pauses (OUCH replay). A refused prepare leaves
+// the queued bytes and the connection intact, so a paused replay resumes once
+// the socket drains; every gateway closes on a refused live write.
 
 #include "exsim/net/tcp_server.hpp"
 
@@ -17,7 +19,7 @@ struct TcpSendSink {
     net::ConnectionId connection{};
 
     [[nodiscard]] char* prepare(std::size_t byte_count) noexcept {
-        const std::span<char> space = tcp_server->reserve_send(connection, byte_count);
+        const std::span<char> space = tcp_server->reserve_send_if_room(connection, byte_count);
         return space.size() == byte_count && byte_count != 0 ? space.data() : nullptr;
     }
     void commit(std::size_t byte_count) noexcept { tcp_server->commit_send(connection, byte_count); }

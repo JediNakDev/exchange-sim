@@ -103,6 +103,15 @@ bool TcpServer::close_after_flush(ConnectionId id) noexcept {
     return true;
 }
 void TcpServer::finish_graceful_close(std::uint32_t index) noexcept {
+    // close() with unread input sends RST instead of FIN, and the kernel then
+    // drops queued output the peer has not received. Discard the input that
+    // has arrived first. Bounded, so a flooding peer cannot hold the loop;
+    // input arriving after the last read can still turn the close into RST.
+    TcpConnection& connection = slots_[index].connection;
+    for (int read = 0; read < kMaxDiscardReadsBeforeClose; ++read) {
+        connection.receive_buffer().clear();
+        if (connection.receive().status != ReceiveStatus::Received) break;
+    }
     release_slot(index);
 }
 TcpServer::FlushOutcome TcpServer::flush_slot(std::uint32_t index) noexcept {

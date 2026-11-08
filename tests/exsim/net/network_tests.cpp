@@ -331,6 +331,41 @@ TEST_CASE(net_server, receive_and_send_exhaustion) {
         CHECK_EQ(handler.reason, inbound ? CloseReason::ReceiveBufferFull : CloseReason::SendBufferOverflow);
     }
 }
+TEST_CASE(net_server, reserve_if_room_refuses_without_overflowing) {
+    Poller poller;
+    REQUIRE_EQ(poller.open(), 0);
+    TcpServerConfig config;
+    config.send_buffer_capacity = 8;
+    TcpServer server(config, poller, 1);
+    REQUIRE_EQ(server.open(), 0);
+    Handler handler{server};
+    TcpClient client;
+    connect_client(client, server.listen_endpoint());
+    until([&] { return handler.opened == 1; }, [&] { pump(poller, server, handler); });
+    const auto id = handler.ids[0];
+    auto first = server.reserve_send_if_room(id, 6);
+    REQUIRE_EQ(first.size(), 6U);
+    std::memcpy(first.data(), "abcdef", 6);
+    server.commit_send(id, 6);
+    // Four more bytes do not fit: refused, but nothing queued is lost and the
+    // connection stays open (reserve_send would mark it overflowed).
+    CHECK(server.reserve_send_if_room(id, 4).empty());
+    CHECK(!server.connection(id)->send_buffer().overflowed());
+    std::size_t received = 0;
+    until([&] { return received == 6; },
+          [&] {
+              pump(poller, server, handler);
+              (void)client.receive();
+              received = client.connection().receive_buffer().size();
+          });
+    CHECK_EQ(std::string_view(client.connection().receive_buffer().readable().data(), 6), "abcdef");
+    auto second = server.reserve_send_if_room(id, 8);
+    REQUIRE_EQ(second.size(), 8U);
+    server.commit_send(id, 8);
+    pump(poller, server, handler);
+    CHECK(server.is_open(id));
+    CHECK_EQ(handler.closed, 0U);
+}
 TEST_CASE(net_server, backpressure_order_and_graceful_close) {
     Poller poller;
     REQUIRE_EQ(poller.open(), 0);
@@ -383,6 +418,50 @@ TEST_CASE(net_server, backpressure_order_and_graceful_close) {
     CHECK_EQ(received, expected.size());
     CHECK_EQ(server.connection_count(), 0U);
     CHECK_EQ(handler.closed, 0U);
+}
+// A peer that keeps sending while the server closes gracefully: close() with
+// unread input sends RST, and Linux then discards queued output the peer has
+// not received. The server must discard the input first so the output ends
+// with a FIN.
+TEST_CASE(net_server, graceful_close_with_unread_input_delivers_queued_output) {
+    Poller poller;
+    REQUIRE_EQ(poller.open(), 0);
+    TcpServerConfig config;
+    config.max_connections = 1;
+    config.send_buffer_capacity = 1024 * 1024;
+    config.socket_send_buffer_bytes = 4096;
+    TcpServer server(config, poller, 1);
+    REQUIRE_EQ(server.open(), 0);
+    Handler handler{server};
+    TcpClient client(65536, 1024);
+    connect_client(client, server.listen_endpoint());
+    until([&] { return handler.opened == 1; }, [&] { pump(poller, server, handler); });
+    const auto id = handler.ids[0];
+    std::vector<char> expected(config.send_buffer_capacity);
+    for (std::size_t index = 0; index < expected.size(); ++index) expected[index] = static_cast<char>(index % 101);
+    REQUIRE(server.send(id, expected));
+    REQUIRE(server.close_after_flush(id));
+    server.flush_pending(handler);
+    REQUIRE(server.connection(id) != nullptr);  // still flushing: the client has not read yet
+    // The closing connection no longer reads: these bytes stay unread.
+    REQUIRE(client.send(std::span("heartbeat", 9)));
+    REQUIRE(client.flush().status == FlushStatus::Complete);
+    std::size_t received = 0;
+    bool eof = false;
+    until([&] { return eof; },
+          [&] {
+              pump(poller, server, handler);
+              const auto result = client.receive();
+              auto data = client.connection().receive_buffer().readable();
+              REQUIRE(received + data.size() <= expected.size());
+              if (!data.empty()) REQUIRE_EQ(std::memcmp(data.data(), expected.data() + received, data.size()), 0);
+              received += data.size();
+              client.connection().receive_buffer().consume(data.size());
+              eof = result.status == ReceiveStatus::PeerClosed;
+              REQUIRE(result.status != ReceiveStatus::Error);
+          });
+    CHECK_EQ(received, expected.size());
+    CHECK_EQ(server.connection_count(), 0U);
 }
 TEST_CASE(net_tcp, broken_pipe_is_sigpipe_safe) {
     Pair pair;

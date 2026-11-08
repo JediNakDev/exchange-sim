@@ -319,8 +319,12 @@ using ExchangeConnection = fix::FixConnection<FixTestExchange, TestByteSink>;
 // One exchange-side connection driven by raw frames, as a client would send.
 class FixTestConnection {
 public:
-    FixTestConnection(FixTestExchange& exchange, std::string sender, fix::FixSessionSettings settings = {})
-        : exchange_(exchange), sender_(std::move(sender)), connection_(exchange.directory(), settings) {
+    FixTestConnection(FixTestExchange& exchange, std::string sender, fix::FixSessionSettings settings = {},
+                      std::size_t sink_capacity = 1u << 20)
+        : exchange_(exchange),
+          sender_(std::move(sender)),
+          sink_(sink_capacity),
+          connection_(exchange.directory(), settings) {
         connection_.start(sink_, ++generation_, exchange_);
     }
     // A bound FixConnection must be released before it is destroyed.

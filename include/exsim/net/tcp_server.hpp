@@ -143,6 +143,20 @@ class TcpServer {
         }
         return space;
     }
+    // Like reserve_send(), but bytes that do not fit leave the connection
+    // usable: the caller chooses between waiting for the socket to drain
+    // (a paused replay) and closing the connection itself.
+    std::span<char> reserve_send_if_room(ConnectionId id, std::size_t max_bytes) noexcept {
+        Slot* slot = open_slot(id);
+        if (slot == nullptr) {
+            return {};
+        }
+        SendBuffer& buffer = slot->connection.send_buffer();
+        if (buffer.capacity() - buffer.pending_bytes() < max_bytes) {
+            return {};
+        }
+        return buffer.reserve(max_bytes);
+    }
     void commit_send(ConnectionId id, std::size_t bytes) noexcept {
         Slot* slot = open_slot(id);
         if (slot == nullptr) {
@@ -152,8 +166,12 @@ class TcpServer {
         queue_for_flush(id.slot);
     }
 
-    // Stops delivering data, sends what is queued, then shuts the socket down
-    // (FIN) and frees the slot. Returns false for a stale or closing id.
+    // Stops delivering data, sends what is queued, then discards input that
+    // has already arrived (at most kMaxDiscardReadsBeforeClose reads) and
+    // closes the socket and frees the slot. Best effort, not a guaranteed FIN:
+    // input still arriving at close() (a flooding or concurrently sending
+    // peer) makes the kernel send RST, which can drop queued bytes the peer
+    // has not read yet. Returns false for a stale or closing id.
     bool close_after_flush(ConnectionId id) noexcept;
     // Closes immediately, dropping queued bytes. Returns false for a stale id.
     bool close_now(ConnectionId id) noexcept;
@@ -193,6 +211,7 @@ class TcpServer {
     static constexpr std::uint32_t kListenerSlotIndex = 0xFFFFFFFF;
     static constexpr std::uint32_t kGenerationMask = 0x00FFFFFF;  // 24 bits fit under the 8-bit owner tag
     static constexpr int kMaxAcceptsPerEvent = 64;
+    static constexpr int kMaxDiscardReadsBeforeClose = 16;
 
     std::uint64_t slot_token(std::uint32_t slot_index) const noexcept {
         return make_poll_token(token_tag_,

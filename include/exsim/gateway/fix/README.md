@@ -60,7 +60,13 @@ log out; a low PossDup message, GapFill included, is ignored and never advances
 expected sequence. A duplicate early ResendRequest already held is serviced once.
 MsgSeqNum above 2^64 - 2 is refused with Logout so expected never wraps.
 
-Output sink overflow disconnects while stored reports remain recoverable. Resend
+Live output that overflows the sink disconnects while stored reports remain
+recoverable. A resend that does not fit pauses and resumes from the session
+timer as the transport drains; messages sequenced meanwhile are withheld and
+follow the requested range as part of the resend. Application reports use
+PossDupFlag=Y; up to 16 unsent session messages retain their payloads in
+startup-allocated storage (overflow fails closed), so TestReqID and other
+session fields are delivered rather than gap-filled. MsgSeqNums stay in order. Resend
 store exhaustion instead latches `store_exhausted()`, increments
 `messages_not_stored()`, and disconnects without transmitting or gap-filling the
 unstored report. Normal reconnect is refused. Only application messages take

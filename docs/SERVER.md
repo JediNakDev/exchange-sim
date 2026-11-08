@@ -112,10 +112,14 @@ char* prepare(std::size_t n) noexcept;  // nullptr: no room
 void  commit(std::size_t n) noexcept;
 ```
 
-The server adapts the net layer's send buffer to it. If `prepare` fails,
-the connection is overloaded: the server disconnects it (the messages are
-still in the store, so the client recovers on reconnect). Gateways never
-allocate to buffer output.
+The server adapts the net layer's send buffer to it. A failed `prepare`
+leaves queued bytes intact. Live output that does not fit overloads the
+connection: the gateway disconnects it, and stored application messages
+remain recoverable on reconnect. OUCH replay and FIX resend pause instead,
+then resume from the gateway timer as the socket drains. FIX withholds new
+output behind the resend; up to 16 unsent session messages retain their
+payloads in startup-allocated storage. Exceeding that bound fails closed.
+Gateways never allocate to buffer output.
 
 ### 2.5 Client side
 

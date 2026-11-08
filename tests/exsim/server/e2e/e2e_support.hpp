@@ -192,10 +192,13 @@ class ServerUnderTest {
 public:
     // feed_port: where the server sends market data (a MarketDataFeed's port).
     ServerUnderTest(server::ServerConfig config, std::uint16_t feed_port, bool bots_enabled = true,
-                    bool busy_poll = false) {
+                    bool busy_poll = false,
+                    std::size_t connection_send_buffer_bytes =
+                        server::ServerRuntimeOptions{}.connection_send_buffer_bytes) {
         config.market_data.port = feed_port;
         server::ServerRuntimeOptions options;
         options.log = nullptr;
+        options.connection_send_buffer_bytes = connection_send_buffer_bytes;
         options.day_time_at_start = kTenAm;
         options.market_data.heartbeat_interval_ns = 20'000'000;
         options.end_of_day_drain_timeout_ns = 2'000'000'000;

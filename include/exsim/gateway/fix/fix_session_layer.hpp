@@ -274,6 +274,9 @@ protected:
 
     void run_timers() noexcept {
         const Timestamp now_ns = now_.monotonic_ns;
+        if (day_state_bound_to_this_connection()) {
+            day_->continue_resend(now_);  // a paused resend resumes as the transport drains
+        }
         switch (phase_) {
             case FixConnectionPhase::AwaitingLogon:
             case FixConnectionPhase::LogonSent:
@@ -300,7 +303,9 @@ protected:
             } else if (now_ns - last_inbound_ns_ >= heartbeat_interval_ns_ * 3 / 2) {
                 send_test_request();
             }
-            if (now_ns - day_->last_transmit_ns() >= heartbeat_interval_ns_) {
+            // A resend in progress is the traffic; a Heartbeat now would only
+            // be withheld and gap-filled.
+            if (!day_->resend_in_progress() && now_ns - day_->last_transmit_ns() >= heartbeat_interval_ns_) {
                 send_heartbeat({});
             }
         }

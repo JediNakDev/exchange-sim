@@ -36,7 +36,27 @@ public:
     // ---- net::TcpServerHandler ------------------------------------------------------
     void on_connection_opened(net::ConnectionId id, net::Ipv4Endpoint) noexcept { pending_lines_[id.slot].clear(); }
 
-    void on_connection_data(net::ConnectionId id, net::ReceiveBuffer& received) {
+    // TcpServer calls this from its noexcept event path, so an exception from
+    // the operator path (std::bad_alloc while buffering a line or building a
+    // reply) is contained here: that connection gets ERR and is closed, the
+    // reactor keeps running.
+    void on_connection_data(net::ConnectionId id, net::ReceiveBuffer& received) noexcept {
+        try {
+            execute_received_lines(id, received);
+        } catch (...) {
+            pending_lines_[id.slot].clear();
+            received.consume(received.size());
+            tcp_server_.send(id, std::string_view("ERR internal error\n"));
+            tcp_server_.close_after_flush(id);
+        }
+    }
+
+    void on_connection_closed(net::ConnectionId id, net::CloseReason, net::ErrorCode) noexcept {
+        pending_lines_[id.slot].clear();
+    }
+
+private:
+    void execute_received_lines(net::ConnectionId id, net::ReceiveBuffer& received) {
         std::string& pending = pending_lines_[id.slot];
         const std::span<const char> bytes = received.readable();
         pending.append(bytes.data(), bytes.size());
@@ -72,11 +92,6 @@ public:
         }
     }
 
-    void on_connection_closed(net::ConnectionId id, net::CloseReason, net::ErrorCode) noexcept {
-        pending_lines_[id.slot].clear();
-    }
-
-private:
     net::TcpServer tcp_server_;
     Core& core_;
     std::vector<std::string> pending_lines_;  // per connection slot

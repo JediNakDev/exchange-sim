@@ -42,7 +42,9 @@ struct TcpClientSendSink {
 
     [[nodiscard]] char* prepare(std::size_t byte_count) noexcept {
         if (!tcp_client->connected()) return nullptr;
-        const std::span<char> space = tcp_client->connection().send_buffer().reserve(byte_count);
+        auto& buffer = tcp_client->connection().send_buffer();
+        if (byte_count > buffer.capacity() - buffer.pending_bytes()) return nullptr;
+        const std::span<char> space = buffer.reserve(byte_count);
         return space.size() == byte_count && byte_count != 0 ? space.data() : nullptr;
     }
     void commit(std::size_t byte_count) noexcept { tcp_client->connection().send_buffer().commit(byte_count); }

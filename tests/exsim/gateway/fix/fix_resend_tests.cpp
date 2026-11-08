@@ -4,6 +4,7 @@
 // reconnects.
 
 #include "tests/exsim/gateway/fix/fix_test_support.hpp"
+#include "tests/framework/alloc_counter.hpp"
 
 #include <string>
 #include <vector>
@@ -125,6 +126,68 @@ TEST_CASE(gateway_fix_resend, resend_after_orders_complete_and_reconnect) {
     CHECK_EQ(recovered[6].get(36), std::string("8"));
 }
 
+TEST_CASE(gateway_fix_resend, resend_beyond_sink_capacity_pauses_and_keeps_live_output_in_order) {
+    constexpr std::size_t kSinkBytes = 2048;  // a few ExecutionReports
+    constexpr int kOrders = 40;
+    FixTestExchange exchange;
+    FixTestConnection buyer(exchange, "CLIENT1", {}, kSinkBytes);
+    FixTestConnection seller(exchange, "CLIENT2");
+    buyer.logon();  // Logon 1
+    for (int order = 0; order < kOrders; ++order) {
+        buyer.send("D", new_order_fields("B" + std::to_string(order), "1", 10, "150"));  // ER 2..41
+        buyer.drain();
+    }
+    auto& day = exchange.user(1).session_day_state();
+    REQUIRE_EQ(day.next_outbound_seq(), std::uint64_t(kOrders + 2));
+
+    buyer.tick(kSecond);
+    buyer.send("2", "7=1|16=0|");
+    CHECK(day.resend_in_progress());
+    CHECK(!buyer.connection().wants_disconnect());
+
+    // Output sequenced while the resend is paused waits behind it: B0's fill
+    // (ER 42) and the answer to a TestRequest (Heartbeat 43).
+    seller.logon(30, false, {});
+    seller.send("D", new_order_fields("S1", "2", 10, "150"));
+    buyer.send("1", "112=PING|");
+    CHECK_EQ(day.next_outbound_seq(), std::uint64_t(kOrders + 4));
+
+    std::vector<ParsedFixMessage> received;
+    for (int round = 0; round < 1000 && day.resend_in_progress(); ++round) {
+        for (ParsedFixMessage& message : buyer.drain()) received.push_back(std::move(message));
+        buyer.tick(0);  // the transport drained: the resend continues
+    }
+    CHECK(!day.resend_in_progress());
+    buyer.send("D", new_order_fields("AFTER", "1", 10, "149"));  // ER 44, live again
+    for (ParsedFixMessage& message : buyer.drain()) received.push_back(std::move(message));
+    CHECK(!buyer.connection().wants_disconnect());
+
+    // Every MsgSeqNum 1..44 exactly once and in order: GapFills cover the
+    // historical session messages; the pending TestRequest response keeps its payload.
+    std::uint64_t expected_sequence = 1;
+    for (const ParsedFixMessage& message : received) {
+        CHECK_EQ(message.sequence(), expected_sequence);
+        if (message.type() == "4") {
+            CHECK_EQ(message.get(123), std::string("Y"));
+            expected_sequence = std::stoull(message.get(36));
+        } else {
+            CHECK(message.type() == "8" || message.type() == "0");
+            ++expected_sequence;
+        }
+    }
+    CHECK_EQ(expected_sequence, std::uint64_t(kOrders + 5));
+    REQUIRE(received.size() >= 3);
+    const ParsedFixMessage& fill = received[received.size() - 3];
+    CHECK_EQ(fill.sequence(), std::uint64_t(kOrders + 2));
+    CHECK_EQ(fill.get(11), std::string("B0"));
+    CHECK_EQ(fill.get(150), std::string("F"));
+    CHECK_EQ(fill.get(43), std::string("Y"));
+    CHECK_EQ(received[received.size() - 2].type(), std::string("0"));
+    CHECK_EQ(received[received.size() - 2].get(112), std::string("PING"));
+    CHECK_EQ(received.back().get(11), std::string("AFTER"));
+    CHECK_EQ(received.back().get(43), std::string(""));
+}
+
 TEST_CASE(gateway_fix_resend, store_capacity_exhaustion_fails_closed) {
     fix::FixUserLimits limits = small_limits();
     // Session messages take no slot: two ExecutionReports fill the store.
@@ -206,4 +269,38 @@ TEST_CASE(gateway_fix_resend, token_capacity_and_reset_preserve_day_identity) {
     CHECK_EQ(frames[0].get(103), std::string("6"));
     CHECK_EQ(frames[0].get(17), std::to_string(issued + 1));
     CHECK_EQ(exchange.commands_of(1).size(), 2u);
+}
+
+TEST_CASE(gateway_fix_resend, paused_session_payload_capacity_fails_closed) {
+    FixTestExchange exchange;
+    FixTestConnection client(exchange, "CLIENT1");
+    client.logon();
+    for (int index = 0; index < 40; ++index) {
+        client.send("D", new_order_fields("B" + std::to_string(index), "1", 10, "150"));
+        (void)client.drain();
+    }
+    client.sink().set_refuse_prepare(true);
+    client.send("2", "7=1|16=0|");
+    REQUIRE(exchange.user(1).session_day_state().resend_in_progress());
+    auto& day = exchange.user(1).session_day_state();
+    fix44::Heartbeat heartbeat;
+    heartbeat.has_test_request_id = true;
+    heartbeat.test_request_id.borrow("PING");
+    const auto encode = [&](const fix44::Header& header, std::span<char> buffer) {
+        return fix44::encode(heartbeat, header, buffer.data(), buffer.size());
+    };
+    const fix::FixTime now{kSessionStartNs, kMidnightRealtimeNs + kSessionStartNs};
+    bool queued = true;
+    bool overflow_refused = false;
+    std::size_t allocations = 0;
+    {
+        testfw::AllocationScope scope;
+        for (int index = 0; index < 16; ++index) queued = day.send_session_message(encode, now) && queued;
+        overflow_refused = !day.send_session_message(encode, now);
+        allocations = scope.count();
+    }
+    CHECK(queued);
+    CHECK(overflow_refused);
+    CHECK(client.connection().wants_disconnect());
+    if (testfw::allocation_counting_available()) CHECK_EQ(allocations, 0u);
 }
