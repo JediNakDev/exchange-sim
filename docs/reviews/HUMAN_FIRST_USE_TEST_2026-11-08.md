@@ -43,3 +43,15 @@ Freeze the final build, API binary identity, dataset and protocol before recruit
 Success requires at least 16 of these 20 capabilities found, completed and interpreted unaided, and every critical capability passing. Assistance means that capability did not pass unaided. Record observed behavior and the participant's interpretation, not the facilitator's guess. Timing targets are additional product targets, not a substitute for correct interpretation. Do not count unavailable/unimplemented capabilities as passed; readiness requires addressing or explicitly revising the agreed scope before the denominator is frozen.
 
 Human results: NOT RUN. Build/dataset/start command and facilitator answer key will be finalized after independent repair clearance.
+
+## Isolated session setup, draft pending clearance
+
+The facilitator can start a verified copied release with a brand-new participant directory:
+
+```sh
+python3 scripts/start_human_review.py --release /tmp/exsim-persona-review-360ad69 --session /tmp/exsim-human-participant-01
+```
+
+The default participant URL is `http://127.0.0.1:46072/experiments`; API is loopback46073. Use a new directory for every participant, and different explicit ports for simultaneous sessions. The launcher verifies release inventory and Node version, refuses an existing session directory, checks direct/proxied readiness, records identities/logs/data under that directory, and stops only its owned services on Ctrl+C while preserving records. `session.json` intentionally says human_result NOT RUN; score the actual participant separately.
+
+This command is prepared, not an instruction to begin the human test yet. Expert review services on45872/45873 contain review records and must not be used as a clean participant session. The release path above must be updated if independent review requires another implementation change. The final handoff will identify the independently cleared release and reference receipts.
