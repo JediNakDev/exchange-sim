@@ -1,0 +1,214 @@
+{
+  "schemaVersion": "exsim.run-manifest/1",
+  "runId": "run_2be173369c9339fe",
+  "experimentId": "exp_b365ce8fbf91ae89",
+  "provenance": {
+    "sourceRevision": "360ad69529aa57b5e8856391812cc3d1d93c6896",
+    "releaseId": "human-efg6fmC6FKFd5gxu0E1Hb",
+    "executableSha256": "10501a33317f4aa53fa6a658ee715674edee56b5fe217d2a106511934d3b56c5"
+  },
+  "parentRunId": null,
+  "mode": "deterministic_research",
+  "marketWorld": "interactive_synthetic",
+  "engineBuildId": "exsim.matching_engine/canonical_encoding=1",
+  "runnerBuildId": "exsim.research.runner/1",
+  "strategyBuildId": "fixed_spread_market_maker/1",
+  "configDigest": {
+    "algorithm": "sha256",
+    "hexDigest": "0f3936df9d3ae317b476e60b9882cdeb49f28a9fec564f60217003d7cd7e7b25"
+  },
+  "inputDataDigest": null,
+  "instrument": {
+    "symbol": "SYNTH",
+    "tickSize": "0.0100",
+    "lotSize": "1",
+    "maxOrderQuantity": "100000",
+    "minPrice": "50.0000",
+    "maxPrice": "150.0000",
+    "referencePrice": "100.0000",
+    "contractMultiplier": "1"
+  },
+  "scenario": {
+    "scenarioId": "synthetic.mm-and-noise-taker.v1",
+    "description": "One background market maker quoting three levels around a stepping fair value, and one noise taker sending crossing orders (runner models exsim::sim::bots).",
+    "backgroundAgents": [
+      {
+        "agentKind": "market_maker",
+        "agentCount": 1,
+        "parameters": [
+          {
+            "name": "levels",
+            "value": "3",
+            "unit": "count",
+            "description": "Price levels quoted per side."
+          },
+          {
+            "name": "quoteSizeShares",
+            "value": "100",
+            "unit": "shares",
+            "description": "Quantity per quoted level."
+          },
+          {
+            "name": "spreadTicks",
+            "value": "1",
+            "unit": "ticks",
+            "description": "Half spread around the fair value."
+          },
+          {
+            "name": "fairValueStepIntervalNs",
+            "value": "500000000",
+            "unit": "nanoseconds",
+            "description": "Interval between fair value random-walk steps."
+          },
+          {
+            "name": "fairValueStepTicks",
+            "value": "1",
+            "unit": "ticks",
+            "description": "Size of one fair value step."
+          },
+          {
+            "name": "requoteIntervalNs",
+            "value": "100000000",
+            "unit": "nanoseconds",
+            "description": "Requote period."
+          }
+        ]
+      },
+      {
+        "agentKind": "noise_taker",
+        "agentCount": 1,
+        "parameters": [
+          {
+            "name": "meanInterarrivalNs",
+            "value": "20000000",
+            "unit": "nanoseconds",
+            "description": "Mean exponential time between orders."
+          },
+          {
+            "name": "minimumOrderShares",
+            "value": "1",
+            "unit": "shares",
+            "description": "Smallest order."
+          },
+          {
+            "name": "maximumOrderShares",
+            "value": "200",
+            "unit": "shares",
+            "description": "Largest order."
+          },
+          {
+            "name": "crossTicks",
+            "value": "2",
+            "unit": "ticks",
+            "description": "Ticks through the touch for crossing orders."
+          },
+          {
+            "name": "limitOrderProbability",
+            "value": "0.1",
+            "unit": "ratio",
+            "description": "Probability an order is a resting limit order."
+          },
+          {
+            "name": "limitOrderLifetimeNs",
+            "value": "1000000000",
+            "unit": "nanoseconds",
+            "description": "Lifetime of a resting limit order."
+          }
+        ]
+      }
+    ]
+  },
+  "strategy": {
+    "strategyKind": "fixed_spread_market_maker",
+    "halfSpreadTicks": "2",
+    "quoteQuantity": "100",
+    "requoteIntervalNs": "50000000",
+    "requoteThresholdTicks": "1",
+    "postOnly": true
+  },
+  "seeds": {
+    "masterSeed": "103",
+    "derivationFunction": "stream_seed = splitmix64_finalize((master_seed XOR fnv1a64(stream_label)) + 0x9E3779B97F4A7C15)",
+    "derivedSeeds": [
+      {
+        "streamName": "strategy",
+        "seed": "13603968602803420050"
+      },
+      {
+        "streamName": "latency",
+        "seed": "14319954187754581394"
+      },
+      {
+        "streamName": "agent.0.market_maker.market_maker_1",
+        "seed": "14812099352602516786"
+      },
+      {
+        "streamName": "agent.1.noise_taker.noise_taker_1",
+        "seed": "2971227656985577296"
+      }
+    ]
+  },
+  "latency": {
+    "latencyModel": "uniform_jitter",
+    "feedLatencyNs": "50000",
+    "orderEntryLatencyNs": "100000",
+    "acknowledgmentLatencyNs": "100000",
+    "cancelLatencyNs": "80000",
+    "jitterNs": "20000",
+    "strategyComputeNs": "5000",
+    "orderChannelFifo": true
+  },
+  "queueModel": "exact_simulated_fifo",
+  "fees": {
+    "feeScheduleId": "maker-rebate-20-taker-30",
+    "makerFeePerShare": "-0.0020",
+    "takerFeePerShare": "0.0030"
+  },
+  "risk": {
+    "maxAbsolutePositionShares": "500",
+    "maxOpenOrders": "8",
+    "maxOrderQuantity": "200",
+    "onBreach": "block_orders_that_increase_exposure"
+  },
+  "initialCash": "1000000.0000",
+  "initialPositionShares": "0",
+  "markConvention": "exchange_mid",
+  "markoutHorizonsNs": [
+    "100000000",
+    "1000000000",
+    "5000000000"
+  ],
+  "bounds": {
+    "endSimulationTimeNs": "60000000000",
+    "maxCanonicalEventCount": "5000000",
+    "wallClockTimeLimitSeconds": 600
+  },
+  "eventOrderPolicy": {
+    "primaryKey": "simulation_time_ns",
+    "tieBreaker": "enqueue_sequence",
+    "stageOrderForEqualTime": [
+      "feed_delivery",
+      "strategy_processing",
+      "outbound_order",
+      "exchange_processing",
+      "report_delivery",
+      "runner_control"
+    ]
+  },
+  "accounting": {
+    "cashScale": "0.0001",
+    "costBasisMethod": "fifo",
+    "feeSign": "positive_paid_negative_rebate",
+    "equityDefinition": "cash_plus_position_times_mark",
+    "netPnlDefinition": "equity_minus_initial_cash",
+    "missingMarkPolicy": "report_unavailable"
+  },
+  "artifactEncodings": {
+    "canonicalEventEncoding": "exsim.canonical-event/1",
+    "lifecycleLogEncoding": "exsim.order-lifecycle/1",
+    "ledgerEncoding": "exsim.ledger/1",
+    "summaryEncoding": "exsim.run-summary/1",
+    "seriesEncoding": "exsim.series/1"
+  },
+  "matchingRule": "price_time_fifo"
+}

@@ -1,6 +1,6 @@
 # Persona review repair ledger
 
-Status: repairs in progress. Four independent expert persona reports are integrated. No full repair clearance or human validation is claimed.
+Status: all reported current-workflow findings closed within the independent scopes below. Final presentation recheck141e73ab integrated0ca8bfe closes the last three objections on frontend75cf28f/native360ad69. Ready for actual human first-use evaluation; human results NOT RUN. This is scoped expert clearance, not exhaustive certification.
 
 | Finding | Severity | Repair responsibility | Current evidence / status |
 | --- | --- | --- | --- |
@@ -11,7 +11,7 @@ Status: repairs in progress. Four independent expert persona reports are integra
 | EXEC-05 comparison benchmark/denominator definitions | P2 | Parent | Closed by independent comparison-only definitions and absolute cost/completion inspection. |
 | VALIDATION-01 exact persisted build provenance | P1 | Native delegate + parent provenance UI | Closed in exact native/UI persistence scope; distinct-build evidence remains bounded by original native review. |
 | VALIDATION-02 complete export/reproduction handoff | P1 | Native artifact package + parent export/rerun UI | Closed by complete bounded browser download, exact inventory verification, unpack and native reproduction; huge export remains untested. |
-| VALIDATION-03 attempt eligibility and pinned cohort receipt | P1 | Native delegate + parent ledger/receipt UI | Original P1 repaired and independently verified including restart pinning. New P2 unavailable-deadline label repaired, fresh recheck pending. |
+| VALIDATION-03 attempt eligibility and pinned cohort receipt | P1 | Native delegate + parent ledger/receipt UI | Original P1 repaired and independently verified including restart pinning. New P2 unavailable-deadline label independently closed by final presentation recheck. |
 | VALIDATION-04 names and comparison role during inspection | P2 | Parent | Closed by independent named baseline/candidate context and pinned return navigation review. |
 | MM-01 replacement requests/rejections/race timing | P1 | Native diagnostics + parent MM summaries | Closed within actual seed103 native browser/API scope; corrected fill69 race and505/3/0 diagnostics independently verified. |
 | MM-02 replacement FIFO reset / priority kept evidence | P1 | Native lifecycle projection + parent columns | Closed for actual engine reset/rest behind30 shares and kept10-to5 reduction by corrected native recheck, plus browser display.500-row truncation remains source/fixture corroboration, not a newly exercised500-transition study. |
@@ -20,7 +20,7 @@ Status: repairs in progress. Four independent expert persona reports are integra
 | MM-05 neutral changes reported as ties | P2 | Same repair as EXEC-03 | Closed with EXEC-03 within independent trading browser/API scope. |
 | FIRSTUSE-01 unobserved markout horizons become measured ties | P1 | Native null/eligibility propagation + parent unavailable UI | Closed by actual native and browser genuine measured-zero n1/tied1 versus unobserved null/n0/tied0 scenarios. |
 | FIRSTUSE-02 errors do not identify/focus editable field | P2 | Same repair as EXEC-04 + parent described errors | Closed by actual native field issue, focus/linked errors, narrow-screen recovery and settled valid launch. |
-| FIRSTUSE-03 explanation above keyboard selection focus | P2 | Parent | Primary keyboard read/return independently passes. New P3 off-page label/status repaired; fresh recheck pending. |
+| FIRSTUSE-03 explanation above keyboard selection focus | P2 | Parent | Primary keyboard read/return independently passes. New P3 off-page label/status independently closed by final presentation recheck. |
 | FIRSTUSE-04 protocol empty states have no next action | P3 | Parent | Closed by independent separate-service guidance and next actions across all three empty states. |
 | FIRSTUSE-05 unnamed interactive charts | P2 | Parent | Closed for independent DOM names, descriptions and keyboard exact-sample path; actual screen reader remains untested. |
 
@@ -44,4 +44,8 @@ TRADING_BROWSER_FINAL_RECHECK_2026-11-08.md, reviewfa9a210f on immutable source3
 
 ## Corrected native and validation recheck receipts
 
-Native review1bc51987 integrated3f09ab0 independently closes NATIVE-R1/R2/R3 and actual engine nonzeroFIFO/kept reduction plus genuine-zero markout gaps on native360ad69. Validation review1e3ad078 integratedb749809 closes original validation/first-use core repairs within scope but requests three changes: unavailable deadlines falsely labeled not applicable (P2),390px Summary document overflow (P2), stale selected-row language after paging (P3). Parent repaired those three UI issues; typecheck/scoped lint/build and two native browser regressions pass. New affected-scope independent review is required before human readiness. No native changes invalidate the corrected native review.
+Native review1bc51987 integrated3f09ab0 independently closes NATIVE-R1/R2/R3 and actual engine nonzeroFIFO/kept reduction plus genuine-zero markout gaps on native360ad69. Validation review1e3ad078 integratedb749809 closes original validation/first-use core repairs within scope but requests three changes: unavailable deadlines falsely labeled not applicable (P2),390px Summary document overflow (P2), stale selected-row language after paging (P3). Parent repaired those three UI issues; typecheck/scoped lint/build and two native browser regressions pass. The required new affected-scope review is now closed by the final presentation receipt below. No native changes invalidate the corrected native review.
+
+## Final presentation receipt and human handoff
+
+PRESENTATION_FINAL_RECHECK_2026-11-08.md independently closes all three later objections on frontend75cf28f/native360ad69:53 assertions,1490 verified package files,23 served script assets, zero page errors/HTTP failures. Includes failed/cancelled/MM deadline labels,390px execution/MM summaries with local table scrolling, desktop adjacency, pinned cohorts, paging/tab/direct-link keyboard focus/status. No product source changes after that artifact. Facilitator-only launcher startup race was separately repaired and exercised; it does not change the reviewed product binaries. Final participant session is empty and separate from all expert/reference data. Human packet/key are frozen for evaluation with results NOT RUN. Screen reader, real device, giant export, actual legacy migration, full rebuild attestation and new500-transition truncation study remain explicit coverage limits, not reported open product findings.

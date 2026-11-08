@@ -1,0 +1,2728 @@
+{
+  "human_result": "NOT RUN",
+  "api": "http://127.0.0.1:45993",
+  "studies": {
+    "twap": {
+      "experiment": {
+        "experimentId": "exp_a94625506960e97a",
+        "name": "HUMAN-REFERENCE twap",
+        "description": "",
+        "createdAt": "2026-11-08T04:14:38.835Z",
+        "derivedFromBaselineId": "twap-execution",
+        "parentExperimentId": null,
+        "marketWorld": "interactive_synthetic",
+        "config": {
+          "marketWorld": "interactive_synthetic",
+          "instrument": {
+            "symbol": "SYNTH",
+            "tickSize": "0.0100",
+            "lotSize": "1",
+            "maxOrderQuantity": "100000",
+            "minPrice": "50.0000",
+            "maxPrice": "150.0000",
+            "referencePrice": "100.0000",
+            "contractMultiplier": "1"
+          },
+          "scenario": {
+            "scenarioId": "synthetic.mm-and-noise-taker.v1",
+            "description": "One background market maker quoting three levels around a stepping fair value, and one noise taker sending crossing orders (runner models exsim::sim::bots).",
+            "backgroundAgents": [
+              {
+                "agentKind": "market_maker",
+                "agentCount": 1,
+                "parameters": [
+                  {
+                    "name": "levels",
+                    "value": "3",
+                    "unit": "count",
+                    "description": "Price levels quoted per side."
+                  },
+                  {
+                    "name": "quoteSizeShares",
+                    "value": "100",
+                    "unit": "shares",
+                    "description": "Quantity per quoted level."
+                  },
+                  {
+                    "name": "spreadTicks",
+                    "value": "1",
+                    "unit": "ticks",
+                    "description": "Half spread around the fair value."
+                  },
+                  {
+                    "name": "fairValueStepIntervalNs",
+                    "value": "500000000",
+                    "unit": "nanoseconds",
+                    "description": "Interval between fair value random-walk steps."
+                  },
+                  {
+                    "name": "fairValueStepTicks",
+                    "value": "1",
+                    "unit": "ticks",
+                    "description": "Size of one fair value step."
+                  },
+                  {
+                    "name": "requoteIntervalNs",
+                    "value": "100000000",
+                    "unit": "nanoseconds",
+                    "description": "Requote period."
+                  }
+                ]
+              },
+              {
+                "agentKind": "noise_taker",
+                "agentCount": 1,
+                "parameters": [
+                  {
+                    "name": "meanInterarrivalNs",
+                    "value": "20000000",
+                    "unit": "nanoseconds",
+                    "description": "Mean exponential time between orders."
+                  },
+                  {
+                    "name": "minimumOrderShares",
+                    "value": "1",
+                    "unit": "shares",
+                    "description": "Smallest order."
+                  },
+                  {
+                    "name": "maximumOrderShares",
+                    "value": "200",
+                    "unit": "shares",
+                    "description": "Largest order."
+                  },
+                  {
+                    "name": "crossTicks",
+                    "value": "2",
+                    "unit": "ticks",
+                    "description": "Ticks through the touch for crossing orders."
+                  },
+                  {
+                    "name": "limitOrderProbability",
+                    "value": "0.1",
+                    "unit": "ratio",
+                    "description": "Probability an order is a resting limit order."
+                  },
+                  {
+                    "name": "limitOrderLifetimeNs",
+                    "value": "1000000000",
+                    "unit": "nanoseconds",
+                    "description": "Lifetime of a resting limit order."
+                  }
+                ]
+              }
+            ]
+          },
+          "strategy": {
+            "strategyKind": "twap_execution",
+            "parentSide": "buy",
+            "parentQuantity": "500",
+            "sliceIntervalNs": "1000000000",
+            "sliceOrderType": "limit",
+            "startTimeNs": "1000000000",
+            "executionDurationNs": "30000000000",
+            "limitOffsetTicks": "5"
+          },
+          "seedSet": {
+            "masterSeeds": [
+              "101",
+              "102",
+              "103"
+            ]
+          },
+          "latency": {
+            "latencyModel": "uniform_jitter",
+            "feedLatencyNs": "50000",
+            "orderEntryLatencyNs": "100000",
+            "acknowledgmentLatencyNs": "100000",
+            "cancelLatencyNs": "80000",
+            "jitterNs": "20000",
+            "strategyComputeNs": "5000",
+            "orderChannelFifo": true
+          },
+          "fees": {
+            "feeScheduleId": "maker-rebate-20-taker-30",
+            "makerFeePerShare": "-0.0020",
+            "takerFeePerShare": "0.0030"
+          },
+          "risk": {
+            "maxAbsolutePositionShares": "500",
+            "maxOpenOrders": "8",
+            "maxOrderQuantity": "200",
+            "onBreach": "block_orders_that_increase_exposure"
+          },
+          "initialCash": "1000000.0000",
+          "markConvention": "exchange_mid",
+          "markoutHorizonsNs": [
+            "100000000",
+            "1000000000",
+            "5000000000"
+          ],
+          "bounds": {
+            "endSimulationTimeNs": "60000000000",
+            "maxCanonicalEventCount": "5000000",
+            "wallClockTimeLimitSeconds": 600
+          }
+        },
+        "configDigest": {
+          "algorithm": "sha256",
+          "hexDigest": "bd6a8d7af8d16528d802cdbff9387305ac316b0cdc88367afb23b5625a10ea03"
+        },
+        "runStateCounts": {
+          "queued": 0,
+          "running": 0,
+          "paused": 0,
+          "completed": 0,
+          "cancelled": 0,
+          "failed": 0
+        }
+      },
+      "runs": {
+        "101": {
+          "runId": "run_0ee94210aa2db5e2",
+          "experimentId": "exp_a94625506960e97a",
+          "masterSeed": "101",
+          "mode": "deterministic_research",
+          "marketWorld": "interactive_synthetic",
+          "state": "completed",
+          "allowedActions": [],
+          "progress": {
+            "processedCanonicalEventCount": "22420",
+            "simulationTimeNs": "60000000000",
+            "endSimulationTimeNs": "60000000000"
+          },
+          "stateHistory": [
+            {
+              "fromState": null,
+              "toState": "queued",
+              "transitionedAt": "2026-11-08T04:14:38.836Z",
+              "atEventPosition": "0",
+              "atSimulationTimeNs": "0",
+              "reason": "created"
+            },
+            {
+              "fromState": "queued",
+              "toState": "running",
+              "transitionedAt": "2026-11-08T04:14:38.847Z",
+              "atEventPosition": "0",
+              "atSimulationTimeNs": "0",
+              "reason": "started"
+            },
+            {
+              "fromState": "running",
+              "toState": "completed",
+              "transitionedAt": "2026-11-08T04:14:38.874Z",
+              "atEventPosition": "22420",
+              "atSimulationTimeNs": "60000000000",
+              "reason": "the run processed every event up to its simulation bound (runner termination: end_time_reached)"
+            }
+          ],
+          "createdAt": "2026-11-08T04:14:38.836Z",
+          "terminalDiagnostics": {
+            "outcomeCode": "completed_at_simulation_bound",
+            "message": "the run processed every event up to its simulation bound (runner termination: end_time_reached)",
+            "residualPositionShares": "500",
+            "residualOpenOrderCount": "0"
+          },
+          "digests": {
+            "manifestDigest": {
+              "algorithm": "sha256",
+              "hexDigest": "679cc180d51354a468a25bc8617ec967ad53edc836307d82ba0530859d35b82f"
+            },
+            "canonicalEventDigest": {
+              "algorithm": "fnv1a_64",
+              "hexDigest": "7cbb9aea4f742fa9"
+            },
+            "ledgerDigest": {
+              "algorithm": "fnv1a_64",
+              "hexDigest": "1e86abeac24f9cfd"
+            }
+          },
+          "parentRunId": null
+        },
+        "102": {
+          "runId": "run_82844571d108337b",
+          "experimentId": "exp_a94625506960e97a",
+          "masterSeed": "102",
+          "mode": "deterministic_research",
+          "marketWorld": "interactive_synthetic",
+          "state": "completed",
+          "allowedActions": [],
+          "progress": {
+            "processedCanonicalEventCount": "23252",
+            "simulationTimeNs": "60000000000",
+            "endSimulationTimeNs": "60000000000"
+          },
+          "stateHistory": [
+            {
+              "fromState": null,
+              "toState": "queued",
+              "transitionedAt": "2026-11-08T04:14:38.897Z",
+              "atEventPosition": "0",
+              "atSimulationTimeNs": "0",
+              "reason": "created"
+            },
+            {
+              "fromState": "queued",
+              "toState": "running",
+              "transitionedAt": "2026-11-08T04:14:38.903Z",
+              "atEventPosition": "0",
+              "atSimulationTimeNs": "0",
+              "reason": "started"
+            },
+            {
+              "fromState": "running",
+              "toState": "completed",
+              "transitionedAt": "2026-11-08T04:14:38.932Z",
+              "atEventPosition": "23252",
+              "atSimulationTimeNs": "60000000000",
+              "reason": "the run processed every event up to its simulation bound (runner termination: end_time_reached)"
+            }
+          ],
+          "createdAt": "2026-11-08T04:14:38.897Z",
+          "terminalDiagnostics": {
+            "outcomeCode": "completed_at_simulation_bound",
+            "message": "the run processed every event up to its simulation bound (runner termination: end_time_reached)",
+            "residualPositionShares": "483",
+            "residualOpenOrderCount": "0"
+          },
+          "digests": {
+            "manifestDigest": {
+              "algorithm": "sha256",
+              "hexDigest": "2ff412955ff62ae30163482f79f7ebc6b3dcf12dfaefbfa932a09a9791381cdb"
+            },
+            "canonicalEventDigest": {
+              "algorithm": "fnv1a_64",
+              "hexDigest": "2e76f84f6ebb5f51"
+            },
+            "ledgerDigest": {
+              "algorithm": "fnv1a_64",
+              "hexDigest": "4c59b5c2c59d3743"
+            }
+          },
+          "parentRunId": null
+        },
+        "103": {
+          "runId": "run_bc23a2e0e41dfda9",
+          "experimentId": "exp_a94625506960e97a",
+          "masterSeed": "103",
+          "mode": "deterministic_research",
+          "marketWorld": "interactive_synthetic",
+          "state": "completed",
+          "allowedActions": [],
+          "progress": {
+            "processedCanonicalEventCount": "22626",
+            "simulationTimeNs": "60000000000",
+            "endSimulationTimeNs": "60000000000"
+          },
+          "stateHistory": [
+            {
+              "fromState": null,
+              "toState": "queued",
+              "transitionedAt": "2026-11-08T04:14:38.959Z",
+              "atEventPosition": "0",
+              "atSimulationTimeNs": "0",
+              "reason": "created"
+            },
+            {
+              "fromState": "queued",
+              "toState": "running",
+              "transitionedAt": "2026-11-08T04:14:38.963Z",
+              "atEventPosition": "0",
+              "atSimulationTimeNs": "0",
+              "reason": "started"
+            },
+            {
+              "fromState": "running",
+              "toState": "completed",
+              "transitionedAt": "2026-11-08T04:14:38.989Z",
+              "atEventPosition": "22626",
+              "atSimulationTimeNs": "60000000000",
+              "reason": "the run processed every event up to its simulation bound (runner termination: end_time_reached)"
+            }
+          ],
+          "createdAt": "2026-11-08T04:14:38.959Z",
+          "terminalDiagnostics": {
+            "outcomeCode": "completed_at_simulation_bound",
+            "message": "the run processed every event up to its simulation bound (runner termination: end_time_reached)",
+            "residualPositionShares": "483",
+            "residualOpenOrderCount": "0"
+          },
+          "digests": {
+            "manifestDigest": {
+              "algorithm": "sha256",
+              "hexDigest": "5c6c47b1c7a9ef02c8a6195f2b73b59711d025c421a358a6500102672e760069"
+            },
+            "canonicalEventDigest": {
+              "algorithm": "fnv1a_64",
+              "hexDigest": "ddc2200c58662a8d"
+            },
+            "ledgerDigest": {
+              "algorithm": "fnv1a_64",
+              "hexDigest": "507542796c184f31"
+            }
+          },
+          "parentRunId": null
+        }
+      }
+    },
+    "sweep": {
+      "experiment": {
+        "experimentId": "exp_e6a44474014512ba",
+        "name": "HUMAN-REFERENCE sweep",
+        "description": "",
+        "createdAt": "2026-11-08T04:14:39.022Z",
+        "derivedFromBaselineId": "twap-execution",
+        "parentExperimentId": "exp_a94625506960e97a",
+        "marketWorld": "interactive_synthetic",
+        "config": {
+          "marketWorld": "interactive_synthetic",
+          "instrument": {
+            "symbol": "SYNTH",
+            "tickSize": "0.0100",
+            "lotSize": "1",
+            "maxOrderQuantity": "100000",
+            "minPrice": "50.0000",
+            "maxPrice": "150.0000",
+            "referencePrice": "100.0000",
+            "contractMultiplier": "1"
+          },
+          "scenario": {
+            "scenarioId": "synthetic.mm-and-noise-taker.v1",
+            "description": "One background market maker quoting three levels around a stepping fair value, and one noise taker sending crossing orders (runner models exsim::sim::bots).",
+            "backgroundAgents": [
+              {
+                "agentKind": "market_maker",
+                "agentCount": 1,
+                "parameters": [
+                  {
+                    "name": "levels",
+                    "value": "3",
+                    "unit": "count",
+                    "description": "Price levels quoted per side."
+                  },
+                  {
+                    "name": "quoteSizeShares",
+                    "value": "100",
+                    "unit": "shares",
+                    "description": "Quantity per quoted level."
+                  },
+                  {
+                    "name": "spreadTicks",
+                    "value": "1",
+                    "unit": "ticks",
+                    "description": "Half spread around the fair value."
+                  },
+                  {
+                    "name": "fairValueStepIntervalNs",
+                    "value": "500000000",
+                    "unit": "nanoseconds",
+                    "description": "Interval between fair value random-walk steps."
+                  },
+                  {
+                    "name": "fairValueStepTicks",
+                    "value": "1",
+                    "unit": "ticks",
+                    "description": "Size of one fair value step."
+                  },
+                  {
+                    "name": "requoteIntervalNs",
+                    "value": "100000000",
+                    "unit": "nanoseconds",
+                    "description": "Requote period."
+                  }
+                ]
+              },
+              {
+                "agentKind": "noise_taker",
+                "agentCount": 1,
+                "parameters": [
+                  {
+                    "name": "meanInterarrivalNs",
+                    "value": "20000000",
+                    "unit": "nanoseconds",
+                    "description": "Mean exponential time between orders."
+                  },
+                  {
+                    "name": "minimumOrderShares",
+                    "value": "1",
+                    "unit": "shares",
+                    "description": "Smallest order."
+                  },
+                  {
+                    "name": "maximumOrderShares",
+                    "value": "200",
+                    "unit": "shares",
+                    "description": "Largest order."
+                  },
+                  {
+                    "name": "crossTicks",
+                    "value": "2",
+                    "unit": "ticks",
+                    "description": "Ticks through the touch for crossing orders."
+                  },
+                  {
+                    "name": "limitOrderProbability",
+                    "value": "0.1",
+                    "unit": "ratio",
+                    "description": "Probability an order is a resting limit order."
+                  },
+                  {
+                    "name": "limitOrderLifetimeNs",
+                    "value": "1000000000",
+                    "unit": "nanoseconds",
+                    "description": "Lifetime of a resting limit order."
+                  }
+                ]
+              }
+            ]
+          },
+          "strategy": {
+            "strategyKind": "immediate_sweep_execution",
+            "parentSide": "buy",
+            "parentQuantity": "500",
+            "startTimeNs": "1000000000",
+            "executionDurationNs": "30000000000",
+            "limitOffsetTicks": "5"
+          },
+          "seedSet": {
+            "masterSeeds": [
+              "101",
+              "102",
+              "103"
+            ]
+          },
+          "latency": {
+            "latencyModel": "uniform_jitter",
+            "feedLatencyNs": "50000",
+            "orderEntryLatencyNs": "100000",
+            "acknowledgmentLatencyNs": "100000",
+            "cancelLatencyNs": "80000",
+            "jitterNs": "20000",
+            "strategyComputeNs": "5000",
+            "orderChannelFifo": true
+          },
+          "fees": {
+            "feeScheduleId": "maker-rebate-20-taker-30",
+            "makerFeePerShare": "-0.0020",
+            "takerFeePerShare": "0.0030"
+          },
+          "risk": {
+            "maxAbsolutePositionShares": "500",
+            "maxOpenOrders": "8",
+            "maxOrderQuantity": "200",
+            "onBreach": "block_orders_that_increase_exposure"
+          },
+          "initialCash": "1000000.0000",
+          "markConvention": "exchange_mid",
+          "markoutHorizonsNs": [
+            "100000000",
+            "1000000000",
+            "5000000000"
+          ],
+          "bounds": {
+            "endSimulationTimeNs": "60000000000",
+            "maxCanonicalEventCount": "5000000",
+            "wallClockTimeLimitSeconds": 600
+          }
+        },
+        "configDigest": {
+          "algorithm": "sha256",
+          "hexDigest": "25a275ba953cdc6d0129613a71d8e3f34e0cf115a7b924f43999607bdac144ec"
+        },
+        "runStateCounts": {
+          "queued": 0,
+          "running": 0,
+          "paused": 0,
+          "completed": 0,
+          "cancelled": 0,
+          "failed": 0
+        }
+      },
+      "runs": {
+        "101": {
+          "runId": "run_7dae88d6a1cb20b5",
+          "experimentId": "exp_e6a44474014512ba",
+          "masterSeed": "101",
+          "mode": "deterministic_research",
+          "marketWorld": "interactive_synthetic",
+          "state": "completed",
+          "allowedActions": [],
+          "progress": {
+            "processedCanonicalEventCount": "22266",
+            "simulationTimeNs": "60000000000",
+            "endSimulationTimeNs": "60000000000"
+          },
+          "stateHistory": [
+            {
+              "fromState": null,
+              "toState": "queued",
+              "transitionedAt": "2026-11-08T04:14:39.023Z",
+              "atEventPosition": "0",
+              "atSimulationTimeNs": "0",
+              "reason": "created"
+            },
+            {
+              "fromState": "queued",
+              "toState": "running",
+              "transitionedAt": "2026-11-08T04:14:39.026Z",
+              "atEventPosition": "0",
+              "atSimulationTimeNs": "0",
+              "reason": "started"
+            },
+            {
+              "fromState": "running",
+              "toState": "completed",
+              "transitionedAt": "2026-11-08T04:14:39.054Z",
+              "atEventPosition": "22266",
+              "atSimulationTimeNs": "60000000000",
+              "reason": "the run processed every event up to its simulation bound (runner termination: end_time_reached)"
+            }
+          ],
+          "createdAt": "2026-11-08T04:14:39.023Z",
+          "terminalDiagnostics": {
+            "outcomeCode": "completed_at_simulation_bound",
+            "message": "the run processed every event up to its simulation bound (runner termination: end_time_reached)",
+            "residualPositionShares": "500",
+            "residualOpenOrderCount": "0"
+          },
+          "digests": {
+            "manifestDigest": {
+              "algorithm": "sha256",
+              "hexDigest": "174ebac95b57852ab970bc594c27a982806e1b5ca40c68792303304a8f7f35e9"
+            },
+            "canonicalEventDigest": {
+              "algorithm": "fnv1a_64",
+              "hexDigest": "0032c89d0beabcfd"
+            },
+            "ledgerDigest": {
+              "algorithm": "fnv1a_64",
+              "hexDigest": "2b10f79c393c4387"
+            }
+          },
+          "parentRunId": null
+        },
+        "102": {
+          "runId": "run_4ce2f1a4a57b2d5a",
+          "experimentId": "exp_e6a44474014512ba",
+          "masterSeed": "102",
+          "mode": "deterministic_research",
+          "marketWorld": "interactive_synthetic",
+          "state": "completed",
+          "allowedActions": [],
+          "progress": {
+            "processedCanonicalEventCount": "23105",
+            "simulationTimeNs": "60000000000",
+            "endSimulationTimeNs": "60000000000"
+          },
+          "stateHistory": [
+            {
+              "fromState": null,
+              "toState": "queued",
+              "transitionedAt": "2026-11-08T04:14:39.085Z",
+              "atEventPosition": "0",
+              "atSimulationTimeNs": "0",
+              "reason": "created"
+            },
+            {
+              "fromState": "queued",
+              "toState": "running",
+              "transitionedAt": "2026-11-08T04:14:39.088Z",
+              "atEventPosition": "0",
+              "atSimulationTimeNs": "0",
+              "reason": "started"
+            },
+            {
+              "fromState": "running",
+              "toState": "completed",
+              "transitionedAt": "2026-11-08T04:14:39.113Z",
+              "atEventPosition": "23105",
+              "atSimulationTimeNs": "60000000000",
+              "reason": "the run processed every event up to its simulation bound (runner termination: end_time_reached)"
+            }
+          ],
+          "createdAt": "2026-11-08T04:14:39.085Z",
+          "terminalDiagnostics": {
+            "outcomeCode": "completed_at_simulation_bound",
+            "message": "the run processed every event up to its simulation bound (runner termination: end_time_reached)",
+            "residualPositionShares": "500",
+            "residualOpenOrderCount": "0"
+          },
+          "digests": {
+            "manifestDigest": {
+              "algorithm": "sha256",
+              "hexDigest": "ea7bb39464f877cf2cb459443e69885ad729ec47f295e1c41ab31806f65931c6"
+            },
+            "canonicalEventDigest": {
+              "algorithm": "fnv1a_64",
+              "hexDigest": "f8fd5ff2bcd7099d"
+            },
+            "ledgerDigest": {
+              "algorithm": "fnv1a_64",
+              "hexDigest": "0a341e2a01d4c054"
+            }
+          },
+          "parentRunId": null
+        },
+        "103": {
+          "runId": "run_d85c8449c2b0ddcd",
+          "experimentId": "exp_e6a44474014512ba",
+          "masterSeed": "103",
+          "mode": "deterministic_research",
+          "marketWorld": "interactive_synthetic",
+          "state": "completed",
+          "allowedActions": [],
+          "progress": {
+            "processedCanonicalEventCount": "22530",
+            "simulationTimeNs": "60000000000",
+            "endSimulationTimeNs": "60000000000"
+          },
+          "stateHistory": [
+            {
+              "fromState": null,
+              "toState": "queued",
+              "transitionedAt": "2026-11-08T04:14:39.147Z",
+              "atEventPosition": "0",
+              "atSimulationTimeNs": "0",
+              "reason": "created"
+            },
+            {
+              "fromState": "queued",
+              "toState": "running",
+              "transitionedAt": "2026-11-08T04:14:39.150Z",
+              "atEventPosition": "0",
+              "atSimulationTimeNs": "0",
+              "reason": "started"
+            },
+            {
+              "fromState": "running",
+              "toState": "completed",
+              "transitionedAt": "2026-11-08T04:14:39.179Z",
+              "atEventPosition": "22530",
+              "atSimulationTimeNs": "60000000000",
+              "reason": "the run processed every event up to its simulation bound (runner termination: end_time_reached)"
+            }
+          ],
+          "createdAt": "2026-11-08T04:14:39.147Z",
+          "terminalDiagnostics": {
+            "outcomeCode": "completed_at_simulation_bound",
+            "message": "the run processed every event up to its simulation bound (runner termination: end_time_reached)",
+            "residualPositionShares": "500",
+            "residualOpenOrderCount": "0"
+          },
+          "digests": {
+            "manifestDigest": {
+              "algorithm": "sha256",
+              "hexDigest": "012ae73451491a2b0e533764bdb3f3302d456882881d048fe5303b7973e4929f"
+            },
+            "canonicalEventDigest": {
+              "algorithm": "fnv1a_64",
+              "hexDigest": "1ed5a6b8c2405943"
+            },
+            "ledgerDigest": {
+              "algorithm": "fnv1a_64",
+              "hexDigest": "948752b9e04b7449"
+            }
+          },
+          "parentRunId": null
+        }
+      }
+    },
+    "capped": {
+      "experiment": {
+        "experimentId": "exp_da612d10e51566fb",
+        "name": "HUMAN-REFERENCE capped",
+        "description": "",
+        "createdAt": "2026-11-08T04:14:39.210Z",
+        "derivedFromBaselineId": "twap-execution",
+        "parentExperimentId": "exp_a94625506960e97a",
+        "marketWorld": "interactive_synthetic",
+        "config": {
+          "marketWorld": "interactive_synthetic",
+          "instrument": {
+            "symbol": "SYNTH",
+            "tickSize": "0.0100",
+            "lotSize": "1",
+            "maxOrderQuantity": "100000",
+            "minPrice": "50.0000",
+            "maxPrice": "150.0000",
+            "referencePrice": "100.0000",
+            "contractMultiplier": "1"
+          },
+          "scenario": {
+            "scenarioId": "synthetic.mm-and-noise-taker.v1",
+            "description": "One background market maker quoting three levels around a stepping fair value, and one noise taker sending crossing orders (runner models exsim::sim::bots).",
+            "backgroundAgents": [
+              {
+                "agentKind": "market_maker",
+                "agentCount": 1,
+                "parameters": [
+                  {
+                    "name": "levels",
+                    "value": "3",
+                    "unit": "count",
+                    "description": "Price levels quoted per side."
+                  },
+                  {
+                    "name": "quoteSizeShares",
+                    "value": "100",
+                    "unit": "shares",
+                    "description": "Quantity per quoted level."
+                  },
+                  {
+                    "name": "spreadTicks",
+                    "value": "1",
+                    "unit": "ticks",
+                    "description": "Half spread around the fair value."
+                  },
+                  {
+                    "name": "fairValueStepIntervalNs",
+                    "value": "500000000",
+                    "unit": "nanoseconds",
+                    "description": "Interval between fair value random-walk steps."
+                  },
+                  {
+                    "name": "fairValueStepTicks",
+                    "value": "1",
+                    "unit": "ticks",
+                    "description": "Size of one fair value step."
+                  },
+                  {
+                    "name": "requoteIntervalNs",
+                    "value": "100000000",
+                    "unit": "nanoseconds",
+                    "description": "Requote period."
+                  }
+                ]
+              },
+              {
+                "agentKind": "noise_taker",
+                "agentCount": 1,
+                "parameters": [
+                  {
+                    "name": "meanInterarrivalNs",
+                    "value": "20000000",
+                    "unit": "nanoseconds",
+                    "description": "Mean exponential time between orders."
+                  },
+                  {
+                    "name": "minimumOrderShares",
+                    "value": "1",
+                    "unit": "shares",
+                    "description": "Smallest order."
+                  },
+                  {
+                    "name": "maximumOrderShares",
+                    "value": "200",
+                    "unit": "shares",
+                    "description": "Largest order."
+                  },
+                  {
+                    "name": "crossTicks",
+                    "value": "2",
+                    "unit": "ticks",
+                    "description": "Ticks through the touch for crossing orders."
+                  },
+                  {
+                    "name": "limitOrderProbability",
+                    "value": "0.1",
+                    "unit": "ratio",
+                    "description": "Probability an order is a resting limit order."
+                  },
+                  {
+                    "name": "limitOrderLifetimeNs",
+                    "value": "1000000000",
+                    "unit": "nanoseconds",
+                    "description": "Lifetime of a resting limit order."
+                  }
+                ]
+              }
+            ]
+          },
+          "strategy": {
+            "strategyKind": "twap_execution",
+            "parentSide": "buy",
+            "parentQuantity": "500",
+            "sliceIntervalNs": "1000000000",
+            "sliceOrderType": "limit",
+            "startTimeNs": "1000000000",
+            "executionDurationNs": "30000000000",
+            "limitOffsetTicks": "5"
+          },
+          "seedSet": {
+            "masterSeeds": [
+              "101"
+            ]
+          },
+          "latency": {
+            "latencyModel": "uniform_jitter",
+            "feedLatencyNs": "50000",
+            "orderEntryLatencyNs": "100000",
+            "acknowledgmentLatencyNs": "100000",
+            "cancelLatencyNs": "80000",
+            "jitterNs": "20000",
+            "strategyComputeNs": "5000",
+            "orderChannelFifo": true
+          },
+          "fees": {
+            "feeScheduleId": "maker-rebate-20-taker-30",
+            "makerFeePerShare": "-0.0020",
+            "takerFeePerShare": "0.0030"
+          },
+          "risk": {
+            "maxAbsolutePositionShares": "500",
+            "maxOpenOrders": "8",
+            "maxOrderQuantity": "10",
+            "onBreach": "block_orders_that_increase_exposure"
+          },
+          "initialCash": "1000000.0000",
+          "markConvention": "exchange_mid",
+          "markoutHorizonsNs": [
+            "100000000",
+            "1000000000",
+            "5000000000"
+          ],
+          "bounds": {
+            "endSimulationTimeNs": "60000000000",
+            "maxCanonicalEventCount": "5000000",
+            "wallClockTimeLimitSeconds": 600
+          }
+        },
+        "configDigest": {
+          "algorithm": "sha256",
+          "hexDigest": "7bb35e4870cb06ed88727af7a6ed14ff0d43463906243ff7a2c06e97bc9b3835"
+        },
+        "runStateCounts": {
+          "queued": 0,
+          "running": 0,
+          "paused": 0,
+          "completed": 0,
+          "cancelled": 0,
+          "failed": 0
+        }
+      },
+      "runs": {
+        "101": {
+          "runId": "run_ff0cf27e146983a3",
+          "experimentId": "exp_da612d10e51566fb",
+          "masterSeed": "101",
+          "mode": "deterministic_research",
+          "marketWorld": "interactive_synthetic",
+          "state": "completed",
+          "allowedActions": [],
+          "progress": {
+            "processedCanonicalEventCount": "22420",
+            "simulationTimeNs": "60000000000",
+            "endSimulationTimeNs": "60000000000"
+          },
+          "stateHistory": [
+            {
+              "fromState": null,
+              "toState": "queued",
+              "transitionedAt": "2026-11-08T04:14:39.211Z",
+              "atEventPosition": "0",
+              "atSimulationTimeNs": "0",
+              "reason": "created"
+            },
+            {
+              "fromState": "queued",
+              "toState": "running",
+              "transitionedAt": "2026-11-08T04:14:39.214Z",
+              "atEventPosition": "0",
+              "atSimulationTimeNs": "0",
+              "reason": "started"
+            },
+            {
+              "fromState": "running",
+              "toState": "completed",
+              "transitionedAt": "2026-11-08T04:14:39.242Z",
+              "atEventPosition": "22420",
+              "atSimulationTimeNs": "60000000000",
+              "reason": "the run processed every event up to its simulation bound (runner termination: end_time_reached)"
+            }
+          ],
+          "createdAt": "2026-11-08T04:14:39.211Z",
+          "terminalDiagnostics": {
+            "outcomeCode": "completed_at_simulation_bound",
+            "message": "the run processed every event up to its simulation bound (runner termination: end_time_reached)",
+            "residualPositionShares": "240",
+            "residualOpenOrderCount": "0"
+          },
+          "digests": {
+            "manifestDigest": {
+              "algorithm": "sha256",
+              "hexDigest": "33100f98b97d2ae0372dd29e29f32def5f9e0c4fc7f73ca6e61a00a93e872d70"
+            },
+            "canonicalEventDigest": {
+              "algorithm": "fnv1a_64",
+              "hexDigest": "409e8b2e51c3e09d"
+            },
+            "ledgerDigest": {
+              "algorithm": "fnv1a_64",
+              "hexDigest": "8a8a10d0104edb15"
+            }
+          },
+          "parentRunId": null
+        }
+      }
+    },
+    "censored": {
+      "experiment": {
+        "experimentId": "exp_5aaaec9d1f99db8a",
+        "name": "HUMAN-REFERENCE censored",
+        "description": "",
+        "createdAt": "2026-11-08T04:14:39.274Z",
+        "derivedFromBaselineId": "twap-execution",
+        "parentExperimentId": "exp_a94625506960e97a",
+        "marketWorld": "interactive_synthetic",
+        "config": {
+          "marketWorld": "interactive_synthetic",
+          "instrument": {
+            "symbol": "SYNTH",
+            "tickSize": "0.0100",
+            "lotSize": "1",
+            "maxOrderQuantity": "100000",
+            "minPrice": "50.0000",
+            "maxPrice": "150.0000",
+            "referencePrice": "100.0000",
+            "contractMultiplier": "1"
+          },
+          "scenario": {
+            "scenarioId": "synthetic.mm-and-noise-taker.v1",
+            "description": "One background market maker quoting three levels around a stepping fair value, and one noise taker sending crossing orders (runner models exsim::sim::bots).",
+            "backgroundAgents": [
+              {
+                "agentKind": "market_maker",
+                "agentCount": 1,
+                "parameters": [
+                  {
+                    "name": "levels",
+                    "value": "3",
+                    "unit": "count",
+                    "description": "Price levels quoted per side."
+                  },
+                  {
+                    "name": "quoteSizeShares",
+                    "value": "100",
+                    "unit": "shares",
+                    "description": "Quantity per quoted level."
+                  },
+                  {
+                    "name": "spreadTicks",
+                    "value": "1",
+                    "unit": "ticks",
+                    "description": "Half spread around the fair value."
+                  },
+                  {
+                    "name": "fairValueStepIntervalNs",
+                    "value": "500000000",
+                    "unit": "nanoseconds",
+                    "description": "Interval between fair value random-walk steps."
+                  },
+                  {
+                    "name": "fairValueStepTicks",
+                    "value": "1",
+                    "unit": "ticks",
+                    "description": "Size of one fair value step."
+                  },
+                  {
+                    "name": "requoteIntervalNs",
+                    "value": "100000000",
+                    "unit": "nanoseconds",
+                    "description": "Requote period."
+                  }
+                ]
+              },
+              {
+                "agentKind": "noise_taker",
+                "agentCount": 1,
+                "parameters": [
+                  {
+                    "name": "meanInterarrivalNs",
+                    "value": "20000000",
+                    "unit": "nanoseconds",
+                    "description": "Mean exponential time between orders."
+                  },
+                  {
+                    "name": "minimumOrderShares",
+                    "value": "1",
+                    "unit": "shares",
+                    "description": "Smallest order."
+                  },
+                  {
+                    "name": "maximumOrderShares",
+                    "value": "200",
+                    "unit": "shares",
+                    "description": "Largest order."
+                  },
+                  {
+                    "name": "crossTicks",
+                    "value": "2",
+                    "unit": "ticks",
+                    "description": "Ticks through the touch for crossing orders."
+                  },
+                  {
+                    "name": "limitOrderProbability",
+                    "value": "0.1",
+                    "unit": "ratio",
+                    "description": "Probability an order is a resting limit order."
+                  },
+                  {
+                    "name": "limitOrderLifetimeNs",
+                    "value": "1000000000",
+                    "unit": "nanoseconds",
+                    "description": "Lifetime of a resting limit order."
+                  }
+                ]
+              }
+            ]
+          },
+          "strategy": {
+            "strategyKind": "twap_execution",
+            "parentSide": "buy",
+            "parentQuantity": "500",
+            "sliceIntervalNs": "1000000000",
+            "sliceOrderType": "limit",
+            "startTimeNs": "1000000000",
+            "executionDurationNs": "30000000000",
+            "limitOffsetTicks": "5"
+          },
+          "seedSet": {
+            "masterSeeds": [
+              "101"
+            ]
+          },
+          "latency": {
+            "latencyModel": "uniform_jitter",
+            "feedLatencyNs": "50000",
+            "orderEntryLatencyNs": "100000",
+            "acknowledgmentLatencyNs": "100000",
+            "cancelLatencyNs": "80000",
+            "jitterNs": "20000",
+            "strategyComputeNs": "5000",
+            "orderChannelFifo": true
+          },
+          "fees": {
+            "feeScheduleId": "maker-rebate-20-taker-30",
+            "makerFeePerShare": "-0.0020",
+            "takerFeePerShare": "0.0030"
+          },
+          "risk": {
+            "maxAbsolutePositionShares": "500",
+            "maxOpenOrders": "8",
+            "maxOrderQuantity": "200",
+            "onBreach": "block_orders_that_increase_exposure"
+          },
+          "initialCash": "1000000.0000",
+          "markConvention": "exchange_mid",
+          "markoutHorizonsNs": [
+            "100000000",
+            "1000000000",
+            "5000000000"
+          ],
+          "bounds": {
+            "endSimulationTimeNs": "5000000000",
+            "maxCanonicalEventCount": "5000000",
+            "wallClockTimeLimitSeconds": 600
+          }
+        },
+        "configDigest": {
+          "algorithm": "sha256",
+          "hexDigest": "3d32ce9cd217d4e380c92a63f8750d34baa3b7b8a97fe87e7a76314024fc710e"
+        },
+        "runStateCounts": {
+          "queued": 0,
+          "running": 0,
+          "paused": 0,
+          "completed": 0,
+          "cancelled": 0,
+          "failed": 0
+        }
+      },
+      "runs": {
+        "101": {
+          "runId": "run_573453cf9f633014",
+          "experimentId": "exp_5aaaec9d1f99db8a",
+          "masterSeed": "101",
+          "mode": "deterministic_research",
+          "marketWorld": "interactive_synthetic",
+          "state": "completed",
+          "allowedActions": [],
+          "progress": {
+            "processedCanonicalEventCount": "1958",
+            "simulationTimeNs": "5000000000",
+            "endSimulationTimeNs": "5000000000"
+          },
+          "stateHistory": [
+            {
+              "fromState": null,
+              "toState": "queued",
+              "transitionedAt": "2026-11-08T04:14:39.274Z",
+              "atEventPosition": "0",
+              "atSimulationTimeNs": "0",
+              "reason": "created"
+            },
+            {
+              "fromState": "queued",
+              "toState": "running",
+              "transitionedAt": "2026-11-08T04:14:39.278Z",
+              "atEventPosition": "0",
+              "atSimulationTimeNs": "0",
+              "reason": "started"
+            },
+            {
+              "fromState": "running",
+              "toState": "completed",
+              "transitionedAt": "2026-11-08T04:14:39.280Z",
+              "atEventPosition": "1958",
+              "atSimulationTimeNs": "5000000000",
+              "reason": "the run processed every event up to its simulation bound (runner termination: end_time_reached)"
+            }
+          ],
+          "createdAt": "2026-11-08T04:14:39.274Z",
+          "terminalDiagnostics": {
+            "outcomeCode": "completed_at_simulation_bound",
+            "message": "the run processed every event up to its simulation bound (runner termination: end_time_reached)",
+            "residualPositionShares": "66",
+            "residualOpenOrderCount": "0"
+          },
+          "digests": {
+            "manifestDigest": {
+              "algorithm": "sha256",
+              "hexDigest": "7bc7263fc04a60874127325236b7f056ce04786d59acb7040502527c60ead45a"
+            },
+            "canonicalEventDigest": {
+              "algorithm": "fnv1a_64",
+              "hexDigest": "4e803884c94b1432"
+            },
+            "ledgerDigest": {
+              "algorithm": "fnv1a_64",
+              "hexDigest": "ab70c67e91e2567e"
+            }
+          },
+          "parentRunId": null
+        }
+      }
+    },
+    "mm": {
+      "experiment": {
+        "experimentId": "exp_f33fe4cdc09d96be",
+        "name": "HUMAN-REFERENCE mm",
+        "description": "",
+        "createdAt": "2026-11-08T04:14:39.328Z",
+        "derivedFromBaselineId": "fixed-spread-2-ticks",
+        "parentExperimentId": null,
+        "marketWorld": "interactive_synthetic",
+        "config": {
+          "marketWorld": "interactive_synthetic",
+          "instrument": {
+            "symbol": "SYNTH",
+            "tickSize": "0.0100",
+            "lotSize": "1",
+            "maxOrderQuantity": "100000",
+            "minPrice": "50.0000",
+            "maxPrice": "150.0000",
+            "referencePrice": "100.0000",
+            "contractMultiplier": "1"
+          },
+          "scenario": {
+            "scenarioId": "synthetic.mm-and-noise-taker.v1",
+            "description": "One background market maker quoting three levels around a stepping fair value, and one noise taker sending crossing orders (runner models exsim::sim::bots).",
+            "backgroundAgents": [
+              {
+                "agentKind": "market_maker",
+                "agentCount": 1,
+                "parameters": [
+                  {
+                    "name": "levels",
+                    "value": "3",
+                    "unit": "count",
+                    "description": "Price levels quoted per side."
+                  },
+                  {
+                    "name": "quoteSizeShares",
+                    "value": "100",
+                    "unit": "shares",
+                    "description": "Quantity per quoted level."
+                  },
+                  {
+                    "name": "spreadTicks",
+                    "value": "1",
+                    "unit": "ticks",
+                    "description": "Half spread around the fair value."
+                  },
+                  {
+                    "name": "fairValueStepIntervalNs",
+                    "value": "500000000",
+                    "unit": "nanoseconds",
+                    "description": "Interval between fair value random-walk steps."
+                  },
+                  {
+                    "name": "fairValueStepTicks",
+                    "value": "1",
+                    "unit": "ticks",
+                    "description": "Size of one fair value step."
+                  },
+                  {
+                    "name": "requoteIntervalNs",
+                    "value": "100000000",
+                    "unit": "nanoseconds",
+                    "description": "Requote period."
+                  }
+                ]
+              },
+              {
+                "agentKind": "noise_taker",
+                "agentCount": 1,
+                "parameters": [
+                  {
+                    "name": "meanInterarrivalNs",
+                    "value": "20000000",
+                    "unit": "nanoseconds",
+                    "description": "Mean exponential time between orders."
+                  },
+                  {
+                    "name": "minimumOrderShares",
+                    "value": "1",
+                    "unit": "shares",
+                    "description": "Smallest order."
+                  },
+                  {
+                    "name": "maximumOrderShares",
+                    "value": "200",
+                    "unit": "shares",
+                    "description": "Largest order."
+                  },
+                  {
+                    "name": "crossTicks",
+                    "value": "2",
+                    "unit": "ticks",
+                    "description": "Ticks through the touch for crossing orders."
+                  },
+                  {
+                    "name": "limitOrderProbability",
+                    "value": "0.1",
+                    "unit": "ratio",
+                    "description": "Probability an order is a resting limit order."
+                  },
+                  {
+                    "name": "limitOrderLifetimeNs",
+                    "value": "1000000000",
+                    "unit": "nanoseconds",
+                    "description": "Lifetime of a resting limit order."
+                  }
+                ]
+              }
+            ]
+          },
+          "strategy": {
+            "strategyKind": "fixed_spread_market_maker",
+            "halfSpreadTicks": "1",
+            "quoteQuantity": "100",
+            "requoteIntervalNs": "50000000",
+            "requoteThresholdTicks": "1",
+            "postOnly": true
+          },
+          "seedSet": {
+            "masterSeeds": [
+              "101",
+              "102",
+              "103"
+            ]
+          },
+          "latency": {
+            "latencyModel": "uniform_jitter",
+            "feedLatencyNs": "50000",
+            "orderEntryLatencyNs": "100000",
+            "acknowledgmentLatencyNs": "100000",
+            "cancelLatencyNs": "80000",
+            "jitterNs": "20000",
+            "strategyComputeNs": "5000",
+            "orderChannelFifo": true
+          },
+          "fees": {
+            "feeScheduleId": "maker-rebate-20-taker-30",
+            "makerFeePerShare": "-0.0020",
+            "takerFeePerShare": "0.0030"
+          },
+          "risk": {
+            "maxAbsolutePositionShares": "500",
+            "maxOpenOrders": "8",
+            "maxOrderQuantity": "200",
+            "onBreach": "block_orders_that_increase_exposure"
+          },
+          "initialCash": "1000000.0000",
+          "markConvention": "exchange_mid",
+          "markoutHorizonsNs": [
+            "100000000",
+            "1000000000",
+            "5000000000"
+          ],
+          "bounds": {
+            "endSimulationTimeNs": "60000000000",
+            "maxCanonicalEventCount": "5000000",
+            "wallClockTimeLimitSeconds": 600
+          }
+        },
+        "configDigest": {
+          "algorithm": "sha256",
+          "hexDigest": "d3b12d3a0e728032fc2342aedd2f9b078ab52d9a4263342e3160ae42d82d0bc1"
+        },
+        "runStateCounts": {
+          "queued": 0,
+          "running": 0,
+          "paused": 0,
+          "completed": 0,
+          "cancelled": 0,
+          "failed": 0
+        }
+      },
+      "runs": {
+        "101": {
+          "runId": "run_83c3b1d07b0884ee",
+          "experimentId": "exp_f33fe4cdc09d96be",
+          "masterSeed": "101",
+          "mode": "deterministic_research",
+          "marketWorld": "interactive_synthetic",
+          "state": "completed",
+          "allowedActions": [],
+          "progress": {
+            "processedCanonicalEventCount": "42509",
+            "simulationTimeNs": "60000000000",
+            "endSimulationTimeNs": "60000000000"
+          },
+          "stateHistory": [
+            {
+              "fromState": null,
+              "toState": "queued",
+              "transitionedAt": "2026-11-08T04:14:39.328Z",
+              "atEventPosition": "0",
+              "atSimulationTimeNs": "0",
+              "reason": "created"
+            },
+            {
+              "fromState": "queued",
+              "toState": "running",
+              "transitionedAt": "2026-11-08T04:14:39.332Z",
+              "atEventPosition": "0",
+              "atSimulationTimeNs": "0",
+              "reason": "started"
+            },
+            {
+              "fromState": "running",
+              "toState": "completed",
+              "transitionedAt": "2026-11-08T04:14:39.395Z",
+              "atEventPosition": "42509",
+              "atSimulationTimeNs": "60000000000",
+              "reason": "the run processed every event up to its simulation bound (runner termination: end_time_reached)"
+            }
+          ],
+          "createdAt": "2026-11-08T04:14:39.328Z",
+          "terminalDiagnostics": {
+            "outcomeCode": "completed_at_simulation_bound",
+            "message": "the run processed every event up to its simulation bound (runner termination: end_time_reached)",
+            "residualPositionShares": "-163",
+            "residualOpenOrderCount": "2"
+          },
+          "digests": {
+            "manifestDigest": {
+              "algorithm": "sha256",
+              "hexDigest": "57b708a38ec6dbaa08ccaf5d8c74be8eba80dea93b13ef08cf56c3dd8ad7b8ff"
+            },
+            "canonicalEventDigest": {
+              "algorithm": "fnv1a_64",
+              "hexDigest": "ae610f743e7f2a11"
+            },
+            "ledgerDigest": {
+              "algorithm": "fnv1a_64",
+              "hexDigest": "ff11dfbd0a6984cc"
+            }
+          },
+          "parentRunId": null
+        },
+        "102": {
+          "runId": "run_43e162d4ec42fa00",
+          "experimentId": "exp_f33fe4cdc09d96be",
+          "masterSeed": "102",
+          "mode": "deterministic_research",
+          "marketWorld": "interactive_synthetic",
+          "state": "completed",
+          "allowedActions": [],
+          "progress": {
+            "processedCanonicalEventCount": "44221",
+            "simulationTimeNs": "60000000000",
+            "endSimulationTimeNs": "60000000000"
+          },
+          "stateHistory": [
+            {
+              "fromState": null,
+              "toState": "queued",
+              "transitionedAt": "2026-11-08T04:14:39.400Z",
+              "atEventPosition": "0",
+              "atSimulationTimeNs": "0",
+              "reason": "created"
+            },
+            {
+              "fromState": "queued",
+              "toState": "running",
+              "transitionedAt": "2026-11-08T04:14:39.404Z",
+              "atEventPosition": "0",
+              "atSimulationTimeNs": "0",
+              "reason": "started"
+            },
+            {
+              "fromState": "running",
+              "toState": "completed",
+              "transitionedAt": "2026-11-08T04:14:39.464Z",
+              "atEventPosition": "44221",
+              "atSimulationTimeNs": "60000000000",
+              "reason": "the run processed every event up to its simulation bound (runner termination: end_time_reached)"
+            }
+          ],
+          "createdAt": "2026-11-08T04:14:39.400Z",
+          "terminalDiagnostics": {
+            "outcomeCode": "completed_at_simulation_bound",
+            "message": "the run processed every event up to its simulation bound (runner termination: end_time_reached)",
+            "residualPositionShares": "130",
+            "residualOpenOrderCount": "2"
+          },
+          "digests": {
+            "manifestDigest": {
+              "algorithm": "sha256",
+              "hexDigest": "113bea2442dff12aa236c4d2a226c1c85625ff99e803ac8bbe3b7d0db9f072e0"
+            },
+            "canonicalEventDigest": {
+              "algorithm": "fnv1a_64",
+              "hexDigest": "3d6b4f3a3a22071c"
+            },
+            "ledgerDigest": {
+              "algorithm": "fnv1a_64",
+              "hexDigest": "ab159a0d4c7e8232"
+            }
+          },
+          "parentRunId": null
+        },
+        "103": {
+          "runId": "run_1857ab44f1c8837f",
+          "experimentId": "exp_f33fe4cdc09d96be",
+          "masterSeed": "103",
+          "mode": "deterministic_research",
+          "marketWorld": "interactive_synthetic",
+          "state": "completed",
+          "allowedActions": [],
+          "progress": {
+            "processedCanonicalEventCount": "43592",
+            "simulationTimeNs": "60000000000",
+            "endSimulationTimeNs": "60000000000"
+          },
+          "stateHistory": [
+            {
+              "fromState": null,
+              "toState": "queued",
+              "transitionedAt": "2026-11-08T04:14:39.468Z",
+              "atEventPosition": "0",
+              "atSimulationTimeNs": "0",
+              "reason": "created"
+            },
+            {
+              "fromState": "queued",
+              "toState": "running",
+              "transitionedAt": "2026-11-08T04:14:39.471Z",
+              "atEventPosition": "0",
+              "atSimulationTimeNs": "0",
+              "reason": "started"
+            },
+            {
+              "fromState": "running",
+              "toState": "completed",
+              "transitionedAt": "2026-11-08T04:14:39.544Z",
+              "atEventPosition": "43592",
+              "atSimulationTimeNs": "60000000000",
+              "reason": "the run processed every event up to its simulation bound (runner termination: end_time_reached)"
+            }
+          ],
+          "createdAt": "2026-11-08T04:14:39.468Z",
+          "terminalDiagnostics": {
+            "outcomeCode": "completed_at_simulation_bound",
+            "message": "the run processed every event up to its simulation bound (runner termination: end_time_reached)",
+            "residualPositionShares": "-199",
+            "residualOpenOrderCount": "2"
+          },
+          "digests": {
+            "manifestDigest": {
+              "algorithm": "sha256",
+              "hexDigest": "c4fc12bd8f679f1eedfe2cc2092ebabe1ea59541b6b7039fb7488e8fbb48e4c6"
+            },
+            "canonicalEventDigest": {
+              "algorithm": "fnv1a_64",
+              "hexDigest": "6ea19e5c401c02c5"
+            },
+            "ledgerDigest": {
+              "algorithm": "fnv1a_64",
+              "hexDigest": "14942b81f4d94fd9"
+            }
+          },
+          "parentRunId": null
+        }
+      }
+    },
+    "width": {
+      "experiment": {
+        "experimentId": "exp_b365ce8fbf91ae89",
+        "name": "HUMAN-REFERENCE width",
+        "description": "",
+        "createdAt": "2026-11-08T04:14:39.549Z",
+        "derivedFromBaselineId": "fixed-spread-2-ticks",
+        "parentExperimentId": "exp_f33fe4cdc09d96be",
+        "marketWorld": "interactive_synthetic",
+        "config": {
+          "marketWorld": "interactive_synthetic",
+          "instrument": {
+            "symbol": "SYNTH",
+            "tickSize": "0.0100",
+            "lotSize": "1",
+            "maxOrderQuantity": "100000",
+            "minPrice": "50.0000",
+            "maxPrice": "150.0000",
+            "referencePrice": "100.0000",
+            "contractMultiplier": "1"
+          },
+          "scenario": {
+            "scenarioId": "synthetic.mm-and-noise-taker.v1",
+            "description": "One background market maker quoting three levels around a stepping fair value, and one noise taker sending crossing orders (runner models exsim::sim::bots).",
+            "backgroundAgents": [
+              {
+                "agentKind": "market_maker",
+                "agentCount": 1,
+                "parameters": [
+                  {
+                    "name": "levels",
+                    "value": "3",
+                    "unit": "count",
+                    "description": "Price levels quoted per side."
+                  },
+                  {
+                    "name": "quoteSizeShares",
+                    "value": "100",
+                    "unit": "shares",
+                    "description": "Quantity per quoted level."
+                  },
+                  {
+                    "name": "spreadTicks",
+                    "value": "1",
+                    "unit": "ticks",
+                    "description": "Half spread around the fair value."
+                  },
+                  {
+                    "name": "fairValueStepIntervalNs",
+                    "value": "500000000",
+                    "unit": "nanoseconds",
+                    "description": "Interval between fair value random-walk steps."
+                  },
+                  {
+                    "name": "fairValueStepTicks",
+                    "value": "1",
+                    "unit": "ticks",
+                    "description": "Size of one fair value step."
+                  },
+                  {
+                    "name": "requoteIntervalNs",
+                    "value": "100000000",
+                    "unit": "nanoseconds",
+                    "description": "Requote period."
+                  }
+                ]
+              },
+              {
+                "agentKind": "noise_taker",
+                "agentCount": 1,
+                "parameters": [
+                  {
+                    "name": "meanInterarrivalNs",
+                    "value": "20000000",
+                    "unit": "nanoseconds",
+                    "description": "Mean exponential time between orders."
+                  },
+                  {
+                    "name": "minimumOrderShares",
+                    "value": "1",
+                    "unit": "shares",
+                    "description": "Smallest order."
+                  },
+                  {
+                    "name": "maximumOrderShares",
+                    "value": "200",
+                    "unit": "shares",
+                    "description": "Largest order."
+                  },
+                  {
+                    "name": "crossTicks",
+                    "value": "2",
+                    "unit": "ticks",
+                    "description": "Ticks through the touch for crossing orders."
+                  },
+                  {
+                    "name": "limitOrderProbability",
+                    "value": "0.1",
+                    "unit": "ratio",
+                    "description": "Probability an order is a resting limit order."
+                  },
+                  {
+                    "name": "limitOrderLifetimeNs",
+                    "value": "1000000000",
+                    "unit": "nanoseconds",
+                    "description": "Lifetime of a resting limit order."
+                  }
+                ]
+              }
+            ]
+          },
+          "strategy": {
+            "strategyKind": "fixed_spread_market_maker",
+            "halfSpreadTicks": "2",
+            "quoteQuantity": "100",
+            "requoteIntervalNs": "50000000",
+            "requoteThresholdTicks": "1",
+            "postOnly": true
+          },
+          "seedSet": {
+            "masterSeeds": [
+              "101",
+              "102",
+              "103"
+            ]
+          },
+          "latency": {
+            "latencyModel": "uniform_jitter",
+            "feedLatencyNs": "50000",
+            "orderEntryLatencyNs": "100000",
+            "acknowledgmentLatencyNs": "100000",
+            "cancelLatencyNs": "80000",
+            "jitterNs": "20000",
+            "strategyComputeNs": "5000",
+            "orderChannelFifo": true
+          },
+          "fees": {
+            "feeScheduleId": "maker-rebate-20-taker-30",
+            "makerFeePerShare": "-0.0020",
+            "takerFeePerShare": "0.0030"
+          },
+          "risk": {
+            "maxAbsolutePositionShares": "500",
+            "maxOpenOrders": "8",
+            "maxOrderQuantity": "200",
+            "onBreach": "block_orders_that_increase_exposure"
+          },
+          "initialCash": "1000000.0000",
+          "markConvention": "exchange_mid",
+          "markoutHorizonsNs": [
+            "100000000",
+            "1000000000",
+            "5000000000"
+          ],
+          "bounds": {
+            "endSimulationTimeNs": "60000000000",
+            "maxCanonicalEventCount": "5000000",
+            "wallClockTimeLimitSeconds": 600
+          }
+        },
+        "configDigest": {
+          "algorithm": "sha256",
+          "hexDigest": "0f3936df9d3ae317b476e60b9882cdeb49f28a9fec564f60217003d7cd7e7b25"
+        },
+        "runStateCounts": {
+          "queued": 0,
+          "running": 0,
+          "paused": 0,
+          "completed": 0,
+          "cancelled": 0,
+          "failed": 0
+        }
+      },
+      "runs": {
+        "101": {
+          "runId": "run_016183bc10d7e9b6",
+          "experimentId": "exp_b365ce8fbf91ae89",
+          "masterSeed": "101",
+          "mode": "deterministic_research",
+          "marketWorld": "interactive_synthetic",
+          "state": "completed",
+          "allowedActions": [],
+          "progress": {
+            "processedCanonicalEventCount": "43776",
+            "simulationTimeNs": "60000000000",
+            "endSimulationTimeNs": "60000000000"
+          },
+          "stateHistory": [
+            {
+              "fromState": null,
+              "toState": "queued",
+              "transitionedAt": "2026-11-08T04:14:39.549Z",
+              "atEventPosition": "0",
+              "atSimulationTimeNs": "0",
+              "reason": "created"
+            },
+            {
+              "fromState": "queued",
+              "toState": "running",
+              "transitionedAt": "2026-11-08T04:14:39.553Z",
+              "atEventPosition": "0",
+              "atSimulationTimeNs": "0",
+              "reason": "started"
+            },
+            {
+              "fromState": "running",
+              "toState": "completed",
+              "transitionedAt": "2026-11-08T04:14:39.619Z",
+              "atEventPosition": "43776",
+              "atSimulationTimeNs": "60000000000",
+              "reason": "the run processed every event up to its simulation bound (runner termination: end_time_reached)"
+            }
+          ],
+          "createdAt": "2026-11-08T04:14:39.549Z",
+          "terminalDiagnostics": {
+            "outcomeCode": "completed_at_simulation_bound",
+            "message": "the run processed every event up to its simulation bound (runner termination: end_time_reached)",
+            "residualPositionShares": "217",
+            "residualOpenOrderCount": "2"
+          },
+          "digests": {
+            "manifestDigest": {
+              "algorithm": "sha256",
+              "hexDigest": "7baef0e2013a2189993aadc5472756b2d77645744ee3d1f2d73386f567b4d8df"
+            },
+            "canonicalEventDigest": {
+              "algorithm": "fnv1a_64",
+              "hexDigest": "80ab6700be6f3ca4"
+            },
+            "ledgerDigest": {
+              "algorithm": "fnv1a_64",
+              "hexDigest": "c3db6f017410c3b7"
+            }
+          },
+          "parentRunId": null
+        },
+        "102": {
+          "runId": "run_78aaeeed3aff2b3a",
+          "experimentId": "exp_b365ce8fbf91ae89",
+          "masterSeed": "102",
+          "mode": "deterministic_research",
+          "marketWorld": "interactive_synthetic",
+          "state": "completed",
+          "allowedActions": [],
+          "progress": {
+            "processedCanonicalEventCount": "46158",
+            "simulationTimeNs": "60000000000",
+            "endSimulationTimeNs": "60000000000"
+          },
+          "stateHistory": [
+            {
+              "fromState": null,
+              "toState": "queued",
+              "transitionedAt": "2026-11-08T04:14:39.622Z",
+              "atEventPosition": "0",
+              "atSimulationTimeNs": "0",
+              "reason": "created"
+            },
+            {
+              "fromState": "queued",
+              "toState": "running",
+              "transitionedAt": "2026-11-08T04:14:39.625Z",
+              "atEventPosition": "0",
+              "atSimulationTimeNs": "0",
+              "reason": "started"
+            },
+            {
+              "fromState": "running",
+              "toState": "completed",
+              "transitionedAt": "2026-11-08T04:14:39.688Z",
+              "atEventPosition": "46158",
+              "atSimulationTimeNs": "60000000000",
+              "reason": "the run processed every event up to its simulation bound (runner termination: end_time_reached)"
+            }
+          ],
+          "createdAt": "2026-11-08T04:14:39.622Z",
+          "terminalDiagnostics": {
+            "outcomeCode": "completed_at_simulation_bound",
+            "message": "the run processed every event up to its simulation bound (runner termination: end_time_reached)",
+            "residualPositionShares": "202",
+            "residualOpenOrderCount": "2"
+          },
+          "digests": {
+            "manifestDigest": {
+              "algorithm": "sha256",
+              "hexDigest": "aa266ca9fd1df1b950f079eae32455ffd3919c69776807cc3ca5d2c9e8a7b4a5"
+            },
+            "canonicalEventDigest": {
+              "algorithm": "fnv1a_64",
+              "hexDigest": "a8d5924c23346028"
+            },
+            "ledgerDigest": {
+              "algorithm": "fnv1a_64",
+              "hexDigest": "fa1e1e565b9628b0"
+            }
+          },
+          "parentRunId": null
+        },
+        "103": {
+          "runId": "run_2be173369c9339fe",
+          "experimentId": "exp_b365ce8fbf91ae89",
+          "masterSeed": "103",
+          "mode": "deterministic_research",
+          "marketWorld": "interactive_synthetic",
+          "state": "completed",
+          "allowedActions": [],
+          "progress": {
+            "processedCanonicalEventCount": "44862",
+            "simulationTimeNs": "60000000000",
+            "endSimulationTimeNs": "60000000000"
+          },
+          "stateHistory": [
+            {
+              "fromState": null,
+              "toState": "queued",
+              "transitionedAt": "2026-11-08T04:14:39.691Z",
+              "atEventPosition": "0",
+              "atSimulationTimeNs": "0",
+              "reason": "created"
+            },
+            {
+              "fromState": "queued",
+              "toState": "running",
+              "transitionedAt": "2026-11-08T04:14:39.695Z",
+              "atEventPosition": "0",
+              "atSimulationTimeNs": "0",
+              "reason": "started"
+            },
+            {
+              "fromState": "running",
+              "toState": "completed",
+              "transitionedAt": "2026-11-08T04:14:39.762Z",
+              "atEventPosition": "44862",
+              "atSimulationTimeNs": "60000000000",
+              "reason": "the run processed every event up to its simulation bound (runner termination: end_time_reached)"
+            }
+          ],
+          "createdAt": "2026-11-08T04:14:39.691Z",
+          "terminalDiagnostics": {
+            "outcomeCode": "completed_at_simulation_bound",
+            "message": "the run processed every event up to its simulation bound (runner termination: end_time_reached)",
+            "residualPositionShares": "438",
+            "residualOpenOrderCount": "2"
+          },
+          "digests": {
+            "manifestDigest": {
+              "algorithm": "sha256",
+              "hexDigest": "e31d8fdcb07f574a29dda8e7aba0b8c7adb57ab39fe7291e1d02c385239dfa8f"
+            },
+            "canonicalEventDigest": {
+              "algorithm": "fnv1a_64",
+              "hexDigest": "a6da3133710b0a7a"
+            },
+            "ledgerDigest": {
+              "algorithm": "fnv1a_64",
+              "hexDigest": "4b540d3c5ec7c46f"
+            }
+          },
+          "parentRunId": null
+        }
+      }
+    },
+    "inventory": {
+      "experiment": {
+        "experimentId": "exp_fb9063376e479d46",
+        "name": "HUMAN-REFERENCE inventory",
+        "description": "",
+        "createdAt": "2026-11-08T04:14:39.766Z",
+        "derivedFromBaselineId": "fixed-spread-2-ticks",
+        "parentExperimentId": "exp_f33fe4cdc09d96be",
+        "marketWorld": "interactive_synthetic",
+        "config": {
+          "marketWorld": "interactive_synthetic",
+          "instrument": {
+            "symbol": "SYNTH",
+            "tickSize": "0.0100",
+            "lotSize": "1",
+            "maxOrderQuantity": "100000",
+            "minPrice": "50.0000",
+            "maxPrice": "150.0000",
+            "referencePrice": "100.0000",
+            "contractMultiplier": "1"
+          },
+          "scenario": {
+            "scenarioId": "synthetic.mm-and-noise-taker.v1",
+            "description": "One background market maker quoting three levels around a stepping fair value, and one noise taker sending crossing orders (runner models exsim::sim::bots).",
+            "backgroundAgents": [
+              {
+                "agentKind": "market_maker",
+                "agentCount": 1,
+                "parameters": [
+                  {
+                    "name": "levels",
+                    "value": "3",
+                    "unit": "count",
+                    "description": "Price levels quoted per side."
+                  },
+                  {
+                    "name": "quoteSizeShares",
+                    "value": "100",
+                    "unit": "shares",
+                    "description": "Quantity per quoted level."
+                  },
+                  {
+                    "name": "spreadTicks",
+                    "value": "1",
+                    "unit": "ticks",
+                    "description": "Half spread around the fair value."
+                  },
+                  {
+                    "name": "fairValueStepIntervalNs",
+                    "value": "500000000",
+                    "unit": "nanoseconds",
+                    "description": "Interval between fair value random-walk steps."
+                  },
+                  {
+                    "name": "fairValueStepTicks",
+                    "value": "1",
+                    "unit": "ticks",
+                    "description": "Size of one fair value step."
+                  },
+                  {
+                    "name": "requoteIntervalNs",
+                    "value": "100000000",
+                    "unit": "nanoseconds",
+                    "description": "Requote period."
+                  }
+                ]
+              },
+              {
+                "agentKind": "noise_taker",
+                "agentCount": 1,
+                "parameters": [
+                  {
+                    "name": "meanInterarrivalNs",
+                    "value": "20000000",
+                    "unit": "nanoseconds",
+                    "description": "Mean exponential time between orders."
+                  },
+                  {
+                    "name": "minimumOrderShares",
+                    "value": "1",
+                    "unit": "shares",
+                    "description": "Smallest order."
+                  },
+                  {
+                    "name": "maximumOrderShares",
+                    "value": "200",
+                    "unit": "shares",
+                    "description": "Largest order."
+                  },
+                  {
+                    "name": "crossTicks",
+                    "value": "2",
+                    "unit": "ticks",
+                    "description": "Ticks through the touch for crossing orders."
+                  },
+                  {
+                    "name": "limitOrderProbability",
+                    "value": "0.1",
+                    "unit": "ratio",
+                    "description": "Probability an order is a resting limit order."
+                  },
+                  {
+                    "name": "limitOrderLifetimeNs",
+                    "value": "1000000000",
+                    "unit": "nanoseconds",
+                    "description": "Lifetime of a resting limit order."
+                  }
+                ]
+              }
+            ]
+          },
+          "strategy": {
+            "strategyKind": "inventory_aware_market_maker",
+            "halfSpreadTicks": "1",
+            "quoteQuantity": "100",
+            "requoteIntervalNs": "50000000",
+            "requoteThresholdTicks": "1",
+            "postOnly": true,
+            "inventorySkewTicksPerUnit": "1",
+            "inventorySkewUnitShares": "100",
+            "scaleSizeWithInventory": false
+          },
+          "seedSet": {
+            "masterSeeds": [
+              "101",
+              "102",
+              "103"
+            ]
+          },
+          "latency": {
+            "latencyModel": "uniform_jitter",
+            "feedLatencyNs": "50000",
+            "orderEntryLatencyNs": "100000",
+            "acknowledgmentLatencyNs": "100000",
+            "cancelLatencyNs": "80000",
+            "jitterNs": "20000",
+            "strategyComputeNs": "5000",
+            "orderChannelFifo": true
+          },
+          "fees": {
+            "feeScheduleId": "maker-rebate-20-taker-30",
+            "makerFeePerShare": "-0.0020",
+            "takerFeePerShare": "0.0030"
+          },
+          "risk": {
+            "maxAbsolutePositionShares": "500",
+            "maxOpenOrders": "8",
+            "maxOrderQuantity": "200",
+            "onBreach": "block_orders_that_increase_exposure"
+          },
+          "initialCash": "1000000.0000",
+          "markConvention": "exchange_mid",
+          "markoutHorizonsNs": [
+            "100000000",
+            "1000000000",
+            "5000000000"
+          ],
+          "bounds": {
+            "endSimulationTimeNs": "60000000000",
+            "maxCanonicalEventCount": "5000000",
+            "wallClockTimeLimitSeconds": 600
+          }
+        },
+        "configDigest": {
+          "algorithm": "sha256",
+          "hexDigest": "528db8acee71603e5c3d0f00db9207934d6f6eb183319f9f7c5b476646f6b662"
+        },
+        "runStateCounts": {
+          "queued": 0,
+          "running": 0,
+          "paused": 0,
+          "completed": 0,
+          "cancelled": 0,
+          "failed": 0
+        }
+      },
+      "runs": {
+        "101": {
+          "runId": "run_789af7f13898d90f",
+          "experimentId": "exp_fb9063376e479d46",
+          "masterSeed": "101",
+          "mode": "deterministic_research",
+          "marketWorld": "interactive_synthetic",
+          "state": "completed",
+          "allowedActions": [],
+          "progress": {
+            "processedCanonicalEventCount": "105418",
+            "simulationTimeNs": "60000000000",
+            "endSimulationTimeNs": "60000000000"
+          },
+          "stateHistory": [
+            {
+              "fromState": null,
+              "toState": "queued",
+              "transitionedAt": "2026-11-08T04:14:39.767Z",
+              "atEventPosition": "0",
+              "atSimulationTimeNs": "0",
+              "reason": "created"
+            },
+            {
+              "fromState": "queued",
+              "toState": "running",
+              "transitionedAt": "2026-11-08T04:14:39.770Z",
+              "atEventPosition": "0",
+              "atSimulationTimeNs": "0",
+              "reason": "started"
+            },
+            {
+              "fromState": "running",
+              "toState": "completed",
+              "transitionedAt": "2026-11-08T04:14:39.922Z",
+              "atEventPosition": "105418",
+              "atSimulationTimeNs": "60000000000",
+              "reason": "the run processed every event up to its simulation bound (runner termination: end_time_reached)"
+            }
+          ],
+          "createdAt": "2026-11-08T04:14:39.767Z",
+          "terminalDiagnostics": {
+            "outcomeCode": "completed_at_simulation_bound",
+            "message": "the run processed every event up to its simulation bound (runner termination: end_time_reached)",
+            "residualPositionShares": "-81",
+            "residualOpenOrderCount": "2"
+          },
+          "digests": {
+            "manifestDigest": {
+              "algorithm": "sha256",
+              "hexDigest": "26f570bbfef762bc3e69ec1d668c0b456df5e58c8cbcbc41b3bfaac498c9cabb"
+            },
+            "canonicalEventDigest": {
+              "algorithm": "fnv1a_64",
+              "hexDigest": "0904d7cd9a16d3cd"
+            },
+            "ledgerDigest": {
+              "algorithm": "fnv1a_64",
+              "hexDigest": "62744e8f74fb41c0"
+            }
+          },
+          "parentRunId": null
+        },
+        "102": {
+          "runId": "run_d6e004bdf340666a",
+          "experimentId": "exp_fb9063376e479d46",
+          "masterSeed": "102",
+          "mode": "deterministic_research",
+          "marketWorld": "interactive_synthetic",
+          "state": "completed",
+          "allowedActions": [],
+          "progress": {
+            "processedCanonicalEventCount": "90515",
+            "simulationTimeNs": "60000000000",
+            "endSimulationTimeNs": "60000000000"
+          },
+          "stateHistory": [
+            {
+              "fromState": null,
+              "toState": "queued",
+              "transitionedAt": "2026-11-08T04:14:39.927Z",
+              "atEventPosition": "0",
+              "atSimulationTimeNs": "0",
+              "reason": "created"
+            },
+            {
+              "fromState": "queued",
+              "toState": "running",
+              "transitionedAt": "2026-11-08T04:14:39.931Z",
+              "atEventPosition": "0",
+              "atSimulationTimeNs": "0",
+              "reason": "started"
+            },
+            {
+              "fromState": "running",
+              "toState": "completed",
+              "transitionedAt": "2026-11-08T04:14:40.055Z",
+              "atEventPosition": "90515",
+              "atSimulationTimeNs": "60000000000",
+              "reason": "the run processed every event up to its simulation bound (runner termination: end_time_reached)"
+            }
+          ],
+          "createdAt": "2026-11-08T04:14:39.927Z",
+          "terminalDiagnostics": {
+            "outcomeCode": "completed_at_simulation_bound",
+            "message": "the run processed every event up to its simulation bound (runner termination: end_time_reached)",
+            "residualPositionShares": "-140",
+            "residualOpenOrderCount": "2"
+          },
+          "digests": {
+            "manifestDigest": {
+              "algorithm": "sha256",
+              "hexDigest": "2934bf5541bb4a10d285cce383af039dadbd4ffc7816cdb3919135c2396823f5"
+            },
+            "canonicalEventDigest": {
+              "algorithm": "fnv1a_64",
+              "hexDigest": "195dd3783639cfa4"
+            },
+            "ledgerDigest": {
+              "algorithm": "fnv1a_64",
+              "hexDigest": "dbf2dca750cee8a5"
+            }
+          },
+          "parentRunId": null
+        },
+        "103": {
+          "runId": "run_ecefca018ad06dca",
+          "experimentId": "exp_fb9063376e479d46",
+          "masterSeed": "103",
+          "mode": "deterministic_research",
+          "marketWorld": "interactive_synthetic",
+          "state": "completed",
+          "allowedActions": [],
+          "progress": {
+            "processedCanonicalEventCount": "127257",
+            "simulationTimeNs": "60000000000",
+            "endSimulationTimeNs": "60000000000"
+          },
+          "stateHistory": [
+            {
+              "fromState": null,
+              "toState": "queued",
+              "transitionedAt": "2026-11-08T04:14:40.059Z",
+              "atEventPosition": "0",
+              "atSimulationTimeNs": "0",
+              "reason": "created"
+            },
+            {
+              "fromState": "queued",
+              "toState": "running",
+              "transitionedAt": "2026-11-08T04:14:40.062Z",
+              "atEventPosition": "0",
+              "atSimulationTimeNs": "0",
+              "reason": "started"
+            },
+            {
+              "fromState": "running",
+              "toState": "completed",
+              "transitionedAt": "2026-11-08T04:14:40.247Z",
+              "atEventPosition": "127257",
+              "atSimulationTimeNs": "60000000000",
+              "reason": "the run processed every event up to its simulation bound (runner termination: end_time_reached)"
+            }
+          ],
+          "createdAt": "2026-11-08T04:14:40.059Z",
+          "terminalDiagnostics": {
+            "outcomeCode": "completed_at_simulation_bound",
+            "message": "the run processed every event up to its simulation bound (runner termination: end_time_reached)",
+            "residualPositionShares": "48",
+            "residualOpenOrderCount": "2"
+          },
+          "digests": {
+            "manifestDigest": {
+              "algorithm": "sha256",
+              "hexDigest": "c162b1b9abb88427ec021d5ab856e36f06c545f47d39d867f43018a27c526100"
+            },
+            "canonicalEventDigest": {
+              "algorithm": "fnv1a_64",
+              "hexDigest": "e8b8e5d5ba6bf211"
+            },
+            "ledgerDigest": {
+              "algorithm": "fnv1a_64",
+              "hexDigest": "051bb67fafc336d2"
+            }
+          },
+          "parentRunId": null
+        }
+      }
+    },
+    "latency": {
+      "experiment": {
+        "experimentId": "exp_dae6c20bc70bd750",
+        "name": "HUMAN-REFERENCE latency",
+        "description": "",
+        "createdAt": "2026-11-08T04:14:40.253Z",
+        "derivedFromBaselineId": "fixed-spread-2-ticks",
+        "parentExperimentId": "exp_f33fe4cdc09d96be",
+        "marketWorld": "interactive_synthetic",
+        "config": {
+          "marketWorld": "interactive_synthetic",
+          "instrument": {
+            "symbol": "SYNTH",
+            "tickSize": "0.0100",
+            "lotSize": "1",
+            "maxOrderQuantity": "100000",
+            "minPrice": "50.0000",
+            "maxPrice": "150.0000",
+            "referencePrice": "100.0000",
+            "contractMultiplier": "1"
+          },
+          "scenario": {
+            "scenarioId": "synthetic.mm-and-noise-taker.v1",
+            "description": "One background market maker quoting three levels around a stepping fair value, and one noise taker sending crossing orders (runner models exsim::sim::bots).",
+            "backgroundAgents": [
+              {
+                "agentKind": "market_maker",
+                "agentCount": 1,
+                "parameters": [
+                  {
+                    "name": "levels",
+                    "value": "3",
+                    "unit": "count",
+                    "description": "Price levels quoted per side."
+                  },
+                  {
+                    "name": "quoteSizeShares",
+                    "value": "100",
+                    "unit": "shares",
+                    "description": "Quantity per quoted level."
+                  },
+                  {
+                    "name": "spreadTicks",
+                    "value": "1",
+                    "unit": "ticks",
+                    "description": "Half spread around the fair value."
+                  },
+                  {
+                    "name": "fairValueStepIntervalNs",
+                    "value": "500000000",
+                    "unit": "nanoseconds",
+                    "description": "Interval between fair value random-walk steps."
+                  },
+                  {
+                    "name": "fairValueStepTicks",
+                    "value": "1",
+                    "unit": "ticks",
+                    "description": "Size of one fair value step."
+                  },
+                  {
+                    "name": "requoteIntervalNs",
+                    "value": "100000000",
+                    "unit": "nanoseconds",
+                    "description": "Requote period."
+                  }
+                ]
+              },
+              {
+                "agentKind": "noise_taker",
+                "agentCount": 1,
+                "parameters": [
+                  {
+                    "name": "meanInterarrivalNs",
+                    "value": "20000000",
+                    "unit": "nanoseconds",
+                    "description": "Mean exponential time between orders."
+                  },
+                  {
+                    "name": "minimumOrderShares",
+                    "value": "1",
+                    "unit": "shares",
+                    "description": "Smallest order."
+                  },
+                  {
+                    "name": "maximumOrderShares",
+                    "value": "200",
+                    "unit": "shares",
+                    "description": "Largest order."
+                  },
+                  {
+                    "name": "crossTicks",
+                    "value": "2",
+                    "unit": "ticks",
+                    "description": "Ticks through the touch for crossing orders."
+                  },
+                  {
+                    "name": "limitOrderProbability",
+                    "value": "0.1",
+                    "unit": "ratio",
+                    "description": "Probability an order is a resting limit order."
+                  },
+                  {
+                    "name": "limitOrderLifetimeNs",
+                    "value": "1000000000",
+                    "unit": "nanoseconds",
+                    "description": "Lifetime of a resting limit order."
+                  }
+                ]
+              }
+            ]
+          },
+          "strategy": {
+            "strategyKind": "fixed_spread_market_maker",
+            "halfSpreadTicks": "1",
+            "quoteQuantity": "100",
+            "requoteIntervalNs": "50000000",
+            "requoteThresholdTicks": "1",
+            "postOnly": true
+          },
+          "seedSet": {
+            "masterSeeds": [
+              "101",
+              "102",
+              "103"
+            ]
+          },
+          "latency": {
+            "latencyModel": "uniform_jitter",
+            "feedLatencyNs": "50000",
+            "orderEntryLatencyNs": "100000",
+            "acknowledgmentLatencyNs": "100000",
+            "cancelLatencyNs": "100000000",
+            "jitterNs": "20000",
+            "strategyComputeNs": "5000",
+            "orderChannelFifo": true
+          },
+          "fees": {
+            "feeScheduleId": "maker-rebate-20-taker-30",
+            "makerFeePerShare": "-0.0020",
+            "takerFeePerShare": "0.0030"
+          },
+          "risk": {
+            "maxAbsolutePositionShares": "500",
+            "maxOpenOrders": "8",
+            "maxOrderQuantity": "200",
+            "onBreach": "block_orders_that_increase_exposure"
+          },
+          "initialCash": "1000000.0000",
+          "markConvention": "exchange_mid",
+          "markoutHorizonsNs": [
+            "100000000",
+            "1000000000",
+            "5000000000"
+          ],
+          "bounds": {
+            "endSimulationTimeNs": "60000000000",
+            "maxCanonicalEventCount": "5000000",
+            "wallClockTimeLimitSeconds": 600
+          }
+        },
+        "configDigest": {
+          "algorithm": "sha256",
+          "hexDigest": "ead4ce33555b5a2fdfddfa97c19a741cf27d9a29c22424ce3131acd430f2308b"
+        },
+        "runStateCounts": {
+          "queued": 0,
+          "running": 0,
+          "paused": 0,
+          "completed": 0,
+          "cancelled": 0,
+          "failed": 0
+        }
+      },
+      "runs": {
+        "101": {
+          "runId": "run_321f33b162af4ed4",
+          "experimentId": "exp_dae6c20bc70bd750",
+          "masterSeed": "101",
+          "mode": "deterministic_research",
+          "marketWorld": "interactive_synthetic",
+          "state": "completed",
+          "allowedActions": [],
+          "progress": {
+            "processedCanonicalEventCount": "30817",
+            "simulationTimeNs": "60000000000",
+            "endSimulationTimeNs": "60000000000"
+          },
+          "stateHistory": [
+            {
+              "fromState": null,
+              "toState": "queued",
+              "transitionedAt": "2026-11-08T04:14:40.254Z",
+              "atEventPosition": "0",
+              "atSimulationTimeNs": "0",
+              "reason": "created"
+            },
+            {
+              "fromState": "queued",
+              "toState": "running",
+              "transitionedAt": "2026-11-08T04:14:40.257Z",
+              "atEventPosition": "0",
+              "atSimulationTimeNs": "0",
+              "reason": "started"
+            },
+            {
+              "fromState": "running",
+              "toState": "completed",
+              "transitionedAt": "2026-11-08T04:14:40.298Z",
+              "atEventPosition": "30817",
+              "atSimulationTimeNs": "60000000000",
+              "reason": "the run processed every event up to its simulation bound (runner termination: end_time_reached)"
+            }
+          ],
+          "createdAt": "2026-11-08T04:14:40.254Z",
+          "terminalDiagnostics": {
+            "outcomeCode": "completed_at_simulation_bound",
+            "message": "the run processed every event up to its simulation bound (runner termination: end_time_reached)",
+            "residualPositionShares": "129",
+            "residualOpenOrderCount": "2"
+          },
+          "digests": {
+            "manifestDigest": {
+              "algorithm": "sha256",
+              "hexDigest": "6058be988c49d6ec100b5ef6c49133c04d9ece69144f6f99928eea9fed9c97b1"
+            },
+            "canonicalEventDigest": {
+              "algorithm": "fnv1a_64",
+              "hexDigest": "f313c5c1bf7a1a57"
+            },
+            "ledgerDigest": {
+              "algorithm": "fnv1a_64",
+              "hexDigest": "d50b76b27b0a89bc"
+            }
+          },
+          "parentRunId": null
+        },
+        "102": {
+          "runId": "run_09414cb2e561cc3a",
+          "experimentId": "exp_dae6c20bc70bd750",
+          "masterSeed": "102",
+          "mode": "deterministic_research",
+          "marketWorld": "interactive_synthetic",
+          "state": "completed",
+          "allowedActions": [],
+          "progress": {
+            "processedCanonicalEventCount": "31690",
+            "simulationTimeNs": "60000000000",
+            "endSimulationTimeNs": "60000000000"
+          },
+          "stateHistory": [
+            {
+              "fromState": null,
+              "toState": "queued",
+              "transitionedAt": "2026-11-08T04:14:40.316Z",
+              "atEventPosition": "0",
+              "atSimulationTimeNs": "0",
+              "reason": "created"
+            },
+            {
+              "fromState": "queued",
+              "toState": "running",
+              "transitionedAt": "2026-11-08T04:14:40.319Z",
+              "atEventPosition": "0",
+              "atSimulationTimeNs": "0",
+              "reason": "started"
+            },
+            {
+              "fromState": "running",
+              "toState": "completed",
+              "transitionedAt": "2026-11-08T04:14:40.362Z",
+              "atEventPosition": "31690",
+              "atSimulationTimeNs": "60000000000",
+              "reason": "the run processed every event up to its simulation bound (runner termination: end_time_reached)"
+            }
+          ],
+          "createdAt": "2026-11-08T04:14:40.316Z",
+          "terminalDiagnostics": {
+            "outcomeCode": "completed_at_simulation_bound",
+            "message": "the run processed every event up to its simulation bound (runner termination: end_time_reached)",
+            "residualPositionShares": "-1",
+            "residualOpenOrderCount": "2"
+          },
+          "digests": {
+            "manifestDigest": {
+              "algorithm": "sha256",
+              "hexDigest": "7614a43a8d6b06920935530e8dccb948b6e16b15e40672b125a8d2fcff168514"
+            },
+            "canonicalEventDigest": {
+              "algorithm": "fnv1a_64",
+              "hexDigest": "866c0ec15c4177b7"
+            },
+            "ledgerDigest": {
+              "algorithm": "fnv1a_64",
+              "hexDigest": "e9b71a70d046a0f9"
+            }
+          },
+          "parentRunId": null
+        },
+        "103": {
+          "runId": "run_0f5cefaa07f67286",
+          "experimentId": "exp_dae6c20bc70bd750",
+          "masterSeed": "103",
+          "mode": "deterministic_research",
+          "marketWorld": "interactive_synthetic",
+          "state": "completed",
+          "allowedActions": [],
+          "progress": {
+            "processedCanonicalEventCount": "30985",
+            "simulationTimeNs": "60000000000",
+            "endSimulationTimeNs": "60000000000"
+          },
+          "stateHistory": [
+            {
+              "fromState": null,
+              "toState": "queued",
+              "transitionedAt": "2026-11-08T04:14:40.378Z",
+              "atEventPosition": "0",
+              "atSimulationTimeNs": "0",
+              "reason": "created"
+            },
+            {
+              "fromState": "queued",
+              "toState": "running",
+              "transitionedAt": "2026-11-08T04:14:40.381Z",
+              "atEventPosition": "0",
+              "atSimulationTimeNs": "0",
+              "reason": "started"
+            },
+            {
+              "fromState": "running",
+              "toState": "completed",
+              "transitionedAt": "2026-11-08T04:14:40.424Z",
+              "atEventPosition": "30985",
+              "atSimulationTimeNs": "60000000000",
+              "reason": "the run processed every event up to its simulation bound (runner termination: end_time_reached)"
+            }
+          ],
+          "createdAt": "2026-11-08T04:14:40.378Z",
+          "terminalDiagnostics": {
+            "outcomeCode": "completed_at_simulation_bound",
+            "message": "the run processed every event up to its simulation bound (runner termination: end_time_reached)",
+            "residualPositionShares": "277",
+            "residualOpenOrderCount": "2"
+          },
+          "digests": {
+            "manifestDigest": {
+              "algorithm": "sha256",
+              "hexDigest": "5015cf81b626734c7a9b1eb4e944799ac694b86df0851a8675b66f6f5e6cd662"
+            },
+            "canonicalEventDigest": {
+              "algorithm": "fnv1a_64",
+              "hexDigest": "2329634c8439c608"
+            },
+            "ledgerDigest": {
+              "algorithm": "fnv1a_64",
+              "hexDigest": "7207694d2b1e5ca4"
+            }
+          },
+          "parentRunId": null
+        }
+      }
+    }
+  },
+  "comparisons": {
+    "sweep": {
+      "baseline": "exp_a94625506960e97a",
+      "candidate": "exp_e6a44474014512ba",
+      "runSelection": "r1_DulCEKotteKChEVx0Qgze7wjouDkHf2pfa6I1qHLILVM4vGkpXstWthchEnCsN3N"
+    },
+    "capped": {
+      "baseline": "exp_a94625506960e97a",
+      "candidate": "exp_da612d10e51566fb",
+      "runSelection": "r1_DulCEKotteKChEVx0Qgze7wjouDkHf2p_wzyfhRpg6M"
+    },
+    "censored": {
+      "baseline": "exp_a94625506960e97a",
+      "candidate": "exp_5aaaec9d1f99db8a",
+      "runSelection": "r1_DulCEKotteKChEVx0Qgze7wjouDkHf2p"
+    },
+    "width": {
+      "baseline": "exp_f33fe4cdc09d96be",
+      "candidate": "exp_b365ce8fbf91ae89",
+      "runSelection": "r1_g8Ox0HsIhO5D4WLU7EL6ABhXq0TxyIN_AWGDvBDX6bZ4qu7tOv8rOivhczackzn-"
+    },
+    "inventory": {
+      "baseline": "exp_f33fe4cdc09d96be",
+      "candidate": "exp_fb9063376e479d46",
+      "runSelection": "r1_g8Ox0HsIhO5D4WLU7EL6ABhXq0TxyIN_eJr38TiY2Q_W4AS980BmauzvygGK0G3K"
+    },
+    "latency": {
+      "baseline": "exp_f33fe4cdc09d96be",
+      "candidate": "exp_dae6c20bc70bd750",
+      "runSelection": "r1_g8Ox0HsIhO5D4WLU7EL6ABhXq0TxyIN_Mh8zsWKvTtQJQUyy5WHMOg9c76oH9nKG"
+    }
+  },
+  "controlRun": {
+    "runId": "run_bcdca8db59db9f62",
+    "experimentId": "exp_a94625506960e97a",
+    "masterSeed": "101",
+    "mode": "deterministic_research",
+    "marketWorld": "interactive_synthetic",
+    "state": "queued",
+    "allowedActions": [
+      "cancel"
+    ],
+    "progress": {
+      "processedCanonicalEventCount": "0",
+      "simulationTimeNs": "0",
+      "endSimulationTimeNs": "60000000000"
+    },
+    "stateHistory": [
+      {
+        "fromState": null,
+        "toState": "queued",
+        "transitionedAt": "2026-11-08T04:14:44.487Z",
+        "atEventPosition": "0",
+        "atSimulationTimeNs": "0",
+        "reason": "created"
+      }
+    ],
+    "createdAt": "2026-11-08T04:14:44.487Z",
+    "terminalDiagnostics": null,
+    "digests": {
+      "manifestDigest": {
+        "algorithm": "sha256",
+        "hexDigest": "91b22e7b46013cc59074c5f35a23a096eec5d8eaf1b7f3f11dfc58dd603a0551"
+      },
+      "canonicalEventDigest": null,
+      "ledgerDigest": null
+    },
+    "parentRunId": null
+  }
+}

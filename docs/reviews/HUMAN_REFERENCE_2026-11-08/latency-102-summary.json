@@ -1,0 +1,555 @@
+{
+  "schemaVersion": "exsim.run-summary/1",
+  "runId": "run_09414cb2e561cc3a",
+  "availability": "final",
+  "asOfEventPosition": "31690",
+  "asOfSimulationTimeNs": "60000000000",
+  "accounting": {
+    "initialCash": "1000000.0000",
+    "cash": "1001024.6420",
+    "positionShares": "-1",
+    "averageCostBasis": "100.050000",
+    "grossRealizedPnl": "799.3700",
+    "unrealizedPnl": "0.01000",
+    "netFees": "-125.2220",
+    "markPrice": "100.04000",
+    "markConvention": "exchange_mid",
+    "equity": "1000924.60200",
+    "netPnl": "924.60200",
+    "markUnavailableReason": null
+  },
+  "orders": {
+    "submittedOrderCount": "607",
+    "acceptedOrderCount": "603",
+    "rejectedOrderCount": "4",
+    "canceledOrderCount": "0",
+    "cancelRaceLostCount": "0",
+    "requestDiagnostics": [
+      {
+        "requestKind": "new_order",
+        "submittedCount": "607",
+        "exchangeRejectedCount": "4",
+        "arrivalTransit": {
+          "sampleCount": "607",
+          "minNs": "105835",
+          "maxNs": "100021222",
+          "meanNs": "67794416.512356"
+        },
+        "rejectReasons": [
+          {
+            "reason": "post_only_would_cross",
+            "count": "4"
+          }
+        ]
+      },
+      {
+        "requestKind": "cancel",
+        "submittedCount": "0",
+        "exchangeRejectedCount": "0",
+        "arrivalTransit": {
+          "sampleCount": "0",
+          "minNs": null,
+          "maxNs": null,
+          "meanNs": null
+        },
+        "rejectReasons": []
+      },
+      {
+        "requestKind": "replace",
+        "submittedCount": "833",
+        "exchangeRejectedCount": "519",
+        "arrivalTransit": {
+          "sampleCount": "833",
+          "minNs": "100005043",
+          "maxNs": "100025000",
+          "meanNs": "100015310.564226"
+        },
+        "rejectReasons": [
+          {
+            "reason": "post_only_would_cross",
+            "count": "2"
+          },
+          {
+            "reason": "unknown_order",
+            "count": "517"
+          }
+        ]
+      }
+    ],
+    "fillCount": "1181",
+    "makerFillCount": "1181",
+    "takerFillCount": "0",
+    "filledShares": "62611",
+    "submittedShares": "62811",
+    "fillRateByShares": {
+      "numerator": "62611",
+      "denominator": "62811",
+      "ratio": "0.996816",
+      "definition": "filled shares of own orders divided by shares accepted by the exchange (new orders plus replace increases, including orders later cancelled)"
+    },
+    "quoteExposureTimeNs": "51772305328"
+  },
+  "risk": {
+    "maxLongPositionShares": "500",
+    "maxShortPositionShares": "-500",
+    "blockedOrderCount": "0",
+    "maxDrawdown": "3.70400",
+    "maxDrawdownPeakTimeNs": null,
+    "maxDrawdownTroughTimeNs": "8000000000"
+  },
+  "spreadCaptureTotal": "846.50000",
+  "markouts": [
+    {
+      "horizonNs": "100000000",
+      "availableFillCount": "1181",
+      "availableShares": "62611",
+      "censoredFillCount": "0",
+      "unavailableFillCount": "0",
+      "totalMarkout": "762.26500",
+      "meanMarkoutPerShare": "0.012175"
+    },
+    {
+      "horizonNs": "1000000000",
+      "availableFillCount": "1166",
+      "availableShares": "61682",
+      "censoredFillCount": "15",
+      "unavailableFillCount": "0",
+      "totalMarkout": "782.79000",
+      "meanMarkoutPerShare": "0.012691"
+    },
+    {
+      "horizonNs": "5000000000",
+      "availableFillCount": "1089",
+      "availableShares": "57390",
+      "censoredFillCount": "92",
+      "unavailableFillCount": "0",
+      "totalMarkout": "747.88500",
+      "meanMarkoutPerShare": "0.013032"
+    }
+  ],
+  "latency": [
+    {
+      "component": "feed",
+      "configuredNs": "50000",
+      "sampleCount": "4761",
+      "observedMinNs": "50005",
+      "observedMaxNs": "70000"
+    },
+    {
+      "component": "order_entry",
+      "configuredNs": "100000",
+      "sampleCount": "607",
+      "observedMinNs": "105835",
+      "observedMaxNs": "100021222"
+    },
+    {
+      "component": "acknowledgment",
+      "configuredNs": "100000",
+      "sampleCount": "3538",
+      "observedMinNs": "100008",
+      "observedMaxNs": "119989"
+    },
+    {
+      "component": "cancel",
+      "configuredNs": "100000000",
+      "sampleCount": "833",
+      "observedMinNs": "100005043",
+      "observedMaxNs": "100025000"
+    }
+  ],
+  "execution": null,
+  "metrics": [
+    {
+      "metricKey": "net_pnl",
+      "horizonNs": null,
+      "value": "924.60200",
+      "unit": "currency",
+      "exactness": "exact_fixed_point",
+      "unavailableReason": null
+    },
+    {
+      "metricKey": "equity",
+      "horizonNs": null,
+      "value": "1000924.60200",
+      "unit": "currency",
+      "exactness": "exact_fixed_point",
+      "unavailableReason": null
+    },
+    {
+      "metricKey": "gross_realized_pnl",
+      "horizonNs": null,
+      "value": "799.3700",
+      "unit": "currency",
+      "exactness": "exact_fixed_point",
+      "unavailableReason": null
+    },
+    {
+      "metricKey": "unrealized_pnl",
+      "horizonNs": null,
+      "value": "0.01000",
+      "unit": "currency",
+      "exactness": "exact_fixed_point",
+      "unavailableReason": null
+    },
+    {
+      "metricKey": "net_fees",
+      "horizonNs": null,
+      "value": "-125.2220",
+      "unit": "currency",
+      "exactness": "exact_fixed_point",
+      "unavailableReason": null
+    },
+    {
+      "metricKey": "ending_position",
+      "horizonNs": null,
+      "value": "-1",
+      "unit": "shares",
+      "exactness": "exact_fixed_point",
+      "unavailableReason": null
+    },
+    {
+      "metricKey": "max_long_position",
+      "horizonNs": null,
+      "value": "500",
+      "unit": "shares",
+      "exactness": "exact_fixed_point",
+      "unavailableReason": null
+    },
+    {
+      "metricKey": "max_short_position",
+      "horizonNs": null,
+      "value": "-500",
+      "unit": "shares",
+      "exactness": "exact_fixed_point",
+      "unavailableReason": null
+    },
+    {
+      "metricKey": "max_drawdown",
+      "horizonNs": null,
+      "value": "3.70400",
+      "unit": "currency",
+      "exactness": "exact_fixed_point",
+      "unavailableReason": null
+    },
+    {
+      "metricKey": "fill_count",
+      "horizonNs": null,
+      "value": "1181",
+      "unit": "count",
+      "exactness": "exact_fixed_point",
+      "unavailableReason": null
+    },
+    {
+      "metricKey": "filled_shares",
+      "horizonNs": null,
+      "value": "62611",
+      "unit": "shares",
+      "exactness": "exact_fixed_point",
+      "unavailableReason": null
+    },
+    {
+      "metricKey": "maker_fill_count",
+      "horizonNs": null,
+      "value": "1181",
+      "unit": "count",
+      "exactness": "exact_fixed_point",
+      "unavailableReason": null
+    },
+    {
+      "metricKey": "taker_fill_count",
+      "horizonNs": null,
+      "value": "0",
+      "unit": "count",
+      "exactness": "exact_fixed_point",
+      "unavailableReason": null
+    },
+    {
+      "metricKey": "fill_rate",
+      "horizonNs": null,
+      "value": "0.996816",
+      "unit": "ratio",
+      "exactness": "derived_float",
+      "unavailableReason": null
+    },
+    {
+      "metricKey": "submitted_order_count",
+      "horizonNs": null,
+      "value": "607",
+      "unit": "count",
+      "exactness": "exact_fixed_point",
+      "unavailableReason": null
+    },
+    {
+      "metricKey": "new_order_rejected_count",
+      "horizonNs": null,
+      "value": "4",
+      "unit": "count",
+      "exactness": "exact_fixed_point",
+      "unavailableReason": null
+    },
+    {
+      "metricKey": "cancel_request_count",
+      "horizonNs": null,
+      "value": "0",
+      "unit": "count",
+      "exactness": "exact_fixed_point",
+      "unavailableReason": null
+    },
+    {
+      "metricKey": "cancel_rejected_count",
+      "horizonNs": null,
+      "value": "0",
+      "unit": "count",
+      "exactness": "exact_fixed_point",
+      "unavailableReason": null
+    },
+    {
+      "metricKey": "replace_request_count",
+      "horizonNs": null,
+      "value": "833",
+      "unit": "count",
+      "exactness": "exact_fixed_point",
+      "unavailableReason": null
+    },
+    {
+      "metricKey": "replace_rejected_count",
+      "horizonNs": null,
+      "value": "519",
+      "unit": "count",
+      "exactness": "exact_fixed_point",
+      "unavailableReason": null
+    },
+    {
+      "metricKey": "canceled_order_count",
+      "horizonNs": null,
+      "value": "0",
+      "unit": "count",
+      "exactness": "exact_fixed_point",
+      "unavailableReason": null
+    },
+    {
+      "metricKey": "cancel_race_lost_count",
+      "horizonNs": null,
+      "value": "0",
+      "unit": "count",
+      "exactness": "exact_fixed_point",
+      "unavailableReason": null
+    },
+    {
+      "metricKey": "spread_capture_total",
+      "horizonNs": null,
+      "value": "846.50000",
+      "unit": "currency",
+      "exactness": "exact_fixed_point",
+      "unavailableReason": null
+    },
+    {
+      "metricKey": "markout_total",
+      "horizonNs": "100000000",
+      "value": "762.26500",
+      "unit": "currency",
+      "exactness": "exact_fixed_point",
+      "unavailableReason": null
+    },
+    {
+      "metricKey": "markout_per_share",
+      "horizonNs": "100000000",
+      "value": "0.012175",
+      "unit": "currency_per_share",
+      "exactness": "derived_float",
+      "unavailableReason": null
+    },
+    {
+      "metricKey": "markout_eligible_shares",
+      "horizonNs": "100000000",
+      "value": "62611",
+      "unit": "shares",
+      "exactness": "exact_fixed_point",
+      "unavailableReason": null
+    },
+    {
+      "metricKey": "markout_eligible_fills",
+      "horizonNs": "100000000",
+      "value": "1181",
+      "unit": "count",
+      "exactness": "exact_fixed_point",
+      "unavailableReason": null
+    },
+    {
+      "metricKey": "markout_no_mark_fills",
+      "horizonNs": "100000000",
+      "value": "0",
+      "unit": "count",
+      "exactness": "exact_fixed_point",
+      "unavailableReason": null
+    },
+    {
+      "metricKey": "markout_censored_fills",
+      "horizonNs": "100000000",
+      "value": "0",
+      "unit": "count",
+      "exactness": "exact_fixed_point",
+      "unavailableReason": null
+    },
+    {
+      "metricKey": "markout_total",
+      "horizonNs": "1000000000",
+      "value": "782.79000",
+      "unit": "currency",
+      "exactness": "exact_fixed_point",
+      "unavailableReason": null
+    },
+    {
+      "metricKey": "markout_per_share",
+      "horizonNs": "1000000000",
+      "value": "0.012691",
+      "unit": "currency_per_share",
+      "exactness": "derived_float",
+      "unavailableReason": null
+    },
+    {
+      "metricKey": "markout_eligible_shares",
+      "horizonNs": "1000000000",
+      "value": "61682",
+      "unit": "shares",
+      "exactness": "exact_fixed_point",
+      "unavailableReason": null
+    },
+    {
+      "metricKey": "markout_eligible_fills",
+      "horizonNs": "1000000000",
+      "value": "1166",
+      "unit": "count",
+      "exactness": "exact_fixed_point",
+      "unavailableReason": null
+    },
+    {
+      "metricKey": "markout_no_mark_fills",
+      "horizonNs": "1000000000",
+      "value": "0",
+      "unit": "count",
+      "exactness": "exact_fixed_point",
+      "unavailableReason": null
+    },
+    {
+      "metricKey": "markout_censored_fills",
+      "horizonNs": "1000000000",
+      "value": "15",
+      "unit": "count",
+      "exactness": "exact_fixed_point",
+      "unavailableReason": null
+    },
+    {
+      "metricKey": "markout_total",
+      "horizonNs": "5000000000",
+      "value": "747.88500",
+      "unit": "currency",
+      "exactness": "exact_fixed_point",
+      "unavailableReason": null
+    },
+    {
+      "metricKey": "markout_per_share",
+      "horizonNs": "5000000000",
+      "value": "0.013032",
+      "unit": "currency_per_share",
+      "exactness": "derived_float",
+      "unavailableReason": null
+    },
+    {
+      "metricKey": "markout_eligible_shares",
+      "horizonNs": "5000000000",
+      "value": "57390",
+      "unit": "shares",
+      "exactness": "exact_fixed_point",
+      "unavailableReason": null
+    },
+    {
+      "metricKey": "markout_eligible_fills",
+      "horizonNs": "5000000000",
+      "value": "1089",
+      "unit": "count",
+      "exactness": "exact_fixed_point",
+      "unavailableReason": null
+    },
+    {
+      "metricKey": "markout_no_mark_fills",
+      "horizonNs": "5000000000",
+      "value": "0",
+      "unit": "count",
+      "exactness": "exact_fixed_point",
+      "unavailableReason": null
+    },
+    {
+      "metricKey": "markout_censored_fills",
+      "horizonNs": "5000000000",
+      "value": "92",
+      "unit": "count",
+      "exactness": "exact_fixed_point",
+      "unavailableReason": null
+    },
+    {
+      "metricKey": "quote_exposure_time",
+      "horizonNs": null,
+      "value": "51772305328",
+      "unit": "nanoseconds",
+      "exactness": "exact_fixed_point",
+      "unavailableReason": null
+    },
+    {
+      "metricKey": "completion_ratio",
+      "horizonNs": null,
+      "value": null,
+      "unit": "ratio",
+      "exactness": "derived_float",
+      "unavailableReason": "not_a_parent_order_strategy"
+    },
+    {
+      "metricKey": "residual_qty",
+      "horizonNs": null,
+      "value": null,
+      "unit": "shares",
+      "exactness": "exact_fixed_point",
+      "unavailableReason": "not_a_parent_order_strategy"
+    },
+    {
+      "metricKey": "decision_slippage_total",
+      "horizonNs": null,
+      "value": null,
+      "unit": "currency",
+      "exactness": "exact_fixed_point",
+      "unavailableReason": "not_a_parent_order_strategy"
+    },
+    {
+      "metricKey": "decision_slippage_per_share",
+      "horizonNs": null,
+      "value": null,
+      "unit": "currency_per_share",
+      "exactness": "derived_float",
+      "unavailableReason": "not_a_parent_order_strategy"
+    },
+    {
+      "metricKey": "implementation_shortfall_total",
+      "horizonNs": null,
+      "value": null,
+      "unit": "currency",
+      "exactness": "exact_fixed_point",
+      "unavailableReason": "not_a_parent_order_strategy"
+    },
+    {
+      "metricKey": "implementation_shortfall_per_share",
+      "horizonNs": null,
+      "value": null,
+      "unit": "currency_per_share",
+      "exactness": "derived_float",
+      "unavailableReason": "not_a_parent_order_strategy"
+    },
+    {
+      "metricKey": "participation_rate",
+      "horizonNs": null,
+      "value": null,
+      "unit": "ratio",
+      "exactness": "derived_float",
+      "unavailableReason": "not_a_parent_order_strategy"
+    }
+  ]
+}

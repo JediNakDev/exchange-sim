@@ -41,7 +41,7 @@ def main():
     data = args.session / 'data'
     api_url = f'http://127.0.0.1:{args.api_port}'
     frontend_url = f'http://127.0.0.1:{args.frontend_port}'
-    receipt = {'state': 'starting', 'release': str(args.release), 'metadata': {key: metadata[key] for key in ['api_revision', 'web_revision', 'web_build_id', 'node_version']},
+    receipt = {'state': 'starting', 'supervisorPid': os.getpid(), 'release': str(args.release), 'metadata': {key: metadata[key] for key in ['api_revision', 'web_revision', 'web_build_id', 'node_version']},
                'participant_url': frontend_url + '/experiments', 'api_url': api_url, 'data': str(data),
                'started_at': datetime.now(timezone.utc).isoformat(), 'human_result': 'NOT RUN'}
     receipt_path = args.session / 'session.json'
@@ -69,9 +69,11 @@ def main():
                 if any(child.poll() is not None for child in children):
                     raise RuntimeError('owned service exited; inspect this session\'s api.log and frontend.log')
                 try:
-                    with opener.open(frontend_url + '/experiments', timeout=1) as response:
-                        if response.status == 200:
-                            break
+                    for url in [api_url + '/v1/service', frontend_url + '/experiments']:
+                        with opener.open(url, timeout=1) as response:
+                            if response.status != 200:
+                                raise OSError('service is not ready')
+                    break
                 except OSError:
                     pass
                 if time.monotonic() >= deadline:

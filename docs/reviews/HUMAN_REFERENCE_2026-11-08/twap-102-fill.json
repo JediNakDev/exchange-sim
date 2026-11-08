@@ -1,0 +1,68 @@
+{
+  "runId": "run_82844571d108337b",
+  "items": [
+    {
+      "matchId": "62",
+      "eventPosition": "374",
+      "simulationTimeNs": "1000123569",
+      "orderId": "92",
+      "clientOrderId": "1",
+      "side": "buy",
+      "price": "100.0300",
+      "quantity": "16",
+      "liquidityRole": "taker",
+      "counterpartyActor": "background_market_maker",
+      "feePerShare": "0.0030",
+      "midAtFill": "100.02000",
+      "spreadCapturePerShare": "-0.01000",
+      "queueAheadAtRestShares": null,
+      "queueEvidenceSource": "exact_simulated_truth",
+      "relatedEvents": {
+        "strategySubmitEventPosition": "350",
+        "exchangeArrivalEventPosition": "372",
+        "acceptedEventPosition": "373",
+        "acknowledgmentDeliveredEventPosition": "376",
+        "fillEventPosition": "374",
+        "fillReportDeliveredEventPosition": "377",
+        "aggressorArrivalEventPosition": null
+      },
+      "ledgerEffect": {
+        "positionBeforeShares": "0",
+        "positionAfterShares": "16",
+        "cashBefore": "1000000.0000",
+        "cashAfter": "998399.4720",
+        "fee": "0.0480",
+        "realizedPnlChange": "0.0000",
+        "cumulativeRealizedPnlAfter": "0.0000",
+        "cumulativeFeesAfter": "0.0480"
+      },
+      "markouts": [
+        {
+          "horizonNs": "100000000",
+          "status": "available",
+          "referenceMidPrice": "100.02000",
+          "markoutPerShare": "-0.01000",
+          "markoutTotal": "-0.16000"
+        },
+        {
+          "horizonNs": "1000000000",
+          "status": "available",
+          "referenceMidPrice": "100.00000",
+          "markoutPerShare": "-0.03000",
+          "markoutTotal": "-0.48000"
+        },
+        {
+          "horizonNs": "5000000000",
+          "status": "available",
+          "referenceMidPrice": "100.00000",
+          "markoutPerShare": "-0.03000",
+          "markoutTotal": "-0.48000"
+        }
+      ]
+    }
+  ],
+  "page": {
+    "nextCursor": "c1_609f86a9",
+    "limit": 1
+  }
+}
