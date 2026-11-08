@@ -785,7 +785,12 @@ No existing artifact fields are removed or renamed. `lifecycle.jsonl` arrival
 queue values now implement the pre-application contract above. Large doubled
 monetary values format exactly across the int64 range. Comparison JSON adds
 `reproduction_checked` and `excluded_runs[].reason` / `.detail`; reasons are
-`not_completed`, `replay_not_verified`, or `not_reproduced`.
+`not_completed`, `replay_not_verified`, `not_reproduced`,
+`execution_window_censored`, or `execution_window_evidence_unavailable`.
+Parent-order execution is eligible only when recorded final simulation time
+reaches the configured start plus execution-duration deadline. A fully observed
+window may still leave residual parent shares and remains eligible. Missing
+legacy window metadata is excluded explicitly rather than assumed complete.
 
 The C++ adapter should call `check_reproduction` from `run_verification.hpp`
 on both loaded sets before `compare_run_sets`, matching the CLI default.

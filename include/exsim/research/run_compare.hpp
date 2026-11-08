@@ -37,6 +37,8 @@ struct LoadedRun {
     std::string market_world;
     std::string experiment_name;
     std::string strategy_name;
+    // Empty for non-execution; observed/censored/unavailable for parent windows.
+    std::string execution_observation_status;
     std::string config_hash;
     std::vector<std::pair<std::string, std::optional<double>>> metrics;
     std::vector<std::pair<std::string, std::string>> config_entries;
@@ -78,7 +80,8 @@ struct ExcludedRun {
     std::uint64_t master_seed = 0;
     std::string run_id;
     std::string state;
-    // "not_completed", "replay_not_verified" or "not_reproduced".
+    // State/replay/reproduction failures, execution_window_censored or
+    // execution_window_evidence_unavailable.
     std::string reason;
     std::string detail;
 };

@@ -421,13 +421,23 @@ TEST_CASE(execution_api, zero_interval_reports_exact_editable_path_and_units) {
 
 TEST_CASE(execution_api, comparison_excludes_censor_on_both_sides_and_pins_attempts) {
     for (const bool censor_baseline : {true, false}) {
-        ExecutionService service(fresh_directory(censor_baseline ? "censor_a" : "censor_b"));
+        const auto directory = fresh_directory(censor_baseline ? "censor_a" : "censor_b");
+        ExecutionService service(directory);
         const auto full = request_body(true, "buy", "900"); // ordinary full-window partial completion
         auto censored = parse_json(full);
         set(field(field(censored, "config"), "strategy"), "executionDurationNs", R"("10000000000")");
         const auto a = create(service, censor_baseline ? serialize_json_value(censored) : full);
         const auto b = create(service, censor_baseline ? full : serialize_json_value(censored));
-        (void)run(service, a, "1"); (void)run(service, b, "1"); service.drain();
+        const auto run_a = run(service, a, "1"), run_b = run(service, b, "1"); service.drain();
+        auto native_a = exsim::research::load_run_set(directory / "runs" / run_a / "runner");
+        auto native_b = exsim::research::load_run_set(directory / "runs" / run_b / "runner");
+        exsim::research::check_reproduction(native_a); exsim::research::check_reproduction(native_b);
+        const auto cli_comparison = exsim::research::compare_run_sets(native_a, native_b);
+        CHECK(cli_comparison.paired_seeds.empty());
+        REQUIRE_EQ(cli_comparison.excluded_runs.size(), 1u);
+        CHECK_EQ(cli_comparison.excluded_runs[0].reason, std::string("execution_window_censored"));
+        const auto& native_full = censor_baseline ? native_b : native_a;
+        CHECK_EQ(exsim::research::compare_run_sets(native_full, native_full).paired_seeds.size(), 1u);
         const auto query = "/v1/comparisons?baselineExperimentId=" + a + "&candidateExperimentId=" + b;
         const auto reply = service.send("GET", query); REQUIRE_EQ(reply.status, 200);
         CHECK(!reply.body.find("comparable")->boolean);
@@ -743,6 +753,16 @@ TEST_CASE(execution_api, cancelled_decision_trace_is_recorded_and_durable_withou
     }
     ExecutionService restarted(directory);const auto trace=restarted.send("GET","/v1/runs/"+id+"/execution-trace?limit=1000");
     REQUIRE_EQ(trace.status,200);CHECK_EQ(serialize_json_value(trace.body),recorded);
+    const auto path = directory / "runs" / id / "runner" / exsim::research::kExecutionTraceFileName;
+    const auto original = exsim::research::read_text_file(path);
+    { std::ofstream corrupt(path, std::ios::app); corrupt << "{invalid-json}\n"; }
+    for (const auto limit : {1, 1000}) {
+        const auto rejected = restarted.send("GET", "/v1/runs/" + id + "/execution-trace?limit=" + std::to_string(limit));
+        CHECK_EQ(rejected.status, 409);
+        CHECK_EQ(text(*rejected.body.find("error"), "code"), std::string("evidence_unavailable"));
+    }
+    { std::ofstream restored(path); restored << original; }
+    CHECK_EQ(restarted.send("GET", "/v1/runs/" + id + "/execution-trace?limit=1").status, 200);
 }
 
 TEST_CASE(execution_api, largest_selection_token_fits_native_request_bound_and_roundtrips) {

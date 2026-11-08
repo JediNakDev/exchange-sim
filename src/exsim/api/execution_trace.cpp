@@ -4,6 +4,7 @@
 #include "exsim/research/run_artifacts.hpp"
 #include "exsim/research/json.hpp"
 #include <fstream>
+#include <limits>
 namespace exsim::api {
 std::string ResearchRun::render_execution_trace_json(const PageQuery& page) const {
     if (!(parameters_.config->runner_config.strategy.kind == research::StrategyKind::TwapExecutor || parameters_.config->runner_config.strategy.kind == research::StrategyKind::ImmediateSweepExecutor)) throw ApiFailure(409, "not_execution_strategy", "Execution trace is available for TWAP and sweep only");
@@ -26,28 +27,36 @@ std::string ResearchRun::render_execution_trace_json(const PageQuery& page) cons
         char line[8192];
         while (stream.getline(line, sizeof line)) {
             const auto index = inputs->decision_count++;
-            if (index < page.start_index || index - page.start_index >= page.limit) continue;
             try {
                 const auto native = research::parse_json(line);
                 const auto number = [&](std::string_view key) {
                     const auto* value = native.find(key); std::uint64_t parsed = 0;
-                    if (!value || !parse_unsigned_integer_text(value->text, parsed)) throw std::runtime_error("invalid trace integer");
+                    if (!value || value->kind != research::JsonValue::Kind::String || !parse_unsigned_integer_text(value->text, parsed)) throw std::runtime_error("invalid trace integer");
                     return parsed;
                 };
                 const auto signed_number = [&](std::string_view key) {
                     const auto* value = native.find(key); std::int64_t parsed = 0;
-                    if (!value || !parse_signed_integer_text(value->text, parsed)) throw std::runtime_error("invalid trace integer");
+                    if (!value || value->kind != research::JsonValue::Kind::String || !parse_signed_integer_text(value->text, parsed)) throw std::runtime_error("invalid trace integer");
                     return parsed;
                 };
+                const auto quantity = [&](std::string_view key) {
+                    const auto value = number(key);
+                    if (value > std::numeric_limits<Quantity>::max()) throw std::runtime_error("trace quantity out of range");
+                    return static_cast<Quantity>(value);
+                };
+                const auto* trace_kind = native.find("kind");
+                const auto* has_touch = native.find("has_touch");
+                if (!trace_kind || trace_kind->kind != research::JsonValue::Kind::String || (trace_kind->text != "decision" && trace_kind->text != "child_report") ||
+                    !has_touch || has_touch->kind != research::JsonValue::Kind::Boolean) throw std::runtime_error("invalid trace kind or touch flag");
                 research::ExecutionDecision row;
                 row.time=number("time_ns"); row.source_time=number("source_time_ns"); row.source_sequence=number("source_sequence");
                 row.target=number("target_qty"); row.filled=number("known_filled_qty"); row.requested=number("requested_qty");
-                row.headroom=signed_number("headroom"); row.child_cap=static_cast<Quantity>(number("child_cap"));
-                row.submitted=static_cast<Quantity>(number("submitted_qty")); row.outstanding=static_cast<Quantity>(number("outstanding_qty"));
+                row.headroom=signed_number("headroom"); row.child_cap=quantity("child_cap");
+                row.submitted=quantity("submitted_qty"); row.outstanding=quantity("outstanding_qty");
                 row.child=number("child_client_order_id"); row.touch=signed_number("touch");row.limit=signed_number("limit");
-                row.has_touch=native.find("has_touch") && native.find("has_touch")->boolean;
-                row.report=native.find("kind") && native.find("kind")->text=="child_report";
-                const auto* reason=native.find("reason"); if (!reason) throw std::runtime_error("missing trace reason");
+                row.has_touch=has_touch->boolean;
+                row.report=trace_kind->text=="child_report";
+                const auto* reason=native.find("reason"); if (!reason || reason->kind != research::JsonValue::Kind::String) throw std::runtime_error("missing trace reason");
                 bool recognized=false;
                 for (const auto value : {"submitted", "child_in_flight", "target_satisfied", "no_delivered_touch", "no_headroom_or_lot"})
                     if (reason->text==value) {row.reason=value; recognized=true;}
@@ -61,15 +70,21 @@ std::string ResearchRun::render_execution_trace_json(const PageQuery& page) cons
                 }
                 if(!recognized) throw std::runtime_error("unknown trace reason");
                 row.result.exchange_time=number("exchange_time_ns");row.result.order_id=number("order_id");row.result.match_id=number("match_id");
-                row.result.qty=static_cast<Quantity>(number("report_qty"));row.result.leaves_qty=static_cast<Quantity>(number("report_leaves_qty"));row.result.cum_qty=static_cast<Quantity>(number("report_cum_qty"));
+                row.result.qty=quantity("report_qty");row.result.leaves_qty=quantity("report_leaves_qty");row.result.cum_qty=quantity("report_cum_qty");
                 // Enum identity is persisted by name, not raw object bytes.
+                bool valid_reject = false, valid_cancel = false;
+                const auto* reject_reason = native.find("reject_reason");
+                const auto* cancel_reason = native.find("cancel_reason");
+                if (!reject_reason || reject_reason->kind != research::JsonValue::Kind::String || !cancel_reason || cancel_reason->kind != research::JsonValue::Kind::String)
+                    throw std::runtime_error("missing trace report reasons");
                 for(unsigned value=0;value<=static_cast<unsigned>(RejectReason::UnknownOrder);++value) {
-                    const auto kind=static_cast<RejectReason>(value);if(native.find("reject_reason") && native.find("reject_reason")->text==to_string(kind)) row.result.reject_reason=kind;
+                    const auto kind=static_cast<RejectReason>(value);if(reject_reason->text==to_string(kind)) { row.result.reject_reason=kind; valid_reject=true; }
                 }
                 for(unsigned value=0;value<=static_cast<unsigned>(CancelReason::EndOfDay);++value) {
-                    const auto kind=static_cast<CancelReason>(value);if(native.find("cancel_reason") && native.find("cancel_reason")->text==to_string(kind)) row.result.cancel_reason=kind;
+                    const auto kind=static_cast<CancelReason>(value);if(cancel_reason->text==to_string(kind)) { row.result.cancel_reason=kind; valid_cancel=true; }
                 }
-                inputs->decisions.push_back(row);
+                if (!valid_reject || !valid_cancel) throw std::runtime_error("unknown trace report reason");
+                if (index >= page.start_index && index - page.start_index < page.limit) inputs->decisions.push_back(row);
             } catch (const std::exception&) { throw ApiFailure(409,"evidence_unavailable","Persisted execution trace is invalid"); }
         }
         if (!stream.eof()) throw ApiFailure(409,"evidence_unavailable","Persisted execution trace exceeds its line bound or cannot be read");

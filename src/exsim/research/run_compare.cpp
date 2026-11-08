@@ -8,6 +8,7 @@
 #include <cmath>
 #include <cstdio>
 #include <map>
+#include <limits>
 #include <set>
 
 namespace exsim::research {
@@ -78,6 +79,19 @@ LoadedRun load_run(const std::filesystem::path& directory) {
 
     const JsonValue& config = require_member(manifest, "config", manifest_path);
     const JsonValue& entries = require_member(config, "entries", manifest_path);
+    const auto* strategy_kind = entries.find("strategy.kind");
+    if (strategy_kind && (strategy_kind->text == "twap_executor" || strategy_kind->text == "immediate_sweep_executor")) {
+        run.execution_observation_status = "unavailable";
+        if (entries.find("strategy.start_ns") && entries.find("strategy.execution_duration_ns")) {
+            const auto start = require_integer_text(entries, "strategy.start_ns", manifest_path);
+            const auto duration = require_integer_text(entries, "strategy.execution_duration_ns", manifest_path);
+            if (duration > std::numeric_limits<std::uint64_t>::max() - start)
+                throw ArtifactError(manifest_path.string() + ": execution window overflows");
+            const auto& simulation = require_member(summary, "simulation", summary_path);
+            const auto observed = require_integer_text(simulation, "final_time_ns", summary_path);
+            run.execution_observation_status = observed >= start + duration ? "window_observed" : "censored_run_end";
+        }
+    }
     for (const auto& [key, value] : entries.members) {
         if (value.kind != JsonValue::Kind::String) throw ArtifactError(manifest_path.string() + ": config entry is not a string");
         run.config_entries.emplace_back(key, value.text);
@@ -186,6 +200,12 @@ ComparisonReport compare_run_sets(RunSet a, RunSet b) {
         } else if (run.reproduction == ReproductionCheck::NotReproduced) {
             excluded.reason = "not_reproduced";
             excluded.detail = run.reproduction_detail;
+        } else if (run.execution_observation_status == "censored_run_end") {
+            excluded.reason = "execution_window_censored";
+            excluded.detail = "execution observation ended before the parent window deadline";
+        } else if (run.execution_observation_status == "unavailable") {
+            excluded.reason = "execution_window_evidence_unavailable";
+            excluded.detail = "recorded parent observation window cannot be established";
         } else {
             if (run.reproduction != ReproductionCheck::Reproduced) report.reproduction_checked = false;
             admitted[run.master_seed] = &run;
