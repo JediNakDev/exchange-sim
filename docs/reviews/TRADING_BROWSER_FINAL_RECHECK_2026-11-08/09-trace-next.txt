@@ -1,0 +1,417 @@
+Skip to research content
+exsim.
+
+Strategy research, explained.
+
+Experiments
+Compare
+Connections
+Interactive synthetic
+
+Controlled markets.
+Reproducible experiments.
+
+Build an experiment
+Simulated time
+Research
+Run analysis
+Research mode
+Single venue
+Seed 101
+completed
+run_d2a1cf745ec6f08a / exp_b00b5366fa8efaf9, deterministic research, interactive synthetic
+Inspect events
+TRADING-RECHECK pagedsweep
+immediate sweep execution; config aa32464a7c08
+Events processed 22,606
+Simulated time 60.000 s of 60 s
+summary final at event 22606
+
+Run complete. Residual position 500 shares, residual open orders 0.
+
+Completion and execution cost
+
+final summary at event 22606
+
+Parent filled / requested (shares)
+500 / 500
+Parent completion (ratio)
+1.000000
+Parent residual quantity (shares)
+0
+Executed cost including fees (USD)
+1.74000
+Decision slippage, executed quantity (USD)
+0.24000
+
+Positive signed costs are worse for buys and sells. Shortfall includes net fees; slippage excludes fees. Both cover filled quantity only. Residual opportunity cost is unavailable, so lower cost with lower completion is not an unconditional improvement.
+
+Next decision
+Explain fills and queue events
+Create variant
+Compare against this experiment
+Native execution trace
+Schedule decisions and delivered reports explaining parent-order residuals.
+Refresh execution trace
+
+One page per request, up to 100 records. No automatic refresh. Refresh replaces this page; previous evidence is hidden until the request succeeds.
+
+Native reproduction and independent replay verified. native_reproduction_and_replay_verified
+
+Run
+run_d2a1cf745ec6f08a
+Run state
+completed
+Master seed
+101
+Parent quantity (shares)
+500
+Start (ns)
+1000000000
+Final target (shares)
+500
+Final target due (ns)
+1000000000
+Observation deadline (ns)
+31000000000
+Observation status
+window_observed
+Total trace records in run
+243
+
+Full execution window observed. Residual shares can remain despite a completed simulation. The final target is due at the scheduled time above; the deadline is not an extra final retry. TWAP does not retry after its final scheduled slice.
+
+Current page only: 100 exact records (58 decisions, 42 delivered child reports) out of 243 total. Tables and chart do not imply coverage of the entire run. Each decision is a scheduled TWAP callback or sweep retry on delivered data. Target due, known fills, outstanding reservation and residual are strategy-known shares at that callback, not final exchange fills. Requested shares are the positive target deficit before cap/lot rounding; headroom is worst-case same-side position capacity. Visible touch and source time refer only to delivered market data.
+
+Execution decisions on this page (shares)
+Current-page decision callbacks only, in simulated time; no interpolation to the final target or observation deadline. Child reports are excluded. Plot positions are approximate; sampled values are available below.
+Known filled (shares)
+Cumulative target due (shares)
+1.400054345s
+1.550054345s
+1.700054345s
+1.850054345s
+1.989696231s
+170
+255
+340
+425
+510
+Read sampled values for Execution decisions on this page (shares)
+Index	Callback (ns)	Target due (shares)	Known filled	Parent residual	Outstanding	Requested	Child cap	Position headroom	Submitted	Reason / skip	Client ID	Source sequence	Source time (ns)	Visible touch (USD)	Limit (USD)
+101	1400054345	500	220	280	0	280	10	280	10	submitted	23	116	1400000000	99.9900	100.0400
+102	1400062594	500	220	280	10	280	10	270	0	child_in_flight	23	117	1400000000	99.9900	100.0400
+103	1400062594	500	220	280	10	280	10	270	0	child_in_flight	23	118	1400000000	99.9900	100.0400
+104	1400232399	500	220	280	10	280	10	270	0	child_in_flight	23	119	1400177695	99.9900	100.0400
+107	1418933066	500	230	270	0	270	10	270	10	submitted	24	120	1418869107	100.0000	100.0500
+108	1419111417	500	230	270	10	270	10	260	0	child_in_flight	24	121	1419050669	100.0000	100.0500
+111	1430103144	500	240	260	0	260	10	260	10	submitted	25	122	1430040657	100.0000	100.0500
+112	1430281546	500	240	260	10	260	10	250	0	child_in_flight	25	123	1430216583	100.0000	100.0500
+115	1430408567	500	250	250	0	250	10	250	10	submitted	26	124	1430342094	100.0000	100.0500
+116	1430590448	500	250	250	10	250	10	240	0	child_in_flight	26	125	1430528001	100.0100	100.0600
+120	1452241050	500	260	240	0	240	10	240	10	submitted	27	126	1452182551	100.0100	100.0600
+121	1452419817	500	260	240	10	240	10	230	0	child_in_flight	27	127	1452350295	100.0100	100.0600
+124	1464121116	500	270	230	0	230	10	230	0	no_delivered_touch	Unavailable	128	1464068168	Unavailable	Unavailable
+125	1468555609	500	270	230	0	230	10	230	0	no_delivered_touch	Unavailable	129	1468494388	Unavailable	Unavailable
+126	1500063732	500	270	230	0	230	10	230	0	no_delivered_touch	Unavailable	130	1500000000	Unavailable	Unavailable
+127	1500063732	500	270	230	0	230	10	230	10	submitted	28	131	1500000000	99.9900	100.0400
+128	1500244691	500	270	230	10	230	10	220	0	child_in_flight	28	132	1500178388	99.9900	100.0400
+131	1524259562	500	280	220	0	220	10	220	10	submitted	29	133	1524198081	100.0000	100.0500
+132	1524433872	500	280	220	10	220	10	210	0	child_in_flight	29	134	1524381535	100.0000	100.0500
+135	1526739714	500	290	210	0	210	10	210	0	no_delivered_touch	Unavailable	135	1526670390	Unavailable	Unavailable
+136	1600051724	500	290	210	0	210	10	210	0	no_delivered_touch	Unavailable	136	1600000000	Unavailable	Unavailable
+137	1600068053	500	290	210	0	210	10	210	10	submitted	30	137	1600000000	99.9900	100.0400
+138	1600232264	500	290	210	10	210	10	200	0	child_in_flight	30	138	1600175099	99.9900	100.0400
+141	1612167808	500	300	200	0	200	10	200	10	submitted	31	139	1612112513	99.9900	100.0400
+142	1612353803	500	300	200	10	200	10	190	0	child_in_flight	31	140	1612287768	99.9900	100.0400
+145	1654915165	500	310	190	0	190	10	190	10	submitted	32	141	1654859956	99.9900	100.0400
+146	1655092952	500	310	190	10	190	10	180	0	child_in_flight	32	142	1655023922	99.9900	100.0400
+149	1688726973	500	320	180	0	180	10	180	10	submitted	33	143	1688665567	99.9900	100.0400
+150	1688898372	500	320	180	10	180	10	170	0	child_in_flight	33	144	1688847933	99.9900	100.0400
+153	1700064007	500	330	170	0	170	10	170	10	submitted	34	145	1700000000	99.9900	100.0400
+154	1700064007	500	330	170	10	170	10	160	0	child_in_flight	34	146	1700000000	99.9900	100.0400
+155	1700251326	500	330	170	10	170	10	160	0	child_in_flight	34	147	1700188497	99.9900	100.0400
+158	1708330755	500	340	160	0	160	10	160	10	submitted	35	148	1708264629	99.9900	100.0400
+159	1708510933	500	340	160	10	160	10	150	0	child_in_flight	35	149	1708448644	99.9900	100.0400
+162	1772138398	500	350	150	0	150	10	150	10	submitted	36	150	1772083823	99.9900	100.0400
+163	1772309675	500	350	150	10	150	10	140	0	child_in_flight	36	151	1772250211	99.9900	100.0400
+166	1800060953	500	360	140	0	140	10	140	10	submitted	37	152	1800000000	99.9900	100.0400
+167	1800060953	500	360	140	10	140	10	130	0	child_in_flight	37	153	1800000000	99.9900	100.0400
+168	1800069576	500	360	140	10	140	10	130	0	child_in_flight	37	154	1800000000	99.9800	100.0300
+169	1800234932	500	360	140	10	140	10	130	0	child_in_flight	37	155	1800184814	99.9800	100.0300
+172	1815587157	500	370	130	0	130	10	130	10	submitted	38	156	1815518468	99.9800	100.0300
+173	1815761840	500	370	130	10	130	10	120	0	child_in_flight	38	157	1815702686	99.9800	100.0300
+176	1816734450	500	380	120	0	120	10	120	10	submitted	39	158	1816675806	100.0000	100.0500
+177	1816912883	500	380	120	10	120	10	110	0	child_in_flight	39	159	1816843836	100.0000	100.0500
+180	1819283063	500	390	110	0	110	10	110	0	no_delivered_touch	Unavailable	160	1819214060	Unavailable	Unavailable
+181	1830703552	500	390	110	0	110	10	110	0	no_delivered_touch	Unavailable	161	1830643549	Unavailable	Unavailable
+182	1841554162	500	390	110	0	110	10	110	0	no_delivered_touch	Unavailable	162	1841493545	Unavailable	Unavailable
+183	1853729338	500	390	110	0	110	10	110	0	no_delivered_touch	Unavailable	163	1853664291	Unavailable	Unavailable
+184	1863465489	500	390	110	0	110	10	110	0	no_delivered_touch	Unavailable	164	1863397652	Unavailable	Unavailable
+185	1900054606	500	390	110	0	110	10	110	0	no_delivered_touch	Unavailable	165	1900000000	Unavailable	Unavailable
+186	1900054606	500	390	110	0	110	10	110	10	submitted	40	166	1900000000	99.9800	100.0300
+187	1900230470	500	390	110	10	110	10	100	0	child_in_flight	40	167	1900169899	99.9800	100.0300
+190	1918686841	500	400	100	0	100	10	100	10	submitted	41	168	1918619952	99.9800	100.0300
+191	1918789258	500	400	100	10	100	10	90	0	child_in_flight	41	169	1918723795	99.9800	100.0300
+192	1918863530	500	400	100	10	100	10	90	0	child_in_flight	41	170	1918804245	99.9800	100.0300
+195	1962279822	500	410	90	0	90	10	90	10	submitted	42	171	1962211132	99.9800	100.0300
+196	1962452525	500	410	90	10	90	10	80	0	child_in_flight	42	172	1962401816	99.9800	100.0300
+199	1989696231	500	420	80	0	80	10	80	10	submitted	43	173	1989626711	99.9800	100.0300
+Delivered child reports on this page
+
+Delivery time differs from exchange time. Request-only zero/null fields on these reports are unused and excluded from the decision chart. Decision rows identify client ID and callback time; reports link to the exchange lifecycle when an order ID is available.
+
+Index	Delivered (ns)	Client ID	Report kind	Exchange (ns)	Exchange order / lifecycle	Match ID	Quantity	Leaves	Cumulative	Reject reason	Cancel reason	Trace reason
+100	1320782637	22	fill	1320671167	152	110	10	0	10	NONE	USER_REQUESTED	fill
+105	1400285521	23	accepted	1400177695	156	0	10	10	0	NONE	USER_REQUESTED	accepted
+106	1400285521	23	fill	1400177695	156	111	10	0	10	NONE	USER_REQUESTED	fill
+109	1419154093	24	accepted	1419050669	158	0	10	10	0	NONE	USER_REQUESTED	accepted
+110	1419163973	24	fill	1419050669	158	114	10	0	10	NONE	USER_REQUESTED	fill
+113	1430325585	25	accepted	1430216583	160	0	10	10	0	NONE	USER_REQUESTED	accepted
+114	1430325585	25	fill	1430216583	160	117	10	0	10	NONE	USER_REQUESTED	fill
+117	1430635076	26	accepted	1430528001	162	0	10	10	0	NONE	USER_REQUESTED	accepted
+118	1430635076	26	fill	1430528001	162	119	3	7	3	NONE	USER_REQUESTED	fill
+119	1430639527	26	fill	1430528001	162	120	7	0	10	NONE	USER_REQUESTED	fill
+122	1452460084	27	accepted	1452350295	164	0	10	10	0	NONE	USER_REQUESTED	accepted
+123	1452460084	27	fill	1452350295	164	121	10	0	10	NONE	USER_REQUESTED	fill
+129	1500290563	28	accepted	1500178388	172	0	10	10	0	NONE	USER_REQUESTED	accepted
+130	1500293240	28	fill	1500178388	172	125	10	0	10	NONE	USER_REQUESTED	fill
+133	1524481871	29	accepted	1524381535	174	0	10	10	0	NONE	USER_REQUESTED	accepted
+134	1524496851	29	fill	1524381535	174	128	10	0	10	NONE	USER_REQUESTED	fill
+139	1600277565	30	accepted	1600175099	181	0	10	10	0	NONE	USER_REQUESTED	accepted
+140	1600289911	30	fill	1600175099	181	131	10	0	10	NONE	USER_REQUESTED	fill
+143	1612387896	31	accepted	1612287768	183	0	10	10	0	NONE	USER_REQUESTED	accepted
+144	1612405673	31	fill	1612287768	183	134	10	0	10	NONE	USER_REQUESTED	fill
+147	1655141347	32	accepted	1655023922	185	0	10	10	0	NONE	USER_REQUESTED	accepted
+148	1655141347	32	fill	1655023922	185	135	10	0	10	NONE	USER_REQUESTED	fill
+151	1688948270	33	accepted	1688847933	187	0	10	10	0	NONE	USER_REQUESTED	accepted
+152	1688952030	33	fill	1688847933	187	137	10	0	10	NONE	USER_REQUESTED	fill
+156	1700292543	34	accepted	1700188497	192	0	10	10	0	NONE	USER_REQUESTED	accepted
+157	1700298371	34	fill	1700188497	192	139	10	0	10	NONE	USER_REQUESTED	fill
+160	1708565870	35	accepted	1708448644	194	0	10	10	0	NONE	USER_REQUESTED	accepted
+161	1708568039	35	fill	1708448644	194	142	10	0	10	NONE	USER_REQUESTED	fill
+164	1772356324	36	accepted	1772250211	196	0	10	10	0	NONE	USER_REQUESTED	accepted
+165	1772367139	36	fill	1772250211	196	145	10	0	10	NONE	USER_REQUESTED	fill
+170	1800295569	37	accepted	1800184814	203	0	10	10	0	NONE	USER_REQUESTED	accepted
+171	1800295569	37	fill	1800184814	203	146	10	0	10	NONE	USER_REQUESTED	fill
+174	1815821947	38	accepted	1815702686	205	0	10	10	0	NONE	USER_REQUESTED	accepted
+175	1815821947	38	fill	1815702686	205	148	10	0	10	NONE	USER_REQUESTED	fill
+178	1816961767	39	accepted	1816843836	207	0	10	10	0	NONE	USER_REQUESTED	accepted
+179	1816962177	39	fill	1816843836	207	152	10	0	10	NONE	USER_REQUESTED	fill
+188	1900271250	40	accepted	1900169899	224	0	10	10	0	NONE	USER_REQUESTED	accepted
+189	1900284576	40	fill	1900169899	224	160	10	0	10	NONE	USER_REQUESTED	fill
+193	1918920667	41	accepted	1918804245	227	0	10	10	0	NONE	USER_REQUESTED	accepted
+194	1918920667	41	fill	1918804245	227	165	10	0	10	NONE	USER_REQUESTED	fill
+197	1962502031	42	accepted	1962401816	229	0	10	10	0	NONE	USER_REQUESTED	accepted
+198	1962521304	42	fill	1962401816	229	167	10	0	10	NONE	USER_REQUESTED	fill
+Execution trace, page 2: 100 records; more available
+Previous execution trace
+Next execution trace
+Reproduce and export
+Repeat this exact saved configuration and seed as a new attempt, or download complete native artifacts. A repeat creates new API identities; compare canonical event and ledger digests.
+Repeat this seed
+Download complete audit
+
+Local integrity and reproduction commands
+Equity (USD)
+last value in bucket, buckets of 200 ms. Plot positions are approximate; sampled values are available below.
+0.2s
+15.2s
+30.2s
+45.2s
+60s
+999920
+999940
+999960
+999980
+1000000
+Read sampled values for Equity (USD)
+Inventory (shares)
+last value in bucket, buckets of 200 ms. Plot positions are approximate; sampled values are available below.
+0.2s
+15.2s
+30.2s
+45.2s
+60s
+0
+150
+300
+450
+600
+Read sampled values for Inventory (shares)
+Drawdown (USD)
+last value in bucket, buckets of 200 ms. Plot positions are approximate; sampled values are available below.
+0.2s
+15.2s
+30.2s
+45.2s
+60s
+0
+20
+40
+60
+80
+Read sampled values for Drawdown (USD)
+Summary
+Manifest
+State history
+Parent-order execution
+Execution window observed
+A completed simulation can still leave unexecuted parent shares.
+Parent instruction
+buy 500 shares
+Filled parent shares
+500
+Fill notional (USD)
+49,995.2400
+Net fees paid (USD)
+1.5000
+Exchange mid at decision
+99.99000
+Delivered mid at decision
+99.99000
+Parent decision time
+1.000000 s
+First parent fill
+1.000113 s
+Last parent fill
+2.200193 s
+Participation market volume (shares)
+4,959
+Parent completion(derived)
+1.000000
+Parent residual quantity
+0
+Decision slippage, executed quantity
+0.24000
+Decision slippage per filled share(derived)
+0.000480
+Executed cost including fees
+1.74000
+Executed cost per filled share(derived)
+0.003480
+Participation through last parent fill(derived)
+0.100827
+
+Costs use the exchange-truth mid at the parent decision, which may differ from the delivered mid. Positive signed costs mean worse execution for either side. Decision slippage excludes fees; implementation shortfall includes net fees. Lower filled-quantity costs do not resolve completion risk. Costs cover filled quantity only; residual opportunity cost is unavailable. Total costs are in USD; per-share costs are in USD/share. Participation uses all market trades after declaration through the last parent fill, including own trades.
+
+Outbound request diagnostics
+Submitted counts are outbound requests by kind. Exchange rejections use that kind’s submitted count as denominator. Pre-trade host risk blocks occur before submission and are separate risk evidence. Replacements use the cancel/replace channel. Arrival transit is exchange arrival minus submit, in ns; samples cover observed arrivals, including rejected requests.
+Request	Submitted	Exchange rejected / submitted	Reject reasons (count)	Arrival samples	Min (ns)	Max (ns)	Mean (ns)
+New order	51	0 / 51	None reported	51	105277	124490	115562.764706
+Cancel	0	0 / 0	None reported	0	Unavailable	Unavailable	Unavailable
+Replace	0	0 / 0	None reported	0	Unavailable	Unavailable	Unavailable
+Ledger
+Equity = cash + position x mark (exchange mid). Net P&L = realized + unrealized - fees.
+Initial cash
+1,000,000.0000
+Cash
+950,003.2600
+Position (shares)
+500
+Mark
+99.90000
+Equity
+999,953.26000
+Gross realized P&L
+0.0000
+Unrealized P&L
+-45.24000
+Net fees paid
+1.5000
+Net P&L
+-46.74000
+Average cost basis (derived)
+99.990480
+Spread capture total
+-7.62000
+Orders and risk
+filled shares of own orders divided by shares accepted by the exchange (new orders plus replace increases, including orders later cancelled)
+New orders submitted / accepted / rejected
+51 / 51 / 0
+Canceled (cancel races lost)
+0 (0)
+Fills (maker / taker)
+55 (0 / 55)
+Filled / submitted shares
+500 / 506
+Fill rate by shares (derived)
+0.988142
+Quote exposure time
+0 ns
+Max long / short (shares)
+500 / 0
+Orders blocked by risk
+0
+Max drawdown
+66.74000
+Drawdown peak to trough
+n/a to 43.000 s
+Markouts
+Signed markout uses exchange mid: buy = future mid - fill price; sell = fill price - future mid. It includes the initial spread edge, so it is not pure post-fill mid-price drift. The mean weights eligible shares, not fills. Totals include available fills only. Horizons not yet reached or past run end are censored, not zero.
+Horizon	Eligible fills	Eligible shares	No mark	Censored	Total (USD)	Mean per share (derived)
+100 ms	55	500	0	0	-8.29000	-0.016580
+1 s	55	500	0	0	-13.60000	-0.027200
+5 s	55	500	0	0	-13.82000	-0.027640
+Latency observed
+Configured value versus what the event log shows.
+Path	Configured	Samples	Min	Max
+feed	50 µs	3972	50.015 µs	70 µs
+order entry	100 µs	51	105.277 µs	124.49 µs
+acknowledgment	100 µs	107	100.093 µs	119.88 µs
+cancel	80 µs	0	n/a	n/a
+All metrics
+Exact metrics come from the fixed-point ledger; derived ones are rounded half-to-even after the fact.
+Metric	Value	Unit	Exactness
+Net P&L	-46.74000	USD	exact
+Ending equity	999,953.26000	USD	exact
+Gross realized P&L	0.0000	USD	exact
+Unrealized P&L	-45.24000	USD	exact
+Net fees paid	1.5000	USD	exact
+Ending position	500	shares	exact
+Max long position	500	shares	exact
+Max short position	0	shares	exact
+Max drawdown	66.74000	USD	exact
+Fills	55	count	exact
+Filled shares	500	shares	exact
+Maker fills	0	count	exact
+Taker fills	55	count	exact
+Fill rate (shares)	0.988142	ratio	derived
+Orders submitted	51	count	exact
+New-order rejections	0	count	exact
+Cancel requests	0	count	exact
+Cancel rejections	0	count	exact
+Replace requests	0	count	exact
+Replace rejections	0	count	exact
+Orders canceled	0	count	exact
+Cancel races lost	0	count	exact
+Spread capture	-7.62000	USD	exact
+Markout total @ 100 ms	-8.29000	USD	exact
+Markout per eligible share @ 100 ms	-0.016580	USD/share	derived
+Markout eligible shares @ 100 ms	500	shares	exact
+Markout eligible fills @ 100 ms	55	count	exact
+Markout fills without a mark @ 100 ms	0	count	exact
+Markout censored fills @ 100 ms	0	count	exact
+Markout total @ 1 s	-13.60000	USD	exact
+Markout per eligible share @ 1 s	-0.027200	USD/share	derived
+Markout eligible shares @ 1 s	500	shares	exact
+Markout eligible fills @ 1 s	55	count	exact
+Markout fills without a mark @ 1 s	0	count	exact
+Markout censored fills @ 1 s	0	count	exact
+Markout total @ 5 s	-13.82000	USD	exact
+Markout per eligible share @ 5 s	-0.027640	USD/share	derived
+Markout eligible shares @ 5 s	500	shares	exact
+Markout eligible fills @ 5 s	55	count	exact
+Markout fills without a mark @ 5 s	0	count	exact
+Markout censored fills @ 5 s	0	count	exact
+Quote exposure time	0 ns	time	exact
+Parent completion	1.000000	ratio	derived
+Parent residual quantity	0	shares	exact
+Decision slippage, executed quantity	0.24000	USD	exact
+Decision slippage per filled share	0.000480	USD/share	derived
+Executed cost including fees	1.74000	USD	exact
+Executed cost per filled share	0.003480	USD/share	derived
+Participation through last parent fill	0.100827	ratio	derived
+exsim research
+Inspect the assumptions behind every result.
+170

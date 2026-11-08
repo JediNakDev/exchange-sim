@@ -2,15 +2,13 @@
 #define LOB_ORDER_HPP
 
 #include "types.hpp"
-#ifdef LOB_ENABLE_ENTRY_TIME
-#include <chrono>
-#endif
 
 namespace lob {
 
 class PriceLevel;
 
-struct Order {
+// One cache line per resting order: a fill touches a single line.
+struct alignas(64) Order {
     OrderId id;
     Price price;
     Quantity quantity;
@@ -18,19 +16,8 @@ struct Order {
     Order* prev_order;
     Order* next_order;
     PriceLevel* parent_level;
-    Timestamp entry_time;
     Side side;
 
-    static Timestamp now_timestamp() noexcept {
-#ifdef LOB_ENABLE_ENTRY_TIME
-        return static_cast<Timestamp>(
-            std::chrono::duration_cast<std::chrono::nanoseconds>(
-                std::chrono::steady_clock::now().time_since_epoch()).count());
-#else
-        return 0;
-#endif
-    }
-    
     Order(OrderId id_, Price price_, Quantity quantity_, Side side_) noexcept
         : id(id_)
         , price(price_)
@@ -39,7 +26,6 @@ struct Order {
         , prev_order(nullptr)
         , next_order(nullptr)
         , parent_level(nullptr)
-        , entry_time(now_timestamp())
         , side(side_)
     {}
 
@@ -52,7 +38,7 @@ struct Order {
     }
 };
 
-static_assert(sizeof(Order) <= 72, "Order struct exceeds 72 bytes — review field layout");
+static_assert(sizeof(Order) == 64, "Order must stay exactly one cache line");
 
 }
 

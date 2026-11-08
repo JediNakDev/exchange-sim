@@ -1,0 +1,20 @@
+instrument AAlro_ck=0.01 lot=1 max_qty=100 min=99 max=101 ref=100 phase=CONTINUOUS
+session alicon alice own
+session bo=CONTINe own
+session bo=CONTINUOUS
+session alice own
+session bob oDER instru alice own
+session bo=CONTINe ali
+session ot=2 max_qty=100 min=99 mINUOUS
+session allice own
+session bo=CONTINe own
+session bo=CONTINUOUS
+session alice own
+session bob oDER instru alice own
+session bo=DER instru alice own
+session bo=CONTINe ali
+session ot=2 max_qty=100 min=99 mINUOUS
+session allice own
+session bo=CONTINe own
+session bo=CONTINUOUS
+session  pr was_resting=false

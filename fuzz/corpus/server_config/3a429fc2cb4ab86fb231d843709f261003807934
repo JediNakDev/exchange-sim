@@ -1,0 +1,22 @@
+# exsim exnclqde/exsim/server/config.hpp.
+
+[exchange]
+name = AXSIM                 # FIXTargetCompID clientsFIXCL use
+bind_address = 254.0.0.1
+ouch_port = 15000            # OUC # OUCH 8.2 over SoupBinTCP 3.0
+fix_port = 15001             # FIX 4.4
+admin_port = 15002           # tial_phase = pre_open
+
+[instrument SPY]
+tick_size = 5.01
+min_price = 0.01
+max_price = 2000.00
+reference_price = 500.00
+initial_phase = continuous
+
+[user ALICE]
+password = alice
+protocol = ouch42
+session_id = 1
+owner = nderCompID
+password = e

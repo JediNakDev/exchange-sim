@@ -1,0 +1,111 @@
+{
+  "runId": "run_82844571d108337b",
+  "order": {
+    "orderId": "92",
+    "clientOrderId": "1",
+    "side": "buy",
+    "price": "100.0900",
+    "quantity": "16",
+    "cumulativeQuantity": "16",
+    "finalStatus": "filled",
+    "submitEventPosition": "350",
+    "submitSimulationTimeNs": "1000000000",
+    "lastEventPosition": "377",
+    "fillCount": 1
+  },
+  "matchingRule": "price_time_fifo",
+  "stages": [
+    {
+      "stageKind": "strategy_submitted",
+      "orderId": null,
+      "replacedOldOrderId": null,
+      "eventPosition": "350",
+      "simulationTimeNs": "1000000000",
+      "visibility": "strategy_visible",
+      "quantity": "16",
+      "leavesQuantity": null,
+      "matchId": null,
+      "detail": "strategy submitted limit buy 16 @ 100.0900 (client order 1)"
+    },
+    {
+      "stageKind": "arrived_at_exchange",
+      "orderId": null,
+      "replacedOldOrderId": null,
+      "eventPosition": "372",
+      "simulationTimeNs": "1000123569",
+      "visibility": "exchange_truth",
+      "quantity": "16",
+      "leavesQuantity": null,
+      "matchId": null,
+      "detail": "research_strategy order buy 16 @ 100.0900 reached the exchange"
+    },
+    {
+      "stageKind": "accepted",
+      "orderId": "92",
+      "replacedOldOrderId": null,
+      "eventPosition": "373",
+      "simulationTimeNs": "1000123569",
+      "visibility": "exchange_truth",
+      "quantity": "16",
+      "leavesQuantity": "16",
+      "matchId": null,
+      "detail": "accepted order 92 buy 16 @ 100.0900"
+    },
+    {
+      "stageKind": "filled",
+      "orderId": "92",
+      "replacedOldOrderId": null,
+      "eventPosition": "374",
+      "simulationTimeNs": "1000123569",
+      "visibility": "exchange_truth",
+      "quantity": "16",
+      "leavesQuantity": "0",
+      "matchId": "62",
+      "detail": "fill 16 @ 100.0300 match 62 (own order)"
+    },
+    {
+      "stageKind": "acknowledgment_delivered",
+      "orderId": "92",
+      "replacedOldOrderId": null,
+      "eventPosition": "376",
+      "simulationTimeNs": "1000232505",
+      "visibility": "strategy_visible",
+      "quantity": "16",
+      "leavesQuantity": "16",
+      "matchId": null,
+      "detail": "report accepted delivered (client order 1)"
+    },
+    {
+      "stageKind": "fill_report_delivered",
+      "orderId": "92",
+      "replacedOldOrderId": null,
+      "eventPosition": "377",
+      "simulationTimeNs": "1000236320",
+      "visibility": "strategy_visible",
+      "quantity": "16",
+      "leavesQuantity": "0",
+      "matchId": "62",
+      "detail": "report filled delivered (client order 1)"
+    }
+  ],
+  "fifoAheadEvidence": [],
+  "fifoEvidenceTruncated": false,
+  "replaceTransits": [],
+  "latency": {
+    "orderEntryNs": "123569",
+    "acknowledgmentNs": "108936",
+    "cancelNs": null,
+    "submitToFirstFillNs": "123569"
+  },
+  "fillMatchIds": [
+    "62"
+  ],
+  "relatedEventPositions": [
+    "350",
+    "372",
+    "373",
+    "374",
+    "376",
+    "377"
+  ]
+}

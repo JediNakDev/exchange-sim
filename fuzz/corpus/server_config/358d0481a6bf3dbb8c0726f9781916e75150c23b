@@ -1,0 +1,3 @@
+
+[instrument AAPL]
+tick_size = 6666666666666666667# FIX

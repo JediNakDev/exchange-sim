@@ -1,0 +1,5 @@
+instrument Ain=99 max=101 ref=100 phase=CONTINUOUS
+session #99 max=101 ref=100 phase=CONTINUOUS
+session #alice own
+session ttttttttttttttOPEN
+NEW_ORDER instrument=100 =AAphas

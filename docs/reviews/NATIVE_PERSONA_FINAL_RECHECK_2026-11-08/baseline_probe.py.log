@@ -1,0 +1,12 @@
+{
+  "events": 13382,
+  "traceRows": 72,
+  "capRows": 78,
+  "partialRows": 3,
+  "provenance": {
+    "sourceRevision": "360ad69529aa57b5e8856391812cc3d1d93c6896",
+    "releaseId": null,
+    "executableSha256": "10501a33317f4aa53fa6a658ee715674edee56b5fe217d2a106511934d3b56c5"
+  },
+  "identityFile": "/var/folders/99/cjkytqh130n5xq3vzsr3f17c0000gn/T/native-final-360ad69-_t77byl4/identity.json"
+}

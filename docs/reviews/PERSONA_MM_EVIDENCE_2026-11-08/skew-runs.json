@@ -1,0 +1,194 @@
+{
+  "items": [
+    {
+      "runId": "run_49eb1fa35aa6c6a8",
+      "experimentId": "exp_61ccdd391b89b2e5",
+      "masterSeed": "103",
+      "mode": "deterministic_research",
+      "marketWorld": "interactive_synthetic",
+      "state": "completed",
+      "allowedActions": [],
+      "progress": {
+        "processedCanonicalEventCount": "127257",
+        "simulationTimeNs": "60000000000",
+        "endSimulationTimeNs": "60000000000"
+      },
+      "stateHistory": [
+        {
+          "fromState": null,
+          "toState": "queued",
+          "transitionedAt": "2026-11-07T18:09:03.509Z",
+          "atEventPosition": "0",
+          "atSimulationTimeNs": "0",
+          "reason": "created"
+        },
+        {
+          "fromState": "queued",
+          "toState": "running",
+          "transitionedAt": "2026-11-07T18:09:03.523Z",
+          "atEventPosition": "0",
+          "atSimulationTimeNs": "0",
+          "reason": "started"
+        },
+        {
+          "fromState": "running",
+          "toState": "completed",
+          "transitionedAt": "2026-11-07T18:09:04.695Z",
+          "atEventPosition": "127257",
+          "atSimulationTimeNs": "60000000000",
+          "reason": "the run processed every event up to its simulation bound (runner termination: end_time_reached)"
+        }
+      ],
+      "createdAt": "2026-11-07T18:09:03.509Z",
+      "terminalDiagnostics": {
+        "outcomeCode": "completed_at_simulation_bound",
+        "message": "the run processed every event up to its simulation bound (runner termination: end_time_reached)",
+        "residualPositionShares": "48",
+        "residualOpenOrderCount": "2"
+      },
+      "digests": {
+        "manifestDigest": {
+          "algorithm": "sha256",
+          "hexDigest": "cda65df2c4b272c4b28ed0a38913e5f0a81ef14a5c5f41ecaba4778b93d3e4ce"
+        },
+        "canonicalEventDigest": {
+          "algorithm": "fnv1a_64",
+          "hexDigest": "e8b8e5d5ba6bf211"
+        },
+        "ledgerDigest": {
+          "algorithm": "fnv1a_64",
+          "hexDigest": "051bb67fafc336d2"
+        }
+      },
+      "parentRunId": null
+    },
+    {
+      "runId": "run_5560e060d53802c8",
+      "experimentId": "exp_61ccdd391b89b2e5",
+      "masterSeed": "102",
+      "mode": "deterministic_research",
+      "marketWorld": "interactive_synthetic",
+      "state": "completed",
+      "allowedActions": [],
+      "progress": {
+        "processedCanonicalEventCount": "90515",
+        "simulationTimeNs": "60000000000",
+        "endSimulationTimeNs": "60000000000"
+      },
+      "stateHistory": [
+        {
+          "fromState": null,
+          "toState": "queued",
+          "transitionedAt": "2026-11-07T18:09:03.508Z",
+          "atEventPosition": "0",
+          "atSimulationTimeNs": "0",
+          "reason": "created"
+        },
+        {
+          "fromState": "queued",
+          "toState": "running",
+          "transitionedAt": "2026-11-07T18:09:03.520Z",
+          "atEventPosition": "0",
+          "atSimulationTimeNs": "0",
+          "reason": "started"
+        },
+        {
+          "fromState": "running",
+          "toState": "completed",
+          "transitionedAt": "2026-11-07T18:09:04.484Z",
+          "atEventPosition": "90515",
+          "atSimulationTimeNs": "60000000000",
+          "reason": "the run processed every event up to its simulation bound (runner termination: end_time_reached)"
+        }
+      ],
+      "createdAt": "2026-11-07T18:09:03.508Z",
+      "terminalDiagnostics": {
+        "outcomeCode": "completed_at_simulation_bound",
+        "message": "the run processed every event up to its simulation bound (runner termination: end_time_reached)",
+        "residualPositionShares": "-140",
+        "residualOpenOrderCount": "2"
+      },
+      "digests": {
+        "manifestDigest": {
+          "algorithm": "sha256",
+          "hexDigest": "9304d17b59199f54646a530ce2b640c064675c4640e7c95de97a9049c4b2b882"
+        },
+        "canonicalEventDigest": {
+          "algorithm": "fnv1a_64",
+          "hexDigest": "195dd3783639cfa4"
+        },
+        "ledgerDigest": {
+          "algorithm": "fnv1a_64",
+          "hexDigest": "dbf2dca750cee8a5"
+        }
+      },
+      "parentRunId": null
+    },
+    {
+      "runId": "run_4f97b0a4c54beef3",
+      "experimentId": "exp_61ccdd391b89b2e5",
+      "masterSeed": "101",
+      "mode": "deterministic_research",
+      "marketWorld": "interactive_synthetic",
+      "state": "completed",
+      "allowedActions": [],
+      "progress": {
+        "processedCanonicalEventCount": "105418",
+        "simulationTimeNs": "60000000000",
+        "endSimulationTimeNs": "60000000000"
+      },
+      "stateHistory": [
+        {
+          "fromState": null,
+          "toState": "queued",
+          "transitionedAt": "2026-11-07T18:09:03.507Z",
+          "atEventPosition": "0",
+          "atSimulationTimeNs": "0",
+          "reason": "created"
+        },
+        {
+          "fromState": "queued",
+          "toState": "running",
+          "transitionedAt": "2026-11-07T18:09:03.516Z",
+          "atEventPosition": "0",
+          "atSimulationTimeNs": "0",
+          "reason": "started"
+        },
+        {
+          "fromState": "running",
+          "toState": "completed",
+          "transitionedAt": "2026-11-07T18:09:04.558Z",
+          "atEventPosition": "105418",
+          "atSimulationTimeNs": "60000000000",
+          "reason": "the run processed every event up to its simulation bound (runner termination: end_time_reached)"
+        }
+      ],
+      "createdAt": "2026-11-07T18:09:03.507Z",
+      "terminalDiagnostics": {
+        "outcomeCode": "completed_at_simulation_bound",
+        "message": "the run processed every event up to its simulation bound (runner termination: end_time_reached)",
+        "residualPositionShares": "-81",
+        "residualOpenOrderCount": "2"
+      },
+      "digests": {
+        "manifestDigest": {
+          "algorithm": "sha256",
+          "hexDigest": "ddcf0b84c4c18f3e56a933fbe0058d246379533ddfcf302a3b9d691e1af3d252"
+        },
+        "canonicalEventDigest": {
+          "algorithm": "fnv1a_64",
+          "hexDigest": "0904d7cd9a16d3cd"
+        },
+        "ledgerDigest": {
+          "algorithm": "fnv1a_64",
+          "hexDigest": "62744e8f74fb41c0"
+        }
+      },
+      "parentRunId": null
+    }
+  ],
+  "page": {
+    "nextCursor": null,
+    "limit": 100
+  }
+}

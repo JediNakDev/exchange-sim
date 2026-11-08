@@ -111,11 +111,6 @@ public:
         return order_count_; 
     }
 
-    void update_quantity(int64_t delta) noexcept {
-        int64_t new_qty = static_cast<int64_t>(total_volume) + delta;
-        total_volume = (new_qty < 0) ? 0 : static_cast<Quantity>(new_qty);
-    }
-
 };
 
 }

@@ -1,0 +1,5 @@
+#    d 
+
+[instrument PL]
+tick_size =1
+min_price = 1.0

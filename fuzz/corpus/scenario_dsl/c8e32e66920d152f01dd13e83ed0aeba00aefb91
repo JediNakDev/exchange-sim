@@ -1,0 +1,4 @@
+instrument AAA tick=0.01 lot=1ty=100 min=99 max=101 ref=100 phase=CONTINUOUS
+session alice own
+session b10 cum_qt leaves_qty=3
+expect order session=alice cl_ord_id=a qty=10 cuos_qty=0

@@ -1,0 +1,5016 @@
+{
+  "artifact": {
+    "api_revision": "360ad69529aa57b5e8856391812cc3d1d93c6896",
+    "format": "exsim.delivery/1",
+    "kind": "release",
+    "node_version": "v24.22.1",
+    "schema_version": "exsim.api/1",
+    "service_build_id": "exsim_api/1",
+    "target": "macos-arm64",
+    "web_build_id": "efg6fmC6FKFd5gxu0E1Hb",
+    "web_revision": "75cf28fcdbee8e82bd71ba20264604ff9dfdac15",
+    "verifiedFiles": 1490,
+    "deliverySha256": "2c1dee66607947a282313f451b5b5827ad61e35a3132846f75fd6023f00f6d1c",
+    "apiSha256": "10501a33317f4aa53fa6a658ee715674edee56b5fe217d2a106511934d3b56c5",
+    "buildId": "efg6fmC6FKFd5gxu0E1Hb",
+    "servedAssets": [
+      {
+        "url": "http://127.0.0.1:45882/_next/static/chunks/1xonfax3hcrx1.js",
+        "sha256": "f6f51fa64a14c094fe218905fadf5d313105d7594766ffbcbdca2a4f8fd116ad",
+        "bytes": 31142
+      },
+      {
+        "url": "http://127.0.0.1:45882/_next/static/chunks/0c1s5fk-slqw9.js",
+        "sha256": "d5fce8b41f4a7204f23c0965fd910378e3dccb436a3ab4509b579e79d481a354",
+        "bytes": 229318
+      },
+      {
+        "url": "http://127.0.0.1:45882/_next/static/chunks/3i134epvz42vn.js",
+        "sha256": "404c964caffff71445ff8eb627a4f58be3c7871d9dc301cb6dd127d397b7c896",
+        "bytes": 160608
+      },
+      {
+        "url": "http://127.0.0.1:45882/_next/static/chunks/turbopack-2u1d16houkiyo.js",
+        "sha256": "439be7f075d69bbf510ceca09cbc0856956be6f1268f40948a2566148e13de07",
+        "bytes": 9974
+      },
+      {
+        "url": "http://127.0.0.1:45882/_next/static/chunks/0wj0noag-9_fs.js",
+        "sha256": "1aa3b3a7e81e8b96ea0a6248e735ebc663bebe6a29f927c136b7c352adcb08dc",
+        "bytes": 14262
+      },
+      {
+        "url": "http://127.0.0.1:45882/_next/static/chunks/0gzpcggv4wy22.js",
+        "sha256": "f1024cb0668c187c236475f5e843bcbe3bf27379af019fff14891acfbd00f04a",
+        "bytes": 39774
+      },
+      {
+        "url": "http://127.0.0.1:45882/_next/static/chunks/0r3rw67fytag4.js",
+        "sha256": "50fe7beb0c6d5a244c66da8be864425be6674c721e97d8a69c0178fd7718d1b1",
+        "bytes": 59346
+      },
+      {
+        "url": "http://127.0.0.1:45882/_next/static/chunks/3mlq8o-fjiyzv.js",
+        "sha256": "dcab54db5ca5130e3aeb0f331197dc537a23bdcad3b4f22cf8b62da6485c8eb0",
+        "bytes": 36631
+      },
+      {
+        "url": "http://127.0.0.1:45882/_next/static/chunks/08w-71ugyyqlw.js",
+        "sha256": "0482427cd04bca0ac116bf0be4d57020ac6307bd46e64fa37d864ca16aba186b",
+        "bytes": 39101
+      },
+      {
+        "url": "http://127.0.0.1:45882/_next/static/chunks/27_1_swvaqu-a.js",
+        "sha256": "6d33d3d3e5bdd2772a0a0954b82ce07abb499ac1c5dca0540d45c6cb8960e1ec",
+        "bytes": 370996
+      },
+      {
+        "url": "http://127.0.0.1:45882/_next/static/chunks/32wngxuy3qep0.js",
+        "sha256": "de712c9d8f7ad4c084cc562635ee7687aea164558dad47e1aa469f7035c4e6ec",
+        "bytes": 47301
+      },
+      {
+        "url": "http://127.0.0.1:45882/_next/static/chunks/0cz1d0mv5g_q7.js",
+        "sha256": "0973c1d64c88adc8e3c950410cb58b288f72118d5965b78049438deb8f2f9683",
+        "bytes": 112594
+      },
+      {
+        "url": "http://127.0.0.1:45882/_next/static/chunks/0uhsu-32229yr.js",
+        "sha256": "ba6985bd673cb5e15b75a8dfb2e2c37b49971364b21d87c7edc6c84b8b029c7e",
+        "bytes": 15516
+      },
+      {
+        "url": "http://127.0.0.1:45882/_next/static/chunks/3mk8de_ecu8ne.js",
+        "sha256": "36841e4f31ee37ef5e089a8d0266b52ec5c974d922676d7c2a187862f8552242",
+        "bytes": 37809
+      },
+      {
+        "url": "http://127.0.0.1:45882/_next/static/chunks/0q5swhyu4qtuf.js",
+        "sha256": "e5bb1548cfe693087294086cbba9f6a308efdbd7a742b05b6c5789bc679185e7",
+        "bytes": 32960
+      },
+      {
+        "url": "http://127.0.0.1:45882/_next/static/chunks/0tv_--v50odmx.js",
+        "sha256": "74ba582b0c87aa71dce51de7fec35e020ca6a8c5221228b863f186472ccb9be0",
+        "bytes": 9984
+      },
+      {
+        "url": "http://127.0.0.1:45882/_next/static/chunks/3xvfqi16j5m8l.js",
+        "sha256": "e3e9ffc7c958f6170002cb6ed5c8743d7589268975558f6827fba7dee61575c6",
+        "bytes": 35246
+      },
+      {
+        "url": "http://127.0.0.1:45882/_next/static/chunks/1fu7xx3moba-r.js",
+        "sha256": "fe3551ea28f5e37de55d086e1f6470ca702e81dacd2eb0cd7ca51e12e8e10cba",
+        "bytes": 34327
+      },
+      {
+        "url": "http://127.0.0.1:45882/_next/static/chunks/3uwwb_q2yvrau.js",
+        "sha256": "2634caa3fd4207a21e392d56902e7e1aeb924234d121bd032bd5379fa0d0e0bc",
+        "bytes": 4764
+      },
+      {
+        "url": "http://127.0.0.1:45882/_next/static/chunks/1z9bmgv6ouq4m.js",
+        "sha256": "737774aedccaac95c1c5a6fa583a0bd46a0ede23fd485c5ea7d3c66457565165",
+        "bytes": 34408
+      },
+      {
+        "url": "http://127.0.0.1:45882/_next/static/chunks/3ponk6ld8djjl.js",
+        "sha256": "106ee7470fdb89e1345694a83c1f1aaae7c279c69ecde34c2160aa56c37d8302",
+        "bytes": 48499
+      },
+      {
+        "url": "http://127.0.0.1:45882/_next/static/chunks/3xrnkoc0ciqbb.js",
+        "sha256": "5f36ea2ca072944f501359fc08c0643bc93b8415e957119c435322f271113258",
+        "bytes": 30753
+      },
+      {
+        "url": "http://127.0.0.1:45882/_next/static/chunks/420jxauf_9mde.js",
+        "sha256": "6c7b9e473e9c6ed3d07d370bfc60216a72c0a961e74ff8984107e5d883241f69",
+        "bytes": 40711
+      },
+      {
+        "url": "http://127.0.0.1:45882/_next/static/chunks/0ksnv64-2_zxa.js",
+        "sha256": "f73cc6018a50aaa56275a932f2c98a35df80cda7d016fb0dde60c118dd14a25a",
+        "bytes": 29880
+      },
+      {
+        "url": "http://127.0.0.1:45882/_next/static/chunks/3y705tc4v-41-.js",
+        "sha256": "0dbdf7507714978d76a1e2564e25cb104e5e573730eed842fd3c3a3b1542d7ec",
+        "bytes": 13402
+      }
+    ],
+    "nativeRun": {
+      "schemaVersion": "exsim.run-manifest/1",
+      "runId": "run_b132d7f2f6b40c15",
+      "experimentId": "exp_59aba9ec14e219e2",
+      "provenance": {
+        "sourceRevision": "360ad69529aa57b5e8856391812cc3d1d93c6896",
+        "releaseId": "persona-review-360ad69",
+        "executableSha256": "10501a33317f4aa53fa6a658ee715674edee56b5fe217d2a106511934d3b56c5"
+      },
+      "parentRunId": null,
+      "mode": "deterministic_research",
+      "marketWorld": "interactive_synthetic",
+      "engineBuildId": "exsim.matching_engine/canonical_encoding=1",
+      "runnerBuildId": "exsim.research.runner/1",
+      "strategyBuildId": "twap_executor/1",
+      "configDigest": {
+        "algorithm": "sha256",
+        "hexDigest": "ea7ababd69fb7bb50bb278ff19f69b4418a03a3c4fc13180a28f1ba04ab1ec7b"
+      },
+      "inputDataDigest": null,
+      "instrument": {
+        "symbol": "SYNTH",
+        "tickSize": "0.0100",
+        "lotSize": "1",
+        "maxOrderQuantity": "100000",
+        "minPrice": "50.0000",
+        "maxPrice": "150.0000",
+        "referencePrice": "100.0000",
+        "contractMultiplier": "1"
+      },
+      "scenario": {
+        "scenarioId": "synthetic.mm-and-noise-taker.v1",
+        "description": "One background market maker quoting three levels around a stepping fair value, and one noise taker sending crossing orders (runner models exsim::sim::bots).",
+        "backgroundAgents": [
+          {
+            "agentKind": "market_maker",
+            "agentCount": 1,
+            "parameters": [
+              {
+                "name": "levels",
+                "value": "3",
+                "unit": "count",
+                "description": "Price levels quoted per side."
+              },
+              {
+                "name": "quoteSizeShares",
+                "value": "100",
+                "unit": "shares",
+                "description": "Quantity per quoted level."
+              },
+              {
+                "name": "spreadTicks",
+                "value": "1",
+                "unit": "ticks",
+                "description": "Half spread around the fair value."
+              },
+              {
+                "name": "fairValueStepIntervalNs",
+                "value": "500000000",
+                "unit": "nanoseconds",
+                "description": "Interval between fair value random-walk steps."
+              },
+              {
+                "name": "fairValueStepTicks",
+                "value": "1",
+                "unit": "ticks",
+                "description": "Size of one fair value step."
+              },
+              {
+                "name": "requoteIntervalNs",
+                "value": "100000000",
+                "unit": "nanoseconds",
+                "description": "Requote period."
+              }
+            ]
+          },
+          {
+            "agentKind": "noise_taker",
+            "agentCount": 1,
+            "parameters": [
+              {
+                "name": "meanInterarrivalNs",
+                "value": "20000000",
+                "unit": "nanoseconds",
+                "description": "Mean exponential time between orders."
+              },
+              {
+                "name": "minimumOrderShares",
+                "value": "1",
+                "unit": "shares",
+                "description": "Smallest order."
+              },
+              {
+                "name": "maximumOrderShares",
+                "value": "200",
+                "unit": "shares",
+                "description": "Largest order."
+              },
+              {
+                "name": "crossTicks",
+                "value": "2",
+                "unit": "ticks",
+                "description": "Ticks through the touch for crossing orders."
+              },
+              {
+                "name": "limitOrderProbability",
+                "value": "0.1",
+                "unit": "ratio",
+                "description": "Probability an order is a resting limit order."
+              },
+              {
+                "name": "limitOrderLifetimeNs",
+                "value": "1000000000",
+                "unit": "nanoseconds",
+                "description": "Lifetime of a resting limit order."
+              }
+            ]
+          }
+        ]
+      },
+      "strategy": {
+        "strategyKind": "twap_execution",
+        "parentSide": "buy",
+        "parentQuantity": "500",
+        "sliceIntervalNs": "1000000000",
+        "sliceOrderType": "limit",
+        "startTimeNs": "1000000000",
+        "executionDurationNs": "30000000000",
+        "limitOffsetTicks": "5"
+      },
+      "seeds": {
+        "masterSeed": "101",
+        "derivationFunction": "stream_seed = splitmix64_finalize((master_seed XOR fnv1a64(stream_label)) + 0x9E3779B97F4A7C15)",
+        "derivedSeeds": [
+          {
+            "streamName": "strategy",
+            "seed": "6347322554352487518"
+          },
+          {
+            "streamName": "latency",
+            "seed": "13301992461624670546"
+          },
+          {
+            "streamName": "agent.0.market_maker.market_maker_1",
+            "seed": "16641465934458775251"
+          },
+          {
+            "streamName": "agent.1.noise_taker.noise_taker_1",
+            "seed": "14515236832637980092"
+          }
+        ]
+      },
+      "latency": {
+        "latencyModel": "uniform_jitter",
+        "feedLatencyNs": "50000",
+        "orderEntryLatencyNs": "100000",
+        "acknowledgmentLatencyNs": "100000",
+        "cancelLatencyNs": "80000",
+        "jitterNs": "20000",
+        "strategyComputeNs": "5000",
+        "orderChannelFifo": true
+      },
+      "queueModel": "exact_simulated_fifo",
+      "fees": {
+        "feeScheduleId": "maker-rebate-20-taker-30",
+        "makerFeePerShare": "-0.0020",
+        "takerFeePerShare": "0.0030"
+      },
+      "risk": {
+        "maxAbsolutePositionShares": "500",
+        "maxOpenOrders": "8",
+        "maxOrderQuantity": "200",
+        "onBreach": "block_orders_that_increase_exposure"
+      },
+      "initialCash": "1000000.0000",
+      "initialPositionShares": "0",
+      "markConvention": "exchange_mid",
+      "markoutHorizonsNs": [
+        "100000000",
+        "1000000000",
+        "5000000000"
+      ],
+      "bounds": {
+        "endSimulationTimeNs": "60000000000",
+        "maxCanonicalEventCount": "5000000",
+        "wallClockTimeLimitSeconds": 600
+      },
+      "eventOrderPolicy": {
+        "primaryKey": "simulation_time_ns",
+        "tieBreaker": "enqueue_sequence",
+        "stageOrderForEqualTime": [
+          "feed_delivery",
+          "strategy_processing",
+          "outbound_order",
+          "exchange_processing",
+          "report_delivery",
+          "runner_control"
+        ]
+      },
+      "accounting": {
+        "cashScale": "0.0001",
+        "costBasisMethod": "fifo",
+        "feeSign": "positive_paid_negative_rebate",
+        "equityDefinition": "cash_plus_position_times_mark",
+        "netPnlDefinition": "equity_minus_initial_cash",
+        "missingMarkPolicy": "report_unavailable"
+      },
+      "artifactEncodings": {
+        "canonicalEventEncoding": "exsim.canonical-event/1",
+        "lifecycleLogEncoding": "exsim.order-lifecycle/1",
+        "ledgerEncoding": "exsim.ledger/1",
+        "summaryEncoding": "exsim.run-summary/1",
+        "seriesEncoding": "exsim.series/1"
+      },
+      "matchingRule": "price_time_fifo"
+    }
+  },
+  "pageErrors": [],
+  "responses": [],
+  "checks": [
+    {
+      "name": "declared source and build",
+      "pass": true
+    },
+    {
+      "name": "native manifest exact provenance",
+      "pass": true
+    },
+    {
+      "name": "run_7ff458b7fbcbf284 native null unavailable",
+      "pass": true
+    },
+    {
+      "name": "run_fc7e28b757f16efa native null unavailable",
+      "pass": true
+    },
+    {
+      "name": "run_fc7e28b757f16efa unavailable deadline",
+      "pass": true
+    },
+    {
+      "name": "run_7ff458b7fbcbf284 unavailable deadline",
+      "pass": true
+    },
+    {
+      "name": "censor-comparison selection and ledger unchanged",
+      "pass": true
+    },
+    {
+      "name": "run_5af098bb31471aa5 exact deadline",
+      "pass": true
+    },
+    {
+      "name": "run_056d0cdcdac77fab exact deadline",
+      "pass": true
+    },
+    {
+      "name": "run_0a7fb16f5542a95d exact deadline",
+      "pass": true
+    },
+    {
+      "name": "run_0d1471c29bd157e0 exact deadline",
+      "pass": true
+    },
+    {
+      "name": "run_0d1471c29bd157e0 exact censored observation",
+      "pass": true
+    },
+    {
+      "name": "width-comparison selection and ledger unchanged",
+      "pass": true
+    },
+    {
+      "name": "run_e5a7a32f18c72e4e actual MM not applicable",
+      "pass": true
+    },
+    {
+      "name": "run_4a755d823269b2b8 actual MM not applicable",
+      "pass": true
+    },
+    {
+      "name": "run_118c331b5ba30087 actual MM not applicable",
+      "pass": true
+    },
+    {
+      "name": "run_b3f1ef98f04f0f26 actual MM not applicable",
+      "pass": true
+    },
+    {
+      "name": "run_8bef82b1b41a53a8 actual MM not applicable",
+      "pass": true
+    },
+    {
+      "name": "run_75ce87880057aff0 actual MM not applicable",
+      "pass": true
+    },
+    {
+      "name": "original pin retained",
+      "pass": true
+    },
+    {
+      "name": "old attempt remains selected in pin",
+      "pass": true
+    },
+    {
+      "name": "execution-mobile primary cards fit viewport",
+      "pass": true
+    },
+    {
+      "name": "execution-mobile document constrained",
+      "pass": true
+    },
+    {
+      "name": "execution-mobile final table column reachable",
+      "pass": true
+    },
+    {
+      "name": "execution-mobile final table column reachable",
+      "pass": true
+    },
+    {
+      "name": "execution-mobile final table column reachable",
+      "pass": true
+    },
+    {
+      "name": "execution-mobile final table column reachable",
+      "pass": true
+    },
+    {
+      "name": "execution-desktop primary cards fit viewport",
+      "pass": true
+    },
+    {
+      "name": "execution-desktop document constrained",
+      "pass": true
+    },
+    {
+      "name": "execution-desktop final table column reachable",
+      "pass": true
+    },
+    {
+      "name": "mm-mobile primary cards fit viewport",
+      "pass": true
+    },
+    {
+      "name": "mm-mobile document constrained",
+      "pass": true
+    },
+    {
+      "name": "mm-mobile final table column reachable",
+      "pass": true
+    },
+    {
+      "name": "mm-mobile final table column reachable",
+      "pass": true
+    },
+    {
+      "name": "mm-mobile final table column reachable",
+      "pass": true
+    },
+    {
+      "name": "mm-mobile final table column reachable",
+      "pass": true
+    },
+    {
+      "name": "mm-desktop primary cards fit viewport",
+      "pass": true
+    },
+    {
+      "name": "mm-desktop document constrained",
+      "pass": true
+    },
+    {
+      "name": "mm-desktop final table column reachable",
+      "pass": true
+    },
+    {
+      "name": "select first fill keyboard retains row focus",
+      "pass": true
+    },
+    {
+      "name": "Tab reaches Read explanation",
+      "pass": true
+    },
+    {
+      "name": "Read focuses explanation",
+      "pass": true
+    },
+    {
+      "name": "Return focuses originating row",
+      "pass": true
+    },
+    {
+      "name": "selected fill explanation retained after paging",
+      "pass": true
+    },
+    {
+      "name": "paging truthful fallback",
+      "pass": true
+    },
+    {
+      "name": "paging return focuses list",
+      "pass": true
+    },
+    {
+      "name": "Previous preserves truthful fallback",
+      "pass": true
+    },
+    {
+      "name": "reselection restores row return",
+      "pass": true
+    },
+    {
+      "name": "artifact switch truthful fallback",
+      "pass": true
+    },
+    {
+      "name": "artifact switch return focuses list",
+      "pass": true
+    },
+    {
+      "name": "event step retains button focus",
+      "pass": true
+    },
+    {
+      "name": "direct order link return list",
+      "pass": true
+    },
+    {
+      "name": "no page errors",
+      "pass": true
+    }
+  ],
+  "unavailableComparison": {
+    "schemaVersion": "exsim.comparison/1",
+    "baseline": {
+      "experimentId": "exp_59aba9ec14e219e2",
+      "name": "VALIDATION-RECHECK baseline",
+      "marketWorld": "interactive_synthetic",
+      "configDigest": {
+        "algorithm": "sha256",
+        "hexDigest": "ea7ababd69fb7bb50bb278ff19f69b4418a03a3c4fc13180a28f1ba04ab1ec7b"
+      },
+      "completedSeeds": [
+        "101",
+        "102",
+        "103",
+        "105"
+      ]
+    },
+    "candidate": {
+      "experimentId": "exp_6f9635c0ec5d56de",
+      "name": "VALIDATION-RECHECK failure-unlaunched",
+      "marketWorld": "interactive_synthetic",
+      "configDigest": {
+        "algorithm": "sha256",
+        "hexDigest": "066ed28841a20e65ae7584f90a30c2a99585f39237c84389b49c6611c9141a01"
+      },
+      "completedSeeds": []
+    },
+    "comparable": false,
+    "incomparabilityReasons": [
+      "no master seed has a reproduced completed run in both experiments"
+    ],
+    "selectionPolicy": "most_recent_eligible_in_creation_order",
+    "runSelection": "r1_V2m_iEW6F-lODKGFSZmu45Ibqo_WHVkSYE1d1ceet1s",
+    "attemptLedger": [
+      {
+        "experimentId": "exp_59aba9ec14e219e2",
+        "masterSeed": "101",
+        "selectionReason": "selected",
+        "selectedRunId": "run_5769bf8845ba17e9",
+        "attempts": [
+          {
+            "runId": "run_b132d7f2f6b40c15",
+            "state": "completed",
+            "creationOrdinal": "1",
+            "selected": false,
+            "eligible": true,
+            "reason": "superseded_by_later_eligible_attempt",
+            "observationStatus": "window_observed",
+            "windowEndTimeNs": "31000000000",
+            "observedThroughTimeNs": "60000000000",
+            "digests": {
+              "manifestDigest": {
+                "algorithm": "sha256",
+                "hexDigest": "3b7c4e2b97b02d913ca494c4554b29deac31dfe5fa91325dc0142f63c2633fd3"
+              },
+              "canonicalEventDigest": {
+                "algorithm": "fnv1a_64",
+                "hexDigest": "7cbb9aea4f742fa9"
+              },
+              "ledgerDigest": {
+                "algorithm": "fnv1a_64",
+                "hexDigest": "1e86abeac24f9cfd"
+              }
+            },
+            "requestDiagnostics": [
+              {
+                "requestKind": "new_order",
+                "submittedCount": "24",
+                "exchangeRejectedCount": "0",
+                "arrivalTransit": {
+                  "sampleCount": "24",
+                  "minNs": "105099",
+                  "maxNs": "123984",
+                  "meanNs": "115970.791667"
+                },
+                "rejectReasons": []
+              },
+              {
+                "requestKind": "cancel",
+                "submittedCount": "0",
+                "exchangeRejectedCount": "0",
+                "arrivalTransit": {
+                  "sampleCount": "0",
+                  "minNs": null,
+                  "maxNs": null,
+                  "meanNs": null
+                },
+                "rejectReasons": []
+              },
+              {
+                "requestKind": "replace",
+                "submittedCount": "0",
+                "exchangeRejectedCount": "0",
+                "arrivalTransit": {
+                  "sampleCount": "0",
+                  "minNs": null,
+                  "maxNs": null,
+                  "meanNs": null
+                },
+                "rejectReasons": []
+              }
+            ],
+            "markouts": [
+              {
+                "horizonNs": "100000000",
+                "availableFillCount": "24",
+                "availableShares": "500",
+                "censoredFillCount": "0",
+                "unavailableFillCount": "0",
+                "totalMarkout": "-5.00000",
+                "meanMarkoutPerShare": "-0.010000"
+              },
+              {
+                "horizonNs": "1000000000",
+                "availableFillCount": "24",
+                "availableShares": "500",
+                "censoredFillCount": "0",
+                "unavailableFillCount": "0",
+                "totalMarkout": "-5.94000",
+                "meanMarkoutPerShare": "-0.011880"
+              },
+              {
+                "horizonNs": "5000000000",
+                "availableFillCount": "24",
+                "availableShares": "500",
+                "censoredFillCount": "0",
+                "unavailableFillCount": "0",
+                "totalMarkout": "-8.06000",
+                "meanMarkoutPerShare": "-0.016120"
+              }
+            ]
+          },
+          {
+            "runId": "run_5769bf8845ba17e9",
+            "state": "completed",
+            "creationOrdinal": "18",
+            "selected": true,
+            "eligible": true,
+            "reason": "selected",
+            "observationStatus": "window_observed",
+            "windowEndTimeNs": "31000000000",
+            "observedThroughTimeNs": "60000000000",
+            "digests": {
+              "manifestDigest": {
+                "algorithm": "sha256",
+                "hexDigest": "4c68e256457cd3546127dc91cddec1925d288dda510cf93eed8f1db372555402"
+              },
+              "canonicalEventDigest": {
+                "algorithm": "fnv1a_64",
+                "hexDigest": "7cbb9aea4f742fa9"
+              },
+              "ledgerDigest": {
+                "algorithm": "fnv1a_64",
+                "hexDigest": "1e86abeac24f9cfd"
+              }
+            },
+            "requestDiagnostics": [
+              {
+                "requestKind": "new_order",
+                "submittedCount": "24",
+                "exchangeRejectedCount": "0",
+                "arrivalTransit": {
+                  "sampleCount": "24",
+                  "minNs": "105099",
+                  "maxNs": "123984",
+                  "meanNs": "115970.791667"
+                },
+                "rejectReasons": []
+              },
+              {
+                "requestKind": "cancel",
+                "submittedCount": "0",
+                "exchangeRejectedCount": "0",
+                "arrivalTransit": {
+                  "sampleCount": "0",
+                  "minNs": null,
+                  "maxNs": null,
+                  "meanNs": null
+                },
+                "rejectReasons": []
+              },
+              {
+                "requestKind": "replace",
+                "submittedCount": "0",
+                "exchangeRejectedCount": "0",
+                "arrivalTransit": {
+                  "sampleCount": "0",
+                  "minNs": null,
+                  "maxNs": null,
+                  "meanNs": null
+                },
+                "rejectReasons": []
+              }
+            ],
+            "markouts": [
+              {
+                "horizonNs": "100000000",
+                "availableFillCount": "24",
+                "availableShares": "500",
+                "censoredFillCount": "0",
+                "unavailableFillCount": "0",
+                "totalMarkout": "-5.00000",
+                "meanMarkoutPerShare": "-0.010000"
+              },
+              {
+                "horizonNs": "1000000000",
+                "availableFillCount": "24",
+                "availableShares": "500",
+                "censoredFillCount": "0",
+                "unavailableFillCount": "0",
+                "totalMarkout": "-5.94000",
+                "meanMarkoutPerShare": "-0.011880"
+              },
+              {
+                "horizonNs": "5000000000",
+                "availableFillCount": "24",
+                "availableShares": "500",
+                "censoredFillCount": "0",
+                "unavailableFillCount": "0",
+                "totalMarkout": "-8.06000",
+                "meanMarkoutPerShare": "-0.016120"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "experimentId": "exp_59aba9ec14e219e2",
+        "masterSeed": "102",
+        "selectionReason": "selected",
+        "selectedRunId": "run_4e0ca1854999aee3",
+        "attempts": [
+          {
+            "runId": "run_4e0ca1854999aee3",
+            "state": "completed",
+            "creationOrdinal": "2",
+            "selected": true,
+            "eligible": true,
+            "reason": "selected",
+            "observationStatus": "window_observed",
+            "windowEndTimeNs": "31000000000",
+            "observedThroughTimeNs": "60000000000",
+            "digests": {
+              "manifestDigest": {
+                "algorithm": "sha256",
+                "hexDigest": "bc4bac2371b19a785015dd275cfab39bdfd7e0b5d7e2abeaf152b3308ff51a4a"
+              },
+              "canonicalEventDigest": {
+                "algorithm": "fnv1a_64",
+                "hexDigest": "2e76f84f6ebb5f51"
+              },
+              "ledgerDigest": {
+                "algorithm": "fnv1a_64",
+                "hexDigest": "4c59b5c2c59d3743"
+              }
+            },
+            "requestDiagnostics": [
+              {
+                "requestKind": "new_order",
+                "submittedCount": "21",
+                "exchangeRejectedCount": "0",
+                "arrivalTransit": {
+                  "sampleCount": "21",
+                  "minNs": "105132",
+                  "maxNs": "124730",
+                  "meanNs": "118020.476190"
+                },
+                "rejectReasons": []
+              },
+              {
+                "requestKind": "cancel",
+                "submittedCount": "0",
+                "exchangeRejectedCount": "0",
+                "arrivalTransit": {
+                  "sampleCount": "0",
+                  "minNs": null,
+                  "maxNs": null,
+                  "meanNs": null
+                },
+                "rejectReasons": []
+              },
+              {
+                "requestKind": "replace",
+                "submittedCount": "0",
+                "exchangeRejectedCount": "0",
+                "arrivalTransit": {
+                  "sampleCount": "0",
+                  "minNs": null,
+                  "maxNs": null,
+                  "meanNs": null
+                },
+                "rejectReasons": []
+              }
+            ],
+            "markouts": [
+              {
+                "horizonNs": "100000000",
+                "availableFillCount": "21",
+                "availableShares": "483",
+                "censoredFillCount": "0",
+                "unavailableFillCount": "0",
+                "totalMarkout": "-4.66000",
+                "meanMarkoutPerShare": "-0.009648"
+              },
+              {
+                "horizonNs": "1000000000",
+                "availableFillCount": "21",
+                "availableShares": "483",
+                "censoredFillCount": "0",
+                "unavailableFillCount": "0",
+                "totalMarkout": "-6.34000",
+                "meanMarkoutPerShare": "-0.013126"
+              },
+              {
+                "horizonNs": "5000000000",
+                "availableFillCount": "21",
+                "availableShares": "483",
+                "censoredFillCount": "0",
+                "unavailableFillCount": "0",
+                "totalMarkout": "-8.98000",
+                "meanMarkoutPerShare": "-0.018592"
+              }
+            ]
+          },
+          {
+            "runId": "run_7ff458b7fbcbf284",
+            "state": "cancelled",
+            "creationOrdinal": "35",
+            "selected": false,
+            "eligible": false,
+            "reason": "not_completed",
+            "observationStatus": "unavailable",
+            "windowEndTimeNs": null,
+            "observedThroughTimeNs": null,
+            "digests": {
+              "manifestDigest": {
+                "algorithm": "sha256",
+                "hexDigest": "0cf6498f470fdafe1efbad37fd14072e038fb5de7f85e188c6b780dc3ddae897"
+              },
+              "canonicalEventDigest": {
+                "algorithm": "fnv1a_64",
+                "hexDigest": "dc35b2629989944b"
+              },
+              "ledgerDigest": {
+                "algorithm": "fnv1a_64",
+                "hexDigest": "bde1bf0709a17aa9"
+              }
+            },
+            "requestDiagnostics": null,
+            "markouts": null
+          }
+        ]
+      },
+      {
+        "experimentId": "exp_59aba9ec14e219e2",
+        "masterSeed": "103",
+        "selectionReason": "selected",
+        "selectedRunId": "run_921baa8fd61d5912",
+        "attempts": [
+          {
+            "runId": "run_921baa8fd61d5912",
+            "state": "completed",
+            "creationOrdinal": "3",
+            "selected": true,
+            "eligible": true,
+            "reason": "selected",
+            "observationStatus": "window_observed",
+            "windowEndTimeNs": "31000000000",
+            "observedThroughTimeNs": "60000000000",
+            "digests": {
+              "manifestDigest": {
+                "algorithm": "sha256",
+                "hexDigest": "37cbdbaf6ec6f890ce965b4be326497d54f3da1e6b1c503f27c67d3e5023abe2"
+              },
+              "canonicalEventDigest": {
+                "algorithm": "fnv1a_64",
+                "hexDigest": "ddc2200c58662a8d"
+              },
+              "ledgerDigest": {
+                "algorithm": "fnv1a_64",
+                "hexDigest": "507542796c184f31"
+              }
+            },
+            "requestDiagnostics": [
+              {
+                "requestKind": "new_order",
+                "submittedCount": "19",
+                "exchangeRejectedCount": "0",
+                "arrivalTransit": {
+                  "sampleCount": "19",
+                  "minNs": "106896",
+                  "maxNs": "124560",
+                  "meanNs": "116245.578947"
+                },
+                "rejectReasons": []
+              },
+              {
+                "requestKind": "cancel",
+                "submittedCount": "0",
+                "exchangeRejectedCount": "0",
+                "arrivalTransit": {
+                  "sampleCount": "0",
+                  "minNs": null,
+                  "maxNs": null,
+                  "meanNs": null
+                },
+                "rejectReasons": []
+              },
+              {
+                "requestKind": "replace",
+                "submittedCount": "0",
+                "exchangeRejectedCount": "0",
+                "arrivalTransit": {
+                  "sampleCount": "0",
+                  "minNs": null,
+                  "maxNs": null,
+                  "meanNs": null
+                },
+                "rejectReasons": []
+              }
+            ],
+            "markouts": [
+              {
+                "horizonNs": "100000000",
+                "availableFillCount": "19",
+                "availableShares": "483",
+                "censoredFillCount": "0",
+                "unavailableFillCount": "0",
+                "totalMarkout": "-4.41500",
+                "meanMarkoutPerShare": "-0.009141"
+              },
+              {
+                "horizonNs": "1000000000",
+                "availableFillCount": "19",
+                "availableShares": "483",
+                "censoredFillCount": "0",
+                "unavailableFillCount": "0",
+                "totalMarkout": "-2.92000",
+                "meanMarkoutPerShare": "-0.006046"
+              },
+              {
+                "horizonNs": "5000000000",
+                "availableFillCount": "19",
+                "availableShares": "483",
+                "censoredFillCount": "0",
+                "unavailableFillCount": "0",
+                "totalMarkout": "-1.58000",
+                "meanMarkoutPerShare": "-0.003271"
+              }
+            ]
+          },
+          {
+            "runId": "run_866d04015e206d3d",
+            "state": "cancelled",
+            "creationOrdinal": "19",
+            "selected": false,
+            "eligible": false,
+            "reason": "not_completed",
+            "observationStatus": "unavailable",
+            "windowEndTimeNs": null,
+            "observedThroughTimeNs": null,
+            "digests": {
+              "manifestDigest": {
+                "algorithm": "sha256",
+                "hexDigest": "35b1a4012766a8b703e83f7f1fe7650c6f0b48e643edd2088c38baaed8e0a08a"
+              },
+              "canonicalEventDigest": {
+                "algorithm": "fnv1a_64",
+                "hexDigest": "547a5b2f99d7aa00"
+              },
+              "ledgerDigest": {
+                "algorithm": "fnv1a_64",
+                "hexDigest": "cbf29ce484222325"
+              }
+            },
+            "requestDiagnostics": null,
+            "markouts": null
+          }
+        ]
+      },
+      {
+        "experimentId": "exp_59aba9ec14e219e2",
+        "masterSeed": "105",
+        "selectionReason": "selected",
+        "selectedRunId": "run_604d5dd5c79eb75b",
+        "attempts": [
+          {
+            "runId": "run_604d5dd5c79eb75b",
+            "state": "completed",
+            "creationOrdinal": "4",
+            "selected": true,
+            "eligible": true,
+            "reason": "selected",
+            "observationStatus": "window_observed",
+            "windowEndTimeNs": "31000000000",
+            "observedThroughTimeNs": "60000000000",
+            "digests": {
+              "manifestDigest": {
+                "algorithm": "sha256",
+                "hexDigest": "79139df85f21415193254f948a06e6f9b19e4a02d062f0c10866cecdefe43ef5"
+              },
+              "canonicalEventDigest": {
+                "algorithm": "fnv1a_64",
+                "hexDigest": "3db32704dfae688a"
+              },
+              "ledgerDigest": {
+                "algorithm": "fnv1a_64",
+                "hexDigest": "a1478a6ea470df21"
+              }
+            },
+            "requestDiagnostics": [
+              {
+                "requestKind": "new_order",
+                "submittedCount": "18",
+                "exchangeRejectedCount": "0",
+                "arrivalTransit": {
+                  "sampleCount": "18",
+                  "minNs": "105137",
+                  "maxNs": "123906",
+                  "meanNs": "113293.222222"
+                },
+                "rejectReasons": []
+              },
+              {
+                "requestKind": "cancel",
+                "submittedCount": "0",
+                "exchangeRejectedCount": "0",
+                "arrivalTransit": {
+                  "sampleCount": "0",
+                  "minNs": null,
+                  "maxNs": null,
+                  "meanNs": null
+                },
+                "rejectReasons": []
+              },
+              {
+                "requestKind": "replace",
+                "submittedCount": "0",
+                "exchangeRejectedCount": "0",
+                "arrivalTransit": {
+                  "sampleCount": "0",
+                  "minNs": null,
+                  "maxNs": null,
+                  "meanNs": null
+                },
+                "rejectReasons": []
+              }
+            ],
+            "markouts": [
+              {
+                "horizonNs": "100000000",
+                "availableFillCount": "18",
+                "availableShares": "500",
+                "censoredFillCount": "0",
+                "unavailableFillCount": "0",
+                "totalMarkout": "-5.00000",
+                "meanMarkoutPerShare": "-0.010000"
+              },
+              {
+                "horizonNs": "1000000000",
+                "availableFillCount": "18",
+                "availableShares": "500",
+                "censoredFillCount": "0",
+                "unavailableFillCount": "0",
+                "totalMarkout": "-3.29500",
+                "meanMarkoutPerShare": "-0.006590"
+              },
+              {
+                "horizonNs": "5000000000",
+                "availableFillCount": "18",
+                "availableShares": "500",
+                "censoredFillCount": "0",
+                "unavailableFillCount": "0",
+                "totalMarkout": "3.50000",
+                "meanMarkoutPerShare": "0.007000"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "experimentId": "exp_6f9635c0ec5d56de",
+        "masterSeed": "101",
+        "selectionReason": "no_selected_eligible_attempt",
+        "selectedRunId": null,
+        "attempts": [
+          {
+            "runId": "run_fc7e28b757f16efa",
+            "state": "failed",
+            "creationOrdinal": "31",
+            "selected": false,
+            "eligible": false,
+            "reason": "not_completed",
+            "observationStatus": "unavailable",
+            "windowEndTimeNs": null,
+            "observedThroughTimeNs": null,
+            "digests": {
+              "manifestDigest": {
+                "algorithm": "sha256",
+                "hexDigest": "d657b98e830f6d674c382a86ea93645a0b4f16dcb87719ba525be84954f1f327"
+              },
+              "canonicalEventDigest": {
+                "algorithm": "fnv1a_64",
+                "hexDigest": "aaedcdecfc43f4f4"
+              },
+              "ledgerDigest": {
+                "algorithm": "fnv1a_64",
+                "hexDigest": "cbf29ce484222325"
+              }
+            },
+            "requestDiagnostics": null,
+            "markouts": null
+          }
+        ]
+      },
+      {
+        "experimentId": "exp_6f9635c0ec5d56de",
+        "masterSeed": "102",
+        "selectionReason": "unlaunched",
+        "selectedRunId": null,
+        "attempts": []
+      },
+      {
+        "experimentId": "exp_6f9635c0ec5d56de",
+        "masterSeed": "103",
+        "selectionReason": "unlaunched",
+        "selectedRunId": null,
+        "attempts": []
+      }
+    ],
+    "seedPairing": {
+      "pairedSeeds": [],
+      "baselineOnlySeeds": [
+        "101",
+        "102",
+        "103",
+        "105"
+      ],
+      "candidateOnlySeeds": []
+    },
+    "assumptionDifferences": [
+      {
+        "category": "seeds",
+        "fieldPath": "/seedSet/masterSeeds",
+        "label": "seedSet.masterSeeds",
+        "baselineValue": "101, 102, 103, 105",
+        "candidateValue": "101, 102, 103",
+        "unit": null
+      },
+      {
+        "category": "bounds",
+        "fieldPath": "/bounds/maxCanonicalEventCount",
+        "label": "bounds.maxCanonicalEventCount",
+        "baselineValue": "5000000",
+        "candidateValue": "100",
+        "unit": null
+      }
+    ],
+    "metricComparisons": [],
+    "alignedSeries": [
+      {
+        "seriesKind": "equity",
+        "unit": "currency",
+        "aggregation": "last_value_in_bucket",
+        "bucketEndTimesNs": [
+          "300000000",
+          "600000000",
+          "900000000",
+          "1200000000",
+          "1500000000",
+          "1800000000",
+          "2100000000",
+          "2400000000",
+          "2700000000",
+          "3000000000",
+          "3300000000",
+          "3600000000",
+          "3900000000",
+          "4200000000",
+          "4500000000",
+          "4800000000",
+          "5100000000",
+          "5400000000",
+          "5700000000",
+          "6000000000",
+          "6300000000",
+          "6600000000",
+          "6900000000",
+          "7200000000",
+          "7500000000",
+          "7800000000",
+          "8100000000",
+          "8400000000",
+          "8700000000",
+          "9000000000",
+          "9300000000",
+          "9600000000",
+          "9900000000",
+          "10200000000",
+          "10500000000",
+          "10800000000",
+          "11100000000",
+          "11400000000",
+          "11700000000",
+          "12000000000",
+          "12300000000",
+          "12600000000",
+          "12900000000",
+          "13200000000",
+          "13500000000",
+          "13800000000",
+          "14100000000",
+          "14400000000",
+          "14700000000",
+          "15000000000",
+          "15300000000",
+          "15600000000",
+          "15900000000",
+          "16200000000",
+          "16500000000",
+          "16800000000",
+          "17100000000",
+          "17400000000",
+          "17700000000",
+          "18000000000",
+          "18300000000",
+          "18600000000",
+          "18900000000",
+          "19200000000",
+          "19500000000",
+          "19800000000",
+          "20100000000",
+          "20400000000",
+          "20700000000",
+          "21000000000",
+          "21300000000",
+          "21600000000",
+          "21900000000",
+          "22200000000",
+          "22500000000",
+          "22800000000",
+          "23100000000",
+          "23400000000",
+          "23700000000",
+          "24000000000",
+          "24300000000",
+          "24600000000",
+          "24900000000",
+          "25200000000",
+          "25500000000",
+          "25800000000",
+          "26100000000",
+          "26400000000",
+          "26700000000",
+          "27000000000",
+          "27300000000",
+          "27600000000",
+          "27900000000",
+          "28200000000",
+          "28500000000",
+          "28800000000",
+          "29100000000",
+          "29400000000",
+          "29700000000",
+          "30000000000",
+          "30300000000",
+          "30600000000",
+          "30900000000",
+          "31200000000",
+          "31500000000",
+          "31800000000",
+          "32100000000",
+          "32400000000",
+          "32700000000",
+          "33000000000",
+          "33300000000",
+          "33600000000",
+          "33900000000",
+          "34200000000",
+          "34500000000",
+          "34800000000",
+          "35100000000",
+          "35400000000",
+          "35700000000",
+          "36000000000",
+          "36300000000",
+          "36600000000",
+          "36900000000",
+          "37200000000",
+          "37500000000",
+          "37800000000",
+          "38100000000",
+          "38400000000",
+          "38700000000",
+          "39000000000",
+          "39300000000",
+          "39600000000",
+          "39900000000",
+          "40200000000",
+          "40500000000",
+          "40800000000",
+          "41100000000",
+          "41400000000",
+          "41700000000",
+          "42000000000",
+          "42300000000",
+          "42600000000",
+          "42900000000",
+          "43200000000",
+          "43500000000",
+          "43800000000",
+          "44100000000",
+          "44400000000",
+          "44700000000",
+          "45000000000",
+          "45300000000",
+          "45600000000",
+          "45900000000",
+          "46200000000",
+          "46500000000",
+          "46800000000",
+          "47100000000",
+          "47400000000",
+          "47700000000",
+          "48000000000",
+          "48300000000",
+          "48600000000",
+          "48900000000",
+          "49200000000",
+          "49500000000",
+          "49800000000",
+          "50100000000",
+          "50400000000",
+          "50700000000",
+          "51000000000",
+          "51300000000",
+          "51600000000",
+          "51900000000",
+          "52200000000",
+          "52500000000",
+          "52800000000",
+          "53100000000",
+          "53400000000",
+          "53700000000",
+          "54000000000",
+          "54300000000",
+          "54600000000",
+          "54900000000",
+          "55200000000",
+          "55500000000",
+          "55800000000",
+          "56100000000",
+          "56400000000",
+          "56700000000",
+          "57000000000",
+          "57300000000",
+          "57600000000",
+          "57900000000",
+          "58200000000",
+          "58500000000",
+          "58800000000",
+          "59100000000",
+          "59400000000",
+          "59700000000",
+          "60000000000"
+        ],
+        "baselineBySeed": [],
+        "baselineMean": [
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        "candidateBySeed": [],
+        "candidateMean": [
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ]
+      },
+      {
+        "seriesKind": "inventory",
+        "unit": "shares",
+        "aggregation": "last_value_in_bucket",
+        "bucketEndTimesNs": [
+          "300000000",
+          "600000000",
+          "900000000",
+          "1200000000",
+          "1500000000",
+          "1800000000",
+          "2100000000",
+          "2400000000",
+          "2700000000",
+          "3000000000",
+          "3300000000",
+          "3600000000",
+          "3900000000",
+          "4200000000",
+          "4500000000",
+          "4800000000",
+          "5100000000",
+          "5400000000",
+          "5700000000",
+          "6000000000",
+          "6300000000",
+          "6600000000",
+          "6900000000",
+          "7200000000",
+          "7500000000",
+          "7800000000",
+          "8100000000",
+          "8400000000",
+          "8700000000",
+          "9000000000",
+          "9300000000",
+          "9600000000",
+          "9900000000",
+          "10200000000",
+          "10500000000",
+          "10800000000",
+          "11100000000",
+          "11400000000",
+          "11700000000",
+          "12000000000",
+          "12300000000",
+          "12600000000",
+          "12900000000",
+          "13200000000",
+          "13500000000",
+          "13800000000",
+          "14100000000",
+          "14400000000",
+          "14700000000",
+          "15000000000",
+          "15300000000",
+          "15600000000",
+          "15900000000",
+          "16200000000",
+          "16500000000",
+          "16800000000",
+          "17100000000",
+          "17400000000",
+          "17700000000",
+          "18000000000",
+          "18300000000",
+          "18600000000",
+          "18900000000",
+          "19200000000",
+          "19500000000",
+          "19800000000",
+          "20100000000",
+          "20400000000",
+          "20700000000",
+          "21000000000",
+          "21300000000",
+          "21600000000",
+          "21900000000",
+          "22200000000",
+          "22500000000",
+          "22800000000",
+          "23100000000",
+          "23400000000",
+          "23700000000",
+          "24000000000",
+          "24300000000",
+          "24600000000",
+          "24900000000",
+          "25200000000",
+          "25500000000",
+          "25800000000",
+          "26100000000",
+          "26400000000",
+          "26700000000",
+          "27000000000",
+          "27300000000",
+          "27600000000",
+          "27900000000",
+          "28200000000",
+          "28500000000",
+          "28800000000",
+          "29100000000",
+          "29400000000",
+          "29700000000",
+          "30000000000",
+          "30300000000",
+          "30600000000",
+          "30900000000",
+          "31200000000",
+          "31500000000",
+          "31800000000",
+          "32100000000",
+          "32400000000",
+          "32700000000",
+          "33000000000",
+          "33300000000",
+          "33600000000",
+          "33900000000",
+          "34200000000",
+          "34500000000",
+          "34800000000",
+          "35100000000",
+          "35400000000",
+          "35700000000",
+          "36000000000",
+          "36300000000",
+          "36600000000",
+          "36900000000",
+          "37200000000",
+          "37500000000",
+          "37800000000",
+          "38100000000",
+          "38400000000",
+          "38700000000",
+          "39000000000",
+          "39300000000",
+          "39600000000",
+          "39900000000",
+          "40200000000",
+          "40500000000",
+          "40800000000",
+          "41100000000",
+          "41400000000",
+          "41700000000",
+          "42000000000",
+          "42300000000",
+          "42600000000",
+          "42900000000",
+          "43200000000",
+          "43500000000",
+          "43800000000",
+          "44100000000",
+          "44400000000",
+          "44700000000",
+          "45000000000",
+          "45300000000",
+          "45600000000",
+          "45900000000",
+          "46200000000",
+          "46500000000",
+          "46800000000",
+          "47100000000",
+          "47400000000",
+          "47700000000",
+          "48000000000",
+          "48300000000",
+          "48600000000",
+          "48900000000",
+          "49200000000",
+          "49500000000",
+          "49800000000",
+          "50100000000",
+          "50400000000",
+          "50700000000",
+          "51000000000",
+          "51300000000",
+          "51600000000",
+          "51900000000",
+          "52200000000",
+          "52500000000",
+          "52800000000",
+          "53100000000",
+          "53400000000",
+          "53700000000",
+          "54000000000",
+          "54300000000",
+          "54600000000",
+          "54900000000",
+          "55200000000",
+          "55500000000",
+          "55800000000",
+          "56100000000",
+          "56400000000",
+          "56700000000",
+          "57000000000",
+          "57300000000",
+          "57600000000",
+          "57900000000",
+          "58200000000",
+          "58500000000",
+          "58800000000",
+          "59100000000",
+          "59400000000",
+          "59700000000",
+          "60000000000"
+        ],
+        "baselineBySeed": [],
+        "baselineMean": [
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        "candidateBySeed": [],
+        "candidateMean": [
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ]
+      },
+      {
+        "seriesKind": "drawdown",
+        "unit": "currency",
+        "aggregation": "last_value_in_bucket",
+        "bucketEndTimesNs": [
+          "300000000",
+          "600000000",
+          "900000000",
+          "1200000000",
+          "1500000000",
+          "1800000000",
+          "2100000000",
+          "2400000000",
+          "2700000000",
+          "3000000000",
+          "3300000000",
+          "3600000000",
+          "3900000000",
+          "4200000000",
+          "4500000000",
+          "4800000000",
+          "5100000000",
+          "5400000000",
+          "5700000000",
+          "6000000000",
+          "6300000000",
+          "6600000000",
+          "6900000000",
+          "7200000000",
+          "7500000000",
+          "7800000000",
+          "8100000000",
+          "8400000000",
+          "8700000000",
+          "9000000000",
+          "9300000000",
+          "9600000000",
+          "9900000000",
+          "10200000000",
+          "10500000000",
+          "10800000000",
+          "11100000000",
+          "11400000000",
+          "11700000000",
+          "12000000000",
+          "12300000000",
+          "12600000000",
+          "12900000000",
+          "13200000000",
+          "13500000000",
+          "13800000000",
+          "14100000000",
+          "14400000000",
+          "14700000000",
+          "15000000000",
+          "15300000000",
+          "15600000000",
+          "15900000000",
+          "16200000000",
+          "16500000000",
+          "16800000000",
+          "17100000000",
+          "17400000000",
+          "17700000000",
+          "18000000000",
+          "18300000000",
+          "18600000000",
+          "18900000000",
+          "19200000000",
+          "19500000000",
+          "19800000000",
+          "20100000000",
+          "20400000000",
+          "20700000000",
+          "21000000000",
+          "21300000000",
+          "21600000000",
+          "21900000000",
+          "22200000000",
+          "22500000000",
+          "22800000000",
+          "23100000000",
+          "23400000000",
+          "23700000000",
+          "24000000000",
+          "24300000000",
+          "24600000000",
+          "24900000000",
+          "25200000000",
+          "25500000000",
+          "25800000000",
+          "26100000000",
+          "26400000000",
+          "26700000000",
+          "27000000000",
+          "27300000000",
+          "27600000000",
+          "27900000000",
+          "28200000000",
+          "28500000000",
+          "28800000000",
+          "29100000000",
+          "29400000000",
+          "29700000000",
+          "30000000000",
+          "30300000000",
+          "30600000000",
+          "30900000000",
+          "31200000000",
+          "31500000000",
+          "31800000000",
+          "32100000000",
+          "32400000000",
+          "32700000000",
+          "33000000000",
+          "33300000000",
+          "33600000000",
+          "33900000000",
+          "34200000000",
+          "34500000000",
+          "34800000000",
+          "35100000000",
+          "35400000000",
+          "35700000000",
+          "36000000000",
+          "36300000000",
+          "36600000000",
+          "36900000000",
+          "37200000000",
+          "37500000000",
+          "37800000000",
+          "38100000000",
+          "38400000000",
+          "38700000000",
+          "39000000000",
+          "39300000000",
+          "39600000000",
+          "39900000000",
+          "40200000000",
+          "40500000000",
+          "40800000000",
+          "41100000000",
+          "41400000000",
+          "41700000000",
+          "42000000000",
+          "42300000000",
+          "42600000000",
+          "42900000000",
+          "43200000000",
+          "43500000000",
+          "43800000000",
+          "44100000000",
+          "44400000000",
+          "44700000000",
+          "45000000000",
+          "45300000000",
+          "45600000000",
+          "45900000000",
+          "46200000000",
+          "46500000000",
+          "46800000000",
+          "47100000000",
+          "47400000000",
+          "47700000000",
+          "48000000000",
+          "48300000000",
+          "48600000000",
+          "48900000000",
+          "49200000000",
+          "49500000000",
+          "49800000000",
+          "50100000000",
+          "50400000000",
+          "50700000000",
+          "51000000000",
+          "51300000000",
+          "51600000000",
+          "51900000000",
+          "52200000000",
+          "52500000000",
+          "52800000000",
+          "53100000000",
+          "53400000000",
+          "53700000000",
+          "54000000000",
+          "54300000000",
+          "54600000000",
+          "54900000000",
+          "55200000000",
+          "55500000000",
+          "55800000000",
+          "56100000000",
+          "56400000000",
+          "56700000000",
+          "57000000000",
+          "57300000000",
+          "57600000000",
+          "57900000000",
+          "58200000000",
+          "58500000000",
+          "58800000000",
+          "59100000000",
+          "59400000000",
+          "59700000000",
+          "60000000000"
+        ],
+        "baselineBySeed": [],
+        "baselineMean": [
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        "candidateBySeed": [],
+        "candidateMean": [
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ]
+      }
+    ]
+  },
+  "ledger": "Side / seed\tRun / state\tSelection and eligibility\tWindow observed through / deadline\tArtifact digests\nBaseline / 101\trun_b132d7f2f6b40c15\n\ncompleted\n\n\tEligible, not selected\n\nsuperseded by later eligible attempt\n\nwindow observed\n\n\t60 s / 31 s\tevents: 7cbb9aea4f742fa9\nledger: 1e86abeac24f9cfd\nmanifest: 3b7c4e2b97b02d913ca494c4554b29deac31dfe5fa91325dc0142f63c2633fd3\nBaseline / 101\trun_5769bf8845ba17e9\n\ncompleted\n\n\tSelected\n\nselected\n\nwindow observed\n\n\t60 s / 31 s\tevents: 7cbb9aea4f742fa9\nledger: 1e86abeac24f9cfd\nmanifest: 4c68e256457cd3546127dc91cddec1925d288dda510cf93eed8f1db372555402\nBaseline / 102\trun_4e0ca1854999aee3\n\ncompleted\n\n\tSelected\n\nselected\n\nwindow observed\n\n\t60 s / 31 s\tevents: 2e76f84f6ebb5f51\nledger: 4c59b5c2c59d3743\nmanifest: bc4bac2371b19a785015dd275cfab39bdfd7e0b5d7e2abeaf152b3308ff51a4a\nBaseline / 102\trun_7ff458b7fbcbf284\n\ncancelled\n\n\tExcluded\n\nnot completed\n\nunavailable\n\n\tUnavailable / Deadline unavailable\tevents: dc35b2629989944b\nledger: bde1bf0709a17aa9\nmanifest: 0cf6498f470fdafe1efbad37fd14072e038fb5de7f85e188c6b780dc3ddae897\nBaseline / 103\trun_921baa8fd61d5912\n\ncompleted\n\n\tSelected\n\nselected\n\nwindow observed\n\n\t60 s / 31 s\tevents: ddc2200c58662a8d\nledger: 507542796c184f31\nmanifest: 37cbdbaf6ec6f890ce965b4be326497d54f3da1e6b1c503f27c67d3e5023abe2\nBaseline / 103\trun_866d04015e206d3d\n\ncancelled\n\n\tExcluded\n\nnot completed\n\nunavailable\n\n\tUnavailable / Deadline unavailable\tevents: 547a5b2f99d7aa00\nledger: cbf29ce484222325\nmanifest: 35b1a4012766a8b703e83f7f1fe7650c6f0b48e643edd2088c38baaed8e0a08a\nBaseline / 105\trun_604d5dd5c79eb75b\n\ncompleted\n\n\tSelected\n\nselected\n\nwindow observed\n\n\t60 s / 31 s\tevents: 3db32704dfae688a\nledger: a1478a6ea470df21\nmanifest: 79139df85f21415193254f948a06e6f9b19e4a02d062f0c10866cecdefe43ef5\nCandidate / 101\trun_fc7e28b757f16efa\n\nfailed\n\n\tExcluded\n\nnot completed\n\nunavailable\n\n\tUnavailable / Deadline unavailable\tevents: aaedcdecfc43f4f4\nledger: cbf29ce484222325\nmanifest: d657b98e830f6d674c382a86ea93645a0b4f16dcb87719ba525be84954f1f327\nCandidate / 102\tNo attempt\tUnlaunched\tUnavailable\tUnavailable\nCandidate / 103\tNo attempt\tUnlaunched\tUnavailable\tUnavailable",
+  "comparisons": {
+    "censor-comparison": {
+      "attemptLedger": [
+        {
+          "experimentId": "exp_6bdc632d72018fb8",
+          "masterSeed": "101",
+          "selectionReason": "selected",
+          "selectedRunId": "run_5af098bb31471aa5",
+          "attempts": [
+            {
+              "runId": "run_5af098bb31471aa5",
+              "state": "completed",
+              "creationOrdinal": "10",
+              "selected": true,
+              "eligible": true,
+              "reason": "selected",
+              "observationStatus": "window_observed",
+              "windowEndTimeNs": "31000000000",
+              "observedThroughTimeNs": "60000000000",
+              "digests": {
+                "manifestDigest": {
+                  "algorithm": "sha256",
+                  "hexDigest": "b289efb20bcfa408b8a443c21af999bfe1f0944000aedaefaf9a8b2f1d486860"
+                },
+                "canonicalEventDigest": {
+                  "algorithm": "fnv1a_64",
+                  "hexDigest": "7cbb9aea4f742fa9"
+                },
+                "ledgerDigest": {
+                  "algorithm": "fnv1a_64",
+                  "hexDigest": "1e86abeac24f9cfd"
+                }
+              },
+              "requestDiagnostics": [
+                {
+                  "requestKind": "new_order",
+                  "submittedCount": "24",
+                  "exchangeRejectedCount": "0",
+                  "arrivalTransit": {
+                    "sampleCount": "24",
+                    "minNs": "105099",
+                    "maxNs": "123984",
+                    "meanNs": "115970.791667"
+                  },
+                  "rejectReasons": []
+                },
+                {
+                  "requestKind": "cancel",
+                  "submittedCount": "0",
+                  "exchangeRejectedCount": "0",
+                  "arrivalTransit": {
+                    "sampleCount": "0",
+                    "minNs": null,
+                    "maxNs": null,
+                    "meanNs": null
+                  },
+                  "rejectReasons": []
+                },
+                {
+                  "requestKind": "replace",
+                  "submittedCount": "0",
+                  "exchangeRejectedCount": "0",
+                  "arrivalTransit": {
+                    "sampleCount": "0",
+                    "minNs": null,
+                    "maxNs": null,
+                    "meanNs": null
+                  },
+                  "rejectReasons": []
+                }
+              ],
+              "markouts": [
+                {
+                  "horizonNs": "100000000",
+                  "availableFillCount": "24",
+                  "availableShares": "500",
+                  "censoredFillCount": "0",
+                  "unavailableFillCount": "0",
+                  "totalMarkout": "-5.00000",
+                  "meanMarkoutPerShare": "-0.010000"
+                },
+                {
+                  "horizonNs": "1000000000",
+                  "availableFillCount": "24",
+                  "availableShares": "500",
+                  "censoredFillCount": "0",
+                  "unavailableFillCount": "0",
+                  "totalMarkout": "-5.94000",
+                  "meanMarkoutPerShare": "-0.011880"
+                },
+                {
+                  "horizonNs": "5000000000",
+                  "availableFillCount": "24",
+                  "availableShares": "500",
+                  "censoredFillCount": "0",
+                  "unavailableFillCount": "0",
+                  "totalMarkout": "-8.06000",
+                  "meanMarkoutPerShare": "-0.016120"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "experimentId": "exp_6bdc632d72018fb8",
+          "masterSeed": "102",
+          "selectionReason": "selected",
+          "selectedRunId": "run_056d0cdcdac77fab",
+          "attempts": [
+            {
+              "runId": "run_056d0cdcdac77fab",
+              "state": "completed",
+              "creationOrdinal": "11",
+              "selected": true,
+              "eligible": true,
+              "reason": "selected",
+              "observationStatus": "window_observed",
+              "windowEndTimeNs": "31000000000",
+              "observedThroughTimeNs": "60000000000",
+              "digests": {
+                "manifestDigest": {
+                  "algorithm": "sha256",
+                  "hexDigest": "a2eea4304c653be74674a5d1a4bade71e0fe5bb8639b390fdabd4e999b167db6"
+                },
+                "canonicalEventDigest": {
+                  "algorithm": "fnv1a_64",
+                  "hexDigest": "2e76f84f6ebb5f51"
+                },
+                "ledgerDigest": {
+                  "algorithm": "fnv1a_64",
+                  "hexDigest": "4c59b5c2c59d3743"
+                }
+              },
+              "requestDiagnostics": [
+                {
+                  "requestKind": "new_order",
+                  "submittedCount": "21",
+                  "exchangeRejectedCount": "0",
+                  "arrivalTransit": {
+                    "sampleCount": "21",
+                    "minNs": "105132",
+                    "maxNs": "124730",
+                    "meanNs": "118020.476190"
+                  },
+                  "rejectReasons": []
+                },
+                {
+                  "requestKind": "cancel",
+                  "submittedCount": "0",
+                  "exchangeRejectedCount": "0",
+                  "arrivalTransit": {
+                    "sampleCount": "0",
+                    "minNs": null,
+                    "maxNs": null,
+                    "meanNs": null
+                  },
+                  "rejectReasons": []
+                },
+                {
+                  "requestKind": "replace",
+                  "submittedCount": "0",
+                  "exchangeRejectedCount": "0",
+                  "arrivalTransit": {
+                    "sampleCount": "0",
+                    "minNs": null,
+                    "maxNs": null,
+                    "meanNs": null
+                  },
+                  "rejectReasons": []
+                }
+              ],
+              "markouts": [
+                {
+                  "horizonNs": "100000000",
+                  "availableFillCount": "21",
+                  "availableShares": "483",
+                  "censoredFillCount": "0",
+                  "unavailableFillCount": "0",
+                  "totalMarkout": "-4.66000",
+                  "meanMarkoutPerShare": "-0.009648"
+                },
+                {
+                  "horizonNs": "1000000000",
+                  "availableFillCount": "21",
+                  "availableShares": "483",
+                  "censoredFillCount": "0",
+                  "unavailableFillCount": "0",
+                  "totalMarkout": "-6.34000",
+                  "meanMarkoutPerShare": "-0.013126"
+                },
+                {
+                  "horizonNs": "5000000000",
+                  "availableFillCount": "21",
+                  "availableShares": "483",
+                  "censoredFillCount": "0",
+                  "unavailableFillCount": "0",
+                  "totalMarkout": "-8.98000",
+                  "meanMarkoutPerShare": "-0.018592"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "experimentId": "exp_6bdc632d72018fb8",
+          "masterSeed": "103",
+          "selectionReason": "selected",
+          "selectedRunId": "run_0a7fb16f5542a95d",
+          "attempts": [
+            {
+              "runId": "run_0a7fb16f5542a95d",
+              "state": "completed",
+              "creationOrdinal": "12",
+              "selected": true,
+              "eligible": true,
+              "reason": "selected",
+              "observationStatus": "window_observed",
+              "windowEndTimeNs": "31000000000",
+              "observedThroughTimeNs": "60000000000",
+              "digests": {
+                "manifestDigest": {
+                  "algorithm": "sha256",
+                  "hexDigest": "349ca9331b9969a9eb552de4e3107ca6b7b0dc5800da840526442d36e61e5e0b"
+                },
+                "canonicalEventDigest": {
+                  "algorithm": "fnv1a_64",
+                  "hexDigest": "ddc2200c58662a8d"
+                },
+                "ledgerDigest": {
+                  "algorithm": "fnv1a_64",
+                  "hexDigest": "507542796c184f31"
+                }
+              },
+              "requestDiagnostics": [
+                {
+                  "requestKind": "new_order",
+                  "submittedCount": "19",
+                  "exchangeRejectedCount": "0",
+                  "arrivalTransit": {
+                    "sampleCount": "19",
+                    "minNs": "106896",
+                    "maxNs": "124560",
+                    "meanNs": "116245.578947"
+                  },
+                  "rejectReasons": []
+                },
+                {
+                  "requestKind": "cancel",
+                  "submittedCount": "0",
+                  "exchangeRejectedCount": "0",
+                  "arrivalTransit": {
+                    "sampleCount": "0",
+                    "minNs": null,
+                    "maxNs": null,
+                    "meanNs": null
+                  },
+                  "rejectReasons": []
+                },
+                {
+                  "requestKind": "replace",
+                  "submittedCount": "0",
+                  "exchangeRejectedCount": "0",
+                  "arrivalTransit": {
+                    "sampleCount": "0",
+                    "minNs": null,
+                    "maxNs": null,
+                    "meanNs": null
+                  },
+                  "rejectReasons": []
+                }
+              ],
+              "markouts": [
+                {
+                  "horizonNs": "100000000",
+                  "availableFillCount": "19",
+                  "availableShares": "483",
+                  "censoredFillCount": "0",
+                  "unavailableFillCount": "0",
+                  "totalMarkout": "-4.41500",
+                  "meanMarkoutPerShare": "-0.009141"
+                },
+                {
+                  "horizonNs": "1000000000",
+                  "availableFillCount": "19",
+                  "availableShares": "483",
+                  "censoredFillCount": "0",
+                  "unavailableFillCount": "0",
+                  "totalMarkout": "-2.92000",
+                  "meanMarkoutPerShare": "-0.006046"
+                },
+                {
+                  "horizonNs": "5000000000",
+                  "availableFillCount": "19",
+                  "availableShares": "483",
+                  "censoredFillCount": "0",
+                  "unavailableFillCount": "0",
+                  "totalMarkout": "-1.58000",
+                  "meanMarkoutPerShare": "-0.003271"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "experimentId": "exp_fa9ae58ab6a9bda8",
+          "masterSeed": "101",
+          "selectionReason": "no_selected_eligible_attempt",
+          "selectedRunId": null,
+          "attempts": [
+            {
+              "runId": "run_0d1471c29bd157e0",
+              "state": "completed",
+              "creationOrdinal": "17",
+              "selected": false,
+              "eligible": false,
+              "reason": "execution_window_censored",
+              "observationStatus": "censored_run_end",
+              "windowEndTimeNs": "31000000000",
+              "observedThroughTimeNs": "5000000000",
+              "digests": {
+                "manifestDigest": {
+                  "algorithm": "sha256",
+                  "hexDigest": "4dd1838dd299313a1e4d38c820220d98a5a4178ae62da87cf30a0f1342cb81b4"
+                },
+                "canonicalEventDigest": {
+                  "algorithm": "fnv1a_64",
+                  "hexDigest": "4e803884c94b1432"
+                },
+                "ledgerDigest": {
+                  "algorithm": "fnv1a_64",
+                  "hexDigest": "ab70c67e91e2567e"
+                }
+              },
+              "requestDiagnostics": [
+                {
+                  "requestKind": "new_order",
+                  "submittedCount": "5",
+                  "exchangeRejectedCount": "0",
+                  "arrivalTransit": {
+                    "sampleCount": "4",
+                    "minNs": "113100",
+                    "maxNs": "117718",
+                    "meanNs": "115294.500000"
+                  },
+                  "rejectReasons": []
+                },
+                {
+                  "requestKind": "cancel",
+                  "submittedCount": "0",
+                  "exchangeRejectedCount": "0",
+                  "arrivalTransit": {
+                    "sampleCount": "0",
+                    "minNs": null,
+                    "maxNs": null,
+                    "meanNs": null
+                  },
+                  "rejectReasons": []
+                },
+                {
+                  "requestKind": "replace",
+                  "submittedCount": "0",
+                  "exchangeRejectedCount": "0",
+                  "arrivalTransit": {
+                    "sampleCount": "0",
+                    "minNs": null,
+                    "maxNs": null,
+                    "meanNs": null
+                  },
+                  "rejectReasons": []
+                }
+              ],
+              "markouts": [
+                {
+                  "horizonNs": "100000000",
+                  "availableFillCount": "4",
+                  "availableShares": "66",
+                  "censoredFillCount": "0",
+                  "unavailableFillCount": "0",
+                  "totalMarkout": "-0.66000",
+                  "meanMarkoutPerShare": "-0.010000"
+                },
+                {
+                  "horizonNs": "1000000000",
+                  "availableFillCount": "3",
+                  "availableShares": "50",
+                  "censoredFillCount": "1",
+                  "unavailableFillCount": "0",
+                  "totalMarkout": "-0.82000",
+                  "meanMarkoutPerShare": "-0.016400"
+                },
+                {
+                  "horizonNs": "5000000000",
+                  "availableFillCount": "0",
+                  "availableShares": "0",
+                  "censoredFillCount": "4",
+                  "unavailableFillCount": "0",
+                  "totalMarkout": null,
+                  "meanMarkoutPerShare": null
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "runSelection": "r1_WvCYuzFHGqUFbQzc2sd_qwp_sW9VQqld",
+      "text": "Side / seed\tRun / state\tSelection and eligibility\tWindow observed through / deadline\tArtifact digests\nBaseline / 101\trun_5af098bb31471aa5\n\ncompleted\n\n\tSelected\n\nselected\n\nwindow observed\n\n\t60 s / 31 s\tevents: 7cbb9aea4f742fa9\nledger: 1e86abeac24f9cfd\nmanifest: b289efb20bcfa408b8a443c21af999bfe1f0944000aedaefaf9a8b2f1d486860\nBaseline / 102\trun_056d0cdcdac77fab\n\ncompleted\n\n\tSelected\n\nselected\n\nwindow observed\n\n\t60 s / 31 s\tevents: 2e76f84f6ebb5f51\nledger: 4c59b5c2c59d3743\nmanifest: a2eea4304c653be74674a5d1a4bade71e0fe5bb8639b390fdabd4e999b167db6\nBaseline / 103\trun_0a7fb16f5542a95d\n\ncompleted\n\n\tSelected\n\nselected\n\nwindow observed\n\n\t60 s / 31 s\tevents: ddc2200c58662a8d\nledger: 507542796c184f31\nmanifest: 349ca9331b9969a9eb552de4e3107ca6b7b0dc5800da840526442d36e61e5e0b\nCandidate / 101\trun_0d1471c29bd157e0\n\ncompleted\n\n\tExcluded\n\nexecution window censored\n\ncensored run end\n\n\t5 s / 31 s\tevents: 4e803884c94b1432\nledger: ab70c67e91e2567e\nmanifest: 4dd1838dd299313a1e4d38c820220d98a5a4178ae62da87cf30a0f1342cb81b4"
+    },
+    "width-comparison": {
+      "attemptLedger": [
+        {
+          "experimentId": "exp_6b43f99148776fea",
+          "masterSeed": "101",
+          "selectionReason": "selected",
+          "selectedRunId": "run_e5a7a32f18c72e4e",
+          "attempts": [
+            {
+              "runId": "run_e5a7a32f18c72e4e",
+              "state": "completed",
+              "creationOrdinal": "21",
+              "selected": true,
+              "eligible": true,
+              "reason": "selected",
+              "observationStatus": "not_applicable",
+              "windowEndTimeNs": "0",
+              "observedThroughTimeNs": "60000000000",
+              "digests": {
+                "manifestDigest": {
+                  "algorithm": "sha256",
+                  "hexDigest": "a1c30e5a67d31396981fbd58597d665947e7fb0f2dd5dd222514035d6cdb2b0c"
+                },
+                "canonicalEventDigest": {
+                  "algorithm": "fnv1a_64",
+                  "hexDigest": "ae610f743e7f2a11"
+                },
+                "ledgerDigest": {
+                  "algorithm": "fnv1a_64",
+                  "hexDigest": "ff11dfbd0a6984cc"
+                }
+              },
+              "requestDiagnostics": [
+                {
+                  "requestKind": "new_order",
+                  "submittedCount": "806",
+                  "exchangeRejectedCount": "0",
+                  "arrivalTransit": {
+                    "sampleCount": "806",
+                    "minNs": "105020",
+                    "maxNs": "124978",
+                    "meanNs": "114868.600496"
+                  },
+                  "rejectReasons": []
+                },
+                {
+                  "requestKind": "cancel",
+                  "submittedCount": "0",
+                  "exchangeRejectedCount": "0",
+                  "arrivalTransit": {
+                    "sampleCount": "0",
+                    "minNs": null,
+                    "maxNs": null,
+                    "meanNs": null
+                  },
+                  "rejectReasons": []
+                },
+                {
+                  "requestKind": "replace",
+                  "submittedCount": "2364",
+                  "exchangeRejectedCount": "385",
+                  "arrivalTransit": {
+                    "sampleCount": "2364",
+                    "minNs": "85015",
+                    "maxNs": "124978",
+                    "meanNs": "95853.575296"
+                  },
+                  "rejectReasons": [
+                    {
+                      "reason": "unknown_order",
+                      "count": "385"
+                    }
+                  ]
+                }
+              ],
+              "markouts": [
+                {
+                  "horizonNs": "100000000",
+                  "availableFillCount": "1973",
+                  "availableShares": "132346",
+                  "censoredFillCount": "5",
+                  "unavailableFillCount": "0",
+                  "totalMarkout": "1405.08000",
+                  "meanMarkoutPerShare": "0.010617"
+                },
+                {
+                  "horizonNs": "1000000000",
+                  "availableFillCount": "1945",
+                  "availableShares": "130331",
+                  "censoredFillCount": "33",
+                  "unavailableFillCount": "0",
+                  "totalMarkout": "1357.50000",
+                  "meanMarkoutPerShare": "0.010416"
+                },
+                {
+                  "horizonNs": "5000000000",
+                  "availableFillCount": "1826",
+                  "availableShares": "122868",
+                  "censoredFillCount": "152",
+                  "unavailableFillCount": "0",
+                  "totalMarkout": "1346.04000",
+                  "meanMarkoutPerShare": "0.010955"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "experimentId": "exp_6b43f99148776fea",
+          "masterSeed": "102",
+          "selectionReason": "selected",
+          "selectedRunId": "run_4a755d823269b2b8",
+          "attempts": [
+            {
+              "runId": "run_4a755d823269b2b8",
+              "state": "completed",
+              "creationOrdinal": "22",
+              "selected": true,
+              "eligible": true,
+              "reason": "selected",
+              "observationStatus": "not_applicable",
+              "windowEndTimeNs": "0",
+              "observedThroughTimeNs": "60000000000",
+              "digests": {
+                "manifestDigest": {
+                  "algorithm": "sha256",
+                  "hexDigest": "4739625b19dc7bee567c4cf9ea4b2258be9b27402bbda74b6b18cca05119ae2c"
+                },
+                "canonicalEventDigest": {
+                  "algorithm": "fnv1a_64",
+                  "hexDigest": "3d6b4f3a3a22071c"
+                },
+                "ledgerDigest": {
+                  "algorithm": "fnv1a_64",
+                  "hexDigest": "ab159a0d4c7e8232"
+                }
+              },
+              "requestDiagnostics": [
+                {
+                  "requestKind": "new_order",
+                  "submittedCount": "846",
+                  "exchangeRejectedCount": "0",
+                  "arrivalTransit": {
+                    "sampleCount": "846",
+                    "minNs": "105008",
+                    "maxNs": "124954",
+                    "meanNs": "115197.890071"
+                  },
+                  "rejectReasons": []
+                },
+                {
+                  "requestKind": "cancel",
+                  "submittedCount": "0",
+                  "exchangeRejectedCount": "0",
+                  "arrivalTransit": {
+                    "sampleCount": "0",
+                    "minNs": null,
+                    "maxNs": null,
+                    "meanNs": null
+                  },
+                  "rejectReasons": []
+                },
+                {
+                  "requestKind": "replace",
+                  "submittedCount": "2469",
+                  "exchangeRejectedCount": "417",
+                  "arrivalTransit": {
+                    "sampleCount": "2469",
+                    "minNs": "85007",
+                    "maxNs": "124884",
+                    "meanNs": "95582.268530"
+                  },
+                  "rejectReasons": [
+                    {
+                      "reason": "unknown_order",
+                      "count": "417"
+                    }
+                  ]
+                }
+              ],
+              "markouts": [
+                {
+                  "horizonNs": "100000000",
+                  "availableFillCount": "2051",
+                  "availableShares": "138182",
+                  "censoredFillCount": "2",
+                  "unavailableFillCount": "0",
+                  "totalMarkout": "1441.58000",
+                  "meanMarkoutPerShare": "0.010432"
+                },
+                {
+                  "horizonNs": "1000000000",
+                  "availableFillCount": "2017",
+                  "availableShares": "135838",
+                  "censoredFillCount": "36",
+                  "unavailableFillCount": "0",
+                  "totalMarkout": "1462.83500",
+                  "meanMarkoutPerShare": "0.010769"
+                },
+                {
+                  "horizonNs": "5000000000",
+                  "availableFillCount": "1865",
+                  "availableShares": "125950",
+                  "censoredFillCount": "188",
+                  "unavailableFillCount": "0",
+                  "totalMarkout": "1393.95500",
+                  "meanMarkoutPerShare": "0.011068"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "experimentId": "exp_6b43f99148776fea",
+          "masterSeed": "103",
+          "selectionReason": "selected",
+          "selectedRunId": "run_118c331b5ba30087",
+          "attempts": [
+            {
+              "runId": "run_118c331b5ba30087",
+              "state": "completed",
+              "creationOrdinal": "23",
+              "selected": true,
+              "eligible": true,
+              "reason": "selected",
+              "observationStatus": "not_applicable",
+              "windowEndTimeNs": "0",
+              "observedThroughTimeNs": "60000000000",
+              "digests": {
+                "manifestDigest": {
+                  "algorithm": "sha256",
+                  "hexDigest": "16c01bfc8839fcf6cd7a1f9ea644172d7e4bdc54b962635aa5e3f530355e3eb1"
+                },
+                "canonicalEventDigest": {
+                  "algorithm": "fnv1a_64",
+                  "hexDigest": "6ea19e5c401c02c5"
+                },
+                "ledgerDigest": {
+                  "algorithm": "fnv1a_64",
+                  "hexDigest": "14942b81f4d94fd9"
+                }
+              },
+              "requestDiagnostics": [
+                {
+                  "requestKind": "new_order",
+                  "submittedCount": "815",
+                  "exchangeRejectedCount": "0",
+                  "arrivalTransit": {
+                    "sampleCount": "815",
+                    "minNs": "105050",
+                    "maxNs": "124999",
+                    "meanNs": "115172.134969"
+                  },
+                  "rejectReasons": []
+                },
+                {
+                  "requestKind": "cancel",
+                  "submittedCount": "0",
+                  "exchangeRejectedCount": "0",
+                  "arrivalTransit": {
+                    "sampleCount": "0",
+                    "minNs": null,
+                    "maxNs": null,
+                    "meanNs": null
+                  },
+                  "rejectReasons": []
+                },
+                {
+                  "requestKind": "replace",
+                  "submittedCount": "2472",
+                  "exchangeRejectedCount": "411",
+                  "arrivalTransit": {
+                    "sampleCount": "2472",
+                    "minNs": "85002",
+                    "maxNs": "124698",
+                    "meanNs": "95562.403317"
+                  },
+                  "rejectReasons": [
+                    {
+                      "reason": "unknown_order",
+                      "count": "411"
+                    }
+                  ]
+                }
+              ],
+              "markouts": [
+                {
+                  "horizonNs": "100000000",
+                  "availableFillCount": "2014",
+                  "availableShares": "135665",
+                  "censoredFillCount": "1",
+                  "unavailableFillCount": "0",
+                  "totalMarkout": "1395.02000",
+                  "meanMarkoutPerShare": "0.010283"
+                },
+                {
+                  "horizonNs": "1000000000",
+                  "availableFillCount": "1977",
+                  "availableShares": "133167",
+                  "censoredFillCount": "38",
+                  "unavailableFillCount": "0",
+                  "totalMarkout": "1360.44000",
+                  "meanMarkoutPerShare": "0.010216"
+                },
+                {
+                  "horizonNs": "5000000000",
+                  "availableFillCount": "1845",
+                  "availableShares": "124664",
+                  "censoredFillCount": "170",
+                  "unavailableFillCount": "0",
+                  "totalMarkout": "1365.82000",
+                  "meanMarkoutPerShare": "0.010956"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "experimentId": "exp_679ba6fd61ac4902",
+          "masterSeed": "101",
+          "selectionReason": "selected",
+          "selectedRunId": "run_b3f1ef98f04f0f26",
+          "attempts": [
+            {
+              "runId": "run_b3f1ef98f04f0f26",
+              "state": "completed",
+              "creationOrdinal": "24",
+              "selected": true,
+              "eligible": true,
+              "reason": "selected",
+              "observationStatus": "not_applicable",
+              "windowEndTimeNs": "0",
+              "observedThroughTimeNs": "60000000000",
+              "digests": {
+                "manifestDigest": {
+                  "algorithm": "sha256",
+                  "hexDigest": "7e35887ee7c481bf60fd392dea0772f4f9363e188e3d4cd4f852187f106ae518"
+                },
+                "canonicalEventDigest": {
+                  "algorithm": "fnv1a_64",
+                  "hexDigest": "80ab6700be6f3ca4"
+                },
+                "ledgerDigest": {
+                  "algorithm": "fnv1a_64",
+                  "hexDigest": "c3db6f017410c3b7"
+                }
+              },
+              "requestDiagnostics": [
+                {
+                  "requestKind": "new_order",
+                  "submittedCount": "337",
+                  "exchangeRejectedCount": "0",
+                  "arrivalTransit": {
+                    "sampleCount": "337",
+                    "minNs": "105053",
+                    "maxNs": "124965",
+                    "meanNs": "115266.329377"
+                  },
+                  "rejectReasons": []
+                },
+                {
+                  "requestKind": "cancel",
+                  "submittedCount": "0",
+                  "exchangeRejectedCount": "0",
+                  "arrivalTransit": {
+                    "sampleCount": "0",
+                    "minNs": null,
+                    "maxNs": null,
+                    "meanNs": null
+                  },
+                  "rejectReasons": []
+                },
+                {
+                  "requestKind": "replace",
+                  "submittedCount": "2835",
+                  "exchangeRejectedCount": "148",
+                  "arrivalTransit": {
+                    "sampleCount": "2835",
+                    "minNs": "85000",
+                    "maxNs": "124883",
+                    "meanNs": "95889.693827"
+                  },
+                  "rejectReasons": [
+                    {
+                      "reason": "unknown_order",
+                      "count": "148"
+                    }
+                  ]
+                }
+              ],
+              "markouts": [
+                {
+                  "horizonNs": "100000000",
+                  "availableFillCount": "992",
+                  "availableShares": "60740",
+                  "censoredFillCount": "3",
+                  "unavailableFillCount": "0",
+                  "totalMarkout": "1302.01000",
+                  "meanMarkoutPerShare": "0.021436"
+                },
+                {
+                  "horizonNs": "1000000000",
+                  "availableFillCount": "975",
+                  "availableShares": "59645",
+                  "censoredFillCount": "20",
+                  "unavailableFillCount": "0",
+                  "totalMarkout": "1268.55000",
+                  "meanMarkoutPerShare": "0.021268"
+                },
+                {
+                  "horizonNs": "5000000000",
+                  "availableFillCount": "931",
+                  "availableShares": "57171",
+                  "censoredFillCount": "64",
+                  "unavailableFillCount": "0",
+                  "totalMarkout": "1249.58000",
+                  "meanMarkoutPerShare": "0.021857"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "experimentId": "exp_679ba6fd61ac4902",
+          "masterSeed": "102",
+          "selectionReason": "selected",
+          "selectedRunId": "run_8bef82b1b41a53a8",
+          "attempts": [
+            {
+              "runId": "run_8bef82b1b41a53a8",
+              "state": "completed",
+              "creationOrdinal": "25",
+              "selected": true,
+              "eligible": true,
+              "reason": "selected",
+              "observationStatus": "not_applicable",
+              "windowEndTimeNs": "0",
+              "observedThroughTimeNs": "60000000000",
+              "digests": {
+                "manifestDigest": {
+                  "algorithm": "sha256",
+                  "hexDigest": "adfc73b8e60d7d2e21eb021a177f9afc98745dfc0da7b9acda7d0b4eace57bc9"
+                },
+                "canonicalEventDigest": {
+                  "algorithm": "fnv1a_64",
+                  "hexDigest": "a8d5924c23346028"
+                },
+                "ledgerDigest": {
+                  "algorithm": "fnv1a_64",
+                  "hexDigest": "fa1e1e565b9628b0"
+                }
+              },
+              "requestDiagnostics": [
+                {
+                  "requestKind": "new_order",
+                  "submittedCount": "359",
+                  "exchangeRejectedCount": "0",
+                  "arrivalTransit": {
+                    "sampleCount": "359",
+                    "minNs": "105253",
+                    "maxNs": "124937",
+                    "meanNs": "115280.977716"
+                  },
+                  "rejectReasons": []
+                },
+                {
+                  "requestKind": "cancel",
+                  "submittedCount": "0",
+                  "exchangeRejectedCount": "0",
+                  "arrivalTransit": {
+                    "sampleCount": "0",
+                    "minNs": null,
+                    "maxNs": null,
+                    "meanNs": null
+                  },
+                  "rejectReasons": []
+                },
+                {
+                  "requestKind": "replace",
+                  "submittedCount": "3043",
+                  "exchangeRejectedCount": "184",
+                  "arrivalTransit": {
+                    "sampleCount": "3043",
+                    "minNs": "85016",
+                    "maxNs": "124894",
+                    "meanNs": "95521.716727"
+                  },
+                  "rejectReasons": [
+                    {
+                      "reason": "unknown_order",
+                      "count": "184"
+                    }
+                  ]
+                }
+              ],
+              "markouts": [
+                {
+                  "horizonNs": "100000000",
+                  "availableFillCount": "1013",
+                  "availableShares": "61694",
+                  "censoredFillCount": "0",
+                  "unavailableFillCount": "0",
+                  "totalMarkout": "1315.42500",
+                  "meanMarkoutPerShare": "0.021322"
+                },
+                {
+                  "horizonNs": "1000000000",
+                  "availableFillCount": "997",
+                  "availableShares": "60728",
+                  "censoredFillCount": "16",
+                  "unavailableFillCount": "0",
+                  "totalMarkout": "1317.97500",
+                  "meanMarkoutPerShare": "0.021703"
+                },
+                {
+                  "horizonNs": "5000000000",
+                  "availableFillCount": "929",
+                  "availableShares": "56821",
+                  "censoredFillCount": "84",
+                  "unavailableFillCount": "0",
+                  "totalMarkout": "1273.26000",
+                  "meanMarkoutPerShare": "0.022408"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "experimentId": "exp_679ba6fd61ac4902",
+          "masterSeed": "103",
+          "selectionReason": "selected",
+          "selectedRunId": "run_75ce87880057aff0",
+          "attempts": [
+            {
+              "runId": "run_75ce87880057aff0",
+              "state": "completed",
+              "creationOrdinal": "26",
+              "selected": true,
+              "eligible": true,
+              "reason": "selected",
+              "observationStatus": "not_applicable",
+              "windowEndTimeNs": "0",
+              "observedThroughTimeNs": "60000000000",
+              "digests": {
+                "manifestDigest": {
+                  "algorithm": "sha256",
+                  "hexDigest": "5be91032a36e0357e05a9ea3dd1ede9ddacbefb4cbc4c9c540b68e9edc37dc23"
+                },
+                "canonicalEventDigest": {
+                  "algorithm": "fnv1a_64",
+                  "hexDigest": "a6da3133710b0a7a"
+                },
+                "ledgerDigest": {
+                  "algorithm": "fnv1a_64",
+                  "hexDigest": "4b540d3c5ec7c46f"
+                }
+              },
+              "requestDiagnostics": [
+                {
+                  "requestKind": "new_order",
+                  "submittedCount": "343",
+                  "exchangeRejectedCount": "0",
+                  "arrivalTransit": {
+                    "sampleCount": "343",
+                    "minNs": "105118",
+                    "maxNs": "124999",
+                    "meanNs": "114815.236152"
+                  },
+                  "rejectReasons": []
+                },
+                {
+                  "requestKind": "cancel",
+                  "submittedCount": "0",
+                  "exchangeRejectedCount": "0",
+                  "arrivalTransit": {
+                    "sampleCount": "0",
+                    "minNs": null,
+                    "maxNs": null,
+                    "meanNs": null
+                  },
+                  "rejectReasons": []
+                },
+                {
+                  "requestKind": "replace",
+                  "submittedCount": "2944",
+                  "exchangeRejectedCount": "151",
+                  "arrivalTransit": {
+                    "sampleCount": "2944",
+                    "minNs": "85001",
+                    "maxNs": "123920",
+                    "meanNs": "95541.378736"
+                  },
+                  "rejectReasons": [
+                    {
+                      "reason": "post_only_would_cross",
+                      "count": "2"
+                    },
+                    {
+                      "reason": "unknown_order",
+                      "count": "149"
+                    }
+                  ]
+                }
+              ],
+              "markouts": [
+                {
+                  "horizonNs": "100000000",
+                  "availableFillCount": "1014",
+                  "availableShares": "62342",
+                  "censoredFillCount": "0",
+                  "unavailableFillCount": "0",
+                  "totalMarkout": "1346.40000",
+                  "meanMarkoutPerShare": "0.021597"
+                },
+                {
+                  "horizonNs": "1000000000",
+                  "availableFillCount": "996",
+                  "availableShares": "61193",
+                  "censoredFillCount": "18",
+                  "unavailableFillCount": "0",
+                  "totalMarkout": "1294.13500",
+                  "meanMarkoutPerShare": "0.021148"
+                },
+                {
+                  "horizonNs": "5000000000",
+                  "availableFillCount": "943",
+                  "availableShares": "57580",
+                  "censoredFillCount": "71",
+                  "unavailableFillCount": "0",
+                  "totalMarkout": "1216.33000",
+                  "meanMarkoutPerShare": "0.021124"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "runSelection": "r1_5aejLxjHLk5KdV2CMmmyuBGMMxtbowCHs_HvmPBPDyaL74KxtBpTqHXOh4gAV6_w",
+      "text": "Side / seed\tRun / state\tSelection and eligibility\tWindow observed through / deadline\tArtifact digests\nBaseline / 101\trun_e5a7a32f18c72e4e\n\ncompleted\n\n\tSelected\n\nselected\n\nnot applicable\n\n\t60 s / Not an execution window\tevents: ae610f743e7f2a11\nledger: ff11dfbd0a6984cc\nmanifest: a1c30e5a67d31396981fbd58597d665947e7fb0f2dd5dd222514035d6cdb2b0c\nBaseline / 102\trun_4a755d823269b2b8\n\ncompleted\n\n\tSelected\n\nselected\n\nnot applicable\n\n\t60 s / Not an execution window\tevents: 3d6b4f3a3a22071c\nledger: ab159a0d4c7e8232\nmanifest: 4739625b19dc7bee567c4cf9ea4b2258be9b27402bbda74b6b18cca05119ae2c\nBaseline / 103\trun_118c331b5ba30087\n\ncompleted\n\n\tSelected\n\nselected\n\nnot applicable\n\n\t60 s / Not an execution window\tevents: 6ea19e5c401c02c5\nledger: 14942b81f4d94fd9\nmanifest: 16c01bfc8839fcf6cd7a1f9ea644172d7e4bdc54b962635aa5e3f530355e3eb1\nCandidate / 101\trun_b3f1ef98f04f0f26\n\ncompleted\n\n\tSelected\n\nselected\n\nnot applicable\n\n\t60 s / Not an execution window\tevents: 80ab6700be6f3ca4\nledger: c3db6f017410c3b7\nmanifest: 7e35887ee7c481bf60fd392dea0772f4f9363e188e3d4cd4f852187f106ae518\nCandidate / 102\trun_8bef82b1b41a53a8\n\ncompleted\n\n\tSelected\n\nselected\n\nnot applicable\n\n\t60 s / Not an execution window\tevents: a8d5924c23346028\nledger: fa1e1e565b9628b0\nmanifest: adfc73b8e60d7d2e21eb021a177f9afc98745dfc0da7b9acda7d0b4eace57bc9\nCandidate / 103\trun_75ce87880057aff0\n\ncompleted\n\n\tSelected\n\nselected\n\nnot applicable\n\n\t60 s / Not an execution window\tevents: a6da3133710b0a7a\nledger: 4b540d3c5ec7c46f\nmanifest: 5be91032a36e0357e05a9ea3dd1ede9ddacbefb4cbc4c9c540b68e9edc37dc23"
+    }
+  },
+  "pinnedLedger": "Side / seed\tRun / state\tSelection and eligibility\tWindow observed through / deadline\tArtifact digests\nBaseline / 101\trun_b132d7f2f6b40c15\n\ncompleted\n\n\tSelected\n\nselected\n\nwindow observed\n\n\t60 s / 31 s\tevents: 7cbb9aea4f742fa9\nledger: 1e86abeac24f9cfd\nmanifest: 3b7c4e2b97b02d913ca494c4554b29deac31dfe5fa91325dc0142f63c2633fd3\nBaseline / 101\trun_5769bf8845ba17e9\n\ncompleted\n\n\tEligible, not selected\n\nnot selected\n\nwindow observed\n\n\t60 s / 31 s\tevents: 7cbb9aea4f742fa9\nledger: 1e86abeac24f9cfd\nmanifest: 4c68e256457cd3546127dc91cddec1925d288dda510cf93eed8f1db372555402\nBaseline / 102\trun_4e0ca1854999aee3\n\ncompleted\n\n\tSelected\n\nselected\n\nwindow observed\n\n\t60 s / 31 s\tevents: 2e76f84f6ebb5f51\nledger: 4c59b5c2c59d3743\nmanifest: bc4bac2371b19a785015dd275cfab39bdfd7e0b5d7e2abeaf152b3308ff51a4a\nBaseline / 102\trun_7ff458b7fbcbf284\n\ncancelled\n\n\tExcluded\n\nnot completed\n\nunavailable\n\n\tUnavailable / Deadline unavailable\tevents: dc35b2629989944b\nledger: bde1bf0709a17aa9\nmanifest: 0cf6498f470fdafe1efbad37fd14072e038fb5de7f85e188c6b780dc3ddae897\nBaseline / 103\trun_921baa8fd61d5912\n\ncompleted\n\n\tSelected\n\nselected\n\nwindow observed\n\n\t60 s / 31 s\tevents: ddc2200c58662a8d\nledger: 507542796c184f31\nmanifest: 37cbdbaf6ec6f890ce965b4be326497d54f3da1e6b1c503f27c67d3e5023abe2\nBaseline / 103\trun_866d04015e206d3d\n\ncancelled\n\n\tExcluded\n\nnot completed\n\nunavailable\n\n\tUnavailable / Deadline unavailable\tevents: 547a5b2f99d7aa00\nledger: cbf29ce484222325\nmanifest: 35b1a4012766a8b703e83f7f1fe7650c6f0b48e643edd2088c38baaed8e0a08a\nBaseline / 105\trun_604d5dd5c79eb75b\n\ncompleted\n\n\tSelected\n\nselected\n\nwindow observed\n\n\t60 s / 31 s\tevents: 3db32704dfae688a\nledger: a1478a6ea470df21\nmanifest: 79139df85f21415193254f948a06e6f9b19e4a02d062f0c10866cecdefe43ef5\nCandidate / 101\trun_a73f11e0ae403273\n\ncompleted\n\n\tSelected\n\nselected\n\nwindow observed\n\n\t60 s / 31 s\tevents: 0032c89d0beabcfd\nledger: 7f5aa02c95d2c16e\nmanifest: 3c03694ca83c76231e314dc1ae15307e638511a9a84376384785ab803ffe6c32\nCandidate / 102\trun_18536170703efdb1\n\ncompleted\n\n\tSelected\n\nselected\n\nwindow observed\n\n\t60 s / 31 s\tevents: f8fd5ff2bcd7099d\nledger: fa38287c771a7c40\nmanifest: 1c266801e5deb46fd76200d7f50a74b64aac8e6841035ecd8b024ef99fc167e2\nCandidate / 103\trun_3ef73363eacd0729\n\ncompleted\n\n\tSelected\n\nselected\n\nwindow observed\n\n\t60 s / 31 s\tevents: 1ed5a6b8c2405943\nledger: 3ead2eee0b4831dc\nmanifest: 34bfd46bacf680eeb226021c1628a84e4647fe721b96f78787ae4adc18d28efb\nCandidate / 104\trun_2dbe4f854c1a645d\n\ncompleted\n\n\tSelected\n\nselected\n\nwindow observed\n\n\t60 s / 31 s\tevents: 0dc3727d034b6d73\nledger: 63c588487ba35927\nmanifest: 3b4d5c2a4275c172f351a763743472d4bd98b65d41a0365160f87d2cc37c8e87\nCandidate / 106\trun_aec3130fe2ef3aa8\n\ncompleted\n\n\tSelected\n\nselected\n\nwindow observed\n\n\t60 s / 31 s\tevents: 62d1d338953ba851\nledger: 2647bf5c0938422f\nmanifest: f9069db018f1eaaff9dfdaf23fe5587710fd4e78f8d7c17b7bf467048299b63f",
+  "pinnedUrl": "http://127.0.0.1:45882/compare?baseline=exp_59aba9ec14e219e2&candidate=exp_67f44feeb1b1212f&runSelection=r1_sTLX8va0DBVODKGFSZmu45Ibqo_WHVkSYE1d1ceet1unPxHgrkAycxhTYXBwPv2xPvczY-rNByktvk-FTBpkXa7DEw_i7zqo",
+  "layouts": {
+    "execution-mobile": {
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "document": 390,
+      "cards": [
+        {
+          "text": "Native execution trace\nSchedule decisions and delivered reports explaining parent-order residuals.\nRefresh execution trace\n\nOne page per req",
+          "x": 16,
+          "width": 358,
+          "right": 374
+        },
+        {
+          "text": "Reproduce and export\nRepeat this exact saved configuration and seed as a new attempt, or download complete native artifacts. A repeat create",
+          "x": 16,
+          "width": 358,
+          "right": 374
+        },
+        {
+          "text": "Equity (USD)\nlast value in bucket, buckets of 200 ms. Plot positions are approximate; sampled values are available below.\n0.2s\n15.2s\n30.2s\n4",
+          "x": 16,
+          "width": 358,
+          "right": 374
+        },
+        {
+          "text": "Inventory (shares)\nlast value in bucket, buckets of 200 ms. Plot positions are approximate; sampled values are available below.\n0.2s\n15.2s\n3",
+          "x": 16,
+          "width": 358,
+          "right": 374
+        },
+        {
+          "text": "Drawdown (USD)\nlast value in bucket, buckets of 200 ms. Plot positions are approximate; sampled values are available below.\n0.2s\n15.2s\n30.2s",
+          "x": 16,
+          "width": 358,
+          "right": 374
+        },
+        {
+          "text": "Parent-order execution\nExecution window observed\nA completed simulation can still leave unexecuted parent shares.\nParent instruction\nbuy 500",
+          "x": 16,
+          "width": 358,
+          "right": 374
+        },
+        {
+          "text": "Outbound request diagnostics\nSubmitted counts are outbound requests by kind. Exchange rejections use that kind’s submitted count as denomina",
+          "x": 16,
+          "width": 358,
+          "right": 374
+        },
+        {
+          "text": "Ledger\nEquity = cash + position x mark (exchange mid). Net P&L = realized + unrealized - fees.\nInitial cash\n1,000,000.0000\nCash\n950,025.8400",
+          "x": 16,
+          "width": 358,
+          "right": 374
+        },
+        {
+          "text": "Orders and risk\nfilled shares of own orders divided by shares accepted by the exchange (new orders plus replace increases, including orders ",
+          "x": 16,
+          "width": 358,
+          "right": 374
+        },
+        {
+          "text": "Markouts\nSigned markout uses exchange mid: buy = future mid - fill price; sell = fill price - future mid. It includes the initial spread edg",
+          "x": 16,
+          "width": 358,
+          "right": 374
+        },
+        {
+          "text": "Latency observed\nConfigured value versus what the event log shows.\nPath\tConfigured\tSamples\tMin\tMax\nfeed\t50 µs\t3949\t50.015 µs\t70 µs\norder ent",
+          "x": 16,
+          "width": 358,
+          "right": 374
+        },
+        {
+          "text": "All metrics\nExact metrics come from the fixed-point ledger; derived ones are rounded half-to-even after the fact.\nMetric\tValue\tUnit\tExactnes",
+          "x": 16,
+          "width": 358,
+          "right": 374
+        }
+      ],
+      "tables": [
+        {
+          "headers": [
+            "",
+            ""
+          ],
+          "width": 318,
+          "parentWidth": 318,
+          "scrollWidth": 318,
+          "overflow": "auto"
+        },
+        {
+          "headers": [
+            "",
+            ""
+          ],
+          "width": 318,
+          "parentWidth": 318,
+          "scrollWidth": 318,
+          "overflow": "auto"
+        },
+        {
+          "headers": [
+            "",
+            ""
+          ],
+          "width": 318,
+          "parentWidth": 318,
+          "scrollWidth": 318,
+          "overflow": "auto"
+        },
+        {
+          "headers": [
+            "Request",
+            "Submitted",
+            "Exchange rejected / submitted",
+            "Reject reasons (count)",
+            "Arrival samples",
+            "Min (ns)",
+            "Max (ns)",
+            "Mean (ns)"
+          ],
+          "width": 913.4375,
+          "parentWidth": 320,
+          "scrollWidth": 913,
+          "overflow": "auto"
+        },
+        {
+          "headers": [
+            "Horizon",
+            "Eligible fills",
+            "Eligible shares",
+            "No mark",
+            "Censored",
+            "Total (USD)",
+            "Mean per share (derived)"
+          ],
+          "width": 644.09375,
+          "parentWidth": 320,
+          "scrollWidth": 644,
+          "overflow": "auto"
+        },
+        {
+          "headers": [
+            "Path",
+            "Configured",
+            "Samples",
+            "Min",
+            "Max"
+          ],
+          "width": 504.875,
+          "parentWidth": 320,
+          "scrollWidth": 505,
+          "overflow": "auto"
+        },
+        {
+          "headers": [
+            "Metric",
+            "Value",
+            "Unit",
+            "Exactness"
+          ],
+          "width": 576.90625,
+          "parentWidth": 320,
+          "scrollWidth": 577,
+          "overflow": "auto"
+        }
+      ],
+      "scrollChecks": [
+        {
+          "headers": [
+            "Request",
+            "Submitted",
+            "Exchange rejected / submitted",
+            "Reject reasons (count)",
+            "Arrival samples",
+            "Min (ns)",
+            "Max (ns)",
+            "Mean (ns)"
+          ],
+          "client": 320,
+          "scroll": 913,
+          "scrollLeft": 593,
+          "lastRight": 355.4375,
+          "parentRight": 355,
+          "visible": true
+        },
+        {
+          "headers": [
+            "Horizon",
+            "Eligible fills",
+            "Eligible shares",
+            "No mark",
+            "Censored",
+            "Total (USD)",
+            "Mean per share (derived)"
+          ],
+          "client": 320,
+          "scroll": 644,
+          "scrollLeft": 324,
+          "lastRight": 355.09375,
+          "parentRight": 355,
+          "visible": true
+        },
+        {
+          "headers": [
+            "Path",
+            "Configured",
+            "Samples",
+            "Min",
+            "Max"
+          ],
+          "client": 320,
+          "scroll": 505,
+          "scrollLeft": 185,
+          "lastRight": 354.875,
+          "parentRight": 355,
+          "visible": true
+        },
+        {
+          "headers": [
+            "Metric",
+            "Value",
+            "Unit",
+            "Exactness"
+          ],
+          "client": 320,
+          "scroll": 577,
+          "scrollLeft": 257,
+          "lastRight": 354.90625,
+          "parentRight": 355,
+          "visible": true
+        }
+      ]
+    },
+    "execution-desktop": {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "document": 1440,
+      "cards": [
+        {
+          "text": "Native execution trace\nSchedule decisions and delivered reports explaining parent-order residuals.\nRefresh execution trace\n\nOne page per req",
+          "x": 256,
+          "width": 1152,
+          "right": 1408
+        },
+        {
+          "text": "Reproduce and export\nRepeat this exact saved configuration and seed as a new attempt, or download complete native artifacts. A repeat create",
+          "x": 256,
+          "width": 1152,
+          "right": 1408
+        },
+        {
+          "text": "Equity (USD)\nlast value in bucket, buckets of 200 ms. Plot positions are approximate; sampled values are available below.\n0.2s\n15.2s\n30.2s\n4",
+          "x": 256,
+          "width": 373.328125,
+          "right": 629.328125
+        },
+        {
+          "text": "Inventory (shares)\nlast value in bucket, buckets of 200 ms. Plot positions are approximate; sampled values are available below.\n0.2s\n15.2s\n3",
+          "x": 645.328125,
+          "width": 373.328125,
+          "right": 1018.65625
+        },
+        {
+          "text": "Drawdown (USD)\nlast value in bucket, buckets of 200 ms. Plot positions are approximate; sampled values are available below.\n0.2s\n15.2s\n30.2s",
+          "x": 1034.65625,
+          "width": 373.34375,
+          "right": 1408
+        },
+        {
+          "text": "Parent-order execution\nExecution window observed\nA completed simulation can still leave unexecuted parent shares.\nParent instruction\nbuy 500",
+          "x": 256,
+          "width": 1152,
+          "right": 1408
+        },
+        {
+          "text": "Outbound request diagnostics\nSubmitted counts are outbound requests by kind. Exchange rejections use that kind’s submitted count as denomina",
+          "x": 256,
+          "width": 1152,
+          "right": 1408
+        },
+        {
+          "text": "Ledger\nEquity = cash + position x mark (exchange mid). Net P&L = realized + unrealized - fees.\nInitial cash\n1,000,000.0000\nCash\n950,025.8400",
+          "x": 256,
+          "width": 568,
+          "right": 824
+        },
+        {
+          "text": "Orders and risk\nfilled shares of own orders divided by shares accepted by the exchange (new orders plus replace increases, including orders ",
+          "x": 840,
+          "width": 568,
+          "right": 1408
+        },
+        {
+          "text": "Markouts\nSigned markout uses exchange mid: buy = future mid - fill price; sell = fill price - future mid. It includes the initial spread edg",
+          "x": 256,
+          "width": 568,
+          "right": 824
+        },
+        {
+          "text": "Latency observed\nConfigured value versus what the event log shows.\nPath\tConfigured\tSamples\tMin\tMax\nfeed\t50 µs\t3949\t50.015 µs\t70 µs\norder ent",
+          "x": 840,
+          "width": 568,
+          "right": 1408
+        },
+        {
+          "text": "All metrics\nExact metrics come from the fixed-point ledger; derived ones are rounded half-to-even after the fact.\nMetric\tValue\tUnit\tExactnes",
+          "x": 256,
+          "width": 1152,
+          "right": 1408
+        }
+      ],
+      "tables": [
+        {
+          "headers": [
+            "",
+            ""
+          ],
+          "width": 333.328125,
+          "parentWidth": 333,
+          "scrollWidth": 333,
+          "overflow": "auto"
+        },
+        {
+          "headers": [
+            "",
+            ""
+          ],
+          "width": 333.328125,
+          "parentWidth": 333,
+          "scrollWidth": 333,
+          "overflow": "auto"
+        },
+        {
+          "headers": [
+            "",
+            ""
+          ],
+          "width": 333.34375,
+          "parentWidth": 333,
+          "scrollWidth": 333,
+          "overflow": "auto"
+        },
+        {
+          "headers": [
+            "Request",
+            "Submitted",
+            "Exchange rejected / submitted",
+            "Reject reasons (count)",
+            "Arrival samples",
+            "Min (ns)",
+            "Max (ns)",
+            "Mean (ns)"
+          ],
+          "width": 1114,
+          "parentWidth": 1114,
+          "scrollWidth": 1114,
+          "overflow": "auto"
+        },
+        {
+          "headers": [
+            "Horizon",
+            "Eligible fills",
+            "Eligible shares",
+            "No mark",
+            "Censored",
+            "Total (USD)",
+            "Mean per share (derived)"
+          ],
+          "width": 644.09375,
+          "parentWidth": 530,
+          "scrollWidth": 644,
+          "overflow": "auto"
+        },
+        {
+          "headers": [
+            "Path",
+            "Configured",
+            "Samples",
+            "Min",
+            "Max"
+          ],
+          "width": 530,
+          "parentWidth": 530,
+          "scrollWidth": 530,
+          "overflow": "auto"
+        },
+        {
+          "headers": [
+            "Metric",
+            "Value",
+            "Unit",
+            "Exactness"
+          ],
+          "width": 1114,
+          "parentWidth": 1114,
+          "scrollWidth": 1114,
+          "overflow": "auto"
+        }
+      ],
+      "scrollChecks": [
+        {
+          "headers": [
+            "Horizon",
+            "Eligible fills",
+            "Eligible shares",
+            "No mark",
+            "Censored",
+            "Total (USD)",
+            "Mean per share (derived)"
+          ],
+          "client": 530,
+          "scroll": 644,
+          "scrollLeft": 114,
+          "lastRight": 805.09375,
+          "parentRight": 805,
+          "visible": true
+        }
+      ]
+    },
+    "mm-mobile": {
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "document": 390,
+      "cards": [
+        {
+          "text": "Reproduce and export\nRepeat this exact saved configuration and seed as a new attempt, or download complete native artifacts. A repeat create",
+          "x": 16,
+          "width": 358,
+          "right": 374
+        },
+        {
+          "text": "Equity (USD)\nlast value in bucket, buckets of 40 ms. Plot positions are approximate; sampled values are available below.\n0.04s\n3.04s\n6.04s\n9",
+          "x": 16,
+          "width": 358,
+          "right": 374
+        },
+        {
+          "text": "Inventory (shares)\nlast value in bucket, buckets of 40 ms. Plot positions are approximate; sampled values are available below.\n0.04s\n3.04s\n6",
+          "x": 16,
+          "width": 358,
+          "right": 374
+        },
+        {
+          "text": "Drawdown (USD)\nlast value in bucket, buckets of 40 ms. Plot positions are approximate; sampled values are available below.\n0.04s\n3.04s\n6.04s",
+          "x": 16,
+          "width": 358,
+          "right": 374
+        },
+        {
+          "text": "Outbound request diagnostics\nSubmitted counts are outbound requests by kind. Exchange rejections use that kind’s submitted count as denomina",
+          "x": 16,
+          "width": 358,
+          "right": 374
+        },
+        {
+          "text": "Ledger\nEquity = cash + position x mark (exchange mid). Net P&L = realized + unrealized - fees.\nInitial cash\n1,000,000.0000\nCash\n1,029,719.69",
+          "x": 16,
+          "width": 358,
+          "right": 374
+        },
+        {
+          "text": "Orders and risk\nfilled shares of own orders divided by shares accepted by the exchange (new orders plus replace increases, including orders ",
+          "x": 16,
+          "width": 358,
+          "right": 374
+        },
+        {
+          "text": "Markouts\nSigned markout uses exchange mid: buy = future mid - fill price; sell = fill price - future mid. It includes the initial spread edg",
+          "x": 16,
+          "width": 358,
+          "right": 374
+        },
+        {
+          "text": "Latency observed\nConfigured value versus what the event log shows.\nPath\tConfigured\tSamples\tMin\tMax\nfeed\t50 µs\t1296\t50.001 µs\t69.971 µs\norder",
+          "x": 16,
+          "width": 358,
+          "right": 374
+        },
+        {
+          "text": "All metrics\nExact metrics come from the fixed-point ledger; derived ones are rounded half-to-even after the fact.\nMetric\tValue\tUnit\tExactnes",
+          "x": 16,
+          "width": 358,
+          "right": 374
+        }
+      ],
+      "tables": [
+        {
+          "headers": [
+            "",
+            ""
+          ],
+          "width": 318,
+          "parentWidth": 318,
+          "scrollWidth": 318,
+          "overflow": "auto"
+        },
+        {
+          "headers": [
+            "",
+            ""
+          ],
+          "width": 318,
+          "parentWidth": 318,
+          "scrollWidth": 318,
+          "overflow": "auto"
+        },
+        {
+          "headers": [
+            "",
+            ""
+          ],
+          "width": 318,
+          "parentWidth": 318,
+          "scrollWidth": 318,
+          "overflow": "auto"
+        },
+        {
+          "headers": [
+            "Request",
+            "Submitted",
+            "Exchange rejected / submitted",
+            "Reject reasons (count)",
+            "Arrival samples",
+            "Min (ns)",
+            "Max (ns)",
+            "Mean (ns)"
+          ],
+          "width": 913.4375,
+          "parentWidth": 320,
+          "scrollWidth": 913,
+          "overflow": "auto"
+        },
+        {
+          "headers": [
+            "Horizon",
+            "Eligible fills",
+            "Eligible shares",
+            "No mark",
+            "Censored",
+            "Total (USD)",
+            "Mean per share (derived)"
+          ],
+          "width": 660.890625,
+          "parentWidth": 320,
+          "scrollWidth": 661,
+          "overflow": "auto"
+        },
+        {
+          "headers": [
+            "Path",
+            "Configured",
+            "Samples",
+            "Min",
+            "Max"
+          ],
+          "width": 504.875,
+          "parentWidth": 320,
+          "scrollWidth": 505,
+          "overflow": "auto"
+        },
+        {
+          "headers": [
+            "Metric",
+            "Value",
+            "Unit",
+            "Exactness"
+          ],
+          "width": 593.703125,
+          "parentWidth": 320,
+          "scrollWidth": 594,
+          "overflow": "auto"
+        }
+      ],
+      "scrollChecks": [
+        {
+          "headers": [
+            "Request",
+            "Submitted",
+            "Exchange rejected / submitted",
+            "Reject reasons (count)",
+            "Arrival samples",
+            "Min (ns)",
+            "Max (ns)",
+            "Mean (ns)"
+          ],
+          "client": 320,
+          "scroll": 913,
+          "scrollLeft": 593,
+          "lastRight": 355.4375,
+          "parentRight": 355,
+          "visible": true
+        },
+        {
+          "headers": [
+            "Horizon",
+            "Eligible fills",
+            "Eligible shares",
+            "No mark",
+            "Censored",
+            "Total (USD)",
+            "Mean per share (derived)"
+          ],
+          "client": 320,
+          "scroll": 661,
+          "scrollLeft": 341,
+          "lastRight": 354.890625,
+          "parentRight": 355,
+          "visible": true
+        },
+        {
+          "headers": [
+            "Path",
+            "Configured",
+            "Samples",
+            "Min",
+            "Max"
+          ],
+          "client": 320,
+          "scroll": 505,
+          "scrollLeft": 185,
+          "lastRight": 354.875,
+          "parentRight": 355,
+          "visible": true
+        },
+        {
+          "headers": [
+            "Metric",
+            "Value",
+            "Unit",
+            "Exactness"
+          ],
+          "client": 320,
+          "scroll": 594,
+          "scrollLeft": 274,
+          "lastRight": 354.703125,
+          "parentRight": 355,
+          "visible": true
+        }
+      ]
+    },
+    "mm-desktop": {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "document": 1440,
+      "cards": [
+        {
+          "text": "Reproduce and export\nRepeat this exact saved configuration and seed as a new attempt, or download complete native artifacts. A repeat create",
+          "x": 256,
+          "width": 1152,
+          "right": 1408
+        },
+        {
+          "text": "Equity (USD)\nlast value in bucket, buckets of 40 ms. Plot positions are approximate; sampled values are available below.\n0.04s\n3.04s\n6.04s\n9",
+          "x": 256,
+          "width": 373.328125,
+          "right": 629.328125
+        },
+        {
+          "text": "Inventory (shares)\nlast value in bucket, buckets of 40 ms. Plot positions are approximate; sampled values are available below.\n0.04s\n3.04s\n6",
+          "x": 645.328125,
+          "width": 373.328125,
+          "right": 1018.65625
+        },
+        {
+          "text": "Drawdown (USD)\nlast value in bucket, buckets of 40 ms. Plot positions are approximate; sampled values are available below.\n0.04s\n3.04s\n6.04s",
+          "x": 1034.65625,
+          "width": 373.34375,
+          "right": 1408
+        },
+        {
+          "text": "Outbound request diagnostics\nSubmitted counts are outbound requests by kind. Exchange rejections use that kind’s submitted count as denomina",
+          "x": 256,
+          "width": 1152,
+          "right": 1408
+        },
+        {
+          "text": "Ledger\nEquity = cash + position x mark (exchange mid). Net P&L = realized + unrealized - fees.\nInitial cash\n1,000,000.0000\nCash\n1,029,719.69",
+          "x": 256,
+          "width": 568,
+          "right": 824
+        },
+        {
+          "text": "Orders and risk\nfilled shares of own orders divided by shares accepted by the exchange (new orders plus replace increases, including orders ",
+          "x": 840,
+          "width": 568,
+          "right": 1408
+        },
+        {
+          "text": "Markouts\nSigned markout uses exchange mid: buy = future mid - fill price; sell = fill price - future mid. It includes the initial spread edg",
+          "x": 256,
+          "width": 568,
+          "right": 824
+        },
+        {
+          "text": "Latency observed\nConfigured value versus what the event log shows.\nPath\tConfigured\tSamples\tMin\tMax\nfeed\t50 µs\t1296\t50.001 µs\t69.971 µs\norder",
+          "x": 840,
+          "width": 568,
+          "right": 1408
+        },
+        {
+          "text": "All metrics\nExact metrics come from the fixed-point ledger; derived ones are rounded half-to-even after the fact.\nMetric\tValue\tUnit\tExactnes",
+          "x": 256,
+          "width": 1152,
+          "right": 1408
+        }
+      ],
+      "tables": [
+        {
+          "headers": [
+            "",
+            ""
+          ],
+          "width": 333.328125,
+          "parentWidth": 333,
+          "scrollWidth": 333,
+          "overflow": "auto"
+        },
+        {
+          "headers": [
+            "",
+            ""
+          ],
+          "width": 333.328125,
+          "parentWidth": 333,
+          "scrollWidth": 333,
+          "overflow": "auto"
+        },
+        {
+          "headers": [
+            "",
+            ""
+          ],
+          "width": 333.34375,
+          "parentWidth": 333,
+          "scrollWidth": 333,
+          "overflow": "auto"
+        },
+        {
+          "headers": [
+            "Request",
+            "Submitted",
+            "Exchange rejected / submitted",
+            "Reject reasons (count)",
+            "Arrival samples",
+            "Min (ns)",
+            "Max (ns)",
+            "Mean (ns)"
+          ],
+          "width": 1114,
+          "parentWidth": 1114,
+          "scrollWidth": 1114,
+          "overflow": "auto"
+        },
+        {
+          "headers": [
+            "Horizon",
+            "Eligible fills",
+            "Eligible shares",
+            "No mark",
+            "Censored",
+            "Total (USD)",
+            "Mean per share (derived)"
+          ],
+          "width": 660.890625,
+          "parentWidth": 530,
+          "scrollWidth": 661,
+          "overflow": "auto"
+        },
+        {
+          "headers": [
+            "Path",
+            "Configured",
+            "Samples",
+            "Min",
+            "Max"
+          ],
+          "width": 530,
+          "parentWidth": 530,
+          "scrollWidth": 530,
+          "overflow": "auto"
+        },
+        {
+          "headers": [
+            "Metric",
+            "Value",
+            "Unit",
+            "Exactness"
+          ],
+          "width": 1114,
+          "parentWidth": 1114,
+          "scrollWidth": 1114,
+          "overflow": "auto"
+        }
+      ],
+      "scrollChecks": [
+        {
+          "headers": [
+            "Horizon",
+            "Eligible fills",
+            "Eligible shares",
+            "No mark",
+            "Censored",
+            "Total (USD)",
+            "Mean per share (derived)"
+          ],
+          "client": 530,
+          "scroll": 661,
+          "scrollLeft": 131,
+          "lastRight": 804.890625,
+          "parentRight": 805,
+          "visible": true
+        }
+      ]
+    }
+  },
+  "focus": {
+    "selected": {
+      "focus": {
+        "tag": "TR",
+        "role": null,
+        "label": null,
+        "text": "4Read explanation\t45\t0.062980183 s\t7\tbuy\t99.9900\t61\tmaker\t100\t61\t0.0000"
+      },
+      "status": [
+        "Selected fill 4, order 7, event 45. Read explanation is available on the selected row."
+      ],
+      "row": "4Read explanation\t45\t0.062980183 s\t7\tbuy\t99.9900\t61\tmaker\t100\t61\t0.0000"
+    },
+    "read": {
+      "tag": "DIV",
+      "role": "region",
+      "label": "Selected order explanation",
+      "text": "Return to selected row\nOrder 12: latest chain state\nClient order chain 1, as of event 84; latest exchange order 12: buy 161 @ 99.9900. filled, 161 filled in 2 fills across the chain. Matching price_time_fifo. These totals are not a snapshot at the se"
+    },
+    "next": {
+      "status": [
+        "Selected fill 4, order 7, event 45. Its explanation is above. Return goes to fills and own orders."
+      ],
+      "label": "Return to fills and own orders",
+      "explanation": "Return to fills and own orders\nOrder 12: latest chain state\nClient order chain 1, as of event 84; latest exchange order 12: buy 161 @ 99.9900. filled, 161 filled in 2 fills across the chain. Matching price_time_fifo. These totals are not a snapshot at the selected fill.\n\nSelected fill: order 7, event 45, match 4; buy 61 @ 99.9900. The lifecycle below spans the replacement chain; its latest state can have another exchange order ID.\n\nSubmit\n#20\nArrival\n#22\nAccepted\n#23\nAck delivered\n#30\nAggressor arrival\n#42\nFill\n#45\nFill report delivered\n#47\n#20\n0.000059113 s\nstrategy submitted\nstrategy-visible\nExchange order unavailable\nquantity 100\nstrategy submitted limit buy 100 @ 99.9900 (client order 1)\n#22\n0.000174070 s\narrived at exchange\nexchange truth\nExchange order unavailable\nquantity 100\nresearch_strategy order buy 100 @ 99.9900 reached the exchange\n#23\n0.000174070 s\naccepted\nexchange truth\nExchange order 7\nquantity 100\nremaining 100\naccepted order 7 buy 100 @ 99.9900\n#24\n0.000174070 s\nrested\nexchange truth\nExchange order 7\nremaining 100\norder 7 rests 100 @ 99.9900\n#30\n0.000276245 s\nacknowledgment delivered\nstrategy-visible\nExchange order 7\nquantity 100\nremaining 100\nreport accepted delivered (client order 1)\n#31\n0.000280394 s\nrested report delivered\nstrategy-visible\nExchange order 7\nquantity 100\nremaining 100\nreport rested delivered (client order 1)\n#45\n0.062980183 s\npartially filled\nexchange truth\nExchange order 7\nquantity 61\nremaining 39\nfill 61 @ 99.9900 match 4 (own order)\n#47\n0.063099715 s\nfill report delivered\nstrategy-visible\nExchange order 7\nquantity 61\nremaining 39\nreport filled delivered (client order 1)\n#48\n0.063099715 s\nreplace submitted\nstrategy-visible\nExchange order 7\nquantity 161\nstrategy requested replace to 161 @ 99.9900 (client order 1)\n#49\n0.063200271 s\nreplace arrived at exchange\nexchange truth\nExchange order unavailable\nquantity 161\nresearch_strategy replace reached the exchange (client order 1)\n#50\n0.063200271 s\nreplaced\nexchange truth\nExchange order 12, replaces 7\nquantity 161\nremaining 100\norder 7 replaced by 12 161 @ 99.9900 (priority lost)\n#51\n0.063200271 s\nrested\nexchange truth\nExchange order 12\nremaining 100\norder 12 rests 100 @ 99.9900\n#53\n0.063305269 s\nreplace report delivered\nstrategy-visible\nExchange order 12\nquantity 161\nremaining 100\nreport replaced delivered (client order 1)\n#54\n0.063316576 s\nrested report delivered\nstrategy-visible\nExchange order 12\nquantity 161\nremaining 100\nreport rested delivered (client order 1)\n#81\n0.105073965 s\nfilled\nexchange truth\nExchange order 12\nquantity 100\nremaining 0\nfill 100 @ 99.9900 match 7 (own order)\n#84\n0.105189065 s\nfill report delivered\nstrategy-visible\nExchange order 12\nquantity 100\nremaining 0\nreport filled delivered (client order 1)\nOrder entry 114957 ns\nAcknowledgment 102175 ns\nCancel Unavailable ns\nSubmit to first fill 62921070 ns\nReplacement transit\nCancel/replace channel, exact submit-to-arrival elapsed ns. A fill race is labeled only when a related fill occurred between those events. Unknown-order rejection alone does not establish a fill race.\nSubmit\tArrival\tTransit (ns)\tFill before arrival\nReplace submit #48\tReplace arrival #49\t100556\tNo related fill observed between submit and arrival\nFIFO queue ahead\nShares resting at the same price with earlier time priority. Exact simulated truth unless marked estimated. At a priority-losing replacement, queue position is unavailable until subsequent rest; the new queue can have nonzero shares ahead.\n\nFIFO evidence is not truncated.\n\nEvent\tReason\tExchange order\tOld exchange order\tPrice\tPriority\tQueue availability\tShares ahead\tOrders ahead\tLevel total shares\tSource\nFIFO event #24\trested\t7\tNone\t99.9900\tUnavailable / not a replacement\tAvailable\t100\t1\t200\texact\nFIFO event #36\tqueue advanced by fill\t7\tNone\t99.9900\tUnavailable / not a replacement\tAvailable\t19\t1\t119\texact\nFIFO event #44\tqueue advanced by fill\t7\tNone\t99.9900\tUnavailable / not a replacement\tAvailable\t0\t0\t100\texact\nFIFO event #45\timmediately before fill\t7\tNone\t99.9900\tUnavailable / not a replacement\tAvailable\t0\t0\t100\texact\nFIFO event #50\treplace priority reset\t12\t7\t99.9900\tLost\tUnavailable at replacement; see subsequent rest\tUnavailable\tUnavailable\tUnavailable\texact\nFIFO event #51\trested\t12\t7\t99.9900\tLost\tAvailable\t0\t0\t100\texact\nFIFO event #81\timmediately before fill\t12\t7\t99.9900\tLost\tAvailable\t0\t0\t200\texact\nFill 4: buy 61 @ 99.9900 (maker)\nOrder 7 at event 45. Counterparty background noise taker. Mid at fill 100.00000, spread capture +0.01000 per share, fee -0.0020 per share.\nLedger\tBefore\tAfter\nPosition (shares)\t0\t61\nCash\t1,000,000.0000\t993,900.7320\nFee on this fill\t\t-0.1220\nRealized P&L change\t\t0.0000\nCumulative realized / fees\t\t0.0000 / -0.1220\nMarkout\tStatus\tRef mid\tPer share\tTotal\n100 ms (100000000 ns)\tavailable\t100.00000\t+0.01000\t+0.61000\n1 s (1000000000 ns)\tavailable\t99.97500\t-0.01500\t-0.91500\n5 s (5000000000 ns)\tavailable\t100.00000\t+0.01000\t+0.61000",
+      "returnFocus": {
+        "tag": "DIV",
+        "role": null,
+        "label": "Fills and own orders",
+        "text": "Fills\nOwn orders\nFills, page 2: 170 records; end of list\nPrevious fills\nNext fills\nMatch\tEvent\tSim time\tOrder\tSide\tPrice\tQty\tRole\tQueue ahead at rest\tPosition after\tRealized change\n460\t4582\t6.397279877 s\t785\tbuy\t100.0000\t19\tmaker\t35\t140\t0.0000\n463\t46"
+      }
+    },
+    "previous": {
+      "status": [
+        "Selected fill 4, order 7, event 45. Its explanation is above. Return goes to fills and own orders."
+      ],
+      "label": "Return to fills and own orders"
+    },
+    "tabSwitch": {
+      "status": [
+        "Selected fill 4, order 7, event 45. Its explanation is above. Return goes to fills and own orders."
+      ],
+      "label": "Return to fills and own orders",
+      "explanation": "Return to fills and own orders\nOrder 12: latest chain state\nClient order chain 1, as of event 84; latest exchange order 12: buy 161 @ 99.9900. filled, 161 filled in 2 fills across the chain. Matching price_time_fifo. These totals are not a snapshot at the selected fill.\n\nSelected fill: order 7, event 45, match 4; buy 61 @ 99.9900. The lifecycle below spans the replacement chain; its latest state can have another exchange order ID.\n\nSubmit\n#20\nArrival\n#22\nAccepted\n#23\nAck delivered\n#30\nAggressor arrival\n#42\nFill\n#45\nFill report delivered\n#47\n#20\n0.000059113 s\nstrategy submitted\nstrategy-visible\nExchange order unavailable\nquantity 100\nstrategy submitted limit buy 100 @ 99.9900 (client order 1)\n#22\n0.000174070 s\narrived at exchange\nexchange truth\nExchange order unavailable\nquantity 100\nresearch_strategy order buy 100 @ 99.9900 reached the exchange\n#23\n0.000174070 s\naccepted\nexchange truth\nExchange order 7\nquantity 100\nremaining 100\naccepted order 7 buy 100 @ 99.9900\n#24\n0.000174070 s\nrested\nexchange truth\nExchange order 7\nremaining 100\norder 7 rests 100 @ 99.9900\n#30\n0.000276245 s\nacknowledgment delivered\nstrategy-visible\nExchange order 7\nquantity 100\nremaining 100\nreport accepted delivered (client order 1)\n#31\n0.000280394 s\nrested report delivered\nstrategy-visible\nExchange order 7\nquantity 100\nremaining 100\nreport rested delivered (client order 1)\n#45\n0.062980183 s\npartially filled\nexchange truth\nExchange order 7\nquantity 61\nremaining 39\nfill 61 @ 99.9900 match 4 (own order)\n#47\n0.063099715 s\nfill report delivered\nstrategy-visible\nExchange order 7\nquantity 61\nremaining 39\nreport filled delivered (client order 1)\n#48\n0.063099715 s\nreplace submitted\nstrategy-visible\nExchange order 7\nquantity 161\nstrategy requested replace to 161 @ 99.9900 (client order 1)\n#49\n0.063200271 s\nreplace arrived at exchange\nexchange truth\nExchange order unavailable\nquantity 161\nresearch_strategy replace reached the exchange (client order 1)\n#50\n0.063200271 s\nreplaced\nexchange truth\nExchange order 12, replaces 7\nquantity 161\nremaining 100\norder 7 replaced by 12 161 @ 99.9900 (priority lost)\n#51\n0.063200271 s\nrested\nexchange truth\nExchange order 12\nremaining 100\norder 12 rests 100 @ 99.9900\n#53\n0.063305269 s\nreplace report delivered\nstrategy-visible\nExchange order 12\nquantity 161\nremaining 100\nreport replaced delivered (client order 1)\n#54\n0.063316576 s\nrested report delivered\nstrategy-visible\nExchange order 12\nquantity 161\nremaining 100\nreport rested delivered (client order 1)\n#81\n0.105073965 s\nfilled\nexchange truth\nExchange order 12\nquantity 100\nremaining 0\nfill 100 @ 99.9900 match 7 (own order)\n#84\n0.105189065 s\nfill report delivered\nstrategy-visible\nExchange order 12\nquantity 100\nremaining 0\nreport filled delivered (client order 1)\nOrder entry 114957 ns\nAcknowledgment 102175 ns\nCancel Unavailable ns\nSubmit to first fill 62921070 ns\nReplacement transit\nCancel/replace channel, exact submit-to-arrival elapsed ns. A fill race is labeled only when a related fill occurred between those events. Unknown-order rejection alone does not establish a fill race.\nSubmit\tArrival\tTransit (ns)\tFill before arrival\nReplace submit #48\tReplace arrival #49\t100556\tNo related fill observed between submit and arrival\nFIFO queue ahead\nShares resting at the same price with earlier time priority. Exact simulated truth unless marked estimated. At a priority-losing replacement, queue position is unavailable until subsequent rest; the new queue can have nonzero shares ahead.\n\nFIFO evidence is not truncated.\n\nEvent\tReason\tExchange order\tOld exchange order\tPrice\tPriority\tQueue availability\tShares ahead\tOrders ahead\tLevel total shares\tSource\nFIFO event #24\trested\t7\tNone\t99.9900\tUnavailable / not a replacement\tAvailable\t100\t1\t200\texact\nFIFO event #36\tqueue advanced by fill\t7\tNone\t99.9900\tUnavailable / not a replacement\tAvailable\t19\t1\t119\texact\nFIFO event #44\tqueue advanced by fill\t7\tNone\t99.9900\tUnavailable / not a replacement\tAvailable\t0\t0\t100\texact\nFIFO event #45\timmediately before fill\t7\tNone\t99.9900\tUnavailable / not a replacement\tAvailable\t0\t0\t100\texact\nFIFO event #50\treplace priority reset\t12\t7\t99.9900\tLost\tUnavailable at replacement; see subsequent rest\tUnavailable\tUnavailable\tUnavailable\texact\nFIFO event #51\trested\t12\t7\t99.9900\tLost\tAvailable\t0\t0\t100\texact\nFIFO event #81\timmediately before fill\t12\t7\t99.9900\tLost\tAvailable\t0\t0\t200\texact\nFill 4: buy 61 @ 99.9900 (maker)\nOrder 7 at event 45. Counterparty background noise taker. Mid at fill 100.00000, spread capture +0.01000 per share, fee -0.0020 per share.\nLedger\tBefore\tAfter\nPosition (shares)\t0\t61\nCash\t1,000,000.0000\t993,900.7320\nFee on this fill\t\t-0.1220\nRealized P&L change\t\t0.0000\nCumulative realized / fees\t\t0.0000 / -0.1220\nMarkout\tStatus\tRef mid\tPer share\tTotal\n100 ms (100000000 ns)\tavailable\t100.00000\t+0.01000\t+0.61000\n1 s (1000000000 ns)\tavailable\t99.97500\t-0.01500\t-0.91500\n5 s (5000000000 ns)\tavailable\t100.00000\t+0.01000\t+0.61000"
+    },
+    "step": {
+      "tag": "BUTTON",
+      "role": null,
+      "label": "Next event",
+      "text": ""
+    },
+    "direct": {
+      "status": [
+        "Selected order 7. Its lifecycle explanation is above."
+      ],
+      "explanation": "Return to fills and own orders\nOrder 12: latest chain state\nClient order chain 1, as of event 84; latest exchange order 12: buy 161 @ 99.9900. filled, 161 filled in 2 fills across the chain. Matching price_time_fifo. These totals are not a snapshot at the selected fill.\n#20\n0.000059113 s\nstrategy submitted\nstrategy-visible\nExchange order unavailable\nquantity 100\nstrategy submitted limit buy 100 @ 99.9900 (client order 1)\n#22\n0.000174070 s\narrived at exchange\nexchange truth\nExchange order unavailable\nquantity 100\nresearch_strategy order buy 100 @ 99.9900 reached the exchange\n#23\n0.000174070 s\naccepted\nexchange truth\nExchange order 7\nquantity 100\nremaining 100\naccepted order 7 buy 100 @ 99.9900\n#24\n0.000174070 s\nrested\nexchange truth\nExchange order 7\nremaining 100\norder 7 rests 100 @ 99.9900\n#30\n0.000276245 s\nacknowledgment delivered\nstrategy-visible\nExchange order 7\nquantity 100\nremaining 100\nreport accepted delivered (client order 1)\n#31\n0.000280394 s\nrested report delivered\nstrategy-visible\nExchange order 7\nquantity 100\nremaining 100\nreport rested delivered (client order 1)\n#45\n0.062980183 s\npartially filled\nexchange truth\nExchange order 7\nquantity 61\nremaining 39\nfill 61 @ 99.9900 match 4 (own order)\n#47\n0.063099715 s\nfill report delivered\nstrategy-visible\nExchange order 7\nquantity 61\nremaining 39\nreport filled delivered (client order 1)\n#48\n0.063099715 s\nreplace submitted\nstrategy-visible\nExchange order 7\nquantity 161\nstrategy requested replace to 161 @ 99.9900 (client order 1)\n#49\n0.063200271 s\nreplace arrived at exchange\nexchange truth\nExchange order unavailable\nquantity 161\nresearch_strategy replace reached the exchange (client order 1)\n#50\n0.063200271 s\nreplaced\nexchange truth\nExchange order 12, replaces 7\nquantity 161\nremaining 100\norder 7 replaced by 12 161 @ 99.9900 (priority lost)\n#51\n0.063200271 s\nrested\nexchange truth\nExchange order 12\nremaining 100\norder 12 rests 100 @ 99.9900\n#53\n0.063305269 s\nreplace report delivered\nstrategy-visible\nExchange order 12\nquantity 161\nremaining 100\nreport replaced delivered (client order 1)\n#54\n0.063316576 s\nrested report delivered\nstrategy-visible\nExchange order 12\nquantity 161\nremaining 100\nreport rested delivered (client order 1)\n#81\n0.105073965 s\nfilled\nexchange truth\nExchange order 12\nquantity 100\nremaining 0\nfill 100 @ 99.9900 match 7 (own order)\n#84\n0.105189065 s\nfill report delivered\nstrategy-visible\nExchange order 12\nquantity 100\nremaining 0\nreport filled delivered (client order 1)\nOrder entry 114957 ns\nAcknowledgment 102175 ns\nCancel Unavailable ns\nSubmit to first fill 62921070 ns\nReplacement transit\nCancel/replace channel, exact submit-to-arrival elapsed ns. A fill race is labeled only when a related fill occurred between those events. Unknown-order rejection alone does not establish a fill race.\nSubmit\tArrival\tTransit (ns)\tFill before arrival\nReplace submit #48\tReplace arrival #49\t100556\tNo related fill observed between submit and arrival\nFIFO queue ahead\nShares resting at the same price with earlier time priority. Exact simulated truth unless marked estimated. At a priority-losing replacement, queue position is unavailable until subsequent rest; the new queue can have nonzero shares ahead.\n\nFIFO evidence is not truncated.\n\nEvent\tReason\tExchange order\tOld exchange order\tPrice\tPriority\tQueue availability\tShares ahead\tOrders ahead\tLevel total shares\tSource\nFIFO event #24\trested\t7\tNone\t99.9900\tUnavailable / not a replacement\tAvailable\t100\t1\t200\texact\nFIFO event #36\tqueue advanced by fill\t7\tNone\t99.9900\tUnavailable / not a replacement\tAvailable\t19\t1\t119\texact\nFIFO event #44\tqueue advanced by fill\t7\tNone\t99.9900\tUnavailable / not a replacement\tAvailable\t0\t0\t100\texact\nFIFO event #45\timmediately before fill\t7\tNone\t99.9900\tUnavailable / not a replacement\tAvailable\t0\t0\t100\texact\nFIFO event #50\treplace priority reset\t12\t7\t99.9900\tLost\tUnavailable at replacement; see subsequent rest\tUnavailable\tUnavailable\tUnavailable\texact\nFIFO event #51\trested\t12\t7\t99.9900\tLost\tAvailable\t0\t0\t100\texact\nFIFO event #81\timmediately before fill\t12\t7\t99.9900\tLost\tAvailable\t0\t0\t200\texact",
+      "returnFocus": {
+        "tag": "DIV",
+        "role": null,
+        "label": "Fills and own orders",
+        "text": "Fills\nOwn orders\nFills, page 1: 200 records; more available\nPrevious fills\nNext fills\nMatch\tEvent\tSim time\tOrder\tSide\tPrice\tQty\tRole\tQueue ahead at rest\tPosition after\tRealized change\n4\t45\t0.062980183 s\t7\tbuy\t99.9900\t61\tmaker\t100\t61\t0.0000\n6\t58\t0.074"
+      }
+    }
+  }
+}

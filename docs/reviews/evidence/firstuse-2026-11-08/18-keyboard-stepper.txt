@@ -1,0 +1,51 @@
+Skip to research content
+exsim.
+
+Strategy research, explained.
+
+Experiments
+Compare
+Connections
+Interactive synthetic
+
+Controlled markets.
+Reproducible experiments.
+
+Build an experiment
+Simulated time
+Research
+Fill inspection
+Research mode
+Single venue
+Inspect seed
+901
+completed
+run_3725454d3f7f6f3f / seed 901, 1,241 events processed. Run summary
+event 26 / 1240
+Go
+Focus this bar, then use the arrow keys (Shift for 25).
+
+Loading events...
+
+Exchange truth
+Loading...
+Strategy-visible
+Loading...
+Fill explanation
+Select a fill or an own order below to see its lifecycle, queue position and ledger effect.
+Fills
+Own orders
+Fills, page 1: 8 records; end of list
+Previous fills
+Next fills
+Match	Event	Sim time	Order	Side	Price	Qty	Role	Queue ahead at rest	Position after	Realized change
+64	435	1.000112 s	109	buy	100.0100	50	taker	n/a	50	0.0000
+71	479	1.100112 s	119	buy	100.0100	50	taker	n/a	100	0.0000
+92	605	1.400114 s	149	buy	100.0100	100	taker	n/a	200	0.0000
+93	606	1.400114 s	149	buy	100.0200	50	taker	n/a	250	0.0000
+96	635	1.500118 s	155	buy	100.0200	50	taker	n/a	300	0.0000
+104	685	1.600112 s	166	buy	100.0200	50	taker	n/a	350	0.0000
+132	838	1.900123 s	202	buy	100.0200	100	taker	n/a	450	0.0000
+133	839	1.900123 s	202	buy	100.0300	50	taker	n/a	500	0.0000
+exsim research
+Inspect the assumptions behind every result.

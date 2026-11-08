@@ -1,0 +1,5 @@
+instrument AAA tick=0.01 lot=1 max_qty=100 max=100 ref=100 phase=CONTINUOUS
+session alice own
+session bobw on1
+NEW_ORDER instrument=AAA session=alice cl_ord_id=a side=BUY qty=1 price=100
+expect rejectedeUPLICATE_CLORDID

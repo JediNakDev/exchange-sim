@@ -1,0 +1,1 @@
+{"apiVersion":"v1","schemaVersion":"exsim.api/1","serviceBuildId":"exsim_api/1","engineBuildId":"exsim.matching_engine/canonical_encoding=1","executableMarketWorlds":["interactive_synthetic"],"executableStrategyKinds":["fixed_spread_market_maker","inventory_aware_market_maker","twap_execution","immediate_sweep_execution"],"realTimeProtocolModeAvailable":false}

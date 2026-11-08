@@ -1,0 +1,10 @@
+instrument AAA tick=0.01 lot=1 max_qty=100 min=99 max=101 ref=100 phase=CONTINUOUS
+session alice own
+session bob own2
+NEW_ORDER instrument=AAA session=alice cl_ord_id=a side=BUY qty=99 price=100
+NEW_ORDER instrument=AAA session=alice cl_ord_id=b side=BUY qty=10 price=100 tif=GTC
+SET_PHASE instrument=AAA phase=CLOSED
+expect count 2
+expect canceled reason=END_OF_DAY cl_ord_id=a
+expect phase_changed
+expec bid 100 10 1

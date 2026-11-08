@@ -1,0 +1,20 @@
+{
+  "state": "stopped",
+  "release": "/private/tmp/exsim-persona-review-75cf28f",
+  "metadata": {
+    "api_revision": "360ad69529aa57b5e8856391812cc3d1d93c6896",
+    "web_revision": "75cf28fcdbee8e82bd71ba20264604ff9dfdac15",
+    "web_build_id": "efg6fmC6FKFd5gxu0E1Hb",
+    "node_version": "v24.22.1"
+  },
+  "participant_url": "http://127.0.0.1:45992/experiments",
+  "api_url": "http://127.0.0.1:45993",
+  "data": "/tmp/exsim-facilitator-reference-75cf28f-3/data",
+  "started_at": "2026-11-08T04:14:37.885035+00:00",
+  "human_result": "NOT RUN",
+  "pids": [
+    28783,
+    28784
+  ],
+  "stopped_at": "2026-11-08T04:17:28.750095+00:00"
+}

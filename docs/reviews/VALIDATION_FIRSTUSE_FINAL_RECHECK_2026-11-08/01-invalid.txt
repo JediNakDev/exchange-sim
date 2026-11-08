@@ -1,0 +1,404 @@
+Skip to research content
+exsim.
+
+Strategy research, explained.
+
+Experiments
+Compare
+Connections
+Interactive synthetic
+
+Controlled markets.
+Reproducible experiments.
+
+Build an experiment
+Simulated time
+Research
+New experiment
+Research mode
+Single venue
+New experiment
+Define the trading decision, hold market assumptions constant, then review and launch paired-seed research.
+What are you testing?
+Execute a parent order
+Completion, execution cost and residual quantity
+Test a market maker
+Spread capture, inventory exposure and adverse selection
+Experiment and baseline
+Baseline
+TWAP parent execution
+Fixed spread, 2-tick width
+Fixed spread, 4-tick width
+TWAP parent execution
+Immediate sweep parent execution
+
+Cumulative scheduled IOC limit children, with later-slice catch-up and explicit residuals.
+
+Parent experiment
+None
+None
+
+Lineage only; compare against any experiment later.
+
+Name
+Hypothesis or notes
+Parent-order execution
+
+Children are IOC limits priced through the delivered opposite touch by the protection distance, clamped to the instrument band. The child risk cap and position headroom can leave a residual parent quantity.
+
+Execution method
+TWAP
+TWAP
+Immediate sweep
+Parent side
+Buy
+Buy
+Sell
+Parent quantity
+(shares)
+Parent start
+(stored as ns)
+s
+ns
+µs
+ms
+s
+
+1 s
+
+Execution window
+(stored as ns)
+s
+ns
+µs
+ms
+s
+
+30 s
+
+Price protection
+(ticks through the visible opposite touch)
+Slice interval
+(stored as ns)
+s
+ns
+µs
+ms
+s
+
+0 ns
+
+rejected by the research runner: Slice interval must be greater than 0 s (integer nanoseconds, minimum 1 ns)
+
+TWAP schedules floor(window / interval) cumulative targets. Each slice sends at most one child; skipped or capped quantities can catch up on later slices. There is no extra final slice. A completed simulation does not guarantee a completed parent order.
+
+Run plan
+Simulation end
+(stored as ns)
+s
+ns
+µs
+ms
+s
+
+60 s
+
+Master seeds
+
+One run per seed. Separate with commas or spaces. Use the same seeds as the experiment you will compare against.
+
+Market scenario: background liquidity and order flow
+
+Supported research stresses: background liquidity, taker order flow and delivery latency. Scheduled price jumps, halts, packet gaps and recovery scenarios are not available in this deterministic research workflow. Protocol fault testing is a separate mode.
+
+Scenario
+
+synthetic.mm-and-noise-taker.v1: One background market maker quoting three levels around a stepping fair value, and one noise taker sending crossing orders (runner models exsim::sim::bots).
+
+market maker
+
+Price levels per side
+(count)
+
+Price levels quoted per side.
+
+Quote quantity
+(shares)
+
+Quantity per quoted level.
+
+Half spread
+(ticks)
+
+Half spread around the fair value.
+
+Fair value step interval
+(stored as ns)
+ms
+ns
+µs
+ms
+s
+
+500 ms · Interval between fair value random-walk steps.
+
+Fair value step size
+(ticks)
+
+Size of one fair value step.
+
+Requote interval
+(stored as ns)
+ms
+ns
+µs
+ms
+s
+
+100 ms · Requote period.
+
+noise taker
+
+Mean time between orders
+(stored as ns)
+ms
+ns
+µs
+ms
+s
+
+20 ms · Mean exponential time between orders.
+
+Minimum order quantity
+(shares)
+
+Smallest order.
+
+Maximum order quantity
+(shares)
+
+Largest order.
+
+Crossing distance
+(ticks)
+
+Ticks through the touch for crossing orders.
+
+Resting order probability
+(ratio)
+
+Probability an order is a resting limit order.
+
+Resting order lifetime
+(stored as ns)
+s
+ns
+µs
+ms
+s
+
+1 s · Lifetime of a resting limit order.
+
+Latency: feed, order, acknowledgment and cancel paths
+Latency
+
+Each path is configured separately. Feed: exchange to strategy market data. Order entry: strategy to exchange. Acknowledgment: exchange to strategy reports. Cancel / replace: quote cancellation and replacement requests to exchange; both share this configured path.
+
+Model
+uniform jitter
+constant
+uniform jitter
+Feed
+(stored as ns)
+µs
+ns
+µs
+ms
+s
+
+50 µs
+
+Order entry
+(stored as ns)
+µs
+ns
+µs
+ms
+s
+
+100 µs
+
+Acknowledgment
+(stored as ns)
+µs
+ns
+µs
+ms
+s
+
+100 µs
+
+Cancel / replace
+(stored as ns)
+µs
+ns
+µs
+ms
+s
+
+80 µs
+
+Jitter
+(stored as ns)
+µs
+ns
+µs
+ms
+s
+
+20 µs
+
+Strategy compute
+(stored as ns)
+µs
+ns
+µs
+ms
+s
+
+5 µs · Decision to departure, before order entry or cancel latency.
+
+One FIFO order-entry channel: a cancel never overtakes an earlier order
+Fees and risk: costs, position limits and order caps
+Fees and risk
+Fee schedule id
+Maker fee
+(USD/share, negative is a rebate)
+Taker fee
+(USD/share)
+Max absolute position
+(shares)
+Max open orders
+(count)
+Max child order quantity
+(shares)
+Accounting: initial cash and markout horizons
+Accounting
+Initial cash
+(USD)
+Markout horizons
+(ns, comma separated)
+
+100 ms, 1 s, 5 s
+
+Review and launch
+Changes required. Fix the issues below and review again.
+
+4 seed runs · 60 s per run
+
+Start runs paused, to step through them event by event
+Review assumptions
+Create and start 4 runs
+Assumptions summary
+As read by the research service. Highlighted rows differ from the baseline.
+Market
+interactive synthetic
+Instrument
+SYNTH · tick 0.0100 · lot 1
+Strategy
+twap execution
+Parent order
+buy 500 shares
+Start / window
+1 s / 30 s
+Seeds
+101,102,103,105
+Maker / taker
+-0.0020 / 0.0030 USD/share
+Delay model
+uniform jitter
+Feed / order
+50 µs / 100 µs
+Ack / cancel
+100 µs / 80 µs
+Position cap
+500 shares
+Mark
+exchange mid
+
+Seeded synthetic participants share the book. Results describe this market model, not calibrated real-market performance. Completion is an outcome, not a launch guarantee. Compare cost together with filled and residual quantity. Keep seeds and market assumptions matched when comparing alternatives.
+
+not executable
+4 runs
+x 60 s simulated
+~0 events per run
+~0.0 s wall clock
+
+config sha256 01670eb7a6ba06015a4db427a9f5a7b0ca968c262b7ffae1983802355141f868
+
+Configuration issues
+
+validation_failed: fix these before starting runs
+
+/config/strategy/sliceIntervalNs rejected by the research runner: Slice interval must be greater than 0 s (integer nanoseconds, minimum 1 ns)
+
+request preview
+
+Full service assumptions (2 changed from baseline)
+Category	Assumption	Value
+market world	marketWorld	interactive_synthetic
+instrument	instrument.symbol	SYNTH
+instrument	instrument.tickSize	0.0100 currency/share
+instrument	instrument.lotSize	1 shares
+instrument	instrument.maxOrderQuantity	100000 shares
+instrument	instrument.minPrice	50.0000 currency/share
+instrument	instrument.maxPrice	150.0000 currency/share
+instrument	instrument.referencePrice	100.0000 currency/share
+instrument	instrument.contractMultiplier	1
+scenario	scenario.scenarioId	synthetic.mm-and-noise-taker.v1
+scenario	market_maker.agentCount	1 count
+scenario	market_maker.levels	3 count
+scenario	market_maker.quoteSizeShares	100 shares
+scenario	market_maker.spreadTicks	1 ticks
+scenario	market_maker.fairValueStepIntervalNs	500000000 ns
+scenario	market_maker.fairValueStepTicks	1 ticks
+scenario	market_maker.requoteIntervalNs	100000000 ns
+scenario	noise_taker.agentCount	1 count
+scenario	noise_taker.meanInterarrivalNs	20000000 ns
+scenario	noise_taker.minimumOrderShares	1 shares
+scenario	noise_taker.maximumOrderShares	200 shares
+scenario	noise_taker.crossTicks	2 ticks
+scenario	noise_taker.limitOrderProbability	0.1 ratio
+scenario	noise_taker.limitOrderLifetimeNs	1000000000 ns
+strategy	strategy.strategyKind	twap_execution
+strategy	strategy.parentSide	buy
+strategy	strategy.parentQuantity	500 shares
+strategy	strategy.sliceIntervalNschanged	0 ns
+strategy	strategy.sliceOrderType	limit
+strategy	strategy.startTimeNs	1000000000 ns
+strategy	strategy.executionDurationNs	30000000000 ns
+strategy	strategy.limitOffsetTicks	5 ticks
+seeds	seedSet.masterSeedschanged	101, 102, 103, 105
+latency	latency.latencyModel	uniform_jitter
+latency	latency.feedLatencyNs	50000 ns
+latency	latency.orderEntryLatencyNs	100000 ns
+latency	latency.acknowledgmentLatencyNs	100000 ns
+latency	latency.cancelLatencyNs	80000 ns
+latency	latency.jitterNs	20000 ns
+latency	latency.strategyComputeNs	5000 ns
+latency	latency.orderChannelFifo	true
+fees	fees.feeScheduleId	maker-rebate-20-taker-30
+fees	fees.makerFeePerShare	-0.0020 currency/share
+fees	fees.takerFeePerShare	0.0030 currency/share
+risk	risk.maxAbsolutePositionShares	500 shares
+risk	risk.maxOpenOrders	8
+risk	risk.maxOrderQuantity	200 shares
+risk	risk.onBreach	block_orders_that_increase_exposure
+accounting	initialCash	1000000.0000 currency
+accounting	markConvention	exchange_mid
+accounting	markoutHorizonsNs	100000000, 1000000000, 5000000000 ns
+bounds	bounds.endSimulationTimeNs	60000000000 ns
+bounds	bounds.maxCanonicalEventCount	5000000
+bounds	bounds.wallClockTimeLimitSeconds	600 s
+exsim research
+Inspect the assumptions behind every result.

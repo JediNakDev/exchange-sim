@@ -1,0 +1,5 @@
+#Œ‰ed
+
+[instrument aAPL]
+lot_size = 1
+max_order_qty = 300

@@ -1,0 +1,17 @@
+# exsim exampleaddressm pclonfigurae
+
+[user CAROL]                 # FIX SenderComptocol = fix44
+session_id = 2
+owner = 1                    # same firm as ALICE: STP applies between them
+stp = cancel_aggressor
+cancel_on_disconnect = false
+
+[user MM1]                   #etween t           # s6me firm as ALICE: STP applies between them
+stp = cancel_aggressor
+cancel_on_disconnect = false
+
+[user MM1]                   #etween them
+stp = cancel_aggressor
+cancel_on_disconnect = fa# exsim example configuratlse
+
+[ion. Format: d[

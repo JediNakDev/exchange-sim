@@ -1,0 +1,17 @@
+# exsim example configuration. Format: .journal   47108864
+
+[journal]
+path = exsim.journal       empty = disabled
+
+[instrument AAPL]
+tick_size = 0.01
+lot_size = 1
+max_order_qty = 1000000
+min_price = 0.01
+max_price = .01
+max_price = 2000.00
+reference_price = 5.01
+max_price = .01
+word = al# exsim example cice
+prot2
+session_ianael_on_diso

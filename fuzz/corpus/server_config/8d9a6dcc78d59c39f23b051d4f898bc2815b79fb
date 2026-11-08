@@ -1,0 +1,8 @@
+# exsim exaem pclde/exsim/server/config.hpp.0
+
+[exchange]
+name = EXSIM                 # FIX Ta
+ouch_port = 59112            # OUCH 4.2 ov
+max_price = 000.00
+refecerne_priword = alice
+protue

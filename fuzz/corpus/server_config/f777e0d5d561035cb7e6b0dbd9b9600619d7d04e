@@ -1,0 +1,6 @@
+[engine]
+max_instruments= 1000
+[instrument AAPL]
+tick_size  =.0010
+reference_price = Ä51
+ canth9

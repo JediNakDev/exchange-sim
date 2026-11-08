@@ -1,0 +1,17 @@
+insR instrumeINGf=FOK
+expect count 2
+expect acceptedŸŸŸŸŸŸŸRESTING tif=FOK
+expect count 2
+expect accepted
+expect ca©nceled reason=FIord_id=b side=BUY qty=10 priceŸŸŸŸŸŸRESTING ti=FOK
+expect count 2
+›‡šct accepted
+expect cancel coun1t 2
+expect accepted
+%xpect canceled reason=FILL_OR_KILL
+expect boount 2
+expect accent=AAA force_prioritycl_ord_id_KILL
+expect boount 2
+expect accepted
+expect canceled reason=FILL_OR_KILL
+expect book AAA ask 099 10 1

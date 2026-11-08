@@ -1,0 +1,234 @@
+[
+  {
+    "text": "Skip to research content",
+    "href": "#research-content"
+  },
+  {
+    "text": "exsim.",
+    "href": "/experiments"
+  },
+  {
+    "text": "Experiments",
+    "href": "/experiments"
+  },
+  {
+    "text": "Compare",
+    "href": "/compare"
+  },
+  {
+    "text": "Connections",
+    "href": "/connections"
+  },
+  {
+    "text": "Build an experiment ",
+    "href": "/experiments/new"
+  },
+  {
+    "text": "exp_b00b5366fa8efaf9",
+    "href": "/experiments/exp_b00b5366fa8efaf9"
+  },
+  {
+    "text": "Inspect events",
+    "href": "/runs/run_d2a1cf745ec6f08a/inspect"
+  },
+  {
+    "text": "TRADING-RECHECK pagedsweep",
+    "href": "/experiments/exp_b00b5366fa8efaf9"
+  },
+  {
+    "text": "Explain fills and queue events",
+    "href": "/runs/run_d2a1cf745ec6f08a/inspect"
+  },
+  {
+    "text": "Create variant",
+    "href": "/experiments/new?from=exp_b00b5366fa8efaf9"
+  },
+  {
+    "text": "Compare against this experiment",
+    "href": "/compare?baseline=exp_b00b5366fa8efaf9"
+  },
+  {
+    "text": "95",
+    "href": "/runs/run_d2a1cf745ec6f08a/inspect?order=95"
+  },
+  {
+    "text": "95",
+    "href": "/runs/run_d2a1cf745ec6f08a/inspect?order=95"
+  },
+  {
+    "text": "97",
+    "href": "/runs/run_d2a1cf745ec6f08a/inspect?order=97"
+  },
+  {
+    "text": "97",
+    "href": "/runs/run_d2a1cf745ec6f08a/inspect?order=97"
+  },
+  {
+    "text": "99",
+    "href": "/runs/run_d2a1cf745ec6f08a/inspect?order=99"
+  },
+  {
+    "text": "99",
+    "href": "/runs/run_d2a1cf745ec6f08a/inspect?order=99"
+  },
+  {
+    "text": "99",
+    "href": "/runs/run_d2a1cf745ec6f08a/inspect?order=99"
+  },
+  {
+    "text": "101",
+    "href": "/runs/run_d2a1cf745ec6f08a/inspect?order=101"
+  },
+  {
+    "text": "101",
+    "href": "/runs/run_d2a1cf745ec6f08a/inspect?order=101"
+  },
+  {
+    "text": "103",
+    "href": "/runs/run_d2a1cf745ec6f08a/inspect?order=103"
+  },
+  {
+    "text": "103",
+    "href": "/runs/run_d2a1cf745ec6f08a/inspect?order=103"
+  },
+  {
+    "text": "106",
+    "href": "/runs/run_d2a1cf745ec6f08a/inspect?order=106"
+  },
+  {
+    "text": "106",
+    "href": "/runs/run_d2a1cf745ec6f08a/inspect?order=106"
+  },
+  {
+    "text": "108",
+    "href": "/runs/run_d2a1cf745ec6f08a/inspect?order=108"
+  },
+  {
+    "text": "108",
+    "href": "/runs/run_d2a1cf745ec6f08a/inspect?order=108"
+  },
+  {
+    "text": "110",
+    "href": "/runs/run_d2a1cf745ec6f08a/inspect?order=110"
+  },
+  {
+    "text": "110",
+    "href": "/runs/run_d2a1cf745ec6f08a/inspect?order=110"
+  },
+  {
+    "text": "117",
+    "href": "/runs/run_d2a1cf745ec6f08a/inspect?order=117"
+  },
+  {
+    "text": "117",
+    "href": "/runs/run_d2a1cf745ec6f08a/inspect?order=117"
+  },
+  {
+    "text": "119",
+    "href": "/runs/run_d2a1cf745ec6f08a/inspect?order=119"
+  },
+  {
+    "text": "119",
+    "href": "/runs/run_d2a1cf745ec6f08a/inspect?order=119"
+  },
+  {
+    "text": "121",
+    "href": "/runs/run_d2a1cf745ec6f08a/inspect?order=121"
+  },
+  {
+    "text": "121",
+    "href": "/runs/run_d2a1cf745ec6f08a/inspect?order=121"
+  },
+  {
+    "text": "124",
+    "href": "/runs/run_d2a1cf745ec6f08a/inspect?order=124"
+  },
+  {
+    "text": "124",
+    "href": "/runs/run_d2a1cf745ec6f08a/inspect?order=124"
+  },
+  {
+    "text": "124",
+    "href": "/runs/run_d2a1cf745ec6f08a/inspect?order=124"
+  },
+  {
+    "text": "130",
+    "href": "/runs/run_d2a1cf745ec6f08a/inspect?order=130"
+  },
+  {
+    "text": "130",
+    "href": "/runs/run_d2a1cf745ec6f08a/inspect?order=130"
+  },
+  {
+    "text": "132",
+    "href": "/runs/run_d2a1cf745ec6f08a/inspect?order=132"
+  },
+  {
+    "text": "132",
+    "href": "/runs/run_d2a1cf745ec6f08a/inspect?order=132"
+  },
+  {
+    "text": "134",
+    "href": "/runs/run_d2a1cf745ec6f08a/inspect?order=134"
+  },
+  {
+    "text": "134",
+    "href": "/runs/run_d2a1cf745ec6f08a/inspect?order=134"
+  },
+  {
+    "text": "136",
+    "href": "/runs/run_d2a1cf745ec6f08a/inspect?order=136"
+  },
+  {
+    "text": "136",
+    "href": "/runs/run_d2a1cf745ec6f08a/inspect?order=136"
+  },
+  {
+    "text": "136",
+    "href": "/runs/run_d2a1cf745ec6f08a/inspect?order=136"
+  },
+  {
+    "text": "138",
+    "href": "/runs/run_d2a1cf745ec6f08a/inspect?order=138"
+  },
+  {
+    "text": "138",
+    "href": "/runs/run_d2a1cf745ec6f08a/inspect?order=138"
+  },
+  {
+    "text": "140",
+    "href": "/runs/run_d2a1cf745ec6f08a/inspect?order=140"
+  },
+  {
+    "text": "140",
+    "href": "/runs/run_d2a1cf745ec6f08a/inspect?order=140"
+  },
+  {
+    "text": "142",
+    "href": "/runs/run_d2a1cf745ec6f08a/inspect?order=142"
+  },
+  {
+    "text": "142",
+    "href": "/runs/run_d2a1cf745ec6f08a/inspect?order=142"
+  },
+  {
+    "text": "148",
+    "href": "/runs/run_d2a1cf745ec6f08a/inspect?order=148"
+  },
+  {
+    "text": "148",
+    "href": "/runs/run_d2a1cf745ec6f08a/inspect?order=148"
+  },
+  {
+    "text": "150",
+    "href": "/runs/run_d2a1cf745ec6f08a/inspect?order=150"
+  },
+  {
+    "text": "150",
+    "href": "/runs/run_d2a1cf745ec6f08a/inspect?order=150"
+  },
+  {
+    "text": "152",
+    "href": "/runs/run_d2a1cf745ec6f08a/inspect?order=152"
+  }
+]

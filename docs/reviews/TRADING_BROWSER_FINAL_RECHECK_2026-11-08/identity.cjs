@@ -1,0 +1,22 @@
+// Review only. Uses existing Playwright and shared immutable disposable services.
+const {chromium}=require(process.env.TRADING_PLAYWRIGHT || '/Users/jedi/.t3/worktrees/lob/t3-91b14a38/web/node_modules/@playwright/test');
+const fs=require('fs'),path=require('path'),crypto=require('crypto');
+const out=__dirname, base='http://127.0.0.1:45872', api='http://127.0.0.1:45873/v1';
+const receipt=JSON.parse(fs.readFileSync(path.join(out,"receipt.json"))); let p,browser;
+function save(n,x){fs.writeFileSync(path.join(out,n),typeof x==='string'?x:JSON.stringify(x,null,2));}
+async function call(route,body){const r=await fetch(api+route,body===undefined?{}:{method:'POST',headers:{'Content-Type':'application/json','Idempotency-Key':'TRADING-RECHECK-'+crypto.randomUUID()},body:JSON.stringify(body)});const x=await r.json();if(!r.ok)throw Error(route+JSON.stringify(x));return x;}
+async function snap(n){save(n+'.txt',(await p.locator('body').innerText()).split('\n').map(line=>line.trimEnd()).join('\n'));save(n+'-links.json',await p.locator('a').evaluateAll(es=>es.map(e=>({text:e.textContent,href:e.getAttribute('href')}))));}
+async function goto(route){await p.goto(base+route);await p.waitForTimeout(900);}
+function check(n,truth){if(!truth)throw Error(n);receipt.checks.push(n);console.log('PASS '+n);}
+async function study(n,c,seeds=['101','102','103'],parent){c=structuredClone(c);c.seedSet.masterSeeds=seeds;const e=await call('/experiments',{name:'TRADING-RECHECK '+n,derivedFromBaselineId:'fixed-spread-2-ticks',...(parent?{parentExperimentId:parent}:{}),config:c});const runs={};for(const seed of seeds){let r=await call('/runs',{experimentId:e.experimentId,masterSeed:seed});for(let i=0;i<100;i++){r=await call('/runs/'+r.runId);if(r.state==='completed')break;if(r.state==='failed')throw Error(JSON.stringify(r));await p.waitForTimeout(100);}check(n+' native completed '+seed,r.state==='completed');runs[seed]=r;save(n+'-'+seed+'-summary.json',await call('/runs/'+r.runId+'/summary'));}const s={experiment:e,runs};receipt.studies[n]=s;save('receipt.json',receipt);return s;}
+(async()=>{browser=await chromium.launch({headless:true});p=await(await browser.newContext({viewport:{width:1440,height:1000}})).newPage();p.setDefaultTimeout(10000);try{
+ const mm=receipt.studies.mm.runs['103'].runId,slow=receipt.studies.slow.runs['103'].runId;
+ await goto('/runs/'+slow+'/inspect?order=7');for(const label of ['Replace submit #48','Fill before replace arrival #69','Replace arrival #104']){await p.getByRole('button',{name:label,exact:true}).click();await p.waitForTimeout(350);await snap('21-jump-'+label.split('#')[1]);}save('race-events.json',await call('/runs/'+slow+'/events?fromEventPosition=48&toEventPosition=105&limit=100'));
+ await goto('/runs/'+mm+'/inspect');await p.getByRole('table',{name:'Recorded fills'}).locator('tbody tr').nth(2).click();await p.waitForTimeout(500);await snap('22-replaced-fill');check('MM03 replaced fill order12 event81',await p.getByLabel('Selected fill identity').innerText().then(t=>t.includes('order 12, event 81')));
+ await p.getByRole('button',{name:'Next fills',exact:true}).click();await p.waitForTimeout(500);await snap('23-selected-offpage');check('offpage selected fill identity preserved',await p.getByLabel('Selected fill identity').innerText().then(t=>t.includes('order 12, event 81')));
+ await p.getByRole('button',{name:'Previous fills',exact:true}).click();await p.waitForTimeout(400);await p.getByRole('table',{name:'Recorded fills'}).locator('tbody tr').first().click();await p.waitForTimeout(400);check('original fill identity restored',await p.getByLabel('Selected fill identity').innerText().then(t=>t.includes('order 7, event 45')));
+ await p.evaluate(()=>history.pushState(null,'','?order=8'));await p.waitForTimeout(600);await snap('24-same-route-order8');check('same-route query clears selected fill',await p.getByLabel('Selected fill identity').count()===0);await p.evaluate(()=>history.pushState(null,'','?order=7'));await p.waitForTimeout(600);await snap('25-same-route-order7');
+ await goto(receipt.traceLink);await snap('26-trace-backlink');
+ for(const seed of ['101','102','103']){save('twap-'+seed+'-manifest.json',await call('/runs/'+receipt.studies.twap.runs[seed].runId+'/manifest'));}
+ await goto('/runs/'+mm);await snap('27-mm-markout-summary');
+}finally{save('receipt.json',receipt);await browser.close();}})().catch(e=>{console.error(e);process.exitCode=1;});

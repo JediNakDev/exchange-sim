@@ -1,0 +1,652 @@
+Skip to research content
+exsim.
+
+Strategy research, explained.
+
+Experiments
+Compare
+Connections
+Interactive synthetic
+
+Controlled markets.
+Reproducible experiments.
+
+Build an experiment
+Simulated time
+Research
+Paired comparison
+Research mode
+Single venue
+Compare experiments
+Judge candidate outcomes against a baseline on matched seeds, then inspect the runs behind the difference.
+Baseline
+VALIDATION-RECHECK baseline
+exp_59aba9ec14e219e2
+Candidate
+VALIDATION-RECHECK candidate
+exp_67f44feeb1b1212f
+Paired seeds
+Only reproduced, completed runs enter this paired comparison. Failed, incomplete and unpaired runs are excluded; this can bias the result.
+
+Paired (3): 101, 102, 103
+
+Baseline only: 105
+
+Candidate only: 104, 106
+
+VALIDATION-RECHECK baseline vs VALIDATION-RECHECK candidate
+
+Assumption differences (5)
+Everything that differs between the two configurations. If more than the variable under test changed, the comparison mixes effects.
+Category	Assumption	Baseline	Candidate
+strategy	strategy.strategyKind	twap_execution	immediate_sweep_execution
+strategy	strategy.sliceIntervalNs	1000000000 ns	(absent) ns
+strategy	strategy.sliceOrderType	limit	(absent)
+seeds	seedSet.masterSeeds	101, 102, 103, 105	101, 102, 103, 104, 106
+fees	fees.takerFeePerShare	0.0030 currency/share	0.0060 currency/share
+Comparison eligibility and selected attempts
+Pinned run selection. Later attempts do not replace selected evidence. Failed, cancelled, incomplete, censored execution windows and failed reproduction are excluded; a fully observed execution window may still leave parent shares unfilled.
+
+0 ineligible attempts; 0 execution windows cut short. 0 planned seed entries never launched. Inspect reasons below before interpreting directional outcomes.
+
+Inspect every planned seed and run attempt
+Side / seed	Run / state	Selection and eligibility	Window observed through / deadline	Artifact digests
+Baseline / 101	run_b132d7f2f6b40c15
+
+completed
+
+	Selected
+
+selected
+
+window observed
+
+	60 s / 31 s	events: 7cbb9aea4f742fa9
+ledger: 1e86abeac24f9cfd
+manifest: 3b7c4e2b97b02d913ca494c4554b29deac31dfe5fa91325dc0142f63c2633fd3
+Baseline / 101	run_5769bf8845ba17e9
+
+completed
+
+	Eligible, not selected
+
+not selected
+
+window observed
+
+	60 s / 31 s	events: 7cbb9aea4f742fa9
+ledger: 1e86abeac24f9cfd
+manifest: 4c68e256457cd3546127dc91cddec1925d288dda510cf93eed8f1db372555402
+Baseline / 102	run_4e0ca1854999aee3
+
+completed
+
+	Selected
+
+selected
+
+window observed
+
+	60 s / 31 s	events: 2e76f84f6ebb5f51
+ledger: 4c59b5c2c59d3743
+manifest: bc4bac2371b19a785015dd275cfab39bdfd7e0b5d7e2abeaf152b3308ff51a4a
+Baseline / 103	run_921baa8fd61d5912
+
+completed
+
+	Selected
+
+selected
+
+window observed
+
+	60 s / 31 s	events: ddc2200c58662a8d
+ledger: 507542796c184f31
+manifest: 37cbdbaf6ec6f890ce965b4be326497d54f3da1e6b1c503f27c67d3e5023abe2
+Baseline / 105	run_604d5dd5c79eb75b
+
+completed
+
+	Selected
+
+selected
+
+window observed
+
+	60 s / 31 s	events: 3db32704dfae688a
+ledger: a1478a6ea470df21
+manifest: 79139df85f21415193254f948a06e6f9b19e4a02d062f0c10866cecdefe43ef5
+Candidate / 101	run_a73f11e0ae403273
+
+completed
+
+	Selected
+
+selected
+
+window observed
+
+	60 s / 31 s	events: 0032c89d0beabcfd
+ledger: 7f5aa02c95d2c16e
+manifest: 3c03694ca83c76231e314dc1ae15307e638511a9a84376384785ab803ffe6c32
+Candidate / 102	run_18536170703efdb1
+
+completed
+
+	Selected
+
+selected
+
+window observed
+
+	60 s / 31 s	events: f8fd5ff2bcd7099d
+ledger: fa38287c771a7c40
+manifest: 1c266801e5deb46fd76200d7f50a74b64aac8e6841035ecd8b024ef99fc167e2
+Candidate / 103	run_3ef73363eacd0729
+
+completed
+
+	Selected
+
+selected
+
+window observed
+
+	60 s / 31 s	events: 1ed5a6b8c2405943
+ledger: 3ead2eee0b4831dc
+manifest: 34bfd46bacf680eeb226021c1628a84e4647fe721b96f78787ae4adc18d28efb
+Candidate / 104	run_2dbe4f854c1a645d
+
+completed
+
+	Selected
+
+selected
+
+window observed
+
+	60 s / 31 s	events: 0dc3727d034b6d73
+ledger: 63c588487ba35927
+manifest: 3b4d5c2a4275c172f351a763743472d4bd98b65d41a0365160f87d2cc37c8e87
+Candidate / 106	run_aec3130fe2ef3aa8
+
+completed
+
+	Selected
+
+selected
+
+window observed
+
+	60 s / 31 s	events: 62d1d338953ba851
+ledger: 2647bf5c0938422f
+manifest: f9069db018f1eaaff9dfdaf23fe5587710fd4e78f8d7c17b7bf467048299b63f
+Execution completion and filled-quantity costs by seed
+
+Cost totals are USD on executed shares, including net fees, against the exchange mid at parent declaration. Residual opportunity cost is unavailable. Compare both quantities and costs before preferring an alternative.
+
+Seed	Baseline	Candidate
+101
+
+Filled shares: 500
+
+Residual shares: 0
+
+Completion ratio: 1.000000
+
+Executed cost incl fees (USD): -20.84000
+
+
+
+Filled shares: 500
+
+Residual shares: 0
+
+Completion ratio: 1.000000
+
+Executed cost incl fees (USD): 11.88000
+
+
+102
+
+Filled shares: 483
+
+Residual shares: 17
+
+Completion ratio: 0.966000
+
+Executed cost incl fees (USD): -10.08100
+
+
+
+Filled shares: 500
+
+Residual shares: 0
+
+Completion ratio: 1.000000
+
+Executed cost incl fees (USD): 17.00000
+
+
+103
+
+Filled shares: 483
+
+Residual shares: 17
+
+Completion ratio: 0.966000
+
+Executed cost incl fees (USD): 26.45900
+
+
+
+Filled shares: 500
+
+Residual shares: 0
+
+Completion ratio: 1.000000
+
+Executed cost incl fees (USD): 6.10000
+
+Request and quote-update diagnostics by selected attempt
+Markout eligibility and conditional fill quality
+
+Quantity-weighted signed USD/share against exchange mid: buy = future mid - fill price; sell = fill price - future mid. Includes initial spread edge, not pure mid-price drift. Compare eligible shares and censored coverage alongside conditional values; USD totals describe economic scale.
+
+Side / seed / horizon	Eligible shares / fills	No mark / censored fills	USD / eligible share	Total USD
+Baseline / 101 / 100 ms	500 / 24	0 / 0	-0.010000	-5.00000
+Baseline / 101 / 1 s	500 / 24	0 / 0	-0.011880	-5.94000
+Baseline / 101 / 5 s	500 / 24	0 / 0	-0.016120	-8.06000
+Baseline / 102 / 100 ms	483 / 21	0 / 0	-0.009648	-4.66000
+Baseline / 102 / 1 s	483 / 21	0 / 0	-0.013126	-6.34000
+Baseline / 102 / 5 s	483 / 21	0 / 0	-0.018592	-8.98000
+Baseline / 103 / 100 ms	483 / 19	0 / 0	-0.009141	-4.41500
+Baseline / 103 / 1 s	483 / 19	0 / 0	-0.006046	-2.92000
+Baseline / 103 / 5 s	483 / 19	0 / 0	-0.003271	-1.58000
+Baseline / 105 / 100 ms	500 / 18	0 / 0	-0.010000	-5.00000
+Baseline / 105 / 1 s	500 / 18	0 / 0	-0.006590	-3.29500
+Baseline / 105 / 5 s	500 / 18	0 / 0	+0.007000	+3.50000
+Candidate / 101 / 100 ms	500 / 6	0 / 0	-0.028720	-14.36000
+Candidate / 101 / 1 s	500 / 6	0 / 0	-0.046800	-23.40000
+Candidate / 101 / 5 s	500 / 6	0 / 0	-0.049680	-24.84000
+Candidate / 102 / 100 ms	500 / 5	0 / 0	-0.016000	-8.00000
+Candidate / 102 / 1 s	500 / 5	0 / 0	-0.039000	-19.50000
+Candidate / 102 / 5 s	500 / 5	0 / 0	-0.038000	-19.00000
+Candidate / 103 / 100 ms	500 / 7	0 / 0	-0.015610	-7.80500
+Candidate / 103 / 1 s	500 / 7	0 / 0	+0.003800	+1.90000
+Candidate / 103 / 5 s	500 / 7	0 / 0	+0.023760	+11.88000
+Candidate / 104 / 100 ms	500 / 6	0 / 0	-0.017000	-8.50000
+Candidate / 104 / 1 s	500 / 6	0 / 0	-0.037780	-18.89000
+Candidate / 104 / 5 s	500 / 6	0 / 0	-0.038000	-19.00000
+Candidate / 106 / 100 ms	500 / 5	0 / 0	-0.016000	-8.00000
+Candidate / 106 / 1 s	500 / 5	0 / 0	-0.017000	-8.50000
+Candidate / 106 / 5 s	500 / 5	0 / 0	+0.002000	+1.00000
+Pin selected attempts
+Download comparison receipt
+
+Cohort pinned in this URL. Receipt records selected runs and artifact digests; later attempts remain visible in the ledger.
+
+Candidate impact across matched seeds
+Candidate minus baseline. Costs and completion must be judged together. Synthetic seed results do not establish real-market profitability.
+Read costs with completion
+
+Costs use the exchange mid at parent declaration, not each child’s arrival mid. Positive signed costs are worse for buys and sells. Decision slippage excludes fees; executed cost including fees adds net fees.
+
+Costs cover filled shares only, in USD or USD/share as labeled. Unexecuted opportunity cost is unavailable. A lower cost on fewer filled shares is not an unconditional improvement.
+
+Participation divides parent fills by all market-traded shares from declaration through the last parent fill, including own trades. Different last-fill times mean different volume horizons.
+
+Parent completion
+
++0.022667 ratio
+
+Candidate improves the paired mean
+
+n = 3; better / worse / tied: 2 / 0 / 1
+
+Parent residual quantity
+
+-11.333333 shares
+
+Candidate improves the paired mean
+
+n = 3; better / worse / tied: 2 / 0 / 1
+
+Executed cost including fees
+
++13.147333 USD
+
+Candidate worsens the paired mean
+
+n = 3; better / worse / tied: 1 / 2 / 0
+
+Decision slippage, executed quantity
+
++11.613333 USD
+
+Candidate worsens the paired mean
+
+n = 3; better / worse / tied: 1 / 2 / 0
+
+Paired difference to inspect
+Parent completion
+
+Candidate improves the paired mean. Positive differences favor the candidate. Available pairs: 3 of 3. Read individual differences alongside the mean; standard error is not a confidence interval.
+
+101
+102
+103
+Master seed
+0
+0.0085
+0.017
+0.0255
+0.034
+ratio
+
+Plot positions are approximate. The table retains service values (derived); missing values are unavailable. Zero means tied, not missing. Open either run to inspect the outcome.
+
+Seed	Baseline	Candidate	Difference (ratio)
+101	1.000000	1.000000	0.000000
+102	0.966000	1.000000	+0.034000
+103	0.966000	1.000000	+0.034000
+Charted runs
+Mean across paired seeds (derived)
+
+All charts share one simulated-time axis. Gaps mean a run had ended or not yet started.
+
+Equity (USD)
+Mean across paired seeds. Plot positions are approximate; sampled values are available below.
+Baseline
+Candidate
+0.25s
+15.25s
+30.25s
+45.25s
+60s
+999960
+999972
+999984
+999996
+1000008
+Read sampled values for Equity (USD)
+Inventory (shares)
+Mean across paired seeds. Plot positions are approximate; sampled values are available below.
+Baseline
+Candidate
+0.25s
+15.25s
+30.25s
+45.25s
+60s
+0
+150
+300
+450
+600
+Read sampled values for Inventory (shares)
+Drawdown (USD)
+Mean across paired seeds. Plot positions are approximate; sampled values are available below.
+Baseline
+Candidate
+0.25s
+15.25s
+30.25s
+45.25s
+60s
+0
+15
+30
+45
+60
+Read sampled values for Drawdown (USD)
+Metric differences
+Mean, sample standard deviation (n - 1) and standard error of the paired differences. With few seeds, read the per-seed values and the better / worse counts, not just the mean.
+Metric	Unit	n	Mean diff	Std dev	Std error	Min diff	Max diff	Better / worse / tied	Per-seed differences (candidate - baseline)
+Net P&L	USD, higher is better	3	-12.580667	29.716631	17.156905	-32.72000	+21.54900	1 / 2 / 0
+101: -32.72000
+102: -26.57100
+103: +21.54900
+
+Ending equity	USD, higher is better	3	-12.580667	29.716631	17.156905	-32.72000	+21.54900	1 / 2 / 0
+101: -32.72000
+102: -26.57100
+103: +21.54900
+
+Gross realized P&L	USD, higher is better	3	0.000000	0.000000	0.000000	0.0000	0.0000	0 / 0 / 3
+101: 0.0000
+102: 0.0000
+103: 0.0000
+
+Unrealized P&L	USD, higher is better	3	-11.046667	29.733922	17.166888	-31.22000	+23.10000	1 / 2 / 0
+101: -31.22000
+102: -25.02000
+103: +23.10000
+
+Net fees paid	USD, lower is better	3	+1.534000	0.029445	0.017000	+1.5000	+1.5510	0 / 3 / 0
+101: +1.5000
+102: +1.5510
+103: +1.5510
+
+Ending position	shares	3	+11.333333	9.814955	5.666667	0	+17	Not applicable
+101: 0
+102: +17
+103: +17
+
+Max long position	shares	3	+11.333333	9.814955	5.666667	0	+17	Not applicable
+101: 0
+102: +17
+103: +17
+
+Max short position	shares	3	0.000000	0.000000	0.000000	0	0	Not applicable
+101: 0
+102: 0
+103: 0
+
+Max drawdown	USD, lower is better	3	+24.036000	14.496790	8.369726	+7.38900	+33.88100	0 / 3 / 0
+101: +30.83800
+102: +33.88100
+103: +7.38900
+
+Fills	count	3	-15.333333	3.055050	1.763834	-18	-12	Not applicable
+101: -18
+102: -16
+103: -12
+
+Filled shares	shares	3	+11.333333	9.814955	5.666667	0	+17	Not applicable
+101: 0
+102: +17
+103: +17
+
+Maker fills	count	3	0.000000	0.000000	0.000000	0	0	Not applicable
+101: 0
+102: 0
+103: 0
+
+Taker fills	count	3	-15.333333	3.055050	1.763834	-18	-12	Not applicable
+101: -18
+102: -16
+103: -12
+
+Fill rate (shares)derived	ratio	3	-0.166613	0.158650	0.091596	-0.325236	-0.007937	Not applicable
+101: -0.007937
+102: -0.166667
+103: -0.325236
+
+Orders submitted	count	3	-17.333333	3.055050	1.763834	-20	-14	Not applicable
+101: -20
+102: -18
+103: -14
+
+New-order rejections	count	3	0.000000	0.000000	0.000000	0	0	Not applicable
+101: 0
+102: 0
+103: 0
+
+Cancel requests	count	3	0.000000	0.000000	0.000000	0	0	Not applicable
+101: 0
+102: 0
+103: 0
+
+Cancel rejections	count	3	0.000000	0.000000	0.000000	0	0	Not applicable
+101: 0
+102: 0
+103: 0
+
+Replace requests	count	3	0.000000	0.000000	0.000000	0	0	Not applicable
+101: 0
+102: 0
+103: 0
+
+Replace rejections	count	3	0.000000	0.000000	0.000000	0	0	Not applicable
+101: 0
+102: 0
+103: 0
+
+Orders canceled	count	3	0.000000	0.000000	0.000000	0	0	Not applicable
+101: 0
+102: 0
+103: 0
+
+Cancel races lost	count, lower is better	3	0.000000	0.000000	0.000000	0	0	0 / 0 / 3
+101: 0
+102: 0
+103: 0
+
+Spread capture	USD, higher is better	3	-3.533333	1.744236	1.007035	-5.40000	-1.94500	0 / 3 / 0
+101: -5.40000
+102: -3.25500
+103: -1.94500
+
+Markout total @ 100 ms	USD, higher is better	3	-5.363333	3.461305	1.998385	-9.36000	-3.34000	0 / 3 / 0
+101: -9.36000
+102: -3.34000
+103: -3.39000
+
+Markout per eligible share @ 100 msderived	USD/share, higher is better	3	-0.010514	0.007107	0.004103	-0.018720	-0.006352	0 / 3 / 0
+101: -0.018720
+102: -0.006352
+103: -0.006469
+
+Markout eligible shares @ 100 ms	shares	3	+11.333333	9.814955	5.666667	0	+17	Not applicable
+101: 0
+102: +17
+103: +17
+
+Markout eligible fills @ 100 ms	count	3	-15.333333	3.055050	1.763834	-18	-12	Not applicable
+101: -18
+102: -16
+103: -12
+
+Markout fills without a mark @ 100 ms	count	3	0.000000	0.000000	0.000000	0	0	Not applicable
+101: 0
+102: 0
+103: 0
+
+Markout censored fills @ 100 ms	count	3	0.000000	0.000000	0.000000	0	0	Not applicable
+101: 0
+102: 0
+103: 0
+
+Markout total @ 1 s	USD, higher is better	3	-8.600000	11.819255	6.823850	-17.46000	+4.82000	1 / 2 / 0
+101: -17.46000
+102: -13.16000
+103: +4.82000
+
+Markout per eligible share @ 1 sderived	USD/share, higher is better	3	-0.016983	0.023670	0.013666	-0.034920	+0.009846	1 / 2 / 0
+101: -0.034920
+102: -0.025874
+103: +0.009846
+
+Markout eligible shares @ 1 s	shares	3	+11.333333	9.814955	5.666667	0	+17	Not applicable
+101: 0
+102: +17
+103: +17
+
+Markout eligible fills @ 1 s	count	3	-15.333333	3.055050	1.763834	-18	-12	Not applicable
+101: -18
+102: -16
+103: -12
+
+Markout fills without a mark @ 1 s	count	3	0.000000	0.000000	0.000000	0	0	Not applicable
+101: 0
+102: 0
+103: 0
+
+Markout censored fills @ 1 s	count	3	0.000000	0.000000	0.000000	0	0	Not applicable
+101: 0
+102: 0
+103: 0
+
+Markout total @ 5 s	USD, higher is better	3	-4.446667	15.871702	9.163532	-16.78000	+13.46000	1 / 2 / 0
+101: -16.78000
+102: -10.02000
+103: +13.46000
+
+Markout per eligible share @ 5 sderived	USD/share, higher is better	3	-0.008646	0.031697	0.018300	-0.033560	+0.027031	1 / 2 / 0
+101: -0.033560
+102: -0.019408
+103: +0.027031
+
+Markout eligible shares @ 5 s	shares	3	+11.333333	9.814955	5.666667	0	+17	Not applicable
+101: 0
+102: +17
+103: +17
+
+Markout eligible fills @ 5 s	count	3	-15.333333	3.055050	1.763834	-18	-12	Not applicable
+101: -18
+102: -16
+103: -12
+
+Markout fills without a mark @ 5 s	count	3	0.000000	0.000000	0.000000	0	0	Not applicable
+101: 0
+102: 0
+103: 0
+
+Markout censored fills @ 5 s	count	3	0.000000	0.000000	0.000000	0	0	Not applicable
+101: 0
+102: 0
+103: 0
+
+Quote exposure time	time	3	+0 ns	0 ns	0 ns	0 ns	0 ns	Not applicable
+101: 0 ns
+102: 0 ns
+103: 0 ns
+
+Parent completionderived	ratio, higher is better	3	+0.022667	0.019630	0.011333	0.000000	+0.034000	2 / 0 / 1
+101: 0.000000
+102: +0.034000
+103: +0.034000
+
+Parent residual quantity	shares, lower is better	3	-11.333333	9.814955	5.666667	-17	0	2 / 0 / 1
+101: 0
+102: -17
+103: -17
+
+Decision slippage, executed quantity	USD, lower is better	3	+11.613333	29.171123	16.841956	-21.91000	+31.22000	1 / 2 / 0
+101: +31.22000
+102: +25.53000
+103: -21.91000
+
+Decision slippage per filled sharederived	USD/share, lower is better	3	+0.022910	0.059550	0.034381	-0.045581	+0.062440	1 / 2 / 0
+101: +0.062440
+102: +0.051872
+103: -0.045581
+
+Executed cost including fees	USD, lower is better	3	+13.147333	29.153994	16.832066	-20.35900	+32.72000	1 / 2 / 0
+101: +32.72000
+102: +27.08100
+103: -20.35900
+
+Executed cost per filled sharederived	USD/share, lower is better	3	+0.025910	0.059550	0.034381	-0.042581	+0.065440	1 / 2 / 0
+101: +0.065440
+102: +0.054872
+103: -0.042581
+
+Participation through last parent fillderived	ratio	3	+0.588171	0.055362	0.031963	+0.524244	+0.620263	Not applicable
+101: +0.620005
+102: +0.620263
+103: +0.524244
+exsim research
+Inspect the assumptions behind every result.
+15

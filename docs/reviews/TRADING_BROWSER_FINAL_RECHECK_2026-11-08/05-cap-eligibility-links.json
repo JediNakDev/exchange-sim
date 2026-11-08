@@ -1,0 +1,450 @@
+[
+  {
+    "text": "Skip to research content",
+    "href": "#research-content"
+  },
+  {
+    "text": "exsim.",
+    "href": "/experiments"
+  },
+  {
+    "text": "Experiments",
+    "href": "/experiments"
+  },
+  {
+    "text": "Compare",
+    "href": "/compare"
+  },
+  {
+    "text": "Connections",
+    "href": "/connections"
+  },
+  {
+    "text": "Build an experiment ",
+    "href": "/experiments/new"
+  },
+  {
+    "text": "TRADING-RECHECK browser TWAP",
+    "href": "/experiments/exp_6bdc632d72018fb8"
+  },
+  {
+    "text": "TRADING-RECHECK cap10",
+    "href": "/experiments/exp_b5dcc99fb871e9a5"
+  },
+  {
+    "text": "run_5af098bb31471aa5",
+    "href": "/runs/run_5af098bb31471aa5?baseline=exp_6bdc632d72018fb8&candidate=exp_b5dcc99fb871e9a5&runSelection=r1_WvCYuzFHGqUFbQzc2sd_qwp_sW9VQqldI6bEbqwsAsw"
+  },
+  {
+    "text": "run_056d0cdcdac77fab",
+    "href": "/runs/run_056d0cdcdac77fab?baseline=exp_6bdc632d72018fb8&candidate=exp_b5dcc99fb871e9a5&runSelection=r1_WvCYuzFHGqUFbQzc2sd_qwp_sW9VQqldI6bEbqwsAsw"
+  },
+  {
+    "text": "run_0a7fb16f5542a95d",
+    "href": "/runs/run_0a7fb16f5542a95d?baseline=exp_6bdc632d72018fb8&candidate=exp_b5dcc99fb871e9a5&runSelection=r1_WvCYuzFHGqUFbQzc2sd_qwp_sW9VQqldI6bEbqwsAsw"
+  },
+  {
+    "text": "run_23a6c46eac2c02cc",
+    "href": "/runs/run_23a6c46eac2c02cc?baseline=exp_6bdc632d72018fb8&candidate=exp_b5dcc99fb871e9a5&runSelection=r1_WvCYuzFHGqUFbQzc2sd_qwp_sW9VQqldI6bEbqwsAsw"
+  },
+  {
+    "text": "1.000000",
+    "href": "/runs/run_5af098bb31471aa5?baseline=exp_6bdc632d72018fb8&candidate=exp_b5dcc99fb871e9a5&runSelection=r1_WvCYuzFHGqUFbQzc2sd_qwp_sW9VQqldI6bEbqwsAsw"
+  },
+  {
+    "text": "0.480000",
+    "href": "/runs/run_23a6c46eac2c02cc?baseline=exp_6bdc632d72018fb8&candidate=exp_b5dcc99fb871e9a5&runSelection=r1_WvCYuzFHGqUFbQzc2sd_qwp_sW9VQqldI6bEbqwsAsw"
+  },
+  {
+    "text": "101:",
+    "href": "/runs/run_5af098bb31471aa5/inspect"
+  },
+  {
+    "text": "+12.24000",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect"
+  },
+  {
+    "text": "101:",
+    "href": "/runs/run_5af098bb31471aa5/inspect"
+  },
+  {
+    "text": "+12.24000",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect"
+  },
+  {
+    "text": "101:",
+    "href": "/runs/run_5af098bb31471aa5/inspect"
+  },
+  {
+    "text": "0.0000",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect"
+  },
+  {
+    "text": "101:",
+    "href": "/runs/run_5af098bb31471aa5/inspect"
+  },
+  {
+    "text": "+11.46000",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect"
+  },
+  {
+    "text": "101:",
+    "href": "/runs/run_5af098bb31471aa5/inspect"
+  },
+  {
+    "text": "-0.7800",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect"
+  },
+  {
+    "text": "101:",
+    "href": "/runs/run_5af098bb31471aa5/inspect"
+  },
+  {
+    "text": "-260",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect"
+  },
+  {
+    "text": "101:",
+    "href": "/runs/run_5af098bb31471aa5/inspect"
+  },
+  {
+    "text": "-260",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect"
+  },
+  {
+    "text": "101:",
+    "href": "/runs/run_5af098bb31471aa5/inspect"
+  },
+  {
+    "text": "0",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect"
+  },
+  {
+    "text": "101:",
+    "href": "/runs/run_5af098bb31471aa5/inspect"
+  },
+  {
+    "text": "-23.54200",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect"
+  },
+  {
+    "text": "101:",
+    "href": "/runs/run_5af098bb31471aa5/inspect"
+  },
+  {
+    "text": "0",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect"
+  },
+  {
+    "text": "101:",
+    "href": "/runs/run_5af098bb31471aa5/inspect"
+  },
+  {
+    "text": "-260",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect"
+  },
+  {
+    "text": "101:",
+    "href": "/runs/run_5af098bb31471aa5/inspect"
+  },
+  {
+    "text": "0",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect"
+  },
+  {
+    "text": "101:",
+    "href": "/runs/run_5af098bb31471aa5/inspect"
+  },
+  {
+    "text": "0",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect"
+  },
+  {
+    "text": "101:",
+    "href": "/runs/run_5af098bb31471aa5/inspect"
+  },
+  {
+    "text": "0.000000",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect"
+  },
+  {
+    "text": "101:",
+    "href": "/runs/run_5af098bb31471aa5/inspect"
+  },
+  {
+    "text": "0",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect"
+  },
+  {
+    "text": "101:",
+    "href": "/runs/run_5af098bb31471aa5/inspect"
+  },
+  {
+    "text": "0",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect"
+  },
+  {
+    "text": "101:",
+    "href": "/runs/run_5af098bb31471aa5/inspect"
+  },
+  {
+    "text": "0",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect"
+  },
+  {
+    "text": "101:",
+    "href": "/runs/run_5af098bb31471aa5/inspect"
+  },
+  {
+    "text": "0",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect"
+  },
+  {
+    "text": "101:",
+    "href": "/runs/run_5af098bb31471aa5/inspect"
+  },
+  {
+    "text": "0",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect"
+  },
+  {
+    "text": "101:",
+    "href": "/runs/run_5af098bb31471aa5/inspect"
+  },
+  {
+    "text": "0",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect"
+  },
+  {
+    "text": "101:",
+    "href": "/runs/run_5af098bb31471aa5/inspect"
+  },
+  {
+    "text": "0",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect"
+  },
+  {
+    "text": "101:",
+    "href": "/runs/run_5af098bb31471aa5/inspect"
+  },
+  {
+    "text": "0",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect"
+  },
+  {
+    "text": "101:",
+    "href": "/runs/run_5af098bb31471aa5/inspect"
+  },
+  {
+    "text": "+2.60000",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect"
+  },
+  {
+    "text": "101:",
+    "href": "/runs/run_5af098bb31471aa5/inspect"
+  },
+  {
+    "text": "+2.60000",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect"
+  },
+  {
+    "text": "101:",
+    "href": "/runs/run_5af098bb31471aa5/inspect"
+  },
+  {
+    "text": "0.000000",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect"
+  },
+  {
+    "text": "101:",
+    "href": "/runs/run_5af098bb31471aa5/inspect"
+  },
+  {
+    "text": "-260",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect"
+  },
+  {
+    "text": "101:",
+    "href": "/runs/run_5af098bb31471aa5/inspect"
+  },
+  {
+    "text": "0",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect"
+  },
+  {
+    "text": "101:",
+    "href": "/runs/run_5af098bb31471aa5/inspect"
+  },
+  {
+    "text": "0",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect"
+  },
+  {
+    "text": "101:",
+    "href": "/runs/run_5af098bb31471aa5/inspect"
+  },
+  {
+    "text": "0",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect"
+  },
+  {
+    "text": "101:",
+    "href": "/runs/run_5af098bb31471aa5/inspect"
+  },
+  {
+    "text": "+3.34000",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect"
+  },
+  {
+    "text": "101:",
+    "href": "/runs/run_5af098bb31471aa5/inspect"
+  },
+  {
+    "text": "+0.001047",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect"
+  },
+  {
+    "text": "101:",
+    "href": "/runs/run_5af098bb31471aa5/inspect"
+  },
+  {
+    "text": "-260",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect"
+  },
+  {
+    "text": "101:",
+    "href": "/runs/run_5af098bb31471aa5/inspect"
+  },
+  {
+    "text": "0",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect"
+  },
+  {
+    "text": "101:",
+    "href": "/runs/run_5af098bb31471aa5/inspect"
+  },
+  {
+    "text": "0",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect"
+  },
+  {
+    "text": "101:",
+    "href": "/runs/run_5af098bb31471aa5/inspect"
+  },
+  {
+    "text": "0",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect"
+  },
+  {
+    "text": "101:",
+    "href": "/runs/run_5af098bb31471aa5/inspect"
+  },
+  {
+    "text": "+4.86000",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect"
+  },
+  {
+    "text": "101:",
+    "href": "/runs/run_5af098bb31471aa5/inspect"
+  },
+  {
+    "text": "+0.002787",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect"
+  },
+  {
+    "text": "101:",
+    "href": "/runs/run_5af098bb31471aa5/inspect"
+  },
+  {
+    "text": "-260",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect"
+  },
+  {
+    "text": "101:",
+    "href": "/runs/run_5af098bb31471aa5/inspect"
+  },
+  {
+    "text": "0",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect"
+  },
+  {
+    "text": "101:",
+    "href": "/runs/run_5af098bb31471aa5/inspect"
+  },
+  {
+    "text": "0",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect"
+  },
+  {
+    "text": "101:",
+    "href": "/runs/run_5af098bb31471aa5/inspect"
+  },
+  {
+    "text": "0",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect"
+  },
+  {
+    "text": "101:",
+    "href": "/runs/run_5af098bb31471aa5/inspect"
+  },
+  {
+    "text": "0 ns",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect"
+  },
+  {
+    "text": "101:",
+    "href": "/runs/run_5af098bb31471aa5/inspect"
+  },
+  {
+    "text": "-0.520000",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect"
+  },
+  {
+    "text": "101:",
+    "href": "/runs/run_5af098bb31471aa5/inspect"
+  },
+  {
+    "text": "+260",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect"
+  },
+  {
+    "text": "101:",
+    "href": "/runs/run_5af098bb31471aa5/inspect"
+  },
+  {
+    "text": "+11.94000",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect"
+  },
+  {
+    "text": "101:",
+    "href": "/runs/run_5af098bb31471aa5/inspect"
+  },
+  {
+    "text": "+0.001347",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect"
+  },
+  {
+    "text": "101:",
+    "href": "/runs/run_5af098bb31471aa5/inspect"
+  },
+  {
+    "text": "+11.16000",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect"
+  },
+  {
+    "text": "101:",
+    "href": "/runs/run_5af098bb31471aa5/inspect"
+  },
+  {
+    "text": "+0.001347",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect"
+  },
+  {
+    "text": "101:",
+    "href": "/runs/run_5af098bb31471aa5/inspect"
+  },
+  {
+    "text": "-0.002593",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect"
+  }
+]

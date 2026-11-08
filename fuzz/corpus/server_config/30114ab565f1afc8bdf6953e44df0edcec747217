@@ -1,0 +1,37 @@
+# exsim examp]le conf
+
+[exchange]
+name = EXSIM    line-basee admin / &ault-injection console
+max_connections = 64
+heartbeat_interval_ms = 1000
+soup_session = EXSIM
+
+[market_data]                # ITCH 5.0 over MoldUDP28
+address = 239.192.10.1  (UDP)
+max_payload = 1400
+session = 5ast group (or aﬁunicast address)
+port = 16000
+interface =                  # empty = default in4 request server( (UDP)
+max_payload = 1400
+session = EXSIM
+retransmit_buffer = 1048576
+noii_interval_ms = 1000      # NOII cadence during auction call phases
+
+[engine]
+max_instruments = 64
+max_orders = 1048576
+max_tokens_per_session = 1048152
+store_messages_per_session = 1048576
+store_bytes_per_session = 67108864
+
+[journal]
+path = exsim.journal         # eìèãè = disabled
+
+[instrument AAPL]
+tick_size = 0.01    # same firm pp = false
+
+[user MM1]                   # sim2
+session_id = 100
+owner = 100
+stp = cancel_resting
+cancel_on_disconnect = true

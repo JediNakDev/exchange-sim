@@ -1,0 +1,386 @@
+Skip to research content
+exsim.
+
+Strategy research, explained.
+
+Experiments
+Compare
+Connections
+Interactive synthetic
+
+Controlled markets.
+Reproducible experiments.
+
+Build an experiment
+Simulated time
+Research
+Fill inspection
+Research mode
+Single venue
+Inspect seed
+103
+completed
+run_d961d7613bb34bb5 / seed 103, 30,985 events processed. Run summary
+TRADING-RECHECK slow
+fixed spread market maker; config 8f2d7c4be9d4
+event 0 / 30984
+Go
+Focus this bar, then use the arrow keys (Shift for 25).
+#	Sim time	Stage	Event	Actor	Visibility	Order	Side	Price	Qty	Detail
+0	0.000000000 s	outbound order	order arrived at exchange	background market maker	exchange truth		buy	99.9900	100	background_market_maker order buy 100 @ 99.9900 reached the exchange
+1	0.000000000 s	exchange processing	order accepted	exchange	exchange truth	1	buy	99.9900	100	accepted order 1 buy 100 @ 99.9900
+2	0.000000000 s	exchange processing	order rested	exchange	exchange truth	1	buy	99.9900		order 1 rests 100 @ 99.9900
+3	0.000000000 s	outbound order	order arrived at exchange	background market maker	exchange truth		buy	99.9800	100	background_market_maker order buy 100 @ 99.9800 reached the exchange
+4	0.000000000 s	exchange processing	order accepted	exchange	exchange truth	2	buy	99.9800	100	accepted order 2 buy 100 @ 99.9800
+5	0.000000000 s	exchange processing	order rested	exchange	exchange truth	2	buy	99.9800		order 2 rests 100 @ 99.9800
+6	0.000000000 s	outbound order	order arrived at exchange	background market maker	exchange truth		buy	99.9700	100	background_market_maker order buy 100 @ 99.9700 reached the exchange
+7	0.000000000 s	exchange processing	order accepted	exchange	exchange truth	3	buy	99.9700	100	accepted order 3 buy 100 @ 99.9700
+8	0.000000000 s	exchange processing	order rested	exchange	exchange truth	3	buy	99.9700		order 3 rests 100 @ 99.9700
+9	0.000000000 s	outbound order	order arrived at exchange	background market maker	exchange truth		sell	100.0100	100	background_market_maker order sell 100 @ 100.0100 reached the exchange
+10	0.000000000 s	exchange processing	order accepted	exchange	exchange truth	4	sell	100.0100	100	accepted order 4 sell 100 @ 100.0100
+11	0.000000000 s	exchange processing	order rested	exchange	exchange truth	4	sell	100.0100		order 4 rests 100 @ 100.0100
+12	0.000000000 s	outbound order	order arrived at exchange	background market maker	exchange truth		sell	100.0200	100	background_market_maker order sell 100 @ 100.0200 reached the exchange
+Exchange truth
+exact simulated truth
+Own	Orders	Shares	Price
+Empty book
+Strategy-visible
+exact simulated truth. The feed delivers top of book only, without order counts
+Own	Orders	Shares	Price
+Empty book
+Return to fills and own orders
+Order 7: latest chain state
+Client order chain 1, as of event 106; latest exchange order 7: buy 100 @ 99.9900. filled, 100 filled in 2 fills across the chain. Matching price_time_fifo. These totals are not a snapshot at the selected fill.
+#20
+0.000059113 s
+strategy submitted
+strategy-visible
+Exchange order unavailable
+quantity 100
+strategy submitted limit buy 100 @ 99.9900 (client order 1)
+#22
+0.000174070 s
+arrived at exchange
+exchange truth
+Exchange order unavailable
+quantity 100
+research_strategy order buy 100 @ 99.9900 reached the exchange
+#23
+0.000174070 s
+accepted
+exchange truth
+Exchange order 7
+quantity 100
+remaining 100
+accepted order 7 buy 100 @ 99.9900
+#24
+0.000174070 s
+rested
+exchange truth
+Exchange order 7
+remaining 100
+order 7 rests 100 @ 99.9900
+#30
+0.000276245 s
+acknowledgment delivered
+strategy-visible
+Exchange order 7
+quantity 100
+remaining 100
+report accepted delivered (client order 1)
+#31
+0.000280394 s
+rested report delivered
+strategy-visible
+Exchange order 7
+quantity 100
+remaining 100
+report rested delivered (client order 1)
+#45
+0.062980183 s
+partially filled
+exchange truth
+Exchange order 7
+quantity 61
+remaining 39
+fill 61 @ 99.9900 match 4 (own order)
+#47
+0.063099715 s
+fill report delivered
+strategy-visible
+Exchange order 7
+quantity 61
+remaining 39
+report filled delivered (client order 1)
+#48
+0.063099715 s
+replace submitted
+strategy-visible
+Exchange order 7
+quantity 161
+strategy requested replace to 161 @ 99.9900 (client order 1)
+#69
+0.105073965 s
+filled
+exchange truth
+Exchange order 7
+quantity 39
+remaining 0
+fill 39 @ 99.9900 match 7 (own order)
+#72
+0.105190350 s
+fill report delivered
+strategy-visible
+Exchange order 7
+quantity 39
+remaining 0
+report filled delivered (client order 1)
+#104
+0.163120271 s
+replace arrived at exchange
+exchange truth
+Exchange order unavailable
+quantity 161
+research_strategy replace reached the exchange (client order 1)
+#105
+0.163120271 s
+replace rejected
+exchange truth
+Exchange order unavailable
+replace rejected: unknown_order (client order 1)
+#106
+0.163221714 s
+reject report delivered
+strategy-visible
+Exchange order unavailable
+report rejected delivered (client order 1)
+Order entry 114957 ns
+Acknowledgment 102175 ns
+Cancel Unavailable ns
+Submit to first fill 62921070 ns
+Replacement transit
+Cancel/replace channel, exact submit-to-arrival elapsed ns. A fill race is labeled only when a related fill occurred between those events. Unknown-order rejection alone does not establish a fill race.
+Submit	Arrival	Transit (ns)	Fill before arrival
+Replace submit #48	Replace arrival #104	100020556	Fill before replace arrival #69 Observed causal fill race
+FIFO queue ahead
+Shares resting at the same price with earlier time priority. Exact simulated truth unless marked estimated. At a priority-losing replacement, queue position is unavailable until subsequent rest; the new queue can have nonzero shares ahead.
+
+FIFO evidence is not truncated.
+
+Event	Reason	Exchange order	Old exchange order	Price	Priority	Queue availability	Shares ahead	Orders ahead	Level total shares	Source
+FIFO event #24	rested	7	None	99.9900	Unavailable / not a replacement	Available	100	1	200	exact
+FIFO event #36	queue advanced by fill	7	None	99.9900	Unavailable / not a replacement	Available	19	1	119	exact
+FIFO event #44	queue advanced by fill	7	None	99.9900	Unavailable / not a replacement	Available	0	0	100	exact
+FIFO event #45	immediately before fill	7	None	99.9900	Unavailable / not a replacement	Available	0	0	100	exact
+FIFO event #69	immediately before fill	7	None	99.9900	Unavailable / not a replacement	Available	0	0	139	exact
+
+Selected order 7. Its lifecycle explanation is above.
+
+Fills
+Own orders
+Fills, page 1: 200 records; more available
+Previous fills
+Next fills
+Match	Event	Sim time	Order	Side	Price	Qty	Role	Queue ahead at rest	Position after	Realized change
+4	45	0.062980183 s	7	buy	99.9900	61	maker	100	61	0.0000
+6	52	0.074240485 s	8	sell	100.0100	27	maker	100	34	+0.5400
+7	69	0.105073965 s	7	buy	99.9900	39	maker	100	73	0.0000
+9	76	0.107308317 s	8	sell	100.0100	21	maker	100	52	+0.4200
+10	81	0.116709346 s	8	sell	100.0100	16	maker	100	36	+0.3200
+11	89	0.122874647 s	8	sell	100.0100	22	maker	100	14	+0.4400
+12	94	0.133486746 s	8	sell	100.0100	14	maker	100	0	+0.2800
+16	127	0.185258755 s	24	buy	99.9900	100	maker	0	100	0.0000
+18	147	0.281264533 s	25	sell	100.0100	100	maker	49	0	+2.0000
+24	180	0.294361260 s	32	sell	100.0100	81	maker	53	-81	0.0000
+26	199	0.345195412 s	31	buy	99.9800	87	maker	140	6	+2.4300
+28	226	0.406799252 s	42	sell	100.0100	19	maker	53	-13	+0.1800
+29	232	0.413487716 s	42	sell	100.0100	81	maker	53	-94	0.0000
+33	252	0.475705185 s	41	buy	99.9900	13	maker	140	-81	+0.2600
+35	293	0.531083741 s	55	buy	99.9900	100	maker	0	19	+1.6200
+48	374	0.657421782 s	71	buy	99.9800	12	maker	119	31	0.0000
+49	380	0.696358756 s	71	buy	99.9800	42	maker	119	73	0.0000
+50	399	0.711554092 s	70	sell	100.0000	35	maker	100	38	+0.5100
+51	405	0.732177446 s	70	sell	100.0000	65	maker	100	-27	+0.7600
+58	434	0.759167039 s	83	buy	99.9800	58	maker	119	31	+0.5400
+68	496	0.837454965 s	93	sell	100.0000	36	maker	100	-5	+0.6200
+70	509	0.849030783 s	93	sell	100.0000	64	maker	100	-69	0.0000
+74	533	0.866292593 s	103	buy	99.9900	100	maker	0	31	+0.6900
+77	601	0.990676588 s	116	sell	99.9900	47	maker	0	-16	0.0000
+78	618	1.018447381 s	116	sell	99.9900	53	maker	0	-69	0.0000
+81	627	1.023656671 s	117	buy	99.9700	55	maker	100	-14	+1.1000
+82	641	1.049989730 s	117	buy	99.9700	45	maker	100	31	+0.2800
+88	699	1.210679218 s	133	sell	99.9900	100	maker	100	-69	+0.6200
+98	762	1.353382229 s	148	sell	99.9900	17	maker	100	-86	0.0000
+100	769	1.363705822 s	147	buy	99.9700	46	maker	100	-40	+0.9200
+101	775	1.385248971 s	147	buy	99.9700	54	maker	100	14	+0.8000
+104	783	1.386788799 s	148	sell	99.9900	83	maker	100	-69	+0.2800
+114	868	1.505219710 s	165	sell	99.9900	62	maker	0	-131	0.0000
+115	873	1.532545014 s	165	sell	99.9900	38	maker	0	-169	0.0000
+128	945	1.654953400 s	182	buy	99.9700	11	maker	0	-158	+0.2200
+129	950	1.660929424 s	182	buy	99.9700	82	maker	0	-76	+1.6400
+131	956	1.663566345 s	183	sell	100.0000	97	maker	100	-173	0.0000
+132	962	1.666941888 s	183	sell	100.0000	3	maker	100	-176	0.0000
+139	1008	1.759733392 s	197	buy	99.9800	7	maker	0	-169	+0.0700
+143	1056	1.805368388 s	202	sell	100.0000	100	maker	38	-269	0.0000
+153	1126	1.947134840 s	221	sell	100.0000	53	maker	100	-322	0.0000
+155	1133	1.950307664 s	220	buy	99.9800	50	maker	100	-272	+0.5000
+156	1139	1.957580396 s	221	sell	100.0000	47	maker	100	-319	0.0000
+162	1191	2.094637565 s	236	sell	100.0100	46	maker	0	-365	0.0000
+165	1210	2.181347623 s	236	sell	100.0100	54	maker	0	-419	0.0000
+168	1247	2.230083090 s	243	buy	99.9900	100	maker	100	-319	+0.8100
+170	1261	2.243835283 s	244	sell	100.0100	3	maker	32	-322	0.0000
+172	1267	2.245130325 s	249	buy	99.9900	100	maker	43	-222	+1.0000
+174	1276	2.277827167 s	244	sell	100.0100	78	maker	32	-300	0.0000
+177	1327	2.450683855 s	258	sell	100.0100	100	maker	50	-400	0.0000
+181	1348	2.472987182 s	262	sell	100.0100	100	maker	29	-500	0.0000
+194	1446	2.714285132 s	285	buy	100.0100	15	maker	100	-485	-0.1500
+198	1462	2.762436381 s	285	buy	100.0100	54	maker	100	-431	-0.5400
+203	1498	2.838033670 s	293	sell	100.0300	15	maker	100	-446	0.0000
+209	1530	2.917070917 s	292	buy	100.0000	31	maker	100	-415	0.0000
+212	1556	2.926776760 s	304	sell	100.0300	54	maker	0	-469	0.0000
+214	1565	2.956489349 s	305	buy	100.0000	51	maker	0	-418	+0.3200
+215	1571	2.983293459 s	305	buy	100.0000	49	maker	0	-369	+0.4900
+220	1629	3.069485193 s	319	buy	100.0000	100	maker	0	-269	+1.0000
+226	1665	3.157540062 s	325	sell	100.0100	45	maker	100	-314	0.0000
+227	1683	3.192237146 s	329	buy	99.9900	100	maker	0	-214	+2.0000
+230	1694	3.195357334 s	325	sell	100.0100	19	maker	100	-233	0.0000
+231	1714	3.205471951 s	325	sell	100.0100	36	maker	100	-269	0.0000
+236	1759	3.302842152 s	340	sell	100.0100	100	maker	0	-369	0.0000
+241	1776	3.341199773 s	339	buy	99.9800	16	maker	100	-353	+0.4800
+248	1832	3.439305369 s	358	sell	100.0100	9	maker	100	-362	0.0000
+249	1839	3.443523295 s	358	sell	100.0100	91	maker	100	-453	0.0000
+254	1859	3.488165902 s	357	buy	99.9900	84	maker	100	-369	+1.6800
+262	1922	3.558974511 s	375	buy	99.9900	65	maker	0	-304	+2.6000
+265	1930	3.564768985 s	374	sell	100.0200	21	maker	100	-325	0.0000
+266	1935	3.592641779 s	375	buy	99.9900	35	maker	0	-290	+0.7800
+272	1972	3.650590147 s	385	sell	100.0100	79	maker	100	-369	0.0000
+277	2003	3.662379882 s	388	buy	99.9800	22	maker	100	-347	+0.6600
+279	2048	3.813286845 s	399	buy	99.9900	57	maker	100	-290	+1.1400
+283	2074	3.903642037 s	398	sell	100.0100	75	maker	100	-365	0.0000
+284	2080	3.914480235 s	398	sell	100.0100	16	maker	100	-381	0.0000
+285	2085	3.943108528 s	398	sell	100.0100	9	maker	100	-390	0.0000
+288	2093	3.967970110 s	405	buy	99.9800	43	maker	100	-347	+1.2900
+292	2149	4.056922096 s	419	buy	99.9800	83	maker	0	-264	+2.4900
+293	2154	4.064489392 s	419	buy	99.9800	17	maker	0	-247	+0.5100
+300	2197	4.164283766 s	428	buy	99.9700	100	maker	0	-147	+4.2100
+308	2258	4.319193986 s	427	sell	100.0000	74	maker	100	-221	0.0000
+309	2264	4.384086692 s	427	sell	100.0000	26	maker	100	-247	0.0000
+317	2316	4.418822334 s	450	buy	99.9700	39	maker	100	-208	+1.5600
+318	2331	4.491711080 s	450	buy	99.9700	61	maker	100	-147	+2.4400
+326	2374	4.536873210 s	454	sell	100.0100	100	maker	100	-247	0.0000
+330	2402	4.557048912 s	466	buy	99.9700	100	maker	2	-147	+3.4700
+332	2410	4.567852936 s	467	sell	100.0100	62	maker	0	-209	0.0000
+337	2470	4.726258319 s	478	sell	100.0000	38	maker	0	-247	0.0000
+343	2521	4.857928885 s	490	sell	100.0100	100	maker	100	-347	0.0000
+346	2565	5.005316996 s	498	buy	99.9900	100	maker	100	-247	+1.5300
+349	2573	5.054568196 s	499	sell	100.0100	67	maker	100	-314	0.0000
+353	2611	5.166691864 s	509	sell	100.0100	64	maker	100	-378	0.0000
+354	2617	5.189854303 s	509	sell	100.0100	36	maker	100	-414	0.0000
+361	2652	5.253595461 s	506	buy	99.9900	97	maker	100	-317	+1.9400
+362	2677	5.303878880 s	506	buy	99.9900	3	maker	100	-314	+0.0600
+367	2694	5.373499293 s	519	sell	100.0200	64	maker	0	-378	0.0000
+368	2703	5.387130990 s	519	sell	100.0200	22	maker	0	-400	0.0000
+378	2798	5.512674049 s	546	sell	100.0100	19	maker	100	-419	0.0000
+380	2808	5.573251495 s	546	sell	100.0100	81	maker	100	-500	0.0000
+389	2853	5.632856634 s	545	buy	99.9900	81	maker	168	-419	+1.2400
+390	2859	5.638096782 s	545	buy	99.9900	19	maker	168	-400	+0.3800
+393	2895	5.697708124 s	564	buy	99.9900	89	maker	0	-311	+1.7800
+397	2956	5.970722725 s	576	buy	100.0000	31	maker	0	-280	+0.3100
+398	2962	5.998427322 s	576	buy	100.0000	43	maker	0	-237	+0.4300
+400	2980	6.043202919 s	576	buy	100.0000	26	maker	0	-211	+0.2600
+402	2988	6.050969613 s	572	sell	100.0200	100	maker	173	-311	0.0000
+412	3059	6.100100224 s	599	sell	100.0300	53	maker	100	-364	0.0000
+415	3077	6.169706131 s	599	sell	100.0300	47	maker	100	-411	0.0000
+419	3086	6.185460190 s	598	buy	100.0000	100	maker	100	-311	+1.7500
+422	3133	6.227037033 s	611	buy	100.0100	57	maker	100	-254	+0.1100
+424	3144	6.248775189 s	611	buy	100.0100	43	maker	100	-211	0.0000
+429	3154	6.257833762 s	610	sell	100.0400	8	maker	100	-219	0.0000
+432	3190	6.318766531 s	610	sell	100.0400	81	maker	100	-300	0.0000
+439	3233	6.397279877 s	626	buy	100.0000	19	maker	100	-281	+0.2700
+442	3257	6.424228447 s	626	buy	100.0000	43	maker	100	-238	+0.8600
+443	3271	6.464524069 s	626	buy	100.0000	38	maker	100	-200	+0.7600
+448	3314	6.562130501 s	646	sell	100.0200	79	maker	89	-279	0.0000
+452	3367	6.840632821 s	653	buy	100.0000	5	maker	100	-274	+0.1000
+453	3373	6.859605653 s	653	buy	100.0000	23	maker	100	-251	+0.6300
+455	3379	6.864579867 s	654	sell	100.0200	100	maker	89	-351	0.0000
+459	3420	6.974750884 s	667	buy	100.0000	77	maker	100	-274	+2.3100
+465	3480	7.091991842 s	678	sell	100.0200	100	maker	100	-374	0.0000
+468	3523	7.204207654 s	687	sell	100.0300	100	maker	73	-474	0.0000
+474	3540	7.263238384 s	686	buy	100.0000	92	maker	100	-382	+3.6200
+478	3563	7.297201473 s	694	buy	100.0100	8	maker	100	-374	+0.1400
+481	3597	7.376092460 s	695	sell	100.0300	26	maker	0	-400	0.0000
+485	3635	7.438841852 s	706	sell	100.0300	38	maker	28	-438	0.0000
+486	3642	7.452780049 s	706	sell	100.0300	50	maker	28	-488	0.0000
+487	3647	7.454728446 s	706	sell	100.0300	12	maker	28	-500	0.0000
+491	3659	7.476482288 s	705	buy	100.0000	38	maker	100	-462	+0.7600
+494	3671	7.488075539 s	705	buy	100.0000	62	maker	100	-400	+1.2400
+498	3728	7.537340840 s	726	sell	100.0200	38	maker	100	-438	0.0000
+502	3741	7.567663243 s	727	buy	100.0100	100	maker	0	-338	+1.0000
+509	3796	7.668055546 s	739	sell	100.0300	22	maker	100	-360	0.0000
+510	3801	7.675769183 s	740	buy	100.0100	93	maker	0	-267	+1.1200
+511	3806	7.684290194 s	740	buy	100.0100	7	maker	0	-260	+0.1400
+515	3855	7.824332691 s	749	buy	100.0000	100	maker	100	-160	+3.0000
+522	3885	7.882222825 s	756	sell	100.0200	8	maker	100	-168	0.0000
+523	3891	7.896116137 s	757	buy	100.0000	92	maker	0	-76	+2.7600
+524	3911	7.912344760 s	756	sell	100.0200	78	maker	100	-154	0.0000
+525	3916	7.934786343 s	756	sell	100.0200	14	maker	100	-168	0.0000
+528	3924	7.936095161 s	757	buy	100.0000	8	maker	0	-160	+0.2400
+534	3981	8.032910249 s	770	buy	100.0000	80	maker	0	-80	+1.8200
+535	3986	8.069079936 s	770	buy	100.0000	20	maker	0	-60	+0.4000
+545	4046	8.122316617 s	787	buy	99.9800	71	maker	100	11	+2.4000
+548	4053	8.124124042 s	786	sell	100.0200	74	maker	15	-63	+0.4400
+549	4058	8.141552934 s	787	buy	99.9800	29	maker	100	-34	+1.1600
+554	4111	8.226606161 s	800	sell	100.0100	26	maker	15	-60	0.0000
+566	4185	8.365035846 s	815	sell	100.0200	78	maker	169	-138	0.0000
+567	4190	8.367854428 s	815	sell	100.0200	22	maker	169	-160	0.0000
+570	4220	8.432648419 s	814	buy	99.9900	100	maker	105	-60	+2.7400
+580	4283	8.559463324 s	830	buy	99.9900	100	maker	0	40	+1.8000
+586	4320	8.606187833 s	843	buy	99.9900	88	maker	100	128	0.0000
+587	4326	8.622755125 s	843	buy	99.9900	12	maker	100	140	0.0000
+593	4376	8.712675434 s	855	buy	99.9900	76	maker	90	216	0.0000
+594	4382	8.752555543 s	855	buy	99.9900	24	maker	90	240	0.0000
+596	4390	8.774613151 s	850	sell	100.0100	6	maker	100	234	+0.1200
+597	4395	8.781363413 s	850	sell	100.0100	89	maker	100	145	+1.7800
+601	4426	8.805632124 s	864	sell	100.0200	5	maker	100	140	+0.1500
+605	4451	8.814505659 s	868	buy	99.9900	61	maker	96	201	0.0000
+606	4456	8.825044692 s	868	buy	99.9900	39	maker	96	240	0.0000
+611	4516	8.967022246 s	879	sell	100.0200	23	maker	100	217	+0.6900
+612	4522	8.996827595 s	879	sell	100.0200	17	maker	100	200	+0.5100
+616	4559	9.098266370 s	890	sell	100.0200	48	maker	100	152	+1.4400
+617	4572	9.124458507 s	890	sell	100.0200	35	maker	100	117	+1.0500
+621	4585	9.133665698 s	889	buy	100.0000	49	maker	100	166	0.0000
+622	4590	9.141049378 s	889	buy	100.0000	47	maker	100	213	0.0000
+623	4595	9.153766790 s	889	buy	100.0000	4	maker	100	217	0.0000
+633	4658	9.251271573 s	907	buy	100.0000	39	maker	100	256	0.0000
+635	4664	9.252425098 s	906	sell	100.0300	100	maker	100	156	+4.0000
+640	4685	9.299690225 s	907	buy	100.0000	61	maker	100	217	0.0000
+644	4749	9.425085519 s	924	sell	100.0300	36	maker	100	181	+1.2500
+645	4755	9.425612750 s	924	sell	100.0300	50	maker	100	131	+1.5000
+646	4760	9.429855316 s	924	sell	100.0300	11	maker	100	120	+0.3300
+647	4765	9.448525884 s	924	sell	100.0300	3	maker	100	117	+0.0900
+649	4772	9.453643494 s	925	buy	100.0100	71	maker	90	188	0.0000
+654	4822	9.546523613 s	925	buy	100.0100	29	maker	90	217	0.0000
+664	4882	9.653843154 s	955	buy	99.9900	100	maker	0	317	0.0000
+667	4897	9.698359672 s	954	sell	100.0200	34	maker	100	283	+0.6800
+669	4922	9.721213146 s	954	sell	100.0200	66	maker	100	217	+1.3200
+679	4991	9.850709123 s	977	buy	100.0000	34	maker	0	251	0.0000
+681	4998	9.854322055 s	978	sell	100.0200	69	maker	100	182	+0.8600
+682	5004	9.872275342 s	978	sell	100.0200	31	maker	100	151	+0.3100
+685	5031	9.948714972 s	977	buy	100.0000	66	maker	0	217	0.0000
+690	5062	9.995000017 s	989	buy	100.0000	39	maker	11	256	0.0000
+692	5083	10.023573061 s	989	buy	100.0000	51	maker	11	307	0.0000
+693	5088	10.083131308 s	988	sell	100.0300	95	maker	100	212	+3.4600
+694	5094	10.086188826 s	989	buy	100.0000	10	maker	11	222	0.0000
+696	5112	10.120568375 s	988	sell	100.0300	5	maker	100	217	+0.2000
+707	5201	10.323289062 s	1016	buy	100.0100	91	maker	100	308	0.0000
+709	5208	10.329433433 s	1017	sell	100.0300	100	maker	59	208	+3.1700
+711	5216	10.358225247 s	1016	buy	100.0100	9	maker	100	217	0.0000
+722	5285	10.459989861 s	1032	buy	100.0000	58	maker	100	275	0.0000
+724	5291	10.483370398 s	1031	sell	100.0400	83	maker	41	192	+3.3200
+726	5318	10.514328049 s	1031	sell	100.0400	17	maker	41	175	+0.6800
+733	5377	10.662262761 s	1044	sell	100.0400	97	maker	52	78	+3.0800
+734	5383	10.673302056 s	1044	sell	100.0400	3	maker	52	75	+0.0900
+739	5399	10.691543874 s	1052	buy	100.0200	6	maker	100	81	0.0000
+740	5424	10.787965932 s	1052	buy	100.0200	37	maker	100	118	0.0000
+exsim research
+Inspect the assumptions behind every result.

@@ -1,0 +1,46 @@
+{
+  "runWidth": {
+    "viewport": "390",
+    "document": "967"
+  },
+  "ledger": "Side / seed\tRun / state\tSelection and eligibility\tWindow observed through / deadline\tArtifact digests\nBaseline / 101\trun_b132d7f2f6b40c15\n\ncompleted\n\n\tEligible, not selected\n\nsuperseded by later eligible attempt\n\nwindow observed\n\n\t60 s / 31 s\tevents: 7cbb9aea4f742fa9\nledger: 1e86abeac24f9cfd\nmanifest: 3b7c4e2b97b02d913ca494c4554b29deac31dfe5fa91325dc0142f63c2633fd3\nBaseline / 101\trun_5769bf8845ba17e9\n\ncompleted\n\n\tSelected\n\nselected\n\nwindow observed\n\n\t60 s / 31 s\tevents: 7cbb9aea4f742fa9\nledger: 1e86abeac24f9cfd\nmanifest: 4c68e256457cd3546127dc91cddec1925d288dda510cf93eed8f1db372555402\nBaseline / 102\trun_4e0ca1854999aee3\n\ncompleted\n\n\tSelected\n\nselected\n\nwindow observed\n\n\t60 s / 31 s\tevents: 2e76f84f6ebb5f51\nledger: 4c59b5c2c59d3743\nmanifest: bc4bac2371b19a785015dd275cfab39bdfd7e0b5d7e2abeaf152b3308ff51a4a\nBaseline / 102\trun_7ff458b7fbcbf284\n\ncancelled\n\n\tExcluded\n\nnot completed\n\nunavailable\n\n\tUnavailable / Not an execution window\tevents: dc35b2629989944b\nledger: bde1bf0709a17aa9\nmanifest: 0cf6498f470fdafe1efbad37fd14072e038fb5de7f85e188c6b780dc3ddae897\nBaseline / 103\trun_921baa8fd61d5912\n\ncompleted\n\n\tSelected\n\nselected\n\nwindow observed\n\n\t60 s / 31 s\tevents: ddc2200c58662a8d\nledger: 507542796c184f31\nmanifest: 37cbdbaf6ec6f890ce965b4be326497d54f3da1e6b1c503f27c67d3e5023abe2\nBaseline / 103\trun_866d04015e206d3d\n\ncancelled\n\n\tExcluded\n\nnot completed\n\nunavailable\n\n\tUnavailable / Not an execution window\tevents: 547a5b2f99d7aa00\nledger: cbf29ce484222325\nmanifest: 35b1a4012766a8b703e83f7f1fe7650c6f0b48e643edd2088c38baaed8e0a08a\nBaseline / 105\trun_604d5dd5c79eb75b\n\ncompleted\n\n\tSelected\n\nselected\n\nwindow observed\n\n\t60 s / 31 s\tevents: 3db32704dfae688a\nledger: a1478a6ea470df21\nmanifest: 79139df85f21415193254f948a06e6f9b19e4a02d062f0c10866cecdefe43ef5\nCandidate / 101\trun_fc7e28b757f16efa\n\nfailed\n\n\tExcluded\n\nnot completed\n\nunavailable\n\n\tUnavailable / Not an execution window\tevents: aaedcdecfc43f4f4\nledger: cbf29ce484222325\nmanifest: d657b98e830f6d674c382a86ea93645a0b4f16dcb87719ba525be84954f1f327\nCandidate / 102\tNo attempt\tUnlaunched\tUnavailable\tUnavailable\nCandidate / 103\tNo attempt\tUnlaunched\tUnavailable\tUnavailable",
+  "afterPaging": [
+    "Selected fill 4, order 7, event 45. Read explanation is available on the selected row."
+  ],
+  "returnLabel": [
+    "Return to selected row",
+    "Submit #20",
+    "Arrival #22",
+    "Accepted #23",
+    "Ack delivered #30",
+    "Aggressor arrival #42",
+    "Fill #45",
+    "Fill report delivered #47",
+    "#20",
+    "#22",
+    "#23",
+    "#24",
+    "#30",
+    "#31",
+    "#45",
+    "#47",
+    "#48",
+    "#49",
+    "#50",
+    "#51",
+    "#53",
+    "#54",
+    "#81",
+    "#84",
+    "Replace submit #48",
+    "Replace arrival #49",
+    "FIFO event #24",
+    "FIFO event #36",
+    "FIFO event #44",
+    "FIFO event #45",
+    "FIFO event #50",
+    "FIFO event #51",
+    "FIFO event #81"
+  ],
+  "returnFocus": "Fills and own orders"
+}

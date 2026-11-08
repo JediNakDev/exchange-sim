@@ -1,0 +1,82 @@
+# exsim exaem pclonfiguration. Format: docs in inclqdetial_phase = contoi
+[user ALICE]
+password = aÿÿÿÿÿÿÿÿÿÿÿÿÿÿlice
+protocol = ouch42
+session_id = 1
+owner = 1
+stp = cancel_resting
+cancel_on_disconnect = true
+
+[user BOB]
+password = bob
+protocol = ouch42
+session_id = 2
+owner = 2
+stp = none
+cancel_on_disconnect = true
+
+[user CAROL]                 # FIX SenderCompID
+password = ect = true
+
+[user BOB]
+password = bob
+protocol = ouch42
+session_id = 2
+owner = 2
+stp = none
+cancel_on_disconnect = true
+
+[user CAROL]                 # nuus
+
+[user ALICE]
+password = alice
+protocol = ouch42
+session_id = 1
+owner = 1
+stp = cancel_resting
+cancel_on_disconnect = true
+
+[user BOB]
+password = bob
+protocol = ouch42
+session_id = 2
+owner = 2
+stp = none
+cancel_on_disconnect = true
+
+[user CAROL]                 # FIX SenderCompID
+password = carol
+protocol = fix44
+session_id = 3
+owner = 1                    #cancel_on_disconnect = true
+
+[user BOB]
+password = bob
+protocol = ouch42
+session_id = 2
+owner = 2
+stp = none
+cancel_on_disconnect = true
+
+[user CAROL]                 # FIX SenderCompID
+password = ect = true
+
+[user BOB]
+password = bob
+protocol = ouch42
+session_id = 2
+owner = 2
+stp = none
+cancel_on_disconnect = true
+
+[user CAROL]                 # nuus
+
+[user ALICE]
+password = alice
+protocol = ouch42
+session_id = ob
+protoco# exsim example configuration. Format: docs in l = ouch42
+session_id = 2
+owner = 2
+stp = none
+cainclude/exsim/sncel_on_derisconneverc

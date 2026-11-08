@@ -1,0 +1,102 @@
+c++ -I include -I . -MMD -MP -std=c++20 -O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=undefined -Wall -Wextra -Wpedantic -Wshadow  -c tests/exsim/sim/bots/allocation_tests.cpp -o build/debug/obj/tests/exsim/sim/bots/allocation_tests.o
+In file included from tests/exsim/sim/bots/allocation_tests.cpp:1:
+In file included from tests/exsim/sim/bots/fake_exchange.hpp:3:
+In file included from include/exsim/sim/bots/bot_set.hpp:3:
+include/exsim/sim/bots/market_maker.hpp:80:28: warning: declaration shadows a local variable [-Wshadow]
+   80 |                 const auto room = side == Side::BUY ? center - low : high - center;
+      |                            ^
+include/exsim/sim/bots/market_maker.hpp:60:20: note: previous declaration is here
+   60 |         const auto room = static_cast<std::uint64_t>(high - low);
+      |                    ^
+1 warning generated.
+c++ -I include -I . -MMD -MP -std=c++20 -O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=undefined -Wall -Wextra -Wpedantic -Wshadow  -c tests/exsim/sim/bots/bots_tests.cpp -o build/debug/obj/tests/exsim/sim/bots/bots_tests.o
+In file included from tests/exsim/sim/bots/bots_tests.cpp:1:
+In file included from tests/exsim/sim/bots/fake_exchange.hpp:3:
+In file included from include/exsim/sim/bots/bot_set.hpp:3:
+include/exsim/sim/bots/market_maker.hpp:80:28: warning: declaration shadows a local variable [-Wshadow]
+   80 |                 const auto room = side == Side::BUY ? center - low : high - center;
+      |                            ^
+include/exsim/sim/bots/market_maker.hpp:60:20: note: previous declaration is here
+   60 |         const auto room = static_cast<std::uint64_t>(high - low);
+      |                    ^
+1 warning generated.
+c++ -I include -I . -MMD -MP -std=c++20 -O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=undefined -Wall -Wextra -Wpedantic -Wshadow  -c src/exsim/sim/bots/config.cpp -o build/debug/obj/src/exsim/sim/bots/config.o
+In file included from src/exsim/sim/bots/config.cpp:1:
+include/exsim/sim/bots/market_maker.hpp:80:28: warning: declaration shadows a local variable [-Wshadow]
+   80 |                 const auto room = side == Side::BUY ? center - low : high - center;
+      |                            ^
+include/exsim/sim/bots/market_maker.hpp:60:20: note: previous declaration is here
+   60 |         const auto room = static_cast<std::uint64_t>(high - low);
+      |                    ^
+1 warning generated.
+c++ -std=c++20 -O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=undefined -Wall -Wextra -Wpedantic -Wshadow  -fsanitize=address,undefined  build/debug/obj/tests/exsim/gateway/sequenced_store_tests.o build/debug/obj/tests/exsim/gateway/token_table_tests.o build/debug/obj/tests/exsim/server/config_tests.o build/debug/obj/tests/exsim/sim/bots/allocation_tests.o build/debug/obj/tests/exsim/sim/bots/bots_tests.o build/debug/obj/tests/exsim/sim/packet_faults_tests.o build/debug/obj/tests/lob/flat_hash_map_tests.o build/debug/obj/tests/lob/itch_replay_tests.o build/debug/obj/tests/lob/order_book_tests.o build/debug/obj/tests/main.o build/debug/obj/src/exsim/server/config.o build/debug/obj/src/exsim/sim/bots/config.o build/debug/obj/src/order_book.o build/debug/obj/src/sharded_engine.o -o build/debug/run_tests -lpthread
+./build/debug/run_tests
+  gateway_sequenced_store.append_and_get ... ok (0.008292 ms)
+  gateway_sequenced_store.message_limit ... ok (0.008125 ms)
+  gateway_sequenced_store.byte_limit_is_exact ... ok (0.031458 ms)
+  gateway_sequenced_store.replay_from_sequence_after_clear ... ok (0.191042 ms)
+  gateway_token_table.interns_in_first_seen_order ... ok (0.04375 ms)
+  gateway_token_table.byte_exact_comparison ... ok (0.021125 ms)
+  gateway_token_table.rejects_invalid_and_full ... ok (0.005708 ms)
+  gateway_token_table.clear_resets_ids ... ok (0.002959 ms)
+  gateway_token_table.differential_against_unordered_map ... ok (31.9229 ms)
+  server_config.prices ... ok (0.016875 ms)
+  server_config.minimal_uses_defaults ... ok (0.051917 ms)
+  server_config.example_file_parses ... ok (0.139416 ms)
+  server_config.errors_carry_line_numbers ... ok (0.021958 ms)
+  server_config.semantic_validation ... ok (0.084792 ms)
+  sim_bots_allocations.active_hot_paths_allocate_zero ... ok (2.74142 ms)
+  sim_bots_maker.ladder_and_idle ... ok (0.164875 ms)
+  sim_bots_maker.minimal_move ... ok (0.175 ms)
+  sim_bots_maker.partial_fill_and_replenish_total ... ok (0.163583 ms)
+  sim_bots_maker.phases_and_stop_start ... ok (0.157958 ms)
+  sim_bots_maker.stp_expiry_and_rejection ... ok (0.177208 ms)
+  sim_bots_maker.delayed_callbacks_and_large_move ... ok (0.41425 ms)
+  sim_bots_maker.band_capacity_and_halt_retention ... ok (0.152541 ms)
+  sim_bots_maker.replace_rejection_and_budget_rollover ... ok (0.148625 ms)
+  sim_bots_noise.poisson_rate_and_determinism ... ok (56.3911 ms)
+  sim_bots_noise.passive_expiry_phases_and_stop ... ok (0.1905 ms)
+  sim_bots_config.options_are_transactional ... ok (0.002625 ms)
+  sim_bots_registry.bounded_storage_and_fanout ... ok (0.148667 ms)
+  sim_bots_table.allocation_and_lookup ... ok (0.001791 ms)
+  sim_bots_maker.rejected_replace_recovers ... ok (0.149833 ms)
+  sim_bots_maker.same_price_decrease_keeps_priority ... ok (0.160208 ms)
+  sim_bots_maker.large_jump_reuses_all_orders ... ok (0.14 ms)
+  sim_bots_maker.unknown_cancel_and_foreign_events ... ok (0.156541 ms)
+  sim_bots_maker.inventory_skews_quotes_down ... ok (0.167458 ms)
+  sim_bots_maker.delayed_rejected_move_never_self_trades ... ok (0.308709 ms)
+  sim_bots_maker.seeded_command_stream ... ok (0.916375 ms)
+  sim_rng.deterministic_and_bounded ... ok (0.060666 ms)
+  sim_packet_faults.passthrough_when_idle ... ok (0.015 ms)
+  sim_packet_faults.one_shot_drop_and_duplicate ... ok (0.003333 ms)
+  sim_packet_faults.reorder_releases_after_delay ... ok (0.00475 ms)
+  sim_packet_faults.flush_releases_in_arrival_order ... ok (0.0045 ms)
+  sim_packet_faults.cannot_hold_falls_back_to_delivery ... ok (0.002625 ms)
+  sim_packet_faults.random_faults_are_reproducible_and_conserve_packets ... ok (1.14562 ms)
+  flat_hash_map.insert_find_erase ... ok (0.00975 ms)
+  flat_hash_map.full_without_growth_rejects ... ok (0.000459 ms)
+  flat_hash_map.growth_preserves_entries ... ok (0.213791 ms)
+  flat_hash_map.matches_unordered_map_under_churn ... ok (8.75783 ms)
+  itch_replay.replay_matches_reference ... [itch] parsed=100000 adds=52376 execs=6681 cancels=14272 deletes=23823 replaces=2848 unknown_ref=97
+    ok (473.482 ms)
+  order_book.add_order_to_empty_book ... ok (1.33692 ms)
+  order_book.multiple_orders_same_price_level ... ok (1.33783 ms)
+  order_book.cancel_order ... ok (3.67675 ms)
+  order_book.cancel_nonexistent_order ... ok (1.31517 ms)
+  order_book.cancel_removes_empty_price_level ... ok (1.29954 ms)
+  order_book.modify_order ... ok (3.55925 ms)
+  order_book.modify_nonexistent_order ... ok (1.31083 ms)
+  order_book_matching.aggressive_buy_matches_asks ... ok (3.75467 ms)
+  order_book_matching.aggressive_sell_matches_bids ... ok (1.72858 ms)
+  order_book_matching.partial_fill_rests_on_book ... ok (1.82238 ms)
+  order_book_matching.sweep_multiple_price_levels ... ok (4.66746 ms)
+  order_book_matching.fifo_matching_order ... ok (1.68333 ms)
+  order_book_matching.price_priority ... ok (1.40504 ms)
+  order_book_matching.no_cross_when_price_doesnt_match ... ok (4.48504 ms)
+  order_book_query.best_bid_ask ... ok (1.56154 ms)
+  order_book_query.spread_and_mid_price ... ok (6.34054 ms)
+  order_book_query.empty_book_returns_nullopt ... ok (1.39458 ms)
+  order_book_query.snapshot ... ok (1.75537 ms)
+  order_book_matching.fill_view_reuses_buffer_across_calls ... ok (3.85992 ms)
+
+66/66 tests passed

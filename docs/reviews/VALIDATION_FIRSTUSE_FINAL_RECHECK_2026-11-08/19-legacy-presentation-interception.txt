@@ -1,0 +1,355 @@
+Skip to research content
+exsim.
+Experiments
+Compare
+Connections
+Research
+Run analysis
+Seed 101
+completed
+run_b132d7f2f6b40c15 / exp_59aba9ec14e219e2, deterministic research, interactive synthetic
+Inspect events
+VALIDATION-RECHECK baseline
+twap execution; config ea7ababd69fb
+Events processed 22,420
+Simulated time 60.000 s of 60 s
+summary final at event 22420
+
+Run complete. Residual position 500 shares, residual open orders 0.
+
+Completion and execution cost
+
+final summary at event 22420
+
+Parent filled / requested (shares)
+500 / 500
+Parent completion (ratio)
+1.000000
+Parent residual quantity (shares)
+0
+Executed cost including fees (USD)
+-20.84000
+Decision slippage, executed quantity (USD)
+-22.34000
+
+Positive signed costs are worse for buys and sells. Shortfall includes net fees; slippage excludes fees. Both cover filled quantity only. Residual opportunity cost is unavailable, so lower cost with lower completion is not an unconditional improvement.
+
+Next decision
+Explain fills and queue events
+Create variant
+Compare against this experiment
+Native execution trace
+Schedule decisions and delivered reports explaining parent-order residuals.
+Refresh execution trace
+
+One page per request, up to 100 records. No automatic refresh. Refresh replaces this page; previous evidence is hidden until the request succeeds.
+
+Loading execution trace page; no current evidence available.
+
+Loading execution trace...
+Previous execution trace
+Next execution trace
+Reproduce and export
+Repeat this exact saved configuration and seed as a new attempt, or download complete native artifacts. A repeat creates new API identities; compare canonical event and ledger digests.
+Repeat this seed
+Download complete audit
+
+Local integrity and reproduction commands
+Equity (USD)
+last value in bucket, buckets of 200 ms. Plot positions are approximate; sampled values are available below.
+0.2s
+15.2s
+30.2s
+45.2s
+60s
+999945
+999960
+999975
+999990
+1000005
+Read sampled values for Equity (USD)
+Inventory (shares)
+last value in bucket, buckets of 200 ms. Plot positions are approximate; sampled values are available below.
+0.2s
+15.2s
+30.2s
+45.2s
+60s
+0
+150
+300
+450
+600
+Read sampled values for Inventory (shares)
+Drawdown (USD)
+last value in bucket, buckets of 200 ms. Plot positions are approximate; sampled values are available below.
+0.2s
+15.2s
+30.2s
+45.2s
+60s
+0
+15
+30
+45
+60
+Read sampled values for Drawdown (USD)
+Summary
+Manifest
+State history
+Provenance
+Recorded assumptions and artifact identities. Reproduction also requires the original executable; format version labels alone do not identify it. API run IDs and wall-clock envelopes can differ between repeats.
+Schema
+exsim.run-manifest/1
+Mode / world
+deterministic_research / interactive_synthetic
+Recorded source revision
+Unavailable for this run
+Recorded release
+Unavailable for this run
+Executable SHA-256
+Unavailable for this run
+Engine format / family
+exsim.matching_engine/canonical_encoding=1
+Runner build
+exsim.research.runner/1
+Strategy build
+twap_executor/1
+Config digest
+sha256 ea7ababd69fb7bb50bb278ff19f69b4418a03a3c4fc13180a28f1ba04ab1ec7b
+Matching rule
+price_time_fifo
+Queue model
+exact_simulated_fifo
+Event order
+simulation_time_ns, then feed_delivery > strategy_processing > outbound_order > exchange_processing > report_delivery > runner_control, then enqueue_sequence
+Cost basis / fee sign
+fifo / positive_paid_negative_rebate
+Cash scale
+0.0001
+Seeds
+stream_seed = splitmix64_finalize((master_seed XOR fnv1a64(stream_label)) + 0x9E3779B97F4A7C15)
+master
+101
+strategy
+6347322554352487518
+latency
+13301992461624670546
+agent.0.market_maker.market_maker_1
+16641465934458775251
+agent.1.noise_taker.noise_taker_1
+14515236832637980092
+Full manifest
+{
+  "schemaVersion": "exsim.run-manifest/1",
+  "runId": "run_b132d7f2f6b40c15",
+  "experimentId": "exp_59aba9ec14e219e2",
+  "parentRunId": null,
+  "mode": "deterministic_research",
+  "marketWorld": "interactive_synthetic",
+  "engineBuildId": "exsim.matching_engine/canonical_encoding=1",
+  "runnerBuildId": "exsim.research.runner/1",
+  "strategyBuildId": "twap_executor/1",
+  "configDigest": {
+    "algorithm": "sha256",
+    "hexDigest": "ea7ababd69fb7bb50bb278ff19f69b4418a03a3c4fc13180a28f1ba04ab1ec7b"
+  },
+  "inputDataDigest": null,
+  "instrument": {
+    "symbol": "SYNTH",
+    "tickSize": "0.0100",
+    "lotSize": "1",
+    "maxOrderQuantity": "100000",
+    "minPrice": "50.0000",
+    "maxPrice": "150.0000",
+    "referencePrice": "100.0000",
+    "contractMultiplier": "1"
+  },
+  "scenario": {
+    "scenarioId": "synthetic.mm-and-noise-taker.v1",
+    "description": "One background market maker quoting three levels around a stepping fair value, and one noise taker sending crossing orders (runner models exsim::sim::bots).",
+    "backgroundAgents": [
+      {
+        "agentKind": "market_maker",
+        "agentCount": 1,
+        "parameters": [
+          {
+            "name": "levels",
+            "value": "3",
+            "unit": "count",
+            "description": "Price levels quoted per side."
+          },
+          {
+            "name": "quoteSizeShares",
+            "value": "100",
+            "unit": "shares",
+            "description": "Quantity per quoted level."
+          },
+          {
+            "name": "spreadTicks",
+            "value": "1",
+            "unit": "ticks",
+            "description": "Half spread around the fair value."
+          },
+          {
+            "name": "fairValueStepIntervalNs",
+            "value": "500000000",
+            "unit": "nanoseconds",
+            "description": "Interval between fair value random-walk steps."
+          },
+          {
+            "name": "fairValueStepTicks",
+            "value": "1",
+            "unit": "ticks",
+            "description": "Size of one fair value step."
+          },
+          {
+            "name": "requoteIntervalNs",
+            "value": "100000000",
+            "unit": "nanoseconds",
+            "description": "Requote period."
+          }
+        ]
+      },
+      {
+        "agentKind": "noise_taker",
+        "agentCount": 1,
+        "parameters": [
+          {
+            "name": "meanInterarrivalNs",
+            "value": "20000000",
+            "unit": "nanoseconds",
+            "description": "Mean exponential time between orders."
+          },
+          {
+            "name": "minimumOrderShares",
+            "value": "1",
+            "unit": "shares",
+            "description": "Smallest order."
+          },
+          {
+            "name": "maximumOrderShares",
+            "value": "200",
+            "unit": "shares",
+            "description": "Largest order."
+          },
+          {
+            "name": "crossTicks",
+            "value": "2",
+            "unit": "ticks",
+            "description": "Ticks through the touch for crossing orders."
+          },
+          {
+            "name": "limitOrderProbability",
+            "value": "0.1",
+            "unit": "ratio",
+            "description": "Probability an order is a resting limit order."
+          },
+          {
+            "name": "limitOrderLifetimeNs",
+            "value": "1000000000",
+            "unit": "nanoseconds",
+            "description": "Lifetime of a resting limit order."
+          }
+        ]
+      }
+    ]
+  },
+  "strategy": {
+    "strategyKind": "twap_execution",
+    "parentSide": "buy",
+    "parentQuantity": "500",
+    "sliceIntervalNs": "1000000000",
+    "sliceOrderType": "limit",
+    "startTimeNs": "1000000000",
+    "executionDurationNs": "30000000000",
+    "limitOffsetTicks": "5"
+  },
+  "seeds": {
+    "masterSeed": "101",
+    "derivationFunction": "stream_seed = splitmix64_finalize((master_seed XOR fnv1a64(stream_label)) + 0x9E3779B97F4A7C15)",
+    "derivedSeeds": [
+      {
+        "streamName": "strategy",
+        "seed": "6347322554352487518"
+      },
+      {
+        "streamName": "latency",
+        "seed": "13301992461624670546"
+      },
+      {
+        "streamName": "agent.0.market_maker.market_maker_1",
+        "seed": "16641465934458775251"
+      },
+      {
+        "streamName": "agent.1.noise_taker.noise_taker_1",
+        "seed": "14515236832637980092"
+      }
+    ]
+  },
+  "latency": {
+    "latencyModel": "uniform_jitter",
+    "feedLatencyNs": "50000",
+    "orderEntryLatencyNs": "100000",
+    "acknowledgmentLatencyNs": "100000",
+    "cancelLatencyNs": "80000",
+    "jitterNs": "20000",
+    "strategyComputeNs": "5000",
+    "orderChannelFifo": true
+  },
+  "queueModel": "exact_simulated_fifo",
+  "fees": {
+    "feeScheduleId": "maker-rebate-20-taker-30",
+    "makerFeePerShare": "-0.0020",
+    "takerFeePerShare": "0.0030"
+  },
+  "risk": {
+    "maxAbsolutePositionShares": "500",
+    "maxOpenOrders": "8",
+    "maxOrderQuantity": "200",
+    "onBreach": "block_orders_that_increase_exposure"
+  },
+  "initialCash": "1000000.0000",
+  "initialPositionShares": "0",
+  "markConvention": "exchange_mid",
+  "markoutHorizonsNs": [
+    "100000000",
+    "1000000000",
+    "5000000000"
+  ],
+  "bounds": {
+    "endSimulationTimeNs": "60000000000",
+    "maxCanonicalEventCount": "5000000",
+    "wallClockTimeLimitSeconds": 600
+  },
+  "eventOrderPolicy": {
+    "primaryKey": "simulation_time_ns",
+    "tieBreaker": "enqueue_sequence",
+    "stageOrderForEqualTime": [
+      "feed_delivery",
+      "strategy_processing",
+      "outbound_order",
+      "exchange_processing",
+      "report_delivery",
+      "runner_control"
+    ]
+  },
+  "accounting": {
+    "cashScale": "0.0001",
+    "costBasisMethod": "fifo",
+    "feeSign": "positive_paid_negative_rebate",
+    "equityDefinition": "cash_plus_position_times_mark",
+    "netPnlDefinition": "equity_minus_initial_cash",
+    "missingMarkPolicy": "report_unavailable"
+  },
+  "artifactEncodings": {
+    "canonicalEventEncoding": "exsim.canonical-event/1",
+    "lifecycleLogEncoding": "exsim.order-lifecycle/1",
+    "ledgerEncoding": "exsim.ledger/1",
+    "summaryEncoding": "exsim.run-summary/1",
+    "seriesEncoding": "exsim.series/1"
+  },
+  "matchingRule": "price_time_fifo"
+}
+exsim research
+15

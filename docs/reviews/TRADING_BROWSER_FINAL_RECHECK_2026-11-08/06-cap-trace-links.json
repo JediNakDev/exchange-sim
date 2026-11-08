@@ -1,0 +1,242 @@
+[
+  {
+    "text": "Skip to research content",
+    "href": "#research-content"
+  },
+  {
+    "text": "exsim.",
+    "href": "/experiments"
+  },
+  {
+    "text": "Experiments",
+    "href": "/experiments"
+  },
+  {
+    "text": "Compare",
+    "href": "/compare"
+  },
+  {
+    "text": "Connections",
+    "href": "/connections"
+  },
+  {
+    "text": "Build an experiment ",
+    "href": "/experiments/new"
+  },
+  {
+    "text": "exp_b5dcc99fb871e9a5",
+    "href": "/experiments/exp_b5dcc99fb871e9a5"
+  },
+  {
+    "text": "Inspect events",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect"
+  },
+  {
+    "text": "TRADING-RECHECK cap10",
+    "href": "/experiments/exp_b5dcc99fb871e9a5"
+  },
+  {
+    "text": "Explain fills and queue events",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect"
+  },
+  {
+    "text": "Create variant",
+    "href": "/experiments/new?from=exp_b5dcc99fb871e9a5"
+  },
+  {
+    "text": "Compare against this experiment",
+    "href": "/compare?baseline=exp_b5dcc99fb871e9a5"
+  },
+  {
+    "text": "95",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect?order=95"
+  },
+  {
+    "text": "95",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect?order=95"
+  },
+  {
+    "text": "192",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect?order=192"
+  },
+  {
+    "text": "192",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect?order=192"
+  },
+  {
+    "text": "285",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect?order=285"
+  },
+  {
+    "text": "285",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect?order=285"
+  },
+  {
+    "text": "396",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect?order=396"
+  },
+  {
+    "text": "396",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect?order=396"
+  },
+  {
+    "text": "478",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect?order=478"
+  },
+  {
+    "text": "478",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect?order=478"
+  },
+  {
+    "text": "556",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect?order=556"
+  },
+  {
+    "text": "556",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect?order=556"
+  },
+  {
+    "text": "630",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect?order=630"
+  },
+  {
+    "text": "630",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect?order=630"
+  },
+  {
+    "text": "703",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect?order=703"
+  },
+  {
+    "text": "703",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect?order=703"
+  },
+  {
+    "text": "776",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect?order=776"
+  },
+  {
+    "text": "776",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect?order=776"
+  },
+  {
+    "text": "960",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect?order=960"
+  },
+  {
+    "text": "960",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect?order=960"
+  },
+  {
+    "text": "1062",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect?order=1062"
+  },
+  {
+    "text": "1062",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect?order=1062"
+  },
+  {
+    "text": "1149",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect?order=1149"
+  },
+  {
+    "text": "1149",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect?order=1149"
+  },
+  {
+    "text": "1236",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect?order=1236"
+  },
+  {
+    "text": "1236",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect?order=1236"
+  },
+  {
+    "text": "1398",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect?order=1398"
+  },
+  {
+    "text": "1398",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect?order=1398"
+  },
+  {
+    "text": "1498",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect?order=1498"
+  },
+  {
+    "text": "1498",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect?order=1498"
+  },
+  {
+    "text": "1592",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect?order=1592"
+  },
+  {
+    "text": "1592",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect?order=1592"
+  },
+  {
+    "text": "1689",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect?order=1689"
+  },
+  {
+    "text": "1689",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect?order=1689"
+  },
+  {
+    "text": "1887",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect?order=1887"
+  },
+  {
+    "text": "1887",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect?order=1887"
+  },
+  {
+    "text": "2143",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect?order=2143"
+  },
+  {
+    "text": "2143",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect?order=2143"
+  },
+  {
+    "text": "2305",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect?order=2305"
+  },
+  {
+    "text": "2305",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect?order=2305"
+  },
+  {
+    "text": "2410",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect?order=2410"
+  },
+  {
+    "text": "2410",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect?order=2410"
+  },
+  {
+    "text": "2493",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect?order=2493"
+  },
+  {
+    "text": "2493",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect?order=2493"
+  },
+  {
+    "text": "2571",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect?order=2571"
+  },
+  {
+    "text": "2571",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect?order=2571"
+  },
+  {
+    "text": "2646",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect?order=2646"
+  },
+  {
+    "text": "2646",
+    "href": "/runs/run_23a6c46eac2c02cc/inspect?order=2646"
+  }
+]

@@ -1,0 +1,147 @@
+Skip to research content
+exsim.
+
+Strategy research, explained.
+
+Experiments
+Compare
+Connections
+Interactive synthetic
+
+Controlled markets.
+Reproducible experiments.
+
+Build an experiment
+Simulated time
+Research
+New experiment
+Research mode
+Single venue
+New experiment
+Define the trading decision, hold market assumptions constant, then review and launch paired-seed research.
+What are you testing?
+Execute a parent order
+Completion, execution cost and residual quantity
+Test a market maker
+Spread capture, inventory exposure and adverse selection
+Experiment and baseline
+Baseline
+Fixed spread, 2-tick width
+Fixed spread, 2-tick width
+Fixed spread, 4-tick width
+TWAP parent execution
+Immediate sweep parent execution
+
+Quotes one tick either side of the strategy-visible mid (runner config fixed_spread_narrow).
+
+Parent experiment
+None
+None
+FIRSTUSE-REVIEW wider protection
+FIRSTUSE-REVIEW TWAP
+EXEC-REVIEW buy censored
+EXEC-REVIEW buy cap10
+EXEC-REVIEW sell sweep
+EXEC-REVIEW sell TWAP
+VALIDATION-REVIEW event bound
+VALIDATION-REVIEW large
+MM-REVIEW cancel
+MM-REVIEW feed
+MM-REVIEW skew
+MM-REVIEW width
+EXEC-REVIEW buy sweep
+VALIDATION-REVIEW candidate
+EXEC-REVIEW buy TWAP
+VALIDATION-REVIEW baseline
+MM-REVIEW baseline
+
+Lineage only; compare against any experiment later.
+
+Name
+Hypothesis or notes
+Research strategy
+Quoting model
+Fixed-spread market maker
+Fixed-spread market maker
+Inventory-aware market maker
+
+Inventory-aware quoting skews prices away from accumulated inventory and can reduce the size that adds exposure.
+
+Quotes one level each side of the strategy-visible mid and requotes by cancel/replace on a timer.
+
+Half spread
+(ticks from the visible mid)
+Quote quantity
+(shares)
+Requote interval
+(stored as ns)
+ms
+ns
+µs
+ms
+s
+
+50 ms
+
+Requote threshold
+(ticks)
+
+Minimum move of the desired quote before a resting quote is replaced.
+
+Post only: never cross the visible opposite side
+Run plan
+Simulation end
+(stored as ns)
+s
+ns
+µs
+ms
+s
+
+60 s
+
+Master seeds
+
+One run per seed. Separate with commas or spaces. Use the same seeds as the experiment you will compare against.
+
+Market scenario: background liquidity and order flow
+Latency: feed, order, acknowledgment and cancel paths
+Fees and risk: costs, position limits and order caps
+Accounting: initial cash and markout horizons
+Review and launch
+Draft. Review assumptions before starting runs.
+
+5 seed runs · 60 s per run
+
+Start runs paused, to step through them event by event
+Review assumptions
+Create and start 5 runs
+Assumptions summary
+Review assumptions to see the full configuration the runs will use.
+Market
+interactive synthetic
+Instrument
+SYNTH · tick 0.0100 · lot 1
+Strategy
+fixed spread market maker
+Quotes
+100 shares per side, 1 ticks from visible mid
+Seeds
+1, 2, 3, 4, 5
+Maker / taker
+-0.0020 / 0.0030 USD/share
+Delay model
+uniform jitter
+Feed / order
+50 µs / 100 µs
+Ack / cancel
+100 µs / 80 µs
+Position cap
+500 shares
+Mark
+exchange mid
+
+Seeded synthetic participants share the book. Results describe this market model, not calibrated real-market performance. Assess net P&L with fees, inventory and eligible markouts. One seed cannot establish a robust improvement. Keep seeds and market assumptions matched when comparing alternatives.
+
+exsim research
+Inspect the assumptions behind every result.

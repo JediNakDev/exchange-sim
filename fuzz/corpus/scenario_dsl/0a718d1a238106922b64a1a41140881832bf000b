@@ -1,0 +1,6 @@
+instrument AAA tick=0.01 lot=1 max_qty=100 min=99 max=101 ref=100 phase=CONTINUOUS
+session alice oED
+SET_PHASE instrument=AAA phase=PRE_OPEN
+NEW_ORDER instrument=AAA session=alice cl_ord_id=b side=BUY qty=10 price=100 tif=IOC
+expect rejected reason=NOT_ALLOWED_런젽렙Ш
+SET_PHASstrument=AAA phase=RDER instrument=AAA0000000000000*000000같같같같컄nstr같

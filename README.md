@@ -1,254 +1,134 @@
-# Limit Order Book
+# exsim
 
-A high-performance limit order book implementation in modern C++17.
+A C++20 exchange simulator with a browser workbench for strategy research. Configure an experiment, run it on simulated time, compare common seeds, and trace a fill back to its orders, queue position and ledger changes.
 
-## Building
+The first workflow is execution and market-making research. The browser demo uses fixed-spread quoting against seeded market makers and noise takers. All matching, simulated time, strategies, accounting and protocol behavior run in C++.
 
-```bash
-make             # Build the demo
-make test        # Run tests (includes ITCH replay validation)
-make benchmark   # Build benchmark suite
-make itch-replay # Build the ITCH 5.0 replay tool
-make clean       # Clean build artifacts
+[![Watch the exsim research walkthrough](docs/demo/paired-comparison.png)](docs/demo/exsim-product-walkthrough.mp4)
+
+**[Watch the product walkthrough](docs/demo/exsim-product-walkthrough.mp4)** · [Screens and recording notes](docs/demo/README.md) · [Production setup](docs/DEPLOYMENT.md)
+
+**[TWAP versus immediate sweep](docs/demo/execution-walkthrough.mp4)** shows parent
+completion, residual shares, fill evidence and executed costs on the same seed.
+
+The recording shows the production Next.js frontend using real C++ runs, including experiment creation, pause/step/resume, accounting, fill inspection and a three-seed comparison. The data is synthetic; the results are not evidence of profitability in a live market.
+
+## Research workflow
+
+1. **Configure.** Start from a quoting or parent-order execution baseline, or copy a saved experiment as a variant. Choose fixed-spread or inventory-aware quoting, TWAP or immediate sweep. Set market agents, common seeds, feed/order/acknowledgment/cancel delays, fees, risk limits and a simulation bound. Execution forms include side, parent quantity, observation window, price protection and child cap. Review the assumptions before starting.
+2. **Run.** Let simulated time advance to completion, or start paused and step scheduler events. Each run owns its engine, RNG streams and accounting state. A partially started batch stays saved; its experiment page starts only missing seeds.
+3. **Compare.** See changed assumptions, aligned equity/inventory/drawdown charts, per-seed differences, sample standard deviation and standard error. Only completed runs whose native evidence reproduces under the expected configuration and seed enter the paired result. Comparison values come from that fresh execution.
+4. **Explain.** Inspect the event timeline, exchange truth versus the delivered strategy view, FIFO quantity ahead, order lifecycles, fill roles, fees and markouts. A completed run can retain inventory and resting orders; the summary reports both.
+
+## What is implemented
+
+| Surface | Capabilities |
+| --- | --- |
+| Browser workbench | Experiment templates, seed runs, pause/step/resume/cancel, assumptions and manifests, accounting and risk summaries, paired comparisons, event/book/order/fill inspection |
+| C++ research runner | Fixed-spread and inventory-aware market makers, TWAP and immediate-sweep execution baselines, latency models, FIFO accounting, bounded recording, manifests, seed sweeps and independent replay |
+| Real-time exchange | OUCH 4.2/SoupBinTCP, FIX 4.4, and SBE over FIXP order entry; ITCH 5.0/MoldUDP64 publishing and retransmission; simulated liquidity, admin controls, faults, session recovery and cancel-on-disconnect |
+| Matching engine | Price-time priority, continuous trading and auctions, market/IOC/FOK and post-only orders, STP, replace/partial cancel, mass cancel and expiry |
+| Validation | Reference oracle, differential fuzzing and shrinking, scenarios, canonical journals and replay, decoder corpora, allocation guards, sanitizer and cross-platform checks |
+
+The browser and HTTP service expose fixed-spread and inventory-aware quoting, TWAP and immediate-sweep execution. Parent results distinguish simulation completion, remaining quantity, observation-window coverage and costs on executed shares. Unexecuted opportunity cost remains unavailable. Historical replay models, arbitrary uploaded strategy code, multi-user authentication and live-server monitoring through the research UI are not implemented. Synthetic agent models are controlled experiments, not calibrated market impact.
+
+## Start locally
+
+Requires a C++20 compiler, GNU Make, Bun, and Node.js for Next.js. Tested compilers include Apple clang, GCC 14 and Clang 19.
+
+```sh
+cd web
+bun install --frozen-lockfile
+bun run dev
 ```
 
-## ITCH 5.0 Replay & Validation
+This builds and starts `exsim_api` on loopback port 7600 with Next.js on port 3000. Open `http://localhost:3000`. The explicit `bun run dev:mock` command selects the TypeScript mock for UI-only work.
 
-The engine is driven end-to-end from a NASDAQ ITCH 5.0 message stream and
-validated against an independent reference book (`std::map` + `std::list`)
-on every message. See [tools/itch_replay/](tools/itch_replay/) for the
-driver, reference oracle, and synthetic stream generator.
+For a production build, standalone deployment, persistent macOS services and a private Tailscale link, see [DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
-```bash
-make itch-replay
-./build/itch_replay --synth 1000000              # 1M synthetic msgs
-./build/itch_replay --synth 1000000 --validate   # diff vs reference book on every msg
-./build/itch_replay file.itch                    # real NASDAQ ITCH file
-./build/itch_replay file.itch50 --framed         # 2-byte BE length-prefixed dump
+## Automate research
+
+```sh
+make -j4 tools EXTRA_CXXFLAGS=-Werror
+
+./build/release/exsim_research run config/research/fixed_spread_narrow.conf \
+  --out /tmp/exsim-narrow --seeds 1..5
+./build/release/exsim_research run config/research/fixed_spread_wide.conf \
+  --out /tmp/exsim-wide --seeds 1..5
+./build/release/exsim_research compare /tmp/exsim-narrow /tmp/exsim-wide
 ```
 
-`make test` runs a 100,000-message synthetic ITCH stream through the
-engine and the reference book, diffing the top 10 levels of both books
-**after every single message**. Zero divergence is required to pass.
+The CLI re-executes runs before comparison by default. Native artifacts include the saved configuration, manifests, commands/events, lifecycle evidence, series, ledger records, summary and replay verification. See [RESEARCH_RUNNER.md](docs/RESEARCH_RUNNER.md).
 
-| Run | Messages | Throughput | Validation |
-|-----|----------|------------|------------|
-| Replay, fresh book        | 1,000,000  | 3.48 M msgs/s | n/a |
-| Replay, growing to 14M live orders | 50,000,000 | 1.06 M msgs/s | n/a |
-| Replay with per-msg diff vs reference | 1,000,000  | 12.4 K msgs/s | 0 mismatches |
+## Connect over exchange protocols
 
-See [benchmark/profiling/README.md](benchmark/profiling/README.md) for
-profiling artifacts (perf scripts for Linux, sample/xctrace for macOS)
-and the captured hot-path breakdown.
+```sh
+./build/release/exsim_server --config config/exsim.conf
+./build/release/exsim_client --user ALICE --password alice --server 127.0.0.1:15000 \
+  "buy A1 SPY 100 400.00" "wait 1500" "cancel A1"
+```
 
+The protocol runtime is a separate process from deterministic browser research. It uses a single reactor for order state, preallocated hot-path storage, and a bounded journal handoff to a persistence worker. Queue overflow and persistence failure follow explicit shutdown/continue policies. A stalled journal cannot silently become a successful complete capture. [Runtime and protocol documentation](docs/SERVER_RUNTIME.md).
 
+## Architecture and stack
 
-## Iteration 1.4.0 (Latest)
+- **C++:** matching, simulation, strategies, accounting, network protocols, journals and the HTTP service.
+- **Frontend:** Bun, Next.js, TypeScript, Tailwind CSS and shadcn/ui, with self-hosted IBM Plex typography. The research workstation has persistent navigation, a searchable experiment library, compact run outcomes and a keyboard-driven event tape. The browser uses a same-origin proxy and generated OpenAPI types. [Design notes](docs/UI_DESIGN.md).
+- **Shared implementation:** deterministic research and the real-time protocol runtime instantiate the same matching-engine code, with separate state. The engine itself reads no clock, performs no I/O and uses no randomness.
 
-### Key Changes
+[Product decisions](docs/PRODUCT.md) · [Architecture](docs/ARCHITECTURE.md) · [Matching specification](docs/SPEC.md) · [HTTP/OpenAPI](docs/API.md) · [Gateway contracts](docs/GATEWAYS.md)
 
-- **ITCH 5.0 replay driver**: Drives the production `OrderBook` end-to-end from a NASDAQ ITCH 5.0 message stream (A/F/E/X/D/U). Exchange-ref → internal-id mapping; supports both raw and length-prefixed (`.itch50`) framing.
-- **Reference book validator**: An independent `std::map<Price, std::list<Order>>` oracle. `make test` diffs the top 10 levels of both books **after every message** on a 100,000-msg synthetic stream — zero divergence required.
-- **Deterministic synthetic ITCH generator**: Wire-format A/F/E/X/D/U emitter with realistic mix; non-marketable by construction; preserves side across `U` replaces.
-- **Profiling infrastructure**: `benchmark/profiling/` ships Linux `perf` (stat + record + report) and macOS (`sample` + `xctrace`) scripts plus checked-in captures showing the real hot path during replay (`do_delete → cancel_order` dominant, `do_add → ensure_price_range` + `ObjectPool::allocate_block` secondary).
+## Validation
 
-### Replay Throughput (Apple M-series, macOS 26.2)
+```sh
+make -j4 test EXTRA_CXXFLAGS=-Werror
+make -j4 test MODE=debug EXTRA_CXXFLAGS=-Werror
+make -j4 test MODE=tsan FILTER=server_ EXTRA_CXXFLAGS=-Werror
 
-| Workload | Throughput | Notes |
-|----------|------------|-------|
-| 1M synthetic ITCH msgs, fresh book      | 3.48 M msgs/s | 285K live orders end-state |
-| 50M synthetic ITCH msgs, growing book   | 1.06 M msgs/s | 14.3M live orders end-state — flat-hashmap rehash + cache pressure |
-| 1M msgs **with per-msg diff** vs reference | 12.4 K msgs/s | 0 mismatches across full run |
+cd web
+bun test
+bun run typecheck
+bun run lint
+bun run build
+bun run test:e2e
+```
 
-See [benchmark/profiling/README.md](benchmark/profiling/README.md) for captured artifacts and methodology.
+The current API repair passes **71/71** focused cases in release and ASan/UBSan.
+Independent fault/restart probes cleared the reviewed recorder-failure and cache-allocation
+findings, including fill-based accounting checks. Fresh Linux GCC/Clang checks
+also pass **71/71** each with warning-free API builds. Independent selected-fill
+review passes nine focused browser cases, including five new async/navigation
+edge probes now included in ordinary CI coverage.
 
----
+Frontend evidence is **82** invariants, typecheck, lint and a production build;
+the selected-fill fix passes its unchanged reviewer reproducer and three focused
+browser regressions. The earlier execution checkpoint passed **13** browser cases,
+including two actual Next-proxy/C++ workflows, and **9** real-binary HTTP contract
+cases covering all 23 operations. Deployment tooling passes **40** disposable
+fixture checks. These counts cover different revisions and are not added together.
 
-## Iteration 1.3.0
+Historical combined integration evidence is **932** macOS release tests, **928**
+ASan/UBSan tests and **143** focused server TSan tests. Linux GCC and Clang each
+passed **53** focused API/runtime checks after those repairs; the earlier combined
+Linux snapshot passed 927 tests with each compiler. Current scoped checks do not
+replace that historical engine/protocol evidence. Exact current evidence:
+[recorder repair](docs/quality/RECORDER_FAILURE_REPAIR_2026-11-07.md),
+[independent re-check](docs/reviews/RECORDER_FAILURE_REPAIR_RECHECK_2026-11-07.md),
+[fill identity repair](docs/quality/FILL_IDENTITY_REPAIR_2026-11-07.md).
 
-### Key Changes
+The paired release was promoted after a verified offline backup and restored-data
+preflight preserved existing runs, inspection responses and native comparisons.
+[Release identity, checks and operational limits](docs/quality/RELEASE_2026-11-07.md).
+A post-use check also caught runtime route-cache additions. The final frontend
+keeps those writes out of the release, and a new browser invariant checks the
+whole standalone tree before/after use. The corrected build passes two real
+C++ browser flows, five async/navigation probes and full post-tour readiness.
+[Cache correction and receipts](docs/quality/RELEASE_CACHE_REPAIR_2026-11-07.md).
 
-- **Zero heap allocations on the hot path**: All `Order` and `PriceLevel` objects served from pre-allocated object pools. Fill buffer reused across `match_order` calls — no `std::vector<Fill>` allocation per match. Deterministic mode (`-DLOB_DETERMINISTIC_POOL`) enforces zero-allocation at compile time.
-- **Templatized matching on Side**: `match_order`, `add_order_to_book`, and `remove_order_from_book` are `template<Side S>` — the compiler generates separate BUY/SELL code paths, eliminating runtime branch in the inner matching loop.
-- **Branch hints**: `LOB_LIKELY`/`LOB_UNLIKELY` annotations on all hot-path branches (pool allocation, price range checks, matching loop predicates).
-- **Order struct layout**: `Side` narrowed to `uint8_t`, fields reordered for zero internal padding. Hot fields (id, price, quantity, pointers) packed into first 48 bytes (single cache line).
-- **ITCH 5.0 parser**: Zero-copy binary protocol parser for Add Order (A/F), Order Executed (E), Order Cancel (X), Order Delete (D), and Order Replace (U) messages.
-- **Realistic workload benchmark**: 93% cancel, 5% add, 2% modify — matching real exchange traffic patterns where the vast majority of orders are cancelled before execution.
-- **Cycle counter**: Cross-platform `rdtsc` (x86) / `CNTVCT_EL0` (ARM64) cycle timer for sub-nanosecond measurement resolution.
+Five new regressions fail the reviewed pre-fix code and pass the repairs. Exact revisions, logs and limits: [integration fixes](docs/reviews/INTEGRATION_FIXES_2026-11-06.md), [working checkpoint](docs/WORK_PLAN.md), [fuzzing](docs/FUZZING.md).
 
-### Architecture
+## Performance and project history
 
-- Each shard runs on a **dedicated pinned CPU core** (`pthread_setaffinity_np` on Linux, `thread_policy_set` on macOS), eliminating context-switch jitter and core migration.
-- Single-threaded per shard — no locks, no atomics on the hot path.
-- SPSC queues between producer and consumer threads.
+Measured engine and protocol results, their hardware/setup and limits are in [PERFORMANCE.md](docs/PERFORMANCE.md). The walkthrough is a product demonstration, not a benchmark. Unselected FIX codec optimization branches remain outside this integration.
 
-### Performance Summary
-
-**AddOrder 26 ns | MatchOrder 47 ns | CancelHeavy 27 Mops/s**
-
-| Benchmark | Mean | Throughput | vs 1.2.0 |
-|-----------|------|------------|----------|
-| AddOrder | 26 ns | 38.9 Mops/s | **1.1x faster** (was 29 ns) |
-| MatchOrder | 47 ns | 21.4 Mops/s | comparable |
-| CancelOrder | 16 ns | 63.6 Mops/s | comparable |
-| MixedWorkload | 27 ns | 21.6 Mops/s | comparable |
-| CancelHeavyWorkload | 19 ns | 27.0 Mops/s | **NEW** |
-
-### Tail Latency
-
-| Operation | P99 | P99.9 | P99.99 | vs 1.2.0 |
-|-----------|-----|-------|--------|----------|
-| AddOrder | 42 ns | 250 ns | 1.8 us | P99.9 **4x better** (was 1 us) |
-| MatchOrder | 84 ns | 167 ns | 250 ns | P99.99 **1.3x better** (was 333 ns) |
-| CancelHeavyWorkload | 83 ns | 666 ns | 833 ns | **NEW** |
-| MixedWorkload | 167 ns | 250 ns | 500 ns | P99.99 **7x better** (was 3.5 us) |
-
-See `results/benchmark_result_1.3.0.csv` for full data.
-
----
-
-## Iteration 1.2.0
-
-### Key Changes
-
-- **Tick-indexed ladders**: Contiguous arrays replace `std::map` + `std::unordered_map` for price levels. Active levels tracked via bitset with `__builtin_ctzll`/`__builtin_clzll` scanning.
-- **Object pool with growth control**: Pre-allocated pools for `Order` and `PriceLevel`. Deterministic mode (`-DLOB_DETERMINISTIC_POOL`) prevents runtime heap allocation.
-- **Sharded engine**: SPSC queue per shard, strict single-producer ownership, batched consumer processing, thread pinning.
-
-### Performance Summary
-
-**AddOrder 28 ns | MatchOrder 46 ns | MixedWorkload 22.8 Mops/s**
-
-| Benchmark | Mean | Throughput | vs 1.1.0 |
-|-----------|------|------------|----------|
-| AddOrder | 28 ns | 35.0 Mops/s | **1.9x faster** (was 54 ns) |
-| MatchOrder | 46 ns | 22.0 Mops/s | **2.6x faster** (was 118 ns) |
-| MixedWorkload | 28 ns | 21.2 Mops/s | **1.6x faster** (was 46 ns) |
-| CancelOrder | 15 ns | 65.3 Mops/s | comparable |
-| ModifyOrder | 16 ns | 61.3 Mops/s | comparable |
-
-### Tail Latency vs 1.1.0
-
-| Operation | P99 | P99.99 | vs 1.1.0 |
-|-----------|-----|--------|----------|
-| AddOrder | 42 ns | 1.6 us | P99.99 **7x better** (was 11 us) |
-| MatchOrder | 84 ns | 333 ns | P99.99 **1.9x better** (was 625 ns) |
-| MixedWorkload | 125 ns | 3.5 us | P99 **2.7x better** (was 333 ns) |
-
-### Sharded Throughput (Synthetic Add Flow)
-
-Each row shows `shards / consumer batch size`. Producer submits 100k orders; workers process in parallel.
-
-| Shards / Batch | Throughput |
-|----------------|------------|
-| 1 / 64 | 9.69 Mops/s |
-| 2 / 64 | 9.40 Mops/s |
-| 4 / 64 | 10.55 Mops/s |
-| 8 / 64 | 8.69 Mops/s |
-| 1 / 256 | 9.61 Mops/s |
-| 2 / 256 | **13.40 Mops/s** |
-| 4 / 256 | 10.60 Mops/s |
-| 8 / 256 | 8.74 Mops/s |
-
-### Sharded End-to-End Latency
-
-Submit-to-completion latency per order, including queue transit and matching.
-
-| Shards / Batch | Mean | P95 | P99 | P99.9 |
-|----------------|------|-----|-----|-------|
-| 1 / 256 | 348 ns | 417 ns | 875 ns | 14.1 us |
-| 2 / 256 | 529 ns | 958 ns | 3.7 us | 9.1 us |
-| 4 / 256 | 1.6 us | 2.3 us | 13.8 us | 35.3 us |
-
-See `results/benchmark_result_1.2.0.csv` for full data.
-
-## Iteration 1.1.0
-
-Implemented optimizations based on ["How to Build a Fast Limit Order Book"](https://web.archive.org/web/20110219163448/http://howtohft.wordpress.com/2011/02/15/how-to-build-a-fast-limit-order-book/) article.
-
-### Key Changes
-
-- **Integer Prices**: Changed from `double` to `int64_t` (ticks) for faster comparisons and better hashing
-- **Intrusive Doubly-Linked Lists**: Orders contain `prev/next` pointers for O(1) removal
-- **Hash Maps**: `std::unordered_map` for O(1) price level and order lookup
-- **Binary Search Tree**: Price levels organized in BST for O(log M) insertion of new levels
-- **Cached Best Bid/Ask**: Direct pointer access (`highest_buy_`/`lowest_sell_`) for O(1) best price queries
-
-### Performance Summary
-
-**AddOrder 47 ns | MatchOrder 117 ns | MixedWorkload 16.6 Mops/s**
-
-#### Significant Improvements vs 1.0.0
-
-| Operation | Mean | Improvement |
-|-----------|------|-------------|
-| AddOrder | 47 ns | **2.3x faster** (was 109 ns) |
-| CancelOrder | 16 ns | **1.4x faster** (was 23 ns) |
-| ModifyOrder | 15 ns | **1.6x faster** (was 24 ns) |
-| MatchOrder | 117 ns | **1.4x faster** (was 160 ns) |
-| MixedWorkload | 42 ns | **1.6x faster** (was 69 ns) |
-
-#### Tail Latency Improvements
-
-| Operation | P99 | P99.99 | vs 1.0.0 |
-|-----------|-----|--------|----------|
-| AddOrder | 84 ns | 1.8 µs | P99 **9x better** (was 792 ns), P99.99 **19x better** (was 34 µs) |
-| MatchOrder | 209 ns | 334 ns | P99.99 **69x better** (was 23 µs) |
-| MixedWorkload | 292 ns | 708 ns | P99.99 **28x better** (was 20 µs) |
-
-### Time Complexity
-
-| Operation       | Complexity | Notes |
-|-----------------|------------|-------|
-| `add_order` (passive) | O(1) / O(log M) | O(1) at existing limit, O(log M) for new price level |
-| `add_order` (aggressive) | O(F + L log M) | Includes matching; see below |
-| `cancel_order`  | O(1) | Hash lookup + intrusive list removal |
-| `modify_order`  | O(1) | Hash lookup + quantity update |
-| `get_best_bid`  | O(1) | Cached pointer |
-| `get_best_ask`  | O(1) | Cached pointer |
-| `get_snapshot`  | O(D) | D = depth requested |
-
-**Matching complexity: O(F + L log M)**
-- **F** = number of fills (resting orders matched)
-- **L** = number of price levels fully exhausted (L ≤ F)
-- **M** = total price levels on the opposing side
-
-| Scenario | Complexity | Example |
-|----------|------------|---------|
-| Passive (no cross) | O(1) | Bid below best ask |
-| Single partial fill | O(1) | Match one order, level remains |
-| Single level exhausted | O(log M) | Clear one price level |
-| Multi-level sweep | O(F + L log M) | Large aggressive order |
-
----
-
-## Iteration 1.0.0
-
-- **Price-Time Priority**: Orders matched by best price first, then arrival time (FIFO)
-- **Efficient Data Structures**: `std::map` for price levels, `std::list` for order queues, `std::unordered_map` for O(1) order lookup
-- **Clean API**: Structured results with I/O separated from business logic
-- **Modern C++17**: `std::optional`, `[[nodiscard]]`, namespaces, const-correctness
-
-### Performance Summary
-
-**AddOrder 109 ns | MatchOrder 160 ns | MixedWorkload 11 Mops/s**
-
-| Benchmark | Mean | P99 | P99.99 |
-|-----------|------|-----|--------|
-| GetBestBid | 19 ns | 42 ns | 1.4 µs |
-| GetBestAsk | 17 ns | 42 ns | 166 ns |
-| GetSpread | 18 ns | 42 ns | 167 ns |
-| CancelOrder | 23 ns | 125 ns | 459 ns |
-| ModifyOrder | 24 ns | 42 ns | 167 ns |
-| AddOrder | 109 ns | 792 ns | 34 µs |
-| MatchOrder | 160 ns | 292 ns | 23 µs |
-| MixedWorkload | 69 ns | 459 ns | 20 µs |
-
-See [benchmark/README.md](benchmark/README.md) for methodology.
-
-### Potential Improvements
-
-1. Memory pool allocators
-2. Market orders, IOC, FOK order types
-3. Thread safety / lock-free structures
-4. SIMD optimizations for batch operations
+exsim grew out of `lob`, a limit order book project. Its earlier implementation and benchmarks remain documented in [LOB_HISTORY.md](docs/LOB_HISTORY.md).
