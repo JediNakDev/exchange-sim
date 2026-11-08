@@ -8,7 +8,7 @@ export function ApiFailureAlert({ failure, title, onRetry }: { failure: ApiSchem
     <Alert variant="destructive">
       <CircleAlertIcon />
       <AlertTitle>{title ?? "Request failed"}</AlertTitle>
-      <AlertDescription>
+      <AlertDescription className="flex flex-col items-start gap-2">
         <p>
           <code className="font-mono">{failure.code}</code>: {failure.message}
           {failure.retryable ? " (retryable)" : ""}
@@ -22,7 +22,7 @@ export function ApiFailureAlert({ failure, title, onRetry }: { failure: ApiSchem
             ))}
           </ul>
         ) : null}
-        <p className="text-xs opacity-70">request {failure.requestId}</p>
+        <p className="font-mono text-[11px] opacity-80">request {failure.requestId}</p>
         {onRetry ? <Button size="sm" variant="outline" onClick={onRetry}>Try again</Button> : null}
       </AlertDescription>
     </Alert>

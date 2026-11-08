@@ -20,9 +20,9 @@ export function RunResearchContext({ experimentId }: { experimentId: string }) {
   const comparisonQuery = useComparisonContext();
   const experiment = useApiResource(`run-context:${experimentId}`, async () => unwrapApiResult(await getBrowserApiClient().GET("/v1/experiments/{experimentId}", { params: { path: { experimentId } } })), null);
   const role = comparisonQuery ? params.get("baseline") === experimentId ? "Baseline" : params.get("candidate") === experimentId ? "Candidate" : null : null;
-  return <section aria-label="Research context" className="rounded-md border bg-card px-4 py-3 text-sm">
+  return <section aria-label="Research context" className="text-xs text-muted-foreground">
     <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-      {role ? <strong>{role}</strong> : null}
+      {role ? <strong className="font-medium text-foreground">{role}</strong> : null}
       <Link className="min-w-0 max-w-full break-words font-medium underline" href={`/experiments/${encodeURIComponent(experimentId)}`}>{experiment.data?.name ?? experimentId}</Link>
       {experiment.data ? <span className="text-xs text-muted-foreground">{humanizeEnumValue(experiment.data.config.strategy.strategyKind)}; config <span className="font-mono">{experiment.data.configDigest.hexDigest.slice(0, 12)}</span></span> : null}
       {role ? <Link className="underline" href={`/compare${comparisonQuery}`}>Return to baseline / candidate comparison</Link> : null}

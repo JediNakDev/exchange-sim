@@ -1,5 +1,9 @@
 "use client";
 
+import { ChevronRightIcon } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Button } from "@/components/ui/button";
+
 // Thin wrapper over the shadcn chart for simulation-time series. Plot positions
 // are approximate floats from chart-derived-floats.ts; tooltips always show the
 // API's original decimal strings.
@@ -27,7 +31,7 @@ export function SeriesLineChart({ title, description, rows, lines }: { title: st
   const descriptionId = useId();
   const chartConfig: ChartConfig = Object.fromEntries(lines.map((line) => [line.valueKey, { label: line.label, color: line.color }]));
   return (
-    <Card size="sm" className="chart-panel">
+    <Card size="sm" className="min-w-0">
       <CardHeader>
         <CardTitle>{title}</CardTitle>
         <CardDescription id={descriptionId}>{description ?? "Recorded samples over simulated time"}. Plot positions are approximate; sampled values are available below.</CardDescription>
@@ -35,9 +39,9 @@ export function SeriesLineChart({ title, description, rows, lines }: { title: st
       <CardContent>
         <ChartContainer config={chartConfig} className="aspect-auto h-48 w-full">
           <LineChart accessibilityLayer aria-label={title} aria-describedby={descriptionId} data={rows} margin={{ left: 4, right: 8, top: 4, bottom: 0 }}>
-            <CartesianGrid vertical={false} strokeDasharray="3 4" />
-            <XAxis dataKey="simulationTimeSeconds" type="number" domain={["dataMin", "dataMax"]} tickLine={false} axisLine={false} tickFormatter={(tickSeconds: number) => `${tickSeconds}s`} />
-            <YAxis tickLine={false} axisLine={false} width={64} domain={["auto", "auto"]} />
+            <CartesianGrid vertical={false} stroke="var(--border)" />
+            <XAxis tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} dataKey="simulationTimeSeconds" type="number" domain={["dataMin", "dataMax"]} tickLine={false} axisLine={false} tickFormatter={(tickSeconds: number) => `${tickSeconds}s`} />
+            <YAxis tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} tickLine={false} axisLine={false} width={64} domain={["auto", "auto"]} />
             <ChartTooltip
               content={
                 <ChartTooltipContent
@@ -51,7 +55,7 @@ export function SeriesLineChart({ title, description, rows, lines }: { title: st
                     return (
                       <div className="flex w-full items-center justify-between gap-3">
                         <span className="flex items-center gap-1.5 text-muted-foreground">
-                          <span className="h-0.5 w-3 rounded-full" style={{ background: line?.color }} />
+                          <span className="h-0.5 w-3" style={{ background: line?.color }} />
                           {line?.label ?? String(item.dataKey)}
                         </span>
                         <span className="font-mono font-medium text-foreground tabular-nums">{exactText ? formatDecimalForDisplay(exactText) : "n/a"}</span>
@@ -63,19 +67,18 @@ export function SeriesLineChart({ title, description, rows, lines }: { title: st
             />
             {lines.length > 1 ? <ChartLegend content={<ChartLegendContent />} /> : null}
             {lines.map((line) => (
-              <Line key={line.valueKey} dataKey={line.valueKey} type="stepAfter" stroke={`var(--color-${line.valueKey})`} strokeWidth={1.7} dot={false} connectNulls={false} isAnimationActive={false} />
+              <Line key={line.valueKey} dataKey={line.valueKey} type="stepAfter" stroke={`var(--color-${line.valueKey})`} strokeWidth={1.5} dot={false} connectNulls={false} isAnimationActive={false} />
             ))}
           </LineChart>
         </ChartContainer>
-        <details className="mt-3 text-xs">
-          <summary className="cursor-pointer rounded-sm font-medium focus-visible:outline-2 focus-visible:outline-ring">Read sampled values for {title}</summary>
+        <Collapsible className="group/collapsible mt-3 text-xs"><CollapsibleTrigger asChild><Button variant="ghost" size="sm" className="h-auto max-w-full whitespace-normal text-left"><ChevronRightIcon className="shrink-0 transition-transform group-data-[state=open]/collapsible:rotate-90" />Read sampled values for {title}</Button></CollapsibleTrigger><CollapsibleContent>
           <p className="my-2 text-muted-foreground">All returned chart samples, with original service values. Sampling and aggregation follow the description above; this is not a full-resolution event export. Missing values are unavailable, not zero.</p>
-          <div className="max-h-64 overflow-auto rounded-md border">
-            <Table aria-label={`${title} sampled values`} className="text-xs"><TableHeader><TableRow><TableHead>Bucket end (ns)</TableHead>{lines.map((line) => <TableHead key={line.textKey}>{line.label}</TableHead>)}</TableRow></TableHeader>
-              <TableBody>{rows.map((row) => <TableRow key={row.bucketEndTimeNs}><TableCell className="font-mono">{row.bucketEndTimeNs}</TableCell>{lines.map((line) => <TableCell key={line.textKey} className="font-mono">{row[line.textKey] ?? "Unavailable"}</TableCell>)}</TableRow>)}</TableBody>
+          <div className="max-h-64 overflow-auto border bg-card">
+            <Table aria-label={`${title} sampled values`} className="text-xs"><TableHeader><TableRow><TableHead>Bucket end (ns)</TableHead>{lines.map((line) => <TableHead key={line.textKey} className="text-right">{line.label}</TableHead>)}</TableRow></TableHeader>
+              <TableBody>{rows.map((row) => <TableRow key={row.bucketEndTimeNs}><TableCell className="text-right font-mono tabular-nums">{row.bucketEndTimeNs}</TableCell>{lines.map((line) => <TableCell key={line.textKey} className="text-right font-mono tabular-nums">{row[line.textKey] ?? "Unavailable"}</TableCell>)}</TableRow>)}</TableBody>
             </Table>
           </div>
-        </details>
+        </CollapsibleContent></Collapsible>
       </CardContent>
     </Card>
   );

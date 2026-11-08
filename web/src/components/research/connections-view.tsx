@@ -5,7 +5,9 @@
 
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { NetworkIcon } from "lucide-react";
+import { ResearchSection } from "@/components/research/research-section";
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ApiFailureAlert } from "@/components/research/api-failure-alert";
 import { PageHeading } from "@/components/research/page-heading";
@@ -16,13 +18,9 @@ import { humanizeEnumValue } from "@/lib/research-labels";
 
 const CONNECTIONS_POLL_INTERVAL_MS = 2000;
 
-const SESSION_STATE_VARIANT: Record<ApiSchemas["ProtocolSessionStatus"]["state"], "default" | "secondary" | "destructive" | "outline"> = {
-  logged_in: "default",
-  connecting: "outline",
-  recovering: "secondary",
-  logging_out: "outline",
-  disconnected: "outline",
-  failed: "destructive",
+const SESSION_STATE_DOT: Record<ApiSchemas["ProtocolSessionStatus"]["state"], string> = {
+  logged_in: "bg-positive", connecting: "bg-warning", recovering: "bg-warning",
+  logging_out: "bg-warning", disconnected: "bg-negative", failed: "bg-negative",
 };
 
 export function ConnectionsView() {
@@ -44,19 +42,16 @@ export function ConnectionsView() {
         }
       />
       {connections.failure ? <ApiFailureAlert failure={connections.failure} onRetry={connections.reload} /> : null}
-      {status?.serviceState === "not_running" ? <section className="rounded-md border bg-card p-4 text-sm" aria-label="Protocol mode unavailable">
+      {status?.serviceState === "not_running" ? <section className="border bg-card p-4 text-sm" aria-label="Protocol mode unavailable">
         <h2 className="font-medium">Real-time protocol service is not running here</h2>
         <p className="mt-1 text-muted-foreground">Deterministic research runs do not create OUCH/FIX sessions or ITCH feed connections. This read-only page cannot start gateways or configure faults. Start a separate protocol service using the server setup instructions when testing an external client.</p>
         <Link className="mt-3 inline-block underline" href="/experiments">Return to research experiments</Link>
       </section> : null}
       {status ? (
-        <div className="grid gap-4 xl:grid-cols-2">
-          <Card size="sm" className="xl:col-span-2">
-            <CardHeader>
-              <CardTitle>Order entry sessions</CardTitle>
-            </CardHeader>
-            <CardContent className="overflow-x-auto">
-              <Table className="text-xs">
+        <div className="grid min-w-0 gap-8">
+          <ResearchSection title="Order entry sessions">
+            <div className="min-w-0 border bg-card">
+              <Table className="text-xs" aria-label="Order entry sessions">
                 <TableHeader>
                   <TableRow>
                     <TableHead>Session</TableHead>
@@ -74,14 +69,14 @@ export function ConnectionsView() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {status.sessions.length === 0 ? <TableRow><TableCell colSpan={12} className="text-muted-foreground">No order-entry sessions reported. {status.serviceState === "not_running" ? "Start the separate protocol service before connecting clients." : "Connect an external client to the running protocol service to observe sessions here."}</TableCell></TableRow> : null}
+                  {status.sessions.length === 0 ? <TableRow><TableCell colSpan={12} className="whitespace-normal"><Empty><EmptyHeader><EmptyMedia variant="icon"><NetworkIcon /></EmptyMedia><EmptyTitle>No order-entry sessions reported.</EmptyTitle><EmptyDescription>{status.serviceState === "not_running" ? "Start the separate protocol service before connecting clients." : "Connect an external client to the running protocol service to observe sessions here."}</EmptyDescription></EmptyHeader></Empty></TableCell></TableRow> : null}
                   {status.sessions.map((session) => (
                     <TableRow key={session.sessionId}>
                       <TableCell className="font-mono">{session.sessionId}</TableCell>
                       <TableCell>{humanizeEnumValue(session.protocol)}</TableCell>
                       <TableCell className="font-mono">{session.username}</TableCell>
                       <TableCell>
-                        <Badge variant={SESSION_STATE_VARIANT[session.state]}>{humanizeEnumValue(session.state)}</Badge>
+                        <Badge variant="outline"><span aria-hidden="true" className={`size-1.5 shrink-0 rounded-full ${SESSION_STATE_DOT[session.state]}`} />{humanizeEnumValue(session.state)}</Badge>
                       </TableCell>
                       <TableCell className="font-mono">{session.remoteAddress ?? "n/a"}</TableCell>
                       <TableCell className="font-mono">{formatWallClockTime(session.connectedAt)}</TableCell>
@@ -97,24 +92,18 @@ export function ConnectionsView() {
                   ))}
                 </TableBody>
               </Table>
-            </CardContent>
-          </Card>
-          {status.feeds.length === 0 ? <Card size="sm"><CardHeader><CardTitle>Market data feeds</CardTitle><CardDescription>No feeds reported. Deterministic research book views are available from each run’s event inspector; protocol feeds require the separate real-time service.</CardDescription></CardHeader></Card> : null}
+            </div>
+          </ResearchSection>
+          {status.feeds.length === 0 ? <ResearchSection title="Market data feeds" description="No feeds reported. Deterministic research book views are available from each run’s event inspector; protocol feeds require the separate real-time service." /> : null}
           {status.feeds.map((feed) => (
-            <Card size="sm" key={feed.feedId}>
-              <CardHeader>
-                <CardTitle>
-                  Feed {feed.feedId} ({humanizeEnumValue(feed.protocol)})
-                </CardTitle>
-                <CardDescription className="font-mono">
+            <ResearchSection key={feed.feedId} title={<>Feed {feed.feedId} ({humanizeEnumValue(feed.protocol)})</>} actions={<Badge variant="outline"><span aria-hidden="true" className={`size-1.5 rounded-full ${feed.recentGaps.some((gap) => gap.recoveryState !== "recovered") ? "bg-warning" : "bg-positive"}`} />{feed.recentGaps.some((gap) => gap.recoveryState !== "recovered") ? "Gaps" : "Healthy"}</Badge>} description={<span className="font-mono wrap-anywhere">
                   {feed.multicastGroup}, session {feed.mold64Session}, last sequence {formatIntegerText(feed.lastPublishedSequenceNumber)}, {feed.retransmissionRequestCount} retransmission requests
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Table className="text-xs">
+                </span>}>
+              <div className="min-w-0 border bg-card">
+                <Table className="text-xs" aria-label={`Feed ${feed.feedId} gaps`}>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Gap</TableHead>
+                      <TableHead className="text-right">Gap</TableHead>
                       <TableHead>Detected</TableHead>
                       <TableHead>Recovery</TableHead>
                     </TableRow>
@@ -122,12 +111,12 @@ export function ConnectionsView() {
                   <TableBody>
                     {feed.recentGaps.map((feedGap) => (
                       <TableRow key={`${feedGap.fromSequenceNumber}-${feedGap.toSequenceNumber}`}>
-                        <TableCell className="font-mono tabular-nums">
+                        <TableCell className="text-right font-mono tabular-nums">
                           {feedGap.fromSequenceNumber} to {feedGap.toSequenceNumber}
                         </TableCell>
                         <TableCell className="font-mono">{formatWallClockTime(feedGap.detectedAt)}</TableCell>
                         <TableCell>
-                          <Badge variant={feedGap.recoveryState === "unrecoverable" ? "destructive" : feedGap.recoveryState === "recovered" ? "secondary" : "outline"}>{humanizeEnumValue(feedGap.recoveryState)}</Badge>
+                          <Badge variant="outline"><span aria-hidden="true" className={`size-1.5 shrink-0 rounded-full ${feedGap.recoveryState === "unrecoverable" ? "bg-negative" : feedGap.recoveryState === "recovered" ? "bg-positive" : "bg-warning"}`} />{humanizeEnumValue(feedGap.recoveryState)}</Badge>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -140,23 +129,19 @@ export function ConnectionsView() {
                     ) : null}
                   </TableBody>
                 </Table>
-              </CardContent>
-            </Card>
+              </div>
+            </ResearchSection>
           ))}
-          <Card size="sm">
-            <CardHeader>
-              <CardTitle>Fault scenarios</CardTitle>
-              <CardDescription>Faults are configured outside the UI; this view only reports them.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Table className="text-xs">
+          <ResearchSection title="Fault scenarios" description="Faults are configured outside the UI; this view only reports them.">
+            <div className="min-w-0 border bg-card">
+              <Table className="text-xs" aria-label="Fault scenarios">
                 <TableHeader>
                   <TableRow>
                     <TableHead>Fault</TableHead>
                     <TableHead>State</TableHead>
                     <TableHead>Target</TableHead>
                     <TableHead>Description</TableHead>
-                    <TableHead>Seed</TableHead>
+                    <TableHead className="text-right">Seed</TableHead>
                     <TableHead>Active</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -166,11 +151,11 @@ export function ConnectionsView() {
                     <TableRow key={fault.faultId}>
                       <TableCell>{humanizeEnumValue(fault.faultKind)}</TableCell>
                       <TableCell>
-                        <Badge variant={fault.state === "active" ? "destructive" : "outline"}>{fault.state}</Badge>
+                        <Badge variant="outline"><span aria-hidden="true" className={`size-1.5 shrink-0 rounded-full ${fault.state === "active" ? "bg-warning" : "bg-muted-foreground"}`} />{fault.state}</Badge>
                       </TableCell>
                       <TableCell className="font-mono">{fault.target}</TableCell>
                       <TableCell>{fault.description}</TableCell>
-                      <TableCell className="font-mono">{fault.reproducibilitySeed ?? "n/a"}</TableCell>
+                      <TableCell className="text-right font-mono tabular-nums">{fault.reproducibilitySeed ?? "n/a"}</TableCell>
                       <TableCell className="font-mono">
                         {formatWallClockTime(fault.activatedAt)} to {fault.clearedAt ? formatWallClockTime(fault.clearedAt) : "now"}
                       </TableCell>
@@ -178,8 +163,8 @@ export function ConnectionsView() {
                   ))}
                 </TableBody>
               </Table>
-            </CardContent>
-          </Card>
+            </div>
+          </ResearchSection>
         </div>
       ) : null}
     </>

@@ -17,8 +17,6 @@
     "test:browser": "bun scripts/prepare-browser-assets.ts && playwright test"
   },
   "dependencies": {
-    "@fontsource/ibm-plex-mono": "^5.3.0",
-    "@fontsource/ibm-plex-sans": "^5.3.0",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.5.2",
     "lucide-react": "^1.66.0",

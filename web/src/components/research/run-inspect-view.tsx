@@ -11,6 +11,11 @@ import { ChevronFirstIcon, ChevronLastIcon, ChevronLeftIcon, ChevronRightIcon, C
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ButtonGroup } from "@/components/ui/button-group";
+import { Kbd } from "@/components/ui/kbd";
+import { DefinitionList } from "@/components/research/definition-list";
+import { ResearchSection } from "@/components/research/research-section";
+import { SignedFigure } from "@/components/research/signed-figure";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -38,7 +43,7 @@ function lastEventPosition(processedEventCountText: string): string {
 }
 
 function VisibilityBadge({ visibility }: { visibility: ApiSchemas["EventVisibility"] }) {
-  return <Badge variant={visibility === "strategy_visible" ? "default" : "outline"}>{visibility === "strategy_visible" ? "strategy-visible" : "exchange truth"}</Badge>;
+  return <Badge variant={visibility === "strategy_visible" ? "secondary" : "outline"}>{visibility === "strategy_visible" ? <span aria-hidden="true" className="size-1.5 rounded-full bg-primary" /> : null}{visibility === "strategy_visible" ? "strategy-visible" : "exchange truth"}</Badge>;
 }
 
 function EventWindowTable({
@@ -53,9 +58,9 @@ function EventWindowTable({
   onSelectEventPosition: (eventPosition: string) => void;
 }) {
   return (
-    <div className="overflow-x-auto rounded-md border">
-      <Table className="text-xs">
-        <TableHeader>
+    <div className="min-w-0 border bg-card [&>[data-slot=table-container]]:max-h-96 [&>[data-slot=table-container]]:overflow-auto">
+      <Table aria-label="Event tape" className="text-xs">
+        <TableHeader className="sticky top-0 z-1 bg-muted [&_th]:text-muted-foreground">
           <TableRow>
             <TableHead className="text-right">#</TableHead>
             <TableHead className="text-right">Sim time</TableHead>
@@ -63,7 +68,7 @@ function EventWindowTable({
             <TableHead>Event</TableHead>
             <TableHead>Actor</TableHead>
             <TableHead>Visibility</TableHead>
-            <TableHead>Order</TableHead>
+            <TableHead className="text-right">Order</TableHead>
             <TableHead>Side</TableHead>
             <TableHead className="text-right">Price</TableHead>
             <TableHead className="text-right">Qty</TableHead>
@@ -80,7 +85,7 @@ function EventWindowTable({
                 tabIndex={0}
                 aria-selected={isFocused}
                 data-state={isFocused ? "selected" : undefined}
-                className={cn("cursor-pointer focus-visible:outline-2 focus-visible:outline-ring", isRelated && !isFocused && "bg-amber-500/15", canonicalEvent.isOwnOrder && "font-medium")}
+                className={cn("cursor-pointer focus-visible:outline-2 focus-visible:outline-ring", isRelated && !isFocused && "bg-accent/50", canonicalEvent.isOwnOrder && !isFocused && "bg-primary/5")}
                 onClick={() => onSelectEventPosition(canonicalEvent.eventPosition)}
                 onKeyDown={(keyboardEvent) => {
                   if (keyboardEvent.key === "Enter") onSelectEventPosition(canonicalEvent.eventPosition);
@@ -90,11 +95,11 @@ function EventWindowTable({
                 <TableCell className="text-right font-mono tabular-nums">{formatSimulationTimeNs(canonicalEvent.simulationTimeNs, 9)}</TableCell>
                 <TableCell className="text-muted-foreground">{humanizeEnumValue(canonicalEvent.stage)}</TableCell>
                 <TableCell>{humanizeEnumValue(canonicalEvent.eventKind)}</TableCell>
-                <TableCell>{canonicalEvent.isOwnOrder ? <Badge variant="secondary">own</Badge> : humanizeEnumValue(canonicalEvent.actor)}</TableCell>
+                <TableCell>{canonicalEvent.isOwnOrder ? <Badge variant="outline">own</Badge> : humanizeEnumValue(canonicalEvent.actor)}</TableCell>
                 <TableCell>
                   <VisibilityBadge visibility={canonicalEvent.visibility} />
                 </TableCell>
-                <TableCell className="font-mono">{canonicalEvent.orderId ?? ""}</TableCell>
+                <TableCell className="text-right font-mono tabular-nums">{canonicalEvent.orderId ?? ""}</TableCell>
                 <TableCell>{canonicalEvent.side ?? ""}</TableCell>
                 <TableCell className="text-right font-mono tabular-nums">{canonicalEvent.price ?? ""}</TableCell>
                 <TableCell className="text-right font-mono tabular-nums">{canonicalEvent.quantity ?? ""}</TableCell>
@@ -112,10 +117,7 @@ function EventWindowTable({
 
 function BookLadder({ bookView, title }: { bookView: ApiSchemas["BookView"] | null; title: string }) {
   return (
-    <Card size="sm">
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-        <CardDescription>
+    <ResearchSection title={title} description={<>
           {bookView ? (
             <>
               {humanizeEnumValue(bookView.source)}
@@ -125,12 +127,11 @@ function BookLadder({ bookView, title }: { bookView: ApiSchemas["BookView"] | nu
           ) : (
             "Loading..."
           )}
-        </CardDescription>
-      </CardHeader>
+        </>}>
       {bookView ? (
-        <CardContent>
-          <Table className="text-xs">
-            <TableHeader>
+        <div className="min-w-0 border bg-card">
+          <Table aria-label={`${title} book`} className="text-xs">
+            <TableHeader className="bg-muted [&_th]:text-muted-foreground">
               <TableRow>
                 <TableHead className="text-right">Own</TableHead>
                 <TableHead className="text-right">Orders</TableHead>
@@ -141,18 +142,18 @@ function BookLadder({ bookView, title }: { bookView: ApiSchemas["BookView"] | nu
             <TableBody>
               {[...bookView.asks].reverse().map((bookLevel) => (
                 <TableRow key={`ask-${bookLevel.price}`}>
-                  <TableCell className="text-right font-mono tabular-nums">{bookLevel.ownShares === "0" ? "" : (bookLevel.ownShares ?? "n/a")}</TableCell>
+                  <TableCell className="text-right font-mono tabular-nums">{bookLevel.ownShares !== null && bookLevel.ownShares !== "0" ? <span aria-hidden="true" className="mr-1.5 inline-block size-1.5 rounded-full bg-primary" /> : null}{bookLevel.ownShares === "0" ? "" : (bookLevel.ownShares ?? "n/a")}</TableCell>
                   <TableCell className="text-right font-mono tabular-nums">{bookLevel.orderCount ?? "n/a"}</TableCell>
                   <TableCell className="text-right font-mono tabular-nums">{formatIntegerText(bookLevel.totalShares)}</TableCell>
-                  <TableCell className="text-right font-mono text-red-700 tabular-nums dark:text-red-400">{bookLevel.price}</TableCell>
+                  <TableCell className="text-right font-mono tabular-nums"><span className="mr-2 font-sans text-muted-foreground">Ask</span>{bookLevel.price}</TableCell>
                 </TableRow>
               ))}
               {bookView.bids.map((bookLevel) => (
                 <TableRow key={`bid-${bookLevel.price}`}>
-                  <TableCell className="text-right font-mono tabular-nums">{bookLevel.ownShares === "0" ? "" : (bookLevel.ownShares ?? "n/a")}</TableCell>
+                  <TableCell className="text-right font-mono tabular-nums">{bookLevel.ownShares !== null && bookLevel.ownShares !== "0" ? <span aria-hidden="true" className="mr-1.5 inline-block size-1.5 rounded-full bg-primary" /> : null}{bookLevel.ownShares === "0" ? "" : (bookLevel.ownShares ?? "n/a")}</TableCell>
                   <TableCell className="text-right font-mono tabular-nums">{bookLevel.orderCount ?? "n/a"}</TableCell>
                   <TableCell className="text-right font-mono tabular-nums">{formatIntegerText(bookLevel.totalShares)}</TableCell>
-                  <TableCell className="text-right font-mono text-green-700 tabular-nums dark:text-green-400">{bookLevel.price}</TableCell>
+                  <TableCell className="text-right font-mono tabular-nums"><span className="mr-2 font-sans text-muted-foreground">Bid</span>{bookLevel.price}</TableCell>
                 </TableRow>
               ))}
               {bookView.bids.length === 0 && bookView.asks.length === 0 ? (
@@ -164,9 +165,9 @@ function BookLadder({ bookView, title }: { bookView: ApiSchemas["BookView"] | nu
               ) : null}
             </TableBody>
           </Table>
-        </CardContent>
+        </div>
       ) : null}
-    </Card>
+    </ResearchSection>
   );
 }
 
@@ -174,13 +175,13 @@ function EventPositionButton({ eventPosition, label, onSelectEventPosition }: { 
   if (eventPosition === null) {
     return (
       <span className="text-muted-foreground">
-        {label}: <span className="font-mono">not observed</span>
+        {label}: <span className="text-right font-mono tabular-nums">not observed</span>
       </span>
     );
   }
   return (
     <Button size="xs" variant="outline" onClick={() => onSelectEventPosition(eventPosition)}>
-      {label} <span className="font-mono">#{eventPosition}</span>
+      {label} <span className="text-right font-mono tabular-nums">#{eventPosition}</span>
     </Button>
   );
 }
@@ -211,7 +212,7 @@ export function FocusPanel({
   }
   const order = lifecycle.order;
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex min-w-0 flex-col gap-8">
       <Card size="sm">
         <CardHeader>
           <CardTitle>
@@ -224,7 +225,7 @@ export function FocusPanel({
         <CardContent className="flex flex-col gap-3">
           {focusedFill ? (
             <div className="space-y-2">
-            <p className="rounded-md border bg-muted/30 p-3 text-sm" aria-label="Selected fill identity"><strong>Selected fill:</strong> order {focusedFill.orderId}, event {focusedFill.eventPosition}, match {focusedFill.matchId}; {focusedFill.side} {focusedFill.quantity} @ {focusedFill.price}. The lifecycle below spans the replacement chain; its latest state can have another exchange order ID.</p>
+            <p className="border bg-muted/30 p-3 text-sm" aria-label="Selected fill identity"><strong>Selected fill:</strong> order {focusedFill.orderId}, event {focusedFill.eventPosition}, match {focusedFill.matchId}; {focusedFill.side} {focusedFill.quantity} @ {focusedFill.price}. The lifecycle below spans the replacement chain; its latest state can have another exchange order ID.</p>
             <div className="flex flex-wrap gap-1.5 text-xs">
               <EventPositionButton label="Submit" eventPosition={focusedFill.relatedEvents.strategySubmitEventPosition} onSelectEventPosition={onSelectEventPosition} />
               <EventPositionButton label="Arrival" eventPosition={focusedFill.relatedEvents.exchangeArrivalEventPosition} onSelectEventPosition={onSelectEventPosition} />
@@ -244,19 +245,19 @@ export function FocusPanel({
                 <span className="font-mono text-muted-foreground tabular-nums">{formatSimulationTimeNs(lifecycleStage.simulationTimeNs, 9)}</span>
                 <span className="font-medium">{humanizeEnumValue(lifecycleStage.stageKind)}</span>
                 <VisibilityBadge visibility={lifecycleStage.visibility} />
-                <span className="font-mono">Exchange order {lifecycleStage.orderId ?? "unavailable"}{lifecycleStage.replacedOldOrderId != null ? `, replaces ${lifecycleStage.replacedOldOrderId}` : ""}</span>
+                <span className="text-right font-mono tabular-nums">Exchange order {lifecycleStage.orderId ?? "unavailable"}{lifecycleStage.replacedOldOrderId != null ? `, replaces ${lifecycleStage.replacedOldOrderId}` : ""}</span>
                 {lifecycleStage.quantity !== null ? <span>quantity {lifecycleStage.quantity}</span> : null}
                 {lifecycleStage.leavesQuantity !== null ? <span>remaining {lifecycleStage.leavesQuantity}</span> : null}
                 <span className="text-muted-foreground">{lifecycleStage.detail}</span>
               </li>
             ))}
           </ol>
-          <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs md:grid-cols-4">
-            <span>Order entry {lifecycle.latency.orderEntryNs ?? "Unavailable"} ns</span>
-            <span>Acknowledgment {lifecycle.latency.acknowledgmentNs ?? "Unavailable"} ns</span>
-            <span>Cancel {lifecycle.latency.cancelNs ?? "Unavailable"} ns</span>
-            <span>Submit to first fill {lifecycle.latency.submitToFirstFillNs ?? "Unavailable"} ns</span>
-          </div>
+          <DefinitionList rows={[
+            ["Order entry", `${lifecycle.latency.orderEntryNs ?? "Unavailable"} ns`],
+            ["Acknowledgment", `${lifecycle.latency.acknowledgmentNs ?? "Unavailable"} ns`],
+            ["Cancel", `${lifecycle.latency.cancelNs ?? "Unavailable"} ns`],
+            ["Submit to first fill", `${lifecycle.latency.submitToFirstFillNs ?? "Unavailable"} ns`],
+          ]} />
         </CardContent>
       </Card>
       <LifecycleRepairEvidence lifecycle={lifecycle} onSelectEventPosition={onSelectEventPosition} />
@@ -267,13 +268,14 @@ export function FocusPanel({
               Fill {focusedFill.matchId}: {focusedFill.side} {focusedFill.quantity} @ {focusedFill.price} ({focusedFill.liquidityRole})
             </CardTitle>
             <CardDescription>
-              Order {focusedFill.orderId} at event {focusedFill.eventPosition}. Counterparty {humanizeEnumValue(focusedFill.counterpartyActor)}. Mid at fill {formatDecimalForDisplay(focusedFill.midAtFill)}, spread capture {formatDecimalForDisplay(focusedFill.spreadCapturePerShare, { signDisplay: "always" })} per share, fee{" "}
+              Order {focusedFill.orderId} at event {focusedFill.eventPosition}. Counterparty {humanizeEnumValue(focusedFill.counterpartyActor)}. Mid at fill {formatDecimalForDisplay(focusedFill.midAtFill)}, spread capture <SignedFigure formattedValue={formatDecimalForDisplay(focusedFill.spreadCapturePerShare, { signDisplay: "always" })} favourableDirection="higher" /> per share, fee{" "}
               {formatDecimalForDisplay(focusedFill.feePerShare)} per share.
             </CardDescription>
           </CardHeader>
-          <CardContent className="grid gap-3 md:grid-cols-2">
-            <Table className="text-xs">
-              <TableHeader>
+          <CardContent className="grid min-w-0 gap-3 xl:grid-cols-2">
+            <div className="min-w-0 border bg-card">
+            <Table aria-label="Fill ledger effect" className="text-xs">
+              <TableHeader className="bg-muted [&_th]:text-muted-foreground">
                 <TableRow>
                   <TableHead>Ledger</TableHead>
                   <TableHead className="text-right">Before</TableHead>
@@ -284,34 +286,36 @@ export function FocusPanel({
                 <TableRow>
                   <TableCell>Position (shares)</TableCell>
                   <TableCell className="text-right font-mono tabular-nums">{focusedFill.ledgerEffect.positionBeforeShares}</TableCell>
-                  <TableCell className="text-right font-mono tabular-nums">{focusedFill.ledgerEffect.positionAfterShares}</TableCell>
+                  <TableCell className="text-right font-mono tabular-nums"><SignedFigure formattedValue={focusedFill.ledgerEffect.positionAfterShares} favourableDirection="neutral" /></TableCell>
                 </TableRow>
                 <TableRow>
                   <TableCell>Cash</TableCell>
-                  <TableCell className="text-right font-mono tabular-nums">{formatDecimalForDisplay(focusedFill.ledgerEffect.cashBefore)}</TableCell>
-                  <TableCell className="text-right font-mono tabular-nums">{formatDecimalForDisplay(focusedFill.ledgerEffect.cashAfter)}</TableCell>
+                  <TableCell className="text-right font-mono tabular-nums"><SignedFigure formattedValue={formatDecimalForDisplay(focusedFill.ledgerEffect.cashBefore)} favourableDirection="neutral" /></TableCell>
+                  <TableCell className="text-right font-mono tabular-nums"><SignedFigure formattedValue={formatDecimalForDisplay(focusedFill.ledgerEffect.cashAfter)} favourableDirection="neutral" /></TableCell>
                 </TableRow>
                 <TableRow>
                   <TableCell>Fee on this fill</TableCell>
                   <TableCell />
-                  <TableCell className="text-right font-mono tabular-nums">{formatDecimalForDisplay(focusedFill.ledgerEffect.fee, { signDisplay: "always" })}</TableCell>
+                  <TableCell className="text-right font-mono tabular-nums"><SignedFigure formattedValue={formatDecimalForDisplay(focusedFill.ledgerEffect.fee, { signDisplay: "always" })} favourableDirection="lower" /></TableCell>
                 </TableRow>
                 <TableRow>
                   <TableCell>Realized P&L change</TableCell>
                   <TableCell />
-                  <TableCell className="text-right font-mono tabular-nums">{formatDecimalForDisplay(focusedFill.ledgerEffect.realizedPnlChange, { signDisplay: "always" })}</TableCell>
+                  <TableCell className="text-right font-mono tabular-nums"><SignedFigure formattedValue={formatDecimalForDisplay(focusedFill.ledgerEffect.realizedPnlChange, { signDisplay: "always" })} favourableDirection="higher" /></TableCell>
                 </TableRow>
                 <TableRow>
                   <TableCell>Cumulative realized / fees</TableCell>
                   <TableCell />
                   <TableCell className="text-right font-mono tabular-nums">
-                    {formatDecimalForDisplay(focusedFill.ledgerEffect.cumulativeRealizedPnlAfter)} / {formatDecimalForDisplay(focusedFill.ledgerEffect.cumulativeFeesAfter)}
+                    <SignedFigure formattedValue={formatDecimalForDisplay(focusedFill.ledgerEffect.cumulativeRealizedPnlAfter)} favourableDirection="higher" /> / <SignedFigure formattedValue={formatDecimalForDisplay(focusedFill.ledgerEffect.cumulativeFeesAfter)} favourableDirection="lower" />
                   </TableCell>
                 </TableRow>
               </TableBody>
             </Table>
-            <Table className="text-xs">
-              <TableHeader>
+            </div>
+            <div className="min-w-0 border bg-card">
+            <Table aria-label="Fill markouts" className="text-xs">
+              <TableHeader className="bg-muted [&_th]:text-muted-foreground">
                 <TableRow>
                   <TableHead>Markout</TableHead>
                   <TableHead>Status</TableHead>
@@ -328,12 +332,13 @@ export function FocusPanel({
                       <Badge variant={markout.status === "available" ? "secondary" : "outline"}>{humanizeEnumValue(markout.status)}</Badge>
                     </TableCell>
                     <TableCell className="text-right font-mono tabular-nums">{formatDecimalForDisplay(markout.referenceMidPrice)}</TableCell>
-                    <TableCell className="text-right font-mono tabular-nums">{formatDecimalForDisplay(markout.markoutPerShare, { signDisplay: "always" })}</TableCell>
-                    <TableCell className="text-right font-mono tabular-nums">{formatDecimalForDisplay(markout.markoutTotal, { signDisplay: "always" })}</TableCell>
+                    <TableCell className="text-right font-mono tabular-nums"><SignedFigure formattedValue={formatDecimalForDisplay(markout.markoutPerShare, { signDisplay: "always" })} favourableDirection="higher" /></TableCell>
+                    <TableCell className="text-right font-mono tabular-nums"><SignedFigure formattedValue={formatDecimalForDisplay(markout.markoutTotal, { signDisplay: "always" })} favourableDirection="higher" /></TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
+            </div>
           </CardContent>
         </Card>
       ) : null}
@@ -448,13 +453,13 @@ function RunInspection({ runId }: { runId: string }) {
     <>
       <PageHeading
         title={
-          <span className="flex items-center gap-2">
+          <span className="flex flex-wrap items-center gap-2">
             Inspect seed <span>{run.masterSeed}</span> <RunStateBadge runState={run.state} />
           </span>
         }
         description={
           <span>
-            <span className="font-mono text-xs">{run.runId}</span>{" / "} seed <span className="font-mono">{run.masterSeed}</span>, {formatIntegerText(processedEventCount)} events processed.{" "}
+            <span className="break-all font-mono text-xs">{run.runId}</span>{" / "} seed <span className="text-right font-mono tabular-nums">{run.masterSeed}</span>, {formatIntegerText(processedEventCount)} events processed.{" "}
             <Link className="underline" href={`/runs/${run.runId}${comparisonQuery}`}>
               Run summary
             </Link>
@@ -468,8 +473,9 @@ function RunInspection({ runId }: { runId: string }) {
         aria-label="Event position stepper. Arrow keys or j and k step one event, Shift steps 25, Home and End jump to the ends."
         tabIndex={0}
         onKeyDown={handleStepperKeys}
-        className="inspection-toolbar flex flex-wrap items-center gap-2 border focus-visible:outline-2 focus-visible:outline-ring"
+        className="sticky top-12 z-10 flex flex-wrap items-center gap-2 border-b bg-muted p-3 focus-visible:outline-2 focus-visible:outline-ring"
       >
+        <ButtonGroup>
         <Button size="icon-sm" variant="outline" aria-label="First event" onClick={() => selectEventPosition("0")}>
           <ChevronFirstIcon />
         </Button>
@@ -479,9 +485,11 @@ function RunInspection({ runId }: { runId: string }) {
         <Button size="icon-sm" variant="outline" aria-label="Previous event" onClick={() => stepEventPosition(-1n)}>
           <ChevronLeftIcon />
         </Button>
-        <span className="min-w-40 text-center font-mono text-sm tabular-nums">
+        </ButtonGroup>
+        <span className="text-center font-mono text-xs tabular-nums">
           event {focusedEventPosition} / {maximumEventPosition}
         </span>
+        <ButtonGroup>
         <Button size="icon-sm" variant="outline" aria-label="Next event" onClick={() => stepEventPosition(1n)}>
           <ChevronRightIcon />
         </Button>
@@ -491,6 +499,7 @@ function RunInspection({ runId }: { runId: string }) {
         <Button size="icon-sm" variant="outline" aria-label="Last event" onClick={() => selectEventPosition(maximumEventPosition)}>
           <ChevronLastIcon />
         </Button>
+        </ButtonGroup>
         <form
           className="flex items-center gap-1"
           onSubmit={(submitEvent) => {
@@ -498,28 +507,30 @@ function RunInspection({ runId }: { runId: string }) {
             if (/^(0|[1-9][0-9]*)$/.test(jumpTargetText)) selectEventPosition(jumpTargetText);
           }}
         >
-          <Input aria-label="Jump to event position" placeholder="event #" className="h-8 w-28 font-mono" inputMode="numeric" value={jumpTargetText} onChange={(changeEvent) => setJumpTargetText(changeEvent.target.value)} />
+          <ButtonGroup>
+          <Input aria-label="Jump to event position" placeholder="event #" className="h-7 w-28 font-mono" inputMode="numeric" value={jumpTargetText} onChange={(changeEvent) => setJumpTargetText(changeEvent.target.value)} />
           <Button size="sm" variant="outline" type="submit">
             Go
           </Button>
+          </ButtonGroup>
         </form>
-        <span className="text-xs text-muted-foreground">Focus this bar, then use the arrow keys (Shift for 25).</span>
+        <span className="text-xs text-muted-foreground">Focus this bar, then use the <Kbd>arrow keys</Kbd> (<Kbd>Shift</Kbd> for 25). <Kbd>j</Kbd>/<Kbd>k</Kbd>, <Kbd>Home</Kbd>/<Kbd>End</Kbd>.</span>
       </div>
 
-      <div className="grid gap-4 2xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-        <div className="flex min-w-0 flex-col gap-4">
+      <div className="grid min-w-0 gap-8">
+        <div className="flex min-w-0 flex-col gap-8">
           {eventWindow.failure ? <ApiFailureAlert failure={eventWindow.failure} onRetry={eventWindow.reload} /> : null}
           {eventWindow.data ? (
             <EventWindowTable events={eventWindow.data.items} focusedEventPosition={focusedEventPosition} relatedEventPositions={relatedEventPositions} onSelectEventPosition={selectEventPosition} />
           ) : (
             <p className="text-sm text-muted-foreground">{hasEvents ? "Loading events..." : "No events processed yet."}</p>
           )}
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid min-w-0 gap-8 xl:grid-cols-2">
             <div>{exchangeBook.failure ? <ApiFailureAlert failure={exchangeBook.failure} onRetry={exchangeBook.reload} /> : <BookLadder title="Exchange truth" bookView={exchangeBook.data} />}</div>
             <div>{strategyBook.failure ? <ApiFailureAlert failure={strategyBook.failure} onRetry={strategyBook.reload} /> : <BookLadder title="Strategy-visible" bookView={strategyBook.data} />}</div>
           </div>
         </div>
-        <div ref={explanationRef} tabIndex={-1} role="region" aria-label="Selected order explanation" className="flex min-w-0 scroll-mt-24 flex-col gap-3 rounded-md focus-visible:outline-2 focus-visible:outline-ring">
+        <div ref={explanationRef} tabIndex={-1} role="region" aria-label="Selected order explanation" className="flex min-w-0 scroll-mt-48 sm:scroll-mt-32 flex-col gap-3 focus-visible:outline-2 focus-visible:outline-ring">
           {focusedOrderId ? <Button size="sm" variant="outline" className="self-start" onClick={() => { const target = selectionOriginRef.current?.isConnected ? selectionOriginRef.current : artifactListRef.current; target?.focus(); target?.scrollIntoView({ block: "center" }); }}>{selectionHasOrigin ? "Return to selected row" : "Return to fills and own orders"}</Button> : null}
           {selectedFillResource.failure ? <ApiFailureAlert failure={selectedFillResource.failure} title="Could not refresh the selected fill" onRetry={selectedFillResource.reload} /> : null}
           <FocusPanel focusedFill={focusedFill} lifecycle={lifecycleResource.data} lifecycleFailure={lifecycleResource.failure} onRetryLifecycle={lifecycleResource.reload} onSelectEventPosition={selectEventPosition} />
@@ -535,14 +546,14 @@ function RunInspection({ runId }: { runId: string }) {
         <TabsContent value="fills">
           <ArtifactPageControls label="Fills" pageNumber={fillsCursor.pageNumber} count={fillPage.data?.items.length ?? 0} nextCursor={fillPage.data?.page.nextCursor ?? null} isLoading={fillPage.isLoading} onPrevious={() => { clearSelectionOrigin(); fillsCursor.previous(); }} onNext={(cursor) => { clearSelectionOrigin(); fillsCursor.next(cursor); }} />
           {fillPage.failure ? <ApiFailureAlert failure={fillPage.failure} onRetry={fillPage.reload} /> : null}
-          <div className="event-tape overflow-hidden rounded-md border">
+          <div className="min-w-0 border bg-card [&>[data-slot=table-container]]:max-h-[28rem] [&>[data-slot=table-container]]:overflow-auto">
             <Table aria-label="Recorded fills" className="text-xs">
-              <TableHeader>
+              <TableHeader className="bg-muted [&_th]:text-muted-foreground">
                 <TableRow>
-                  <TableHead>Match</TableHead>
+                  <TableHead className="text-right">Match</TableHead>
                   <TableHead className="text-right">Event</TableHead>
                   <TableHead className="text-right">Sim time</TableHead>
-                  <TableHead>Order</TableHead>
+                  <TableHead className="text-right">Order</TableHead>
                   <TableHead>Side</TableHead>
                   <TableHead className="text-right">Price</TableHead>
                   <TableHead className="text-right">Qty</TableHead>
@@ -563,17 +574,17 @@ function RunInspection({ runId }: { runId: string }) {
                     onClick={(event) => { selectionOriginRef.current = event.currentTarget; focusFill(fill); }}
                     onKeyDown={(event) => { if (event.target === event.currentTarget && event.key === "Enter") { selectionOriginRef.current = event.currentTarget; focusFill(fill); } }}
                   >
-                    <TableCell className="font-mono">{fill.matchId}{fill.eventPosition === selectedFill?.eventPosition && fill.orderId === selectedFill?.orderId ? <Button size="xs" variant="outline" className="ml-2" onClick={(event) => { event.stopPropagation(); readExplanation(); }}>Read explanation</Button> : null}</TableCell>
+                    <TableCell className="text-right font-mono tabular-nums">{fill.matchId}{fill.eventPosition === selectedFill?.eventPosition && fill.orderId === selectedFill?.orderId ? <Button size="xs" variant="outline" className="ml-2" onClick={(event) => { event.stopPropagation(); readExplanation(); }}>Read explanation</Button> : null}</TableCell>
                     <TableCell className="text-right font-mono tabular-nums">{fill.eventPosition}</TableCell>
                     <TableCell className="text-right font-mono tabular-nums">{formatSimulationTimeNs(fill.simulationTimeNs, 9)}</TableCell>
-                    <TableCell className="font-mono">{fill.orderId}</TableCell>
+                    <TableCell className="text-right font-mono tabular-nums">{fill.orderId}</TableCell>
                     <TableCell>{fill.side}</TableCell>
                     <TableCell className="text-right font-mono tabular-nums">{fill.price}</TableCell>
                     <TableCell className="text-right font-mono tabular-nums">{fill.quantity}</TableCell>
                     <TableCell>{fill.liquidityRole}</TableCell>
                     <TableCell className="text-right font-mono tabular-nums">{fill.queueAheadAtRestShares ?? "n/a"}</TableCell>
-                    <TableCell className="text-right font-mono tabular-nums">{fill.ledgerEffect.positionAfterShares}</TableCell>
-                    <TableCell className="text-right font-mono tabular-nums">{formatDecimalForDisplay(fill.ledgerEffect.realizedPnlChange, { signDisplay: "always" })}</TableCell>
+                    <TableCell className="text-right font-mono tabular-nums"><SignedFigure formattedValue={fill.ledgerEffect.positionAfterShares} favourableDirection="neutral" /></TableCell>
+                    <TableCell className="text-right font-mono tabular-nums"><SignedFigure formattedValue={formatDecimalForDisplay(fill.ledgerEffect.realizedPnlChange, { signDisplay: "always" })} favourableDirection="higher" /></TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -583,12 +594,12 @@ function RunInspection({ runId }: { runId: string }) {
         <TabsContent value="orders">
           <ArtifactPageControls label="Orders" pageNumber={ordersCursor.pageNumber} count={orderPage.data?.items.length ?? 0} nextCursor={orderPage.data?.page.nextCursor ?? null} isLoading={orderPage.isLoading} onPrevious={() => { clearSelectionOrigin(); ordersCursor.previous(); }} onNext={(cursor) => { clearSelectionOrigin(); ordersCursor.next(cursor); }} />
           {orderPage.failure ? <ApiFailureAlert failure={orderPage.failure} onRetry={orderPage.reload} /> : null}
-          <div className="max-h-[28rem] overflow-auto rounded-md border">
+          <div className="min-w-0 border bg-card [&>[data-slot=table-container]]:max-h-[28rem] [&>[data-slot=table-container]]:overflow-auto">
             <Table aria-label="Recorded own orders" className="text-xs">
-              <TableHeader>
+              <TableHeader className="bg-muted [&_th]:text-muted-foreground">
                 <TableRow>
-                  <TableHead>Order</TableHead>
-                  <TableHead>Client id</TableHead>
+                  <TableHead className="text-right">Order</TableHead>
+                  <TableHead className="text-right">Client id</TableHead>
                   <TableHead className="text-right">Submitted at</TableHead>
                   <TableHead>Side</TableHead>
                   <TableHead className="text-right">Price</TableHead>
@@ -608,8 +619,8 @@ function RunInspection({ runId }: { runId: string }) {
                     onClick={(event) => { selectionOriginRef.current = event.currentTarget; focusOrder(order); }}
                     onKeyDown={(event) => { if (event.target === event.currentTarget && event.key === "Enter") { selectionOriginRef.current = event.currentTarget; focusOrder(order); } }}
                   >
-                    <TableCell className="font-mono">{order.orderId}{order.orderId === focusedOrderId && selectedFill === null ? <Button size="xs" variant="outline" className="ml-2" onClick={(event) => { event.stopPropagation(); readExplanation(); }}>Read explanation</Button> : null}</TableCell>
-                    <TableCell className="font-mono">{order.clientOrderId}</TableCell>
+                    <TableCell className="text-right font-mono tabular-nums">{order.orderId}{order.orderId === focusedOrderId && selectedFill === null ? <Button size="xs" variant="outline" className="ml-2" onClick={(event) => { event.stopPropagation(); readExplanation(); }}>Read explanation</Button> : null}</TableCell>
+                    <TableCell className="text-right font-mono tabular-nums">{order.clientOrderId}</TableCell>
                     <TableCell className="text-right font-mono tabular-nums">
                       #{order.submitEventPosition} {formatSimulationTimeNs(order.submitSimulationTimeNs, 9)}
                     </TableCell>

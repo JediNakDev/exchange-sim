@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { FlaskConicalIcon, GitCompareArrowsIcon, NetworkIcon, ChevronRightIcon } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { FlaskConicalIcon, GitCompareArrowsIcon, NetworkIcon, PlusIcon } from "lucide-react";
+import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
+import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
 
 const NAVIGATION_LINKS = [
   { href: "/experiments", label: "Experiments", icon: FlaskConicalIcon },
@@ -11,19 +12,29 @@ const NAVIGATION_LINKS = [
   { href: "/connections", label: "Connections", icon: NetworkIcon },
 ];
 
+function isNavigationLinkActive(href: string, currentPathname: string | null): boolean {
+  if (currentPathname === null || currentPathname === "/experiments/new") return false;
+  return currentPathname.startsWith(href) || (href === "/experiments" && currentPathname.startsWith("/runs"));
+}
+
 export function PrimaryNavigationLinks({ currentPathname }: { currentPathname: string | null }) {
   return (
-    <nav aria-label="Primary" className="workspace-navigation">
-      {NAVIGATION_LINKS.map(({ href, label, icon: Icon }) => {
-        const isActive = currentPathname !== null && (currentPathname.startsWith(href) || (href === "/experiments" && currentPathname.startsWith("/runs")));
-        return (
-          <Link key={href} href={href} aria-current={isActive ? "page" : undefined} className={cn("workspace-nav-link", isActive && "is-active")}>
-            <Icon size={18} strokeWidth={1.7} aria-hidden="true" />
-            <span>{label}</span>
-            {isActive ? <ChevronRightIcon className="nav-current-marker" size={15} aria-hidden="true" /> : null}
-          </Link>
-        );
-      })}
+    <nav aria-label="Primary">
+      <SidebarMenu>
+        {NAVIGATION_LINKS.map(({ href, label, icon: NavigationIcon }) => {
+          const isActive = isNavigationLinkActive(href, currentPathname);
+          return (
+            <SidebarMenuItem key={href}>
+              <SidebarMenuButton asChild isActive={isActive} tooltip={label} className="data-[active=true]:shadow-[inset_2px_0_0_var(--color-primary)]">
+                <Link href={href} aria-current={isActive ? "page" : undefined}>
+                  <NavigationIcon aria-hidden="true" />
+                  <span>{label}</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          );
+        })}
+      </SidebarMenu>
     </nav>
   );
 }
@@ -32,13 +43,46 @@ export function AppNavigation() {
   return <PrimaryNavigationLinks currentPathname={usePathname()} />;
 }
 
+export function NewExperimentNavigationLink() {
+  const isActive = usePathname() === "/experiments/new";
+  return (
+    <SidebarMenu>
+      <SidebarMenuItem>
+        <SidebarMenuButton asChild isActive={isActive} tooltip="New experiment" variant="outline">
+          <Link href="/experiments/new" aria-current={isActive ? "page" : undefined}>
+            <PlusIcon aria-hidden="true" />
+            <span>New experiment</span>
+          </Link>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    </SidebarMenu>
+  );
+}
+
+function workspaceSectionLabel(pathname: string): string {
+  if (pathname.includes("/inspect")) return "Fill inspection";
+  if (pathname.startsWith("/runs")) return "Run analysis";
+  if (pathname === "/experiments/new") return "New experiment";
+  if (pathname === "/compare") return "Paired comparison";
+  if (pathname === "/connections") return "Connections";
+  if (pathname === "/experiments") return "Experiment library";
+  return "Experiment details";
+}
+
+export function WorkspaceBreadcrumb({ currentPathname }: { currentPathname: string | null }) {
+  return (
+    <Breadcrumb>
+      <BreadcrumbList>
+        <BreadcrumbItem className="hidden sm:inline-flex">Research</BreadcrumbItem>
+        <BreadcrumbSeparator className="hidden sm:inline-flex" />
+        <BreadcrumbItem>
+          <BreadcrumbPage>{currentPathname === null ? "Research workspace" : workspaceSectionLabel(currentPathname)}</BreadcrumbPage>
+        </BreadcrumbItem>
+      </BreadcrumbList>
+    </Breadcrumb>
+  );
+}
+
 export function WorkspaceContext() {
-  const pathname = usePathname();
-  const section = pathname.includes("/inspect") ? "Fill inspection"
-    : pathname.startsWith("/runs") ? "Run analysis"
-    : pathname === "/experiments/new" ? "New experiment"
-    : pathname === "/compare" ? "Paired comparison"
-    : pathname === "/connections" ? "Connections"
-    : pathname === "/experiments" ? "Experiment library" : "Experiment details";
-  return <span className="workspace-context"><span>Research</span><ChevronRightIcon size={13} aria-hidden="true" /><span>{section}</span></span>;
+  return <WorkspaceBreadcrumb currentPathname={usePathname()} />;
 }

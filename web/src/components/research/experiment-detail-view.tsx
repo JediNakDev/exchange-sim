@@ -8,7 +8,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { readExperimentRuns, startMissingSeedRuns } from "@/lib/api/research-workflow";
 import { GitCompareIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { KeyFigureList } from "@/components/research/key-figure-list";
+import { ResearchSection } from "@/components/research/research-section";
+import { Field, FieldLabel } from "@/components/ui/field";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ApiFailureAlert } from "@/components/research/api-failure-alert";
 import { PageHeading } from "@/components/research/page-heading";
@@ -17,7 +19,6 @@ import { useApiResource } from "@/hooks/use-api-resource";
 import { describeApiFailure, getBrowserApiClient, unwrapApiResult, type ApiSchemas } from "@/lib/api/exsim-api-client";
 import { formatDurationNs, formatIntegerText, formatSimulationTimeNs, formatWallClockTime } from "@/lib/exact-decimal-format";
 import { humanizeEnumValue } from "@/lib/research-labels";
-import { cn } from "@/lib/utils";
 
 const ACTIVE_RUN_POLL_INTERVAL_MS = 1000;
 const IDLE_RUN_POLL_INTERVAL_MS = 10000;
@@ -59,6 +60,8 @@ export function ExperimentDetailView() {
   const failedRuns = runList?.items.filter((run) => run.state === "failed" || run.state === "cancelled") ?? [];
   const activeRuns = runList?.items.filter((run) => !isTerminalRunState(run.state)) ?? [];
   const completedSeeds = new Set(completedRuns.map((run) => run.masterSeed));
+  // Starting missing seeds is the header's green action; once every seed has a run, analysis becomes the next step.
+  const analysisIsTheNextStep = runList !== null && missingSeeds.length === 0;
   const startMissing = async () => {
     if (starting.current) return;
     starting.current = true;
@@ -93,7 +96,7 @@ export function ExperimentDetailView() {
         }
         actions={
           <div className="flex flex-wrap gap-2">
-          <Button asChild size="sm"><Link href={`/experiments/new?from=${encodeURIComponent(experiment.experimentId)}`}>Create variant</Link></Button>
+          <Button asChild size="sm" variant="outline"><Link href={`/experiments/new?from=${encodeURIComponent(experiment.experimentId)}`}>Create variant</Link></Button>
           {experiment.parentExperimentId ? (
             <Button asChild size="sm" variant="outline">
               <Link href={`/compare?baseline=${experiment.parentExperimentId}&candidate=${experiment.experimentId}`}>
@@ -107,45 +110,39 @@ export function ExperimentDetailView() {
               </Link>
             </Button>
           )}
+          {runList && missingSeeds.length > 0 ? <Button size="sm" disabled={isStarting || runListResource.failure !== null} onClick={() => void startMissing()}>{isStarting ? "Starting..." : "Start missing seeds"}</Button> : null}
           </div>
         }
       />
-      {experiment.description ? <p className="text-sm">{experiment.description}</p> : null}
-      <section className="rounded-lg border bg-card p-5" aria-label="Experiment overview">
-        <h2 className="text-base font-medium">Research progress</h2>
+      {experiment.description ? <p className="max-w-prose text-sm">{experiment.description}</p> : null}
+      <ResearchSection title="Research progress" aria-label="Experiment overview">
         <p className="mt-1 text-sm text-muted-foreground">{humanizeEnumValue(experiment.config.strategy.strategyKind)} on {experiment.config.instrument.symbol}; {formatDurationNs(experiment.config.bounds.endSimulationTimeNs)} per seed. Change one assumption in a variant, then compare completed runs on common seeds.</p>
-        <dl className="my-4 grid grid-cols-2 gap-4 lg:grid-cols-4">
-          <div><dt className="text-xs text-muted-foreground">Seeds with completed runs</dt><dd className="text-xl tabular-nums">{runList ? `${completedSeeds.size} / ${experiment.config.seedSet.masterSeeds.length}` : "Unavailable"}</dd></div>
-          <div><dt className="text-xs text-muted-foreground">Active or paused runs</dt><dd className="text-xl tabular-nums">{runList ? activeRuns.length : "Unavailable"}</dd></div>
-          <div><dt className="text-xs text-muted-foreground">Failed or cancelled runs</dt><dd className="text-xl tabular-nums">{runList ? failedRuns.length : "Unavailable"}</dd></div>
-          <div><dt className="text-xs text-muted-foreground">Seeds without a run</dt><dd className="text-xl tabular-nums">{runList ? missingSeeds.length : "Unavailable"}</dd></div>
-        </dl>
+        <KeyFigureList figures={[
+          { label: "Seeds with completed runs", value: runList ? `${completedSeeds.size} / ${experiment.config.seedSet.masterSeeds.length}` : "Unavailable" },
+          { label: "Active or paused runs", value: runList ? activeRuns.length : "Unavailable" },
+          { label: "Failed or cancelled runs", value: runList ? failedRuns.length : "Unavailable" },
+          { label: "Seeds without a run", value: runList ? missingSeeds.length : "Unavailable" },
+        ]} />
         {runListResource.failure ? <p className="mb-3 text-sm text-destructive">Progress is stale. Refresh the run list before drawing conclusions.</p> : null}
         <div className="flex flex-wrap gap-2">
-          {completedRuns[0] ? <Button asChild size="sm" variant="outline"><Link href={`/runs/${completedRuns[0].runId}`}>Analyze a completed run</Link></Button> : null}
+          {completedRuns[0] ? <Button asChild size="sm" variant={analysisIsTheNextStep ? "default" : "outline"}><Link href={`/runs/${completedRuns[0].runId}`}>Analyze a completed run</Link></Button> : null}
           {activeRuns[0] ? <Button asChild size="sm" variant="outline"><Link href={`/runs/${activeRuns[0].runId}`}>Monitor an active run</Link></Button> : null}
           {failedRuns[0] ? <Button asChild size="sm" variant="outline"><Link href={`/runs/${failedRuns[0].runId}`}>Review interrupted run</Link></Button> : null}
         </div>
         <p className="mt-3 text-xs text-muted-foreground">{experiment.config.seedSet.masterSeeds.length < 2 ? "One seed is a demonstration. Use multiple paired seeds to assess variability." : "Seed variability describes this synthetic scenario. It does not establish live-market performance."} Failed and cancelled runs are not successful observations.</p>
-      </section>
-      <div className="flex flex-col gap-5">
-        <Card size="sm">
-          <CardHeader>
-            <CardTitle>Runs by seed</CardTitle>
-            <CardDescription>Each master seed should have a run. Updates every second while any run is active.</CardDescription>
-          </CardHeader>
-          <CardContent>
+      </ResearchSection>
+      <div className="flex min-w-0 flex-col gap-8">
+        <ResearchSection title="Runs by seed" description="Each master seed should have a run. Updates every second while any run is active.">
             {runListResource.failure ? <ApiFailureAlert failure={runListResource.failure} onRetry={runListResource.reload} /> : null}
             {launchFailure ? <ApiFailureAlert failure={launchFailure} title="Seed launch interrupted" /> : null}
             {runList && missingSeeds.length > 0 ? (
-              <div className="mb-4 flex flex-wrap items-center gap-3 rounded-md border bg-muted/40 p-3 text-sm" aria-live="polite">
+              <div className="mb-4 flex flex-wrap items-center gap-3 border bg-muted/40 p-3 text-sm" aria-live="polite">
                 <p className="min-w-48 flex-1">{missingSeeds.length} of {experiment.config.seedSet.masterSeeds.length} seeds still need runs. Recorded runs are kept.</p>
-                <label className="flex items-center gap-2 text-xs"><Checkbox checked={startPaused} disabled={isStarting} onCheckedChange={(checked) => setStartPaused(checked === true)} />Start paused</label>
-                <Button size="sm" disabled={isStarting || runListResource.failure !== null} onClick={() => void startMissing()}>{isStarting ? "Starting..." : "Start missing seeds"}</Button>
+                <Field orientation="horizontal" className="w-auto"><Checkbox id="start-paused" checked={startPaused} disabled={isStarting} onCheckedChange={(checked) => setStartPaused(checked === true)} /><FieldLabel htmlFor="start-paused">Start paused</FieldLabel></Field>
               </div>
             ) : null}
-            <div className="overflow-x-auto rounded-md border">
-              <Table>
+            <div className="min-w-0 border bg-card">
+              <Table aria-label="Runs by seed">
                 <TableHeader>
                   <TableRow>
                     <TableHead>Run</TableHead>
@@ -162,7 +159,7 @@ export function ExperimentDetailView() {
                     <TableRow
                       key={run.runId}
                       tabIndex={0}
-                      className="cursor-pointer focus-visible:bg-accent focus-visible:outline-none"
+                      className="cursor-pointer focus-visible:bg-accent focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
                       onClick={() => router.push(`/runs/${run.runId}`)}
                       onKeyDown={(keyboardEvent) => {
                         if (keyboardEvent.target === keyboardEvent.currentTarget && keyboardEvent.key === "Enter") router.push(`/runs/${run.runId}`);
@@ -199,25 +196,18 @@ export function ExperimentDetailView() {
                 </TableBody>
               </Table>
             </div>
-          </CardContent>
-        </Card>
-        <Card size="sm">
-          <CardHeader>
-            <CardTitle>Assumptions</CardTitle>
-            <CardDescription className="font-mono text-xs break-all">
-              config {experiment.configDigest.algorithm} {experiment.configDigest.hexDigest}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
+        </ResearchSection>
+        <ResearchSection title="Assumptions" description={<span className="font-mono break-all">config {experiment.configDigest.algorithm} {experiment.configDigest.hexDigest}</span>}>
             {assumptionsResource.failure ? <ApiFailureAlert failure={assumptionsResource.failure} onRetry={assumptionsResource.reload} /> : null}
-            <div className="max-h-[36rem] overflow-auto rounded-md border">
-              <Table>
+            <div className="min-w-0 border bg-card [&>[data-slot=table-container]]:max-h-[36rem] [&>[data-slot=table-container]]:overflow-auto">
+              <Table aria-label="Assumptions">
+                <TableHeader className="sticky top-0 z-1 bg-muted"><TableRow><TableHead>Category</TableHead><TableHead>Assumption</TableHead><TableHead>Value</TableHead></TableRow></TableHeader>
                 <TableBody>
                   {assumptionsResource.data?.assumptions.map((assumption) => (
-                    <TableRow key={assumption.fieldPath} className={cn(assumption.differsFromBaseline && "bg-amber-500/10")}>
+                    <TableRow key={assumption.fieldPath} data-differs-from-baseline={assumption.differsFromBaseline ? "true" : undefined} className="data-[differs-from-baseline=true]:bg-warning/10">
                       <TableCell className="text-muted-foreground">{humanizeEnumValue(assumption.category)}</TableCell>
-                      <TableCell>{assumption.label}</TableCell>
-                      <TableCell className="font-mono text-xs break-all">
+                      <TableCell className="whitespace-normal">{assumption.label}</TableCell>
+                      <TableCell className="font-mono whitespace-normal break-all tabular-nums">
                         {assumption.value}
                         {assumption.unit ? <span className="text-muted-foreground"> {assumption.unit}</span> : null}
                       </TableCell>
@@ -226,8 +216,7 @@ export function ExperimentDetailView() {
                 </TableBody>
               </Table>
             </div>
-          </CardContent>
-        </Card>
+        </ResearchSection>
       </div>
     </>
   );

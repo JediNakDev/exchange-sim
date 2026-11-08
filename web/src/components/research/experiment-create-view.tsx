@@ -6,8 +6,14 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { ArrowLeftRightIcon, ChevronRightIcon, TimerIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import { ButtonGroup } from "@/components/ui/button-group";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { DefinitionList } from "@/components/research/definition-list";
+import { SignedFigure } from "@/components/research/signed-figure";
+import { ResearchSection } from "@/components/research/research-section";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -95,6 +101,24 @@ interface PreviewOutcome {
   experimentIdempotencyKey: string;
 }
 
+function ResearchDisclosure({ title, hasIssues, children }: { title: string; hasIssues: boolean; children: React.ReactNode }) {
+  const [disclosure, setDisclosure] = useState({ hasIssues, open: hasIssues });
+  if (hasIssues !== disclosure.hasIssues) {
+    setDisclosure({ hasIssues, open: hasIssues || disclosure.open });
+  }
+  return (
+    <Collapsible open={disclosure.open} onOpenChange={(open) => setDisclosure({ hasIssues, open })} className="group/collapsible min-w-0 border bg-card">
+      <CollapsibleTrigger asChild>
+        <Button type="button" variant="ghost" size="sm" className="h-auto w-full justify-start whitespace-normal p-4 text-left">
+          <ChevronRightIcon aria-hidden="true" className="transition-transform group-data-[state=open]/collapsible:rotate-90" />
+          {title}
+        </Button>
+      </CollapsibleTrigger>
+      <CollapsibleContent forceMount className="px-4 pb-4 data-[state=closed]:hidden">{children}</CollapsibleContent>
+    </Collapsible>
+  );
+}
+
 function TimingInput({ id, label, value, onValueChange, invalid }: { id: string; label: string; value: string; onValueChange: (value: string) => void; invalid: boolean }) {
   // Choose readable display units once; requests always retain exact ns strings.
   const [unit, setUnit] = useState<TimingUnit>(() => value.length > 9 ? "s" : value.length > 6 ? "ms" : value.length > 3 ? "µs" : "ns");
@@ -102,8 +126,8 @@ function TimingInput({ id, label, value, onValueChange, invalid }: { id: string;
   const converted = nanosecondsInUnit(value, unit);
   const displayed = inputDraft?.storedValue === value ? inputDraft.text : converted ?? value;
   return (
-    <div className="flex gap-2">
-      <Input id={id} value={displayed} inputMode={unit === "ns" ? "numeric" : "decimal"} className="min-w-0 font-mono" aria-describedby={`${id}-help${invalid ? ` ${id}-error` : ""}`} aria-invalid={invalid || converted === null || undefined}
+    <ButtonGroup className="w-full">
+      <Input id={id} value={displayed} inputMode={unit === "ns" ? "numeric" : "decimal"} className="min-w-0 font-mono tabular-nums" aria-describedby={`${id}-help${invalid ? ` ${id}-error` : ""}`} aria-invalid={invalid || converted === null || undefined}
         onChange={(event) => {
           const text = event.target.value;
           const next = unitValueInNanoseconds(text, unit);
@@ -115,7 +139,7 @@ function TimingInput({ id, label, value, onValueChange, invalid }: { id: string;
         <SelectTrigger aria-label={`Display unit for ${label}`} className="w-20 shrink-0"><SelectValue /></SelectTrigger>
         <SelectContent>{(["ns", "µs", "ms", "s"] as const).map((option) => <SelectItem key={option} value={option}>{option}</SelectItem>)}</SelectContent>
       </Select>
-    </div>
+    </ButtonGroup>
   );
 }
 
@@ -154,10 +178,10 @@ function TextField({
         value={value}
         inputMode={inputMode}
         aria-invalid={fieldIssues.length > 0 || undefined}
-        className={inputMode === "text" ? undefined : "font-mono"}
+        className={inputMode === "text" && fieldPath !== "/config/seedSet/masterSeeds" && fieldPath !== "/config/markoutHorizonsNs" ? undefined : "font-mono tabular-nums"}
         onChange={(changeEvent) => onValueChange(changeEvent.target.value)}
       />}
-      {isTiming ? <FieldDescription id={helpId}>{exactDurationDescription(value) ?? "Enter a nonnegative duration with whole-nanosecond precision."}{description && description !== exactDurationDescription(value) ? ` · ${description}` : ""}</FieldDescription> : description ? <FieldDescription id={helpId}>{description}</FieldDescription> : null}
+      {isTiming ? <FieldDescription id={helpId}>{exactDurationDescription(value) ?? "Enter a nonnegative duration with whole-nanosecond precision."}{description && description !== exactDurationDescription(value) ? `, ${description}` : ""}</FieldDescription> : description ? <FieldDescription id={helpId}>{description}</FieldDescription> : null}
       {fieldIssues.length > 0 ? <FieldError id={`${inputId}-error`} errors={fieldIssues.map((issue) => ({ message: issue }))} /> : null}
     </Field>
   );
@@ -165,18 +189,18 @@ function TextField({
 
 function AssumptionsTable({ assumptions }: { assumptions: ApiSchemas["AssumptionLine"][] }) {
   return (
-    <div className="max-h-[32rem] overflow-auto rounded-md border">
-      <Table>
+    <div className="max-h-[32rem] overflow-auto border bg-card">
+      <Table aria-label="Reviewed assumptions">
         <TableHeader>
           <TableRow>
             <TableHead>Category</TableHead>
             <TableHead>Assumption</TableHead>
-            <TableHead>Value</TableHead>
+            <TableHead className="text-right">Value</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {assumptions.map((assumption) => (
-            <TableRow key={assumption.fieldPath} className={cn(assumption.differsFromBaseline && "bg-amber-500/10")}>
+            <TableRow key={assumption.fieldPath} className={cn(assumption.differsFromBaseline && "bg-warning/10")}>
               <TableCell className="text-muted-foreground">{humanizeEnumValue(assumption.category)}</TableCell>
               <TableCell>
                 {assumption.label}
@@ -186,7 +210,7 @@ function AssumptionsTable({ assumptions }: { assumptions: ApiSchemas["Assumption
                   </Badge>
                 ) : null}
               </TableCell>
-              <TableCell className="font-mono text-xs break-all">
+              <TableCell className="text-right font-mono text-xs tabular-nums break-all">
                 {assumption.value}
                 {assumption.unit ? <span className="text-muted-foreground"> {assumption.unit}</span> : null}
               </TableCell>
@@ -309,34 +333,34 @@ function ExperimentEditor({ parentId, intent }: { parentId: string | null; inten
     <>
       <PageHeading title="New experiment" description="Define the trading decision, hold market assumptions constant, then review and launch paired-seed research." />
       {experimentList.failure ? <ApiFailureAlert failure={experimentList.failure} title="Could not load parent experiments" onRetry={experimentList.reload} /> : null}
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.6fr)_minmax(280px,1fr)]">
+      <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_22rem]">
         <form
           id="experiment-setup"
           key={draft.baselineId}
-          className="experiment-form flex flex-col"
+          className="flex min-w-0 flex-col"
           onSubmit={(submitEvent) => {
             submitEvent.preventDefault();
             void requestPreview();
           }}
         >
-          <fieldset aria-label="Experiment configuration" disabled={isSubmitting || isPreviewing} className="flex min-w-0 flex-col gap-5">
+          <fieldset aria-label="Experiment configuration" disabled={isSubmitting || isPreviewing} className="flex min-w-0 flex-col gap-8">
           <section aria-label="Research task" className="border-b pb-5">
-            <h2 className="text-lg font-semibold">What are you testing?</h2>
-            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            <h2 className="text-base font-medium">What are you testing?</h2>
+            <div className="mt-3 grid gap-px border bg-border sm:grid-cols-2">
               {(["execution", "market-making"] as const).map((task) => {
                 const baseline = baselineForIntent(executableBaselines, task);
                 const selected = strategyIntent(draft.config.strategy.strategyKind) === task;
-                return <Button key={task} type="button" variant={selected ? "secondary" : "outline"} aria-pressed={selected} disabled={!baseline} className="h-auto flex-col items-start gap-1 whitespace-normal px-4 py-3 text-left" onClick={() => { if (baseline && !selected) { setEditedDraft(draftFromBaseline(baseline)); setRequestFailure(null); } }}>
-                  <span className="font-semibold">{task === "execution" ? "Execute a parent order" : "Test a market maker"}</span>
+                return <Button key={task} type="button" variant="outline" aria-pressed={selected} disabled={!baseline} className={cn("h-auto min-w-0 flex-col items-start gap-2 whitespace-normal border-transparent bg-card p-4 text-left", selected && "border-primary dark:border-primary")} onClick={() => { if (baseline && !selected) { setEditedDraft(draftFromBaseline(baseline)); setRequestFailure(null); } }}>
+                  <span className="flex items-center gap-2 font-medium">{task === "execution" ? <TimerIcon aria-hidden="true" className={selected ? "text-primary" : "text-muted-foreground"} /> : <ArrowLeftRightIcon aria-hidden="true" className={selected ? "text-primary" : "text-muted-foreground"} />}{task === "execution" ? "Execute a parent order" : "Test a market maker"}</span>
                   <span className="text-xs font-normal text-muted-foreground">{!baseline ? "No executable baseline available" : task === "execution" ? "Completion, execution cost and residual quantity" : "Spread capture, inventory exposure and adverse selection"}</span>
                 </Button>;
               })}
             </div>
             {parent ? <p className="mt-3 text-sm text-muted-foreground">Variant of {parent.name}. Source assumptions are copied exactly. Choosing a different task or baseline replaces them.</p> : null}
           </section>
-          <FieldSet>
+          <FieldSet className="min-w-0 border bg-card p-4">
             <FieldLegend>Experiment and baseline</FieldLegend>
-            <FieldGroup className="grid gap-3 md:grid-cols-2">
+            <FieldGroup className="grid gap-4 md:grid-cols-2">
               <Field>
                 <FieldLabel htmlFor="baseline-select">Baseline</FieldLabel>
                 <Select
@@ -385,7 +409,7 @@ function ExperimentEditor({ parentId, intent }: { parentId: string | null; inten
           </FieldSet>
 
           {strategyConfig ? (
-            <FieldSet>
+            <FieldSet className="min-w-0 border bg-card p-4">
               <FieldLegend>Research strategy</FieldLegend>
               <Field>
                 <FieldLabel htmlFor="strategy-kind">Quoting model</FieldLabel>
@@ -402,7 +426,7 @@ function ExperimentEditor({ parentId, intent }: { parentId: string | null; inten
                 <FieldDescription>Inventory-aware quoting skews prices away from accumulated inventory and can reduce the size that adds exposure.</FieldDescription>
               </Field>
               <FieldDescription>Quotes one level each side of the strategy-visible mid and requotes by cancel/replace on a timer.</FieldDescription>
-              <FieldGroup className="grid gap-3 md:grid-cols-2">
+              <FieldGroup className="grid gap-4 md:grid-cols-2">
                 <TextField label="Half spread" unit="ticks from the visible mid" fieldPath="/config/strategy/halfSpreadTicks" inputMode="numeric" value={strategyConfig.halfSpreadTicks} onValueChange={(halfSpreadTicks) => updateQuotingStrategy((nextStrategy) => void (nextStrategy.halfSpreadTicks = halfSpreadTicks))} issuesByFieldPath={issuesByFieldPath} />
                 <TextField label="Quote quantity" unit="shares" fieldPath="/config/strategy/quoteQuantity" inputMode="numeric" value={strategyConfig.quoteQuantity} onValueChange={(quoteQuantity) => updateQuotingStrategy((nextStrategy) => void (nextStrategy.quoteQuantity = quoteQuantity))} issuesByFieldPath={issuesByFieldPath} />
                 <TextField label="Requote interval" unit="ns" fieldPath="/config/strategy/requoteIntervalNs" inputMode="numeric" value={strategyConfig.requoteIntervalNs} description={exactDurationDescription(strategyConfig.requoteIntervalNs)} onValueChange={(intervalNs) => updateQuotingStrategy((nextStrategy) => void (nextStrategy.requoteIntervalNs = intervalNs))} issuesByFieldPath={issuesByFieldPath} />
@@ -426,10 +450,10 @@ function ExperimentEditor({ parentId, intent }: { parentId: string | null; inten
           ) : null}
 
           {executionConfig ? (
-            <FieldSet>
+            <FieldSet className="min-w-0 border bg-card p-4">
               <FieldLegend>Parent-order execution</FieldLegend>
               <FieldDescription>Children are IOC limits priced through the delivered opposite touch by the protection distance, clamped to the instrument band. The child risk cap and position headroom can leave a residual parent quantity.</FieldDescription>
-              <FieldGroup className="grid gap-3 md:grid-cols-2">
+              <FieldGroup className="grid gap-4 md:grid-cols-2">
                 <Field>
                   <FieldLabel htmlFor="execution-method">Execution method</FieldLabel>
                   <Select value={executionConfig.strategyKind} onValueChange={(kind) => updateDraft((next) => {
@@ -461,8 +485,9 @@ function ExperimentEditor({ parentId, intent }: { parentId: string | null; inten
             </FieldSet>
           ) : null}
 
-          <FieldSet>
+          <FieldSet className="min-w-0 border bg-card p-4">
             <FieldLegend>Run plan</FieldLegend>
+            <FieldGroup className="grid gap-4 md:grid-cols-2">
             <TextField label="Simulation end" unit="ns" fieldPath="/config/bounds/endSimulationTimeNs" inputMode="numeric" value={draft.config.bounds.endSimulationTimeNs} description={exactDurationDescription(draft.config.bounds.endSimulationTimeNs)} onValueChange={(endTimeText) => updateDraft((nextDraft) => void (nextDraft.config.bounds.endSimulationTimeNs = endTimeText))} issuesByFieldPath={issuesByFieldPath} />
             <TextField
               label="Master seeds"
@@ -473,10 +498,10 @@ function ExperimentEditor({ parentId, intent }: { parentId: string | null; inten
               onValueChange={(masterSeedsText) => updateDraft((nextDraft) => void (nextDraft.masterSeedsText = masterSeedsText))}
               issuesByFieldPath={issuesByFieldPath}
             />
+            </FieldGroup>
           </FieldSet>
 
-          <details className="rounded-lg border p-4" open={issuesByFieldPath.size > 0 || undefined}>
-            <summary className="cursor-pointer text-sm font-semibold">Market scenario: background liquidity and order flow</summary>
+          <ResearchDisclosure title="Market scenario: background liquidity and order flow" hasIssues={issuesByFieldPath.size > 0}>
             <p className="mt-3 text-xs text-muted-foreground">Supported research stresses: background liquidity, taker order flow and delivery latency. Scheduled price jumps, halts, packet gaps and recovery scenarios are not available in this deterministic research workflow. Protocol fault testing is a separate mode.</p>
             <div className="pt-4">
                 <FieldSet>
@@ -485,7 +510,7 @@ function ExperimentEditor({ parentId, intent }: { parentId: string | null; inten
                     <code className="font-mono">{draft.config.scenario.scenarioId}</code>: {draft.config.scenario.description}
                   </FieldDescription>
                   {draft.config.scenario.backgroundAgents.map((agent, agentIndex) => (
-                    <FieldGroup key={agent.agentKind} className="grid gap-3 md:grid-cols-2">
+                    <FieldGroup key={agent.agentKind} className="grid gap-4 md:grid-cols-2">
                       <p className="text-sm font-medium md:col-span-2">{humanizeEnumValue(agent.agentKind)}</p>
                       {agent.parameters.map((parameter, parameterIndex) => (
                         <TextField
@@ -503,15 +528,14 @@ function ExperimentEditor({ parentId, intent }: { parentId: string | null; inten
                   ))}
                 </FieldSet>
             </div>
-          </details>
+          </ResearchDisclosure>
 
-          <details className="rounded-lg border p-4" open={issuesByFieldPath.size > 0 || undefined}>
-            <summary className="cursor-pointer text-sm font-semibold">Latency: feed, order, acknowledgment and cancel paths</summary>
+          <ResearchDisclosure title="Latency: feed, order, acknowledgment and cancel paths" hasIssues={issuesByFieldPath.size > 0}>
             <div className="pt-4">
                 <FieldSet>
                   <FieldLegend>Latency</FieldLegend>
                   <FieldDescription>Each path is configured separately. Feed: exchange to strategy market data. Order entry: strategy to exchange. Acknowledgment: exchange to strategy reports. Cancel / replace: quote cancellation and replacement requests to exchange; both share this configured path.</FieldDescription>
-                  <FieldGroup className="grid gap-3 md:grid-cols-2">
+                  <FieldGroup className="grid gap-4 md:grid-cols-2">
                     <Field>
                       <FieldLabel htmlFor="latency-model">Model</FieldLabel>
                       <Select value={latency.latencyModel} onValueChange={(latencyModel) => updateDraft((nextDraft) => void (nextDraft.config.latency.latencyModel = latencyModel as ApiSchemas["LatencyModelKind"]))}>
@@ -537,14 +561,13 @@ function ExperimentEditor({ parentId, intent }: { parentId: string | null; inten
                   </FieldGroup>
                 </FieldSet>
             </div>
-          </details>
+          </ResearchDisclosure>
 
-          <details className="rounded-lg border p-4" open={issuesByFieldPath.size > 0 || undefined}>
-            <summary className="cursor-pointer text-sm font-semibold">Fees and risk: costs, position limits and order caps</summary>
+          <ResearchDisclosure title="Fees and risk: costs, position limits and order caps" hasIssues={issuesByFieldPath.size > 0}>
             <div className="pt-4">
                 <FieldSet>
                   <FieldLegend>Fees and risk</FieldLegend>
-                  <FieldGroup className="grid gap-3 md:grid-cols-2">
+                  <FieldGroup className="grid gap-4 md:grid-cols-2">
                     <TextField label="Fee schedule id" fieldPath="/config/fees/feeScheduleId" inputMode="text" value={draft.config.fees.feeScheduleId} onValueChange={(feeScheduleId) => updateDraft((nextDraft) => void (nextDraft.config.fees.feeScheduleId = feeScheduleId))} issuesByFieldPath={issuesByFieldPath} />
                     <TextField label="Maker fee" unit="USD/share, negative is a rebate" fieldPath="/config/fees/makerFeePerShare" value={draft.config.fees.makerFeePerShare} onValueChange={(feeText) => updateDraft((nextDraft) => void (nextDraft.config.fees.makerFeePerShare = feeText))} issuesByFieldPath={issuesByFieldPath} />
                     <TextField label="Taker fee" unit="USD/share" fieldPath="/config/fees/takerFeePerShare" value={draft.config.fees.takerFeePerShare} onValueChange={(feeText) => updateDraft((nextDraft) => void (nextDraft.config.fees.takerFeePerShare = feeText))} issuesByFieldPath={issuesByFieldPath} />
@@ -554,36 +577,35 @@ function ExperimentEditor({ parentId, intent }: { parentId: string | null; inten
                   </FieldGroup>
                 </FieldSet>
             </div>
-          </details>
+          </ResearchDisclosure>
 
-          <details className="rounded-lg border p-4" open={issuesByFieldPath.size > 0 || undefined}>
-            <summary className="cursor-pointer text-sm font-semibold">Accounting: initial cash and markout horizons</summary>
+          <ResearchDisclosure title="Accounting: initial cash and markout horizons" hasIssues={issuesByFieldPath.size > 0}>
             <div className="pt-4">
                 <FieldSet>
                   <FieldLegend>Accounting</FieldLegend>
-                  <FieldGroup className="grid gap-3 md:grid-cols-2">
+                  <FieldGroup className="grid gap-4 md:grid-cols-2">
                     <TextField label="Initial cash" unit="USD" fieldPath="/config/initialCash" value={draft.config.initialCash} onValueChange={(cashText) => updateDraft((nextDraft) => void (nextDraft.config.initialCash = cashText))} issuesByFieldPath={issuesByFieldPath} />
                     <TextField label="Markout horizons" description={splitListText(draft.markoutHorizonsText).map((value) => exactDurationDescription(value) ?? "Invalid horizon").join(", ")} unit="ns, comma separated" fieldPath="/config/markoutHorizonsNs" inputMode="text" value={draft.markoutHorizonsText} onValueChange={(horizonsText) => updateDraft((nextDraft) => void (nextDraft.markoutHorizonsText = horizonsText))} issuesByFieldPath={issuesByFieldPath} />
                   </FieldGroup>
                 </FieldSet>
             </div>
-          </details>
+          </ResearchDisclosure>
 
           </fieldset>
         </form>
 
-        <div className="flex min-w-0 flex-col gap-4 xl:sticky xl:top-22 xl:self-start">
+        <div className="flex min-w-0 flex-col gap-8 self-start xl:sticky xl:top-16">
           <Card size="sm">
             <CardHeader><CardTitle>Review and launch</CardTitle><CardDescription role="status">{isSubmitting ? "Saving the experiment and starting seed runs..." : isPreviewing ? "Validating assumptions with the research service..." : !supportedKinds.includes(draft.config.strategy.strategyKind) ? "This strategy is not executable on the connected service." : isPreviewCurrent ? previewOutcome.preview.valid ? "Ready to launch. The current configuration passed service review." : "Changes required. Fix the issues below and review again." : previewOutcome ? "Review required. Assumptions changed since the last review." : "Draft. Review assumptions before starting runs."}</CardDescription></CardHeader>
             <CardContent className="flex flex-col gap-4">
-              <p className="text-sm">{createRequest.config.seedSet.masterSeeds.length} seed runs · {exactDurationDescription(draft.config.bounds.endSimulationTimeNs) ?? "Invalid duration"} per run</p>
+              <p className="text-sm">{createRequest.config.seedSet.masterSeeds.length} seed runs, {exactDurationDescription(draft.config.bounds.endSimulationTimeNs) ?? "Invalid duration"} per run</p>
           <Field orientation="horizontal">
             <Checkbox id="start-runs-paused" disabled={isSubmitting || isPreviewing} checked={startRunsPaused} onCheckedChange={(checkedState) => setStartRunsPaused(checkedState === true)} />
             <FieldLabel htmlFor="start-runs-paused">Start runs paused, to step through them event by event</FieldLabel>
           </Field>
 
-          <div className="flex flex-wrap gap-2">
-            <Button type="submit" form="experiment-setup" disabled={isSubmitting || isPreviewing || !supportedKinds.includes(draft.config.strategy.strategyKind)} variant={isPreviewCurrent ? "outline" : "default"}>
+          <div className="flex flex-col gap-2">
+            <Button type="submit" form="experiment-setup" disabled={isSubmitting || isPreviewing || !supportedKinds.includes(draft.config.strategy.strategyKind)} variant="outline">
               {isPreviewing ? "Reviewing..." : "Review assumptions"}
             </Button>
             <Button type="button" disabled={!isPreviewCurrent || !previewOutcome?.preview.valid || isSubmitting || isPreviewing || !supportedKinds.includes(draft.config.strategy.strategyKind)} onClick={() => void createExperimentAndStartRuns()}>
@@ -594,40 +616,37 @@ function ExperimentEditor({ parentId, intent }: { parentId: string | null; inten
             </CardContent>
           </Card>
           {requestFailure ? <ApiFailureAlert failure={requestFailure} /> : null}
-          <Card size="sm">
-            <CardHeader>
-              <CardTitle>Assumptions summary</CardTitle>
-              <CardDescription>
-                {isPreviewCurrent
-                  ? "As read by the research service. Highlighted rows differ from the baseline."
-                  : previewOutcome
-                    ? "The form changed since the last review. Review again before starting."
-                    : "Review assumptions to see the full configuration the runs will use."}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="pb-4">
-              <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2 text-sm">
-                <dt className="text-muted-foreground">Market</dt><dd>{humanizeEnumValue(draft.config.marketWorld)}</dd>
-                <dt className="text-muted-foreground">Instrument</dt><dd>{draft.config.instrument.symbol} · tick {draft.config.instrument.tickSize} · lot {draft.config.instrument.lotSize}</dd>
-                <dt className="text-muted-foreground">Strategy</dt><dd>{humanizeEnumValue(draft.config.strategy.strategyKind)}</dd>
-                {executionConfig ? <>
-                  <dt className="text-muted-foreground">Parent order</dt><dd>{humanizeEnumValue(executionConfig.parentSide)} {executionConfig.parentQuantity} shares</dd>
-                  <dt className="text-muted-foreground">Start / window</dt><dd>{exactDurationDescription(executionConfig.startTimeNs) ?? "Invalid"} / {exactDurationDescription(executionConfig.executionDurationNs) ?? "Invalid"}</dd>
-                </> : strategyConfig ? <>
-                  <dt className="text-muted-foreground">Quotes</dt><dd>{strategyConfig.quoteQuantity} shares per side, {strategyConfig.halfSpreadTicks} ticks from visible mid</dd>
-                </> : null}
-                <dt className="text-muted-foreground">Seeds</dt><dd className="break-all">{draft.masterSeedsText || "None"}</dd>
-                <dt className="text-muted-foreground">Maker / taker</dt><dd>{draft.config.fees.makerFeePerShare} / {draft.config.fees.takerFeePerShare} USD/share</dd>
-                <dt className="text-muted-foreground">Delay model</dt><dd>{humanizeEnumValue(latency.latencyModel)}</dd>
-                <dt className="text-muted-foreground">Feed / order</dt><dd>{exactDurationDescription(latency.feedLatencyNs) ?? "Invalid"} / {exactDurationDescription(latency.orderEntryLatencyNs) ?? "Invalid"}</dd>
-                <dt className="text-muted-foreground">Ack / cancel</dt><dd>{exactDurationDescription(latency.acknowledgmentLatencyNs) ?? "Invalid"} / {exactDurationDescription(latency.cancelLatencyNs) ?? "Invalid"}</dd>
-                <dt className="text-muted-foreground">Position cap</dt><dd>{draft.config.risk.maxAbsolutePositionShares} shares</dd>
-                <dt className="text-muted-foreground">Mark</dt><dd>{humanizeEnumValue(draft.config.markConvention)}</dd>
-              </dl>
+          <ResearchSection
+            title="Assumptions summary"
+            description={isPreviewCurrent
+              ? "As read by the research service. Highlighted rows differ from the baseline."
+              : previewOutcome
+                ? "The form changed since the last review. Review again before starting."
+                : "Review assumptions to see the full configuration the runs will use."}
+          >
+            <div>
+              <DefinitionList valuesAreData={false} rows={[
+                ["Market", <span key="Market">{humanizeEnumValue(draft.config.marketWorld)}</span>],
+                ["Instrument", <span key="Instrument">{draft.config.instrument.symbol}, tick <span className="font-mono tabular-nums">{draft.config.instrument.tickSize}</span>, lot <span className="font-mono tabular-nums">{draft.config.instrument.lotSize}</span></span>],
+                ["Strategy", <span key="Strategy">{humanizeEnumValue(draft.config.strategy.strategyKind)}</span>],
+                ...(executionConfig ? [
+                  ["Parent order", <span key="Parent order">{humanizeEnumValue(executionConfig.parentSide)} <span className="font-mono tabular-nums">{executionConfig.parentQuantity}</span> shares</span>],
+                  ["Start / window", <span key="Start / window" className="font-mono tabular-nums">{exactDurationDescription(executionConfig.startTimeNs) ?? "Invalid"} / {exactDurationDescription(executionConfig.executionDurationNs) ?? "Invalid"}</span>],
+                ] as [string, React.ReactNode][] : strategyConfig ? [
+                  ["Quotes", <span key="Quotes"><span className="font-mono tabular-nums">{strategyConfig.quoteQuantity}</span> shares per side, <span className="font-mono tabular-nums">{strategyConfig.halfSpreadTicks}</span> ticks from visible mid</span>],
+                ] as [string, React.ReactNode][] : []),
+                ["Seeds", <span key="Seeds" className="font-mono tabular-nums">{draft.masterSeedsText || "None"}</span>],
+                ["Maker / taker", <span key="Maker / taker" className="font-mono tabular-nums"><SignedFigure formattedValue={draft.config.fees.makerFeePerShare} favourableDirection="lower" /> / <SignedFigure formattedValue={draft.config.fees.takerFeePerShare} favourableDirection="lower" /> USD/share</span>],
+                ["Delay model", <span key="Delay model">{humanizeEnumValue(latency.latencyModel)}</span>],
+                ["Feed / order", <span key="Feed / order" className="font-mono tabular-nums">{exactDurationDescription(latency.feedLatencyNs) ?? "Invalid"} / {exactDurationDescription(latency.orderEntryLatencyNs) ?? "Invalid"}</span>],
+                ["Ack / cancel", <span key="Ack / cancel" className="font-mono tabular-nums">{exactDurationDescription(latency.acknowledgmentLatencyNs) ?? "Invalid"} / {exactDurationDescription(latency.cancelLatencyNs) ?? "Invalid"}</span>],
+                ["Position cap", <span key="Position cap" className="font-mono tabular-nums">{draft.config.risk.maxAbsolutePositionShares} shares</span>],
+                ["Mark", <span key="Mark">{humanizeEnumValue(draft.config.markConvention)}</span>],
+              ]} />
               <p className="mt-4 text-xs text-muted-foreground">{draft.config.marketWorld === "interactive_synthetic" ? "Seeded synthetic participants share the book. Results describe this market model, not calibrated real-market performance." : "Interpret results under the declared market model."} {executionConfig ? "Completion is an outcome, not a launch guarantee. Compare cost together with filled and residual quantity." : "Assess net P&L with fees, inventory and eligible markouts. One seed cannot establish a robust improvement."} Keep seeds and market assumptions matched when comparing alternatives.</p>
-            </CardContent>
+            </div>
             {isPreviewCurrent ? (
-              <CardContent className="flex flex-col gap-3">
+              <div className="flex min-w-0 flex-col gap-3">
                 <div className="flex flex-wrap gap-2 text-sm">
                   <Badge variant={previewOutcome.preview.valid ? "secondary" : "destructive"}>{previewOutcome.preview.valid ? "valid" : "not executable"}</Badge>
                   <span>{previewOutcome.preview.estimatedWork.runCount} runs</span>
@@ -644,13 +663,12 @@ function ExperimentEditor({ parentId, intent }: { parentId: string | null; inten
                     failure={{ code: "validation_failed", message: "fix these before starting runs", requestId: "preview", retryable: false, fieldIssues: previewOutcome.preview.fieldIssues }}
                   />
                 ) : null}
-                <details open={previewOutcome.preview.fieldIssues.length > 0 || undefined}>
-                  <summary className="cursor-pointer text-sm font-medium">Full service assumptions ({previewOutcome.preview.assumptions.filter((line) => line.differsFromBaseline).length} changed from baseline)</summary>
+                <ResearchDisclosure title={`Full service assumptions (${previewOutcome.preview.assumptions.filter((line) => line.differsFromBaseline).length} changed from baseline)`} hasIssues={previewOutcome.preview.fieldIssues.length > 0}>
                   <div className="mt-3"><AssumptionsTable assumptions={previewOutcome.preview.assumptions} /></div>
-                </details>
-              </CardContent>
+                </ResearchDisclosure>
+              </div>
             ) : null}
-          </Card>
+          </ResearchSection>
         </div>
       </div>
     </>

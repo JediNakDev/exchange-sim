@@ -349,6 +349,7 @@ test("paired run and fill inspection retain named experiment and comparison dire
   await expect(context.getByRole("link", { name: /Fixed spread/ })).toBeVisible();
   const query = new URL(page.url()).search;
   await page.getByRole("link", { name: "Inspect events", exact: true }).click();
+  await expect(page).toHaveURL(/\/inspect\?/);
   await expect(context.getByText("Baseline", { exact: true })).toBeVisible();
   expect(new URL(page.url()).search).toBe(query);
   await context.getByRole("link", { name: "Return to baseline / candidate comparison" }).click();
