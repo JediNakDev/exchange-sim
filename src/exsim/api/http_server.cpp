@@ -8,7 +8,6 @@
 #include <netinet/tcp.h>
 #include <poll.h>
 #include <stdexcept>
-#include <system_error>
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <unistd.h>
@@ -160,7 +159,7 @@ void HttpServer::accept_loop() {
                     --active_connections_;
                 });
                 continue;
-            } catch (const std::system_error&) {
+            } catch (...) {
                 // No thread for this connection: answer it like a full server.
                 --active_connections_;
                 slot.socket_descriptor = -1;

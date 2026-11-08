@@ -58,8 +58,8 @@ enum class HttpParseStatus : std::uint8_t {
 struct HttpParseResult {
     HttpParseStatus status = HttpParseStatus::NeedMoreData;
     std::size_t consumed_bytes = 0;
-    std::size_t body_bytes = 0;  // declared Content-Length of a Complete result
     std::string error_message;  // for the rejection response
+    std::size_t body_bytes = 0;  // declared Content-Length of a Complete result
 };
 
 [[nodiscard]] HttpParseResult parse_http_request(std::string_view buffer, const HttpLimits& limits, HttpRequest& request);

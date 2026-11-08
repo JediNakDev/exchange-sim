@@ -55,8 +55,14 @@ New tests:
 
 ## Limitations
 
-- While the head is still incomplete, each read rescans the head from its start. This costs at most `max_header_section_bytes` (16 KiB) of `find` per read, and a slow-drip client is also limited by the idle timeout. An offset resume would have to repeat the limit logic in the server.
+- While the head is still incomplete, each read rescans the head from its start. This costs at most `max_header_section_bytes` (16 KiB) of `find` per read, with an idle timeout between reads. That timeout is not an absolute request deadline; a client that continually supplies bytes can extend the request lifetime. An offset resume would have to repeat the limit logic in the server.
 - After a large body, the receive buffer keeps its capacity for the rest of that connection. It is bounded by the limits plus one 16 KiB read. The buffer is not reserved up front from `Content-Length`, so a client that only declares a body cannot make the server allocate it.
 - The path where thread creation fails is reviewed but not exercised by a test. Forcing `std::thread` creation to fail would need process limits that would disturb the test runner.
 - The descriptors are not `FD_CLOEXEC`, as in the baseline. The API process does not spawn children.
 - An `accept()` failure such as `EMFILE` still retries on every `poll` wake-up, as in the baseline.
+
+## Parent review and integration
+
+Integrated delegate `bac7ec9` as `9254238`, preserving both sides of the append-only WORK_PLAN conflict. Parent reviewed request framing, size arithmetic, buffer-view lifetime, slot ownership and join ordering. One additional failure-path finding: `std::thread` construction may throw `std::bad_alloc` as well as `std::system_error`; catching only the latter still lets an allocation failure terminate the accept thread. Parent changed the creation guard to catch all exceptions and restore the slot/count before the existing guarded 503/close path. Also placed the new `body_bytes` member after the existing aggregate fields to retain existing three-field aggregate initialization source compatibility. No external binary ABI compatibility is promised.
+
+Parent independently compiled the actual integrated HTTP sources with the repository warning flags, once in release and once under ASan/UBSan, using `tests/main.cpp`, `tests/framework/alloc_counter.cpp`, `tests/exsim/api/http_tests.cpp` and the two HTTP sources. Both builds were warning-free and both runs passed 17/17 HTTP tests. Logs `/tmp/exsim-parent-http-{release,debug}-{build,tests}.log`, binaries `/tmp/exsim-parent-http-{release,debug}`. Sanitizer allocation-count test skips by design. Thread-creation failure itself remains reviewed rather than fault-injected. These focused parent checks establish HTTP readiness within scope; whole-simulator integration is still pending the other workstreams.
