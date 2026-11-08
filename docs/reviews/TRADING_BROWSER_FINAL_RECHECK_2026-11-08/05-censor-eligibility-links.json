@@ -1,0 +1,50 @@
+[
+  {
+    "text": "Skip to research content",
+    "href": "#research-content"
+  },
+  {
+    "text": "exsim.",
+    "href": "/experiments"
+  },
+  {
+    "text": "Experiments",
+    "href": "/experiments"
+  },
+  {
+    "text": "Compare",
+    "href": "/compare"
+  },
+  {
+    "text": "Connections",
+    "href": "/connections"
+  },
+  {
+    "text": "Build an experiment ",
+    "href": "/experiments/new"
+  },
+  {
+    "text": "TRADING-RECHECK browser TWAP",
+    "href": "/experiments/exp_6bdc632d72018fb8"
+  },
+  {
+    "text": "TRADING-RECHECK censored",
+    "href": "/experiments/exp_fa9ae58ab6a9bda8"
+  },
+  {
+    "text": "run_5af098bb31471aa5",
+    "href": "/runs/run_5af098bb31471aa5?baseline=exp_6bdc632d72018fb8&candidate=exp_fa9ae58ab6a9bda8&runSelection=r1_WvCYuzFHGqUFbQzc2sd_qwp_sW9VQqld"
+  },
+  {
+    "text": "run_056d0cdcdac77fab",
+    "href": "/runs/run_056d0cdcdac77fab?baseline=exp_6bdc632d72018fb8&candidate=exp_fa9ae58ab6a9bda8&runSelection=r1_WvCYuzFHGqUFbQzc2sd_qwp_sW9VQqld"
+  },
+  {
+    "text": "run_0a7fb16f5542a95d",
+    "href": "/runs/run_0a7fb16f5542a95d?baseline=exp_6bdc632d72018fb8&candidate=exp_fa9ae58ab6a9bda8&runSelection=r1_WvCYuzFHGqUFbQzc2sd_qwp_sW9VQqld"
+  },
+  {
+    "text": "run_0d1471c29bd157e0",
+    "href": "/runs/run_0d1471c29bd157e0?baseline=exp_6bdc632d72018fb8&candidate=exp_fa9ae58ab6a9bda8&runSelection=r1_WvCYuzFHGqUFbQzc2sd_qwp_sW9VQqld"
+  }
+]

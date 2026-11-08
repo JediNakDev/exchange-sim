@@ -1,0 +1,32 @@
+Skip to research content
+exsim.
+
+Strategy research, explained.
+
+Experiments
+Compare
+Connections
+Interactive synthetic
+
+Controlled markets.
+Reproducible experiments.
+
+Build an experiment
+Simulated time
+Research
+Paired comparison
+Research mode
+Single venue
+Compare experiments
+Judge candidate outcomes against a baseline on matched seeds, then inspect the runs behind the difference.
+Baseline
+TRADING-RECHECK mm
+exp_6b43f99148776fea
+Candidate
+TRADING-RECHECK skew
+exp_cbc99f97fd863a06
+
+Computing comparison...
+
+exsim research
+Inspect the assumptions behind every result.

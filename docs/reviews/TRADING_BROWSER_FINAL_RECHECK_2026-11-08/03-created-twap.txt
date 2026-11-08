@@ -1,0 +1,104 @@
+Skip to research content
+exsim.
+
+Strategy research, explained.
+
+Experiments
+Compare
+Connections
+Interactive synthetic
+
+Controlled markets.
+Reproducible experiments.
+
+Build an experiment
+Simulated time
+Research
+Experiment details
+Research mode
+Single venue
+TRADING-RECHECK browser TWAP
+exp_6bdc632d72018fb8 from baseline twap-execution
+Create variant
+Compare
+Research progress
+
+twap execution on SYNTH; 60 s per seed. Change one assumption in a variant, then compare completed runs on common seeds.
+
+Seeds with completed runs
+3 / 3
+Active or paused runs
+0
+Failed or cancelled runs
+0
+Seeds without a run
+0
+Analyze a completed run
+
+Seed variability describes this synthetic scenario. It does not establish live-market performance. Failed and cancelled runs are not successful observations.
+
+Runs by seed
+Each master seed should have a run. Updates every second while any run is active.
+Run	Seed	State	Events	Simulated time	Created	Inspect
+run_0a7fb16f5542a95d	103	completed	22,626	60.000 s / 60 s	2026-11-08 03:52:10Z	events
+run_056d0cdcdac77fab	102	completed	23,252	60.000 s / 60 s	2026-11-08 03:52:10Z	events
+run_5af098bb31471aa5	101	completed	22,420	60.000 s / 60 s	2026-11-08 03:52:10Z	events
+Assumptions
+config sha256 bd6a8d7af8d16528d802cdbff9387305ac316b0cdc88367afb23b5625a10ea03
+market world	marketWorld	interactive_synthetic
+instrument	instrument.symbol	SYNTH
+instrument	instrument.tickSize	0.0100 currency/share
+instrument	instrument.lotSize	1 shares
+instrument	instrument.maxOrderQuantity	100000 shares
+instrument	instrument.minPrice	50.0000 currency/share
+instrument	instrument.maxPrice	150.0000 currency/share
+instrument	instrument.referencePrice	100.0000 currency/share
+instrument	instrument.contractMultiplier	1
+scenario	scenario.scenarioId	synthetic.mm-and-noise-taker.v1
+scenario	market_maker.agentCount	1 count
+scenario	market_maker.levels	3 count
+scenario	market_maker.quoteSizeShares	100 shares
+scenario	market_maker.spreadTicks	1 ticks
+scenario	market_maker.fairValueStepIntervalNs	500000000 ns
+scenario	market_maker.fairValueStepTicks	1 ticks
+scenario	market_maker.requoteIntervalNs	100000000 ns
+scenario	noise_taker.agentCount	1 count
+scenario	noise_taker.meanInterarrivalNs	20000000 ns
+scenario	noise_taker.minimumOrderShares	1 shares
+scenario	noise_taker.maximumOrderShares	200 shares
+scenario	noise_taker.crossTicks	2 ticks
+scenario	noise_taker.limitOrderProbability	0.1 ratio
+scenario	noise_taker.limitOrderLifetimeNs	1000000000 ns
+strategy	strategy.strategyKind	twap_execution
+strategy	strategy.parentSide	buy
+strategy	strategy.parentQuantity	500 shares
+strategy	strategy.sliceIntervalNs	1000000000 ns
+strategy	strategy.sliceOrderType	limit
+strategy	strategy.startTimeNs	1000000000 ns
+strategy	strategy.executionDurationNs	30000000000 ns
+strategy	strategy.limitOffsetTicks	5 ticks
+seeds	seedSet.masterSeeds	101, 102, 103
+latency	latency.latencyModel	uniform_jitter
+latency	latency.feedLatencyNs	50000 ns
+latency	latency.orderEntryLatencyNs	100000 ns
+latency	latency.acknowledgmentLatencyNs	100000 ns
+latency	latency.cancelLatencyNs	80000 ns
+latency	latency.jitterNs	20000 ns
+latency	latency.strategyComputeNs	5000 ns
+latency	latency.orderChannelFifo	true
+fees	fees.feeScheduleId	maker-rebate-20-taker-30
+fees	fees.makerFeePerShare	-0.0020 currency/share
+fees	fees.takerFeePerShare	0.0030 currency/share
+risk	risk.maxAbsolutePositionShares	500 shares
+risk	risk.maxOpenOrders	8
+risk	risk.maxOrderQuantity	200 shares
+risk	risk.onBreach	block_orders_that_increase_exposure
+accounting	initialCash	1000000.0000 currency
+accounting	markConvention	exchange_mid
+accounting	markoutHorizonsNs	100000000, 1000000000, 5000000000 ns
+bounds	bounds.endSimulationTimeNs	60000000000 ns
+bounds	bounds.maxCanonicalEventCount	5000000
+bounds	bounds.wallClockTimeLimitSeconds	600 s
+exsim research
+Inspect the assumptions behind every result.
+Saved TRADING-RECHECK browser TWAP; seed runs queued

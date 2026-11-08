@@ -1,0 +1,50 @@
+[
+  {
+    "text": "Skip to research content",
+    "href": "#research-content"
+  },
+  {
+    "text": "exsim.",
+    "href": "/experiments"
+  },
+  {
+    "text": "Experiments",
+    "href": "/experiments"
+  },
+  {
+    "text": "Compare",
+    "href": "/compare"
+  },
+  {
+    "text": "Connections",
+    "href": "/connections"
+  },
+  {
+    "text": "Build an experiment ",
+    "href": "/experiments/new"
+  },
+  {
+    "text": "exp_81dd11aa3406027c",
+    "href": "/experiments/exp_81dd11aa3406027c"
+  },
+  {
+    "text": "Inspect events",
+    "href": "/runs/run_d961d7613bb34bb5/inspect"
+  },
+  {
+    "text": "TRADING-RECHECK slow",
+    "href": "/experiments/exp_81dd11aa3406027c"
+  },
+  {
+    "text": "Explain fills and queue events",
+    "href": "/runs/run_d961d7613bb34bb5/inspect"
+  },
+  {
+    "text": "Create variant",
+    "href": "/experiments/new?from=exp_81dd11aa3406027c"
+  },
+  {
+    "text": "Compare against this experiment",
+    "href": "/compare?baseline=exp_81dd11aa3406027c"
+  }
+]
