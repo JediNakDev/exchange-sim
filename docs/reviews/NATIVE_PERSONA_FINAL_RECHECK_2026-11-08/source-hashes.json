@@ -1,0 +1,9 @@
+{
+  "src/exsim/api/request_diagnostics.cpp": "6a42244e5af50b68b01d610d412dcd34fbd3f1e847ba15069d64b12d1af1d648",
+  "src/exsim/api/execution_trace.cpp": "3ab69e1fc1aa0a1cf3ff10241c9e1033ef86b24884635cad6e82c74a23b4173a",
+  "src/exsim/research/run_compare.cpp": "0342b44bc0263cda13752c8670b0f6b0c2a03312f3d4ed9d21bd0124a82398a5",
+  "include/exsim/research/run_compare.hpp": "e4c1de53069151c66a5e5c19bfa9d4e208ac925061580f87b2e3a0a81a9bf56d",
+  "src/exsim/api/canonical_event_log.cpp": "c1fc96db9fa67dedc9c9c81ea205576b4da84005c3a7f60557e9bbd79df6f707",
+  "include/exsim/research/simulation.hpp": "483466c094be7674a48807a1f9a95654216ceb630fdc533ccabf4a197f755442",
+  "src/exsim/research/simulation_core.cpp": "d0cb8ebf65107df42dbd6870cb061bd4c01512a951ae980efe9b6f0d50231336"
+}

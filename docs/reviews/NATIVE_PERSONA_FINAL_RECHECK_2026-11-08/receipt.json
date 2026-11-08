@@ -1,0 +1,9 @@
+{
+  "processRoot": "/var/folders/99/cjkytqh130n5xq3vzsr3f17c0000gn/T/native-final-360ad69-_t77byl4",
+  "engineRoot": "/var/folders/99/cjkytqh130n5xq3vzsr3f17c0000gn/T/native-final-engine-jszwhyvm",
+  "processPhases": "baseline_probe.py=0 corrected_probe.py=0",
+  "engineCompile": "exit0 no warnings",
+  "engineRun": "exit0",
+  "ownedServersStopped": true,
+  "artifactHashesStableAfterUse": true
+}
