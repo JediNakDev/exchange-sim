@@ -17,6 +17,12 @@ std::uint64_t current_thread_token() {
 // FlatHashMap reserves key 0, and SymbolId 0 is a valid symbol.
 std::uint64_t symbol_key(SymbolId symbol) noexcept { return std::uint64_t{symbol} + 1; }
 
+OrderBookConfig without_growth(const OrderBookConfig& book_config) {
+    OrderBookConfig bounded = book_config;
+    bounded.allow_growth = false;
+    return bounded;
+}
+
 ShardedEngineConfig legacy_config(std::size_t shard_count, std::size_t batch_size, bool pin_workers) {
     ShardedEngineConfig config;
     config.shard_count = shard_count;
@@ -28,7 +34,7 @@ ShardedEngineConfig legacy_config(std::size_t shard_count, std::size_t batch_siz
 }  // namespace
 
 ShardedEngine::InstrumentBook::InstrumentBook(const OrderBookConfig& book_config)
-    : book(book_config)
+    : book(without_growth(book_config))
     , client_to_book_order(std::max<std::size_t>(1, book_config.max_resting_orders))
     , book_to_client_order(std::max<std::size_t>(1, book_config.max_resting_orders)) {
     // Growth stays disabled: a full map rejects instead of allocating.
@@ -48,7 +54,9 @@ ShardedEngine::ShardedEngine(std::size_t shard_count, std::size_t batch_size, bo
 
 ShardedEngine::ShardedEngine(const ShardedEngineConfig& config)
     : batch_size_(std::max<std::size_t>(1, config.batch_size))
-    , pin_workers_(config.pin_workers) {
+    , pin_workers_(config.pin_workers)
+    , book_min_price_(std::min(config.book_config.min_price, config.book_config.max_price))
+    , book_max_price_(std::max(config.book_config.min_price, config.book_config.max_price)) {
     const std::size_t shard_count = std::max<std::size_t>(1, config.shard_count);
 
     shards_.reserve(shard_count);
@@ -60,8 +68,15 @@ ShardedEngine::ShardedEngine(const ShardedEngineConfig& config)
         producer_owner_thread_[i].store(0, std::memory_order_relaxed);
     }
 
-    for (std::size_t i = 0; i < shards_.size(); ++i) {
-        shards_[i]->worker = std::thread([this, i] { worker_loop(i); });
+    try {
+        for (std::size_t i = 0; i < shards_.size(); ++i) {
+            shards_[i]->worker = std::thread([this, i] { worker_loop(i); });
+        }
+    } catch (...) {
+        // Destroying a joinable std::thread terminates, so exit and join the
+        // workers already started. No command can be queued yet.
+        stop();
+        throw;
     }
 }
 
@@ -74,6 +89,9 @@ std::optional<ShardedEngine::OrderHandle> ShardedEngine::submit_add(
     Price price,
     Quantity quantity,
     Side side) noexcept {
+    if (price < book_min_price_ || price > book_max_price_) {
+        return std::nullopt;  // the bounded book could never hold it
+    }
     const std::size_t shard_idx = route(symbol);
     if (!claim_producer(shard_idx)) {
         return std::nullopt;
@@ -136,14 +154,16 @@ void ShardedEngine::stop() {
         return;
     }
 
-    for (std::size_t i = 0; i < shards_.size(); ++i) {
-        Command stop_cmd;
-        stop_cmd.type = CommandType::Stop;
-        while (!shards_[i]->queue.try_push(stop_cmd)) {
-            std::this_thread::yield();
-        }
+    // push_command counts a submission before it re-checks stopped_ (both
+    // seq_cst), so each submission either sees the stop and backs out or is
+    // counted here and processed before the workers are told to exit. Only
+    // producers ever push, so the SPSC queues keep a single writer.
+    while (inflight_.load(std::memory_order_seq_cst) != 0) {
+        std::this_thread::yield();
     }
-
+    for (auto& shard : shards_) {
+        shard->stop_requested.store(true, std::memory_order_release);
+    }
     for (auto& shard : shards_) {
         if (shard->worker.joinable()) {
             shard->worker.join();
@@ -249,9 +269,10 @@ std::optional<std::uint32_t> ShardedEngine::find_or_bind_book_slot(Shard& shard,
 }
 
 bool ShardedEngine::push_command(std::size_t shard_idx, const Command& cmd) noexcept {
-    // Count before publishing so a fast worker can never decrement first.
-    inflight_.fetch_add(1, std::memory_order_relaxed);
-    if (!shards_[shard_idx]->queue.try_push(cmd)) {
+    // Count before publishing so a fast worker can never decrement first,
+    // and before re-checking stopped_ so stop() waits for this command.
+    inflight_.fetch_add(1, std::memory_order_seq_cst);
+    if (stopped_.load(std::memory_order_seq_cst) || !shards_[shard_idx]->queue.try_push(cmd)) {
         inflight_.fetch_sub(1, std::memory_order_relaxed);
         return false;
     }
@@ -272,10 +293,13 @@ void ShardedEngine::apply_add(Shard& shard, const Command& op) {
 
     // Every executed fill is reported (the fill buffer is bounded by stopping
     // the match, never by dropping fills), so each fully executed resting
-    // order is seen here and its mapping reclaimed.
-    for (const Fill& fill : result.fills) {
+    // order is seen here and its mapping reclaimed. Matching consumes resting
+    // orders front to back, so only the last fill can leave one resting.
+    for (std::size_t i = 0; i < result.fills.size(); ++i) {
+        const Fill& fill = result.fills[i];
         const OrderId resting_order_id = (op.side == Side::BUY) ? fill.sell_order_id : fill.buy_order_id;
-        if (instrument.book.has_order(resting_order_id)) {
+        const bool is_last_fill = i + 1 == result.fills.size();
+        if (is_last_fill && instrument.book.has_order(resting_order_id)) {
             continue;  // partially filled, still resting
         }
         if (const std::uint64_t* client_order_id = instrument.book_to_client_order.find(resting_order_id)) {
@@ -335,26 +359,10 @@ void ShardedEngine::worker_loop(std::size_t shard_idx) {
         (void)pin_current_thread_to_core(core);
     }
 
-    std::vector<Command> batch;
-    batch.reserve(batch_size_);
-
-    while (shard.running.load(std::memory_order_acquire)) {
-        batch.clear();
-
-        Command cmd;
-        while (batch.size() < batch_size_ && shard.queue.try_pop(cmd)) {
-            batch.push_back(cmd);
-            if (cmd.type == CommandType::Stop) {
-                break;
-            }
-        }
-
-        if (batch.empty()) {
-            std::this_thread::yield();
-            continue;
-        }
-
-        for (const Command& op : batch) {
+    for (;;) {
+        std::size_t applied = 0;
+        Command op;
+        while (applied < batch_size_ && shard.queue.try_pop(op)) {
             switch (op.type) {
                 case CommandType::Add:
                     apply_add(shard, op);
@@ -365,12 +373,19 @@ void ShardedEngine::worker_loop(std::size_t shard_idx) {
                 case CommandType::Modify:
                     apply_modify(shard, op);
                     break;
-                case CommandType::Stop:
-                    shard.running.store(false, std::memory_order_release);
-                    continue;
             }
-            inflight_.fetch_sub(1, std::memory_order_release);
+            ++applied;
         }
+        if (applied != 0) {
+            // One update of the shared counter per batch, not per command.
+            inflight_.fetch_sub(applied, std::memory_order_release);
+            continue;
+        }
+        // stop() sets this only once every accepted command was applied.
+        if (shard.stop_requested.load(std::memory_order_acquire)) {
+            return;
+        }
+        std::this_thread::yield();
     }
 }
 

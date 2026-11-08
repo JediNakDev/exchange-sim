@@ -4,14 +4,22 @@
 #include "compiler.hpp"
 #include <cstddef>
 #include <memory>
+#include <new>
 #include <type_traits>
 #include <utility>
 #include <vector>
 
 namespace lob {
 
+// Free-list pool. reserve() allocates exactly the requested node count in one
+// contiguous block; when growth is allowed, an empty free list adds a further
+// block of BlockSize nodes. Live objects are released with their blocks, so T
+// must not need its destructor run.
 template <typename T, std::size_t BlockSize = 4096>
 class ObjectPool {
+    static_assert(BlockSize > 0, "pool growth block must contain a node");
+    static_assert(std::is_trivially_destructible_v<T>, "pool blocks are freed without running destructors");
+
 public:
     ObjectPool() = default;
     ~ObjectPool() = default;
@@ -21,10 +29,10 @@ public:
     ObjectPool(ObjectPool&&) = delete;
     ObjectPool& operator=(ObjectPool&&) = delete;
 
+    // Ensures at least `object_count` nodes exist in total (live or free).
     void reserve(std::size_t object_count) {
-        const std::size_t needed_blocks = (object_count + BlockSize - 1) / BlockSize;
-        while (blocks_.size() < needed_blocks) {
-            allocate_block();
+        if (object_count > node_count_) {
+            allocate_block(object_count - node_count_);
         }
     }
 
@@ -32,30 +40,32 @@ public:
         allow_growth_ = allow_growth;
     }
 
-    [[nodiscard]] std::size_t growth_failures() const noexcept {
-        return growth_failures_;
+    // Adds a block if no node is free, so the next create() cannot allocate.
+    void ensure_free_node() {
+        if (!free_list_) {
+            allocate_block(BlockSize);
+        }
     }
 
-    [[nodiscard]] std::size_t block_count() const noexcept {
-        return blocks_.size();
-    }
-
+    // Returns nullptr when the pool is empty and growth is disabled.
     template <typename... Args>
     T* create(Args&&... args) {
         if (LOB_UNLIKELY(!free_list_)) {
             if (LOB_UNLIKELY(!allow_growth_)) {
-                ++growth_failures_;
                 return nullptr;
             }
-            allocate_block();
+            allocate_block(BlockSize);
         }
 
         Node* node = free_list_;
         free_list_ = free_list_->next;
-
-        T* object = reinterpret_cast<T*>(&node->storage);
-        ::new (static_cast<void*>(object)) T(std::forward<Args>(args)...);
-        return object;
+        try {
+            return ::new (static_cast<void*>(node->storage)) T(std::forward<Args>(args)...);
+        } catch (...) {
+            node->next = free_list_;
+            free_list_ = node;
+            throw;
+        }
     }
 
     void destroy(T* object) noexcept {
@@ -71,25 +81,28 @@ public:
 
 private:
     union Node {
-        typename std::aligned_storage<sizeof(T), alignof(T)>::type storage;
+        alignas(T) unsigned char storage[sizeof(T)];
         Node* next;
     };
 
-    void allocate_block() {
-        blocks_.emplace_back(new Node[BlockSize]);
-        Node* block = blocks_.back().get();
+    void allocate_block(std::size_t node_count) {
+        // Owned before blocks_ can throw while growing, so a failure leaks nothing.
+        std::unique_ptr<Node[]> block(new Node[node_count]);
+        blocks_.push_back(std::move(block));
+        Node* nodes = blocks_.back().get();
 
-        for (std::size_t i = 0; i + 1 < BlockSize; ++i) {
-            block[i].next = &block[i + 1];
+        for (std::size_t i = 0; i + 1 < node_count; ++i) {
+            nodes[i].next = &nodes[i + 1];
         }
-        block[BlockSize - 1].next = free_list_;
-        free_list_ = block;
+        nodes[node_count - 1].next = free_list_;
+        free_list_ = nodes;
+        node_count_ += node_count;
     }
 
     std::vector<std::unique_ptr<Node[]>> blocks_;
     Node* free_list_ = nullptr;
+    std::size_t node_count_ = 0;
     bool allow_growth_ = true;
-    std::size_t growth_failures_ = 0;
 };
 
 }  // namespace lob

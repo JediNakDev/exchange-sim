@@ -7,6 +7,10 @@
 
 namespace lob::engine {
 
+// Bounded single-producer single-consumer ring. Each side keeps a private
+// copy of the other side's index and reloads the shared one only when the
+// ring looks full (producer) or empty (consumer), so the steady state does
+// not pull the other thread's cache line on every operation.
 template <typename T, std::size_t Capacity>
 class SPSCQueue {
     static_assert(Capacity > 1, "Capacity must be > 1");
@@ -15,8 +19,11 @@ public:
     bool try_push(const T& value) noexcept {
         const std::size_t tail = tail_.load(std::memory_order_relaxed);
         const std::size_t next = increment(tail);
-        if (next == head_.load(std::memory_order_acquire)) {
-            return false;
+        if (next == producer_cached_head_) {
+            producer_cached_head_ = head_.load(std::memory_order_acquire);
+            if (next == producer_cached_head_) {
+                return false;
+            }
         }
 
         buffer_[tail] = value;
@@ -26,8 +33,11 @@ public:
 
     bool try_pop(T& out) noexcept {
         const std::size_t head = head_.load(std::memory_order_relaxed);
-        if (head == tail_.load(std::memory_order_acquire)) {
-            return false;
+        if (head == consumer_cached_tail_) {
+            consumer_cached_tail_ = tail_.load(std::memory_order_acquire);
+            if (head == consumer_cached_tail_) {
+                return false;
+            }
         }
 
         out = buffer_[head];
@@ -44,8 +54,12 @@ private:
         return (idx + 1) % Capacity;
     }
 
+    // Consumer-owned line.
     alignas(128) std::atomic<std::size_t> head_{0};
+    std::size_t consumer_cached_tail_ = 0;
+    // Producer-owned line.
     alignas(128) std::atomic<std::size_t> tail_{0};
+    std::size_t producer_cached_head_ = 0;
     alignas(128) std::array<T, Capacity> buffer_{};
 };
 

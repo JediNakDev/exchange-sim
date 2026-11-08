@@ -1374,4 +1374,18 @@ void MatchingEngine::visit_orders(void (*fn)(const OrderInfo&, void*), void* ctx
     }
 }
 
+void MatchingEngine::visit_level_orders(InstrumentId id, Side side, Price price,
+                                        void (*fn)(const OrderInfo&, void*), void* ctx) const {
+    const Impl& impl = *impl_;
+    const InstrumentBook* book = impl.find_book(id);
+    std::int32_t tick = 0;
+    if (book == nullptr || raw_value(side) > raw_value(Side::SELL) || !book->tick_of(price, tick)) {
+        return;
+    }
+    const Level& level = book->ladder(side).levels[static_cast<std::uint32_t>(tick)];
+    for (OrderIndex index = level.head; index != kNilOrder; index = impl.hot[index].next) {
+        fn(impl.order_info(index), ctx);
+    }
+}
+
 }  // namespace exsim

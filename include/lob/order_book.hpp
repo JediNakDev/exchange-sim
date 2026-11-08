@@ -12,6 +12,12 @@
 
 namespace lob {
 
+#ifdef LOB_DETERMINISTIC_POOL
+inline constexpr bool kOrderBookGrowsByDefault = false;
+#else
+inline constexpr bool kOrderBookGrowsByDefault = true;
+#endif
+
 // Setup-time sizing for one OrderBook. Everything is allocated in the
 // constructor; after that the matching path never grows the fill buffer.
 struct OrderBookConfig {
@@ -25,6 +31,14 @@ struct OrderBookConfig {
     // become crossed). AddResult::fill_limit_reached reports it. Values
     // below 1 are treated as 1.
     std::size_t max_fills_per_add_order = 1024;
+    // false: the limits above are hard. add_order never allocates, rejects
+    // prices outside [min_price, max_price] and cancels a remainder that
+    // finds no free resting-order or price-level slot.
+    // true: the limits are initial sizes. Pools, the id map and the ladder
+    // grow on demand (heap allocation inside add_order); a failed growth
+    // throws and leaves the book unchanged. Replaying external data relies
+    // on this; LOB_DETERMINISTIC_POOL builds default to false.
+    bool allow_growth = kOrderBookGrowsByDefault;
 };
 
 /**
@@ -36,10 +50,8 @@ struct OrderBookConfig {
  * - Cached pointers to best bid (highest_buy_) and best ask (lowest_sell_)
  * 
  * Performance:
- * - Add order (existing level): O(1)
- * - Add order (new level): O(1) amortized
- * - Cancel order: O(1)
- * - Execute order: O(1)
+ * - Add order, cancel order, execute order: O(1), plus a scan of up to
+ *   (price band / 64) occupancy words when the best level empties
  * - GetBestBid/Ask: O(1)
  * - GetVolumeAtLimit: O(1)
  */
@@ -55,7 +67,8 @@ public:
         // Quantity left resting on the book under `order_id`.
         Quantity remaining_quantity;
         // Unexecuted quantity discarded instead of resting: the fill limit
-        // was reached, or the book had no capacity to rest the remainder.
+        // was reached, or a bounded book had no resting-order or price-level
+        // slot left for the remainder.
         Quantity cancelled_quantity = 0;
         // True when matching stopped at max_fills_per_add_order while the
         // order still crossed resting liquidity.
@@ -66,15 +79,14 @@ private:
     // Order storage - keyed by order ID for O(1) lookup.
     FlatHashMap<Order*> orders_;
 
-    // Tick-indexed ladders (cache-friendly contiguous structures).
+    // Tick-indexed ladders with one occupancy bit per tick.
     std::vector<PriceLevel*> bid_ladder_;
     std::vector<PriceLevel*> ask_ladder_;
     std::vector<std::uint64_t> bid_active_words_;
     std::vector<std::uint64_t> ask_active_words_;
     Price min_price_;
     Price max_price_;
-    bool ladder_initialized_;
-    
+
     // Cached best prices for O(1) access
     PriceLevel* highest_buy_;   // Best bid (max price in buy tree)
     PriceLevel* lowest_sell_;   // Best ask (min price in sell tree)
@@ -85,16 +97,13 @@ private:
     // Reserved to max_fills_per_add_order_ at construction and never grown.
     std::vector<Fill> fill_buffer_;
     std::size_t max_fills_per_add_order_;
+    bool allow_growth_;
 
     OrderId next_order_id_;
 
-    void refresh_best_levels() noexcept;
-    void initialize_ladders(Price min_price, Price max_price);
-    void ensure_price_range(Price price);
+    // False when `price` is outside the ladder and the ladder may not grow.
+    [[nodiscard]] bool ensure_price_range(Price price);
     [[nodiscard]] std::size_t ladder_index(Price price) const noexcept;
-    void set_active(std::vector<std::uint64_t>& words, std::size_t idx) noexcept;
-    void clear_active(std::vector<std::uint64_t>& words, std::size_t idx) noexcept;
-    [[nodiscard]] std::size_t word_count() const noexcept;
     [[nodiscard]] std::optional<std::size_t> find_prev_active(
         const std::vector<std::uint64_t>& words,
         std::size_t from_idx) const noexcept;
@@ -105,16 +114,15 @@ private:
     // Order book operations — templatized on Side to eliminate branches in inner loops
     // Returns true when matching stopped at the fill limit while `incoming`
     // still crossed the contra side.
-    template<Side S> [[nodiscard]] bool match_order_impl(Order* incoming);
+    template<Side S> [[nodiscard]] bool match_order_impl(Order& incoming);
     // Returns false when the order could not be placed (no level capacity).
     template<Side S> [[nodiscard]] bool add_order_to_book_impl(Order* order);
     template<Side S> void remove_order_from_book_impl(Order* order);
-    void clear();
 
 public:
     OrderBook();
     explicit OrderBook(const OrderBookConfig& config);
-    ~OrderBook();
+    ~OrderBook() = default;
     
     OrderBook(const OrderBook&) = delete;
     OrderBook& operator=(const OrderBook&) = delete;

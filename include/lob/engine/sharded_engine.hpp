@@ -17,8 +17,9 @@ namespace lob::engine {
 using SymbolId = std::uint32_t;
 
 // Setup-time sizing. Every shard pre-creates `max_symbols_per_shard` books,
-// each sized by `book_config`, so the worker never allocates a book or a
-// client-id mapping after construction.
+// each sized by `book_config`, so the worker never allocates after
+// construction. Shard books are always bounded: book_config.allow_growth is
+// ignored, and submit_add rejects prices outside [min_price, max_price].
 struct ShardedEngineConfig {
     std::size_t shard_count = 1;
     std::size_t batch_size = 256;
@@ -27,9 +28,8 @@ struct ShardedEngineConfig {
     // binds it to a free book; once all are bound, adds for further symbols
     // routed to that shard are rejected (submit_add returns nullopt).
     std::size_t max_symbols_per_shard = 8;
-    // Also bounds the client-id mappings of each book: a resting remainder
-    // that finds no free mapping slot is cancelled and counted in
-    // capacity_rejection_count().
+    // A resting remainder that finds no free resting-order or price-level
+    // slot is cancelled and counted in capacity_rejection_count().
     OrderBookConfig book_config{
         .max_resting_orders = std::size_t{1} << 13,
         .max_price_levels = std::size_t{1} << 12,
@@ -69,6 +69,8 @@ public:
     [[nodiscard]] bool submit_modify(OrderHandle handle, Quantity new_quantity) noexcept;
 
     void flush() noexcept;
+    // Processes every accepted submission, then joins the workers. Later
+    // submissions are refused.
     void stop();
 
     // Quiescent inspection. Call only from the producer thread after flush()
@@ -89,7 +91,7 @@ public:
 private:
     static constexpr std::size_t kQueueCapacity = 1u << 16;
 
-    enum class CommandType : std::uint8_t { Add, Cancel, Modify, Stop };
+    enum class CommandType : std::uint8_t { Add, Cancel, Modify };
 
     struct Command {
         CommandType type = CommandType::Add;
@@ -125,7 +127,7 @@ private:
         std::uint64_t capacity_rejections = 0;
         std::uint64_t fill_limit_cancellations = 0;
         std::thread worker;
-        std::atomic<bool> running{true};
+        std::atomic<bool> stop_requested{false};
     };
 
     std::size_t route(SymbolId symbol) const noexcept;
@@ -143,6 +145,8 @@ private:
     std::unique_ptr<std::atomic<std::uint64_t>[]> producer_owner_thread_;
     std::size_t batch_size_;
     bool pin_workers_;
+    Price book_min_price_;
+    Price book_max_price_;
     std::atomic<bool> stopped_{false};
     alignas(128) std::atomic<std::uint64_t> inflight_{0};
     alignas(128) std::atomic<std::uint64_t> next_client_order_id_{1};

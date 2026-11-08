@@ -6,6 +6,7 @@
 #include <lob/engine/sharded_engine.hpp>
 
 #include <algorithm>
+#include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
@@ -146,9 +147,10 @@ TEST_CASE(sharded_engine, symbols_beyond_shard_capacity_are_rejected) {
     CHECK_EQ(engine.find_book(11)->get_total_orders(), 1u);
 }
 
-TEST_CASE(sharded_engine, resting_order_beyond_mapping_capacity_is_cancelled) {
+TEST_CASE(sharded_engine, resting_orders_beyond_book_capacity_are_cancelled) {
     ShardedEngineConfig config = small_test_config(1);
-    config.book_config.max_resting_orders = 4;  // mapping maps hold 8 (power of two, 50% load)
+    config.book_config.max_resting_orders = 4;
+    config.book_config.allow_growth = true;  // ignored: shard books are always bounded
     ShardedEngine engine(config);
 
     for (int i = 0; i < 20; ++i) {
@@ -156,12 +158,71 @@ TEST_CASE(sharded_engine, resting_order_beyond_mapping_capacity_is_cancelled) {
     }
     engine.flush();
 
-    const std::size_t mapped = engine.client_order_mapping_count();
-    CHECK_GE(mapped, 4u);
-    CHECK_LT(mapped, 20u);
-    CHECK_EQ(engine.capacity_rejection_count(), 20u - mapped);
+    CHECK_EQ(engine.client_order_mapping_count(), 4u);
+    CHECK_EQ(engine.book_order_mapping_count(), 4u);
+    CHECK_EQ(engine.capacity_rejection_count(), 16u);
     // No unaddressable order is left resting.
-    CHECK_EQ(engine.find_book(5)->get_total_orders(), mapped);
+    CHECK_EQ(engine.find_book(5)->get_total_orders(), 4u);
+
+    // A full book still trades: the aggressor needs no resting slot.
+    (void)add_order_waiting_for_queue(engine, 5, 9003, 1, Side::SELL);
+    engine.flush();
+    CHECK_EQ(engine.find_book(5)->get_total_orders(), 3u);
+    CHECK_EQ(engine.client_order_mapping_count(), 3u);
+    CHECK_EQ(engine.capacity_rejection_count(), 16u);
+}
+
+TEST_CASE(sharded_engine, prices_outside_the_book_band_are_refused_at_submit) {
+    ShardedEngine engine(small_test_config(1));  // band [0, 20000]
+    CHECK(!engine.submit_add(3, 20001, 1, Side::BUY).has_value());
+    CHECK(!engine.submit_add(3, -1, 1, Side::SELL).has_value());
+    CHECK(!engine.submit_add(3, Price{1} << 40, 1, Side::BUY).has_value());
+    CHECK(engine.find_book(3) == nullptr);  // refused adds bind no symbol
+
+    (void)add_order_waiting_for_queue(engine, 3, 20000, 1, Side::BUY);
+    (void)add_order_waiting_for_queue(engine, 3, 0, 1, Side::BUY);
+    engine.flush();
+    REQUIRE(engine.find_book(3) != nullptr);
+    CHECK_EQ(engine.find_book(3)->get_total_orders(), 2u);
+    CHECK_EQ(engine.capacity_rejection_count(), 0u);
+}
+
+// stop() from another thread while the producer is still submitting: every
+// submission that was accepted is applied, later ones are refused, and only
+// the producer thread ever writes the SPSC queue.
+TEST_CASE(sharded_engine, stop_racing_the_producer_applies_every_accepted_submission) {
+    ShardedEngineConfig config = small_test_config(1);
+    config.book_config.max_resting_orders = 1 << 16;
+    ShardedEngine engine(config);
+    std::atomic<std::size_t> accepted{0};
+    std::atomic<bool> stop_returned{false};
+
+    std::thread producer([&] {
+        for (int i = 0; i < 60000; ++i) {
+            for (;;) {
+                if (engine.submit_add(9, 10000, 1, Side::BUY)) {
+                    accepted.fetch_add(1, std::memory_order_relaxed);
+                    break;
+                }
+                if (stop_returned.load(std::memory_order_acquire)) {
+                    return;
+                }
+                std::this_thread::yield();
+            }
+        }
+    });
+    while (accepted.load(std::memory_order_relaxed) < 1000) {
+        std::this_thread::yield();
+    }
+    engine.stop();
+    stop_returned.store(true, std::memory_order_release);
+    producer.join();
+
+    CHECK(!engine.submit_add(9, 10000, 1, Side::BUY).has_value());
+    const lob::OrderBook* book = engine.find_book(9);
+    REQUIRE(book != nullptr);
+    CHECK_EQ(book->get_total_orders(), accepted.load());
+    CHECK_EQ(engine.client_order_mapping_count(), accepted.load());
 }
 
 TEST_CASE(sharded_engine, cancel_and_modify_reclaim_mappings) {
