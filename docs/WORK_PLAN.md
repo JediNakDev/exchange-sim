@@ -452,3 +452,10 @@ Opus 5.5/high implementation launched in a harness-isolated worktree, task `node
 ### Scope correction: whole exchange simulator and limit order book
 
 User clarified full native simulator/LOB scope, not only HTTP. The HTTP task continues as one bounded workstream. Expanded plan: [EXCHANGE_REFACTOR_PLAN_2026-11-08.md](quality/EXCHANGE_REFACTOR_PLAN_2026-11-08.md). Queue: core/LOB/storage; protocol/runtime; simulation/research/non-HTTP API; HTTP; parent review and integrated validation. Every workstream requires explicit closure before claiming whole-scope readiness. Preserve concurrent frontend changes on `ui-green-design-system`. Additional Opus workstreams and their receipts follow.
+
+Additional Opus 5.5/high harness tasks launched from local plan commit `c49bf79`:
+
+- Core/LOB/storage: `node:delegated-task:command%3Amcp%3A41881c90-3064-4d46-92b2-66ceec46e41c%3Adelegate-task%3A7d6be364-445b-439a-b0cd-975d33ba974e`; owns core/legacy storage, engines and associated tests, report `quality/CORE_LOB_REFACTOR_2026-11-08.md`.
+- Protocol/runtime: `node:delegated-task:command%3Amcp%3A41881c90-3064-4d46-92b2-66ceec46e41c%3Adelegate-task%3Ac323d94a-1ba1-4b33-bbcd-01bcd7b0dfc5`; owns protocol/gateway/net/md/server/client trees and related tests/tools, report `quality/RUNTIME_PROTOCOL_REFACTOR_2026-11-08.md`.
+
+HTTP worker informed this is now one part of broader scope, with unchanged ownership. All workers limited to `-j1` future builds. Research/simulation/non-HTTP API queued for a free slot, not silently omitted. Checkout paths and implementation SHAs pending receipts. Follow completion notifications without polling; parent reviews returned diffs, schedules remaining workstream, repairs and integrates.
