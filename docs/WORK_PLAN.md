@@ -507,3 +507,9 @@ User explicitly requested opening a PR to main and identified frontend thread `4
 Fresh parent frontend checks on Node24.22.1/Bun1.4.4: `bun run typecheck`, `bun run lint`, `bun test` (124 pass,5 skip,0 fail), `bun run build` all pass. Exact logs `/tmp/exsim-pr-frontend-{types,lint,unit,build}.log`. UI owner reports final browser32/32, fill-identity9/9, frontend-execution21/21 and addressed independent visual/code findings; these are owner evidence, not new parent browser runs. Native parent receipts remain in quality/EXCHANGE_REFACTOR_INTEGRATION_2026-11-08.md. No source changes after these checks.
 
 Target `origin/main` is the historical `404feb5` LOB release, so this is a cumulative simulator/research-platform PR including the native refactor and UI revamp, not just a cosmetic patch. Publish branch `ui-green-design-system`, create PR base main, link it to this thread immediately. Opening a PR is authorized; merging/deployment is not requested.
+
+### PR source branch correction
+
+User clarified: merge `ui-green-design-system` into `exchange-simulator` locally and open `exchange-simulator` -> `main`. Local exchange-simulator was an ancestor of the complete UI/native branch (0 divergent,15 incoming commits), so `git merge --ff-only ui-green-design-system` integrated it at `ea0d7c3` with no conflicts or source edits. Earlier local exchange branch also carried29 unpublished commits, now included as requested. Existing validated source is unchanged by this branch integration; only this receipt is added. Preserved all untracked files.
+
+The earlier UI-head PR was created just before the correction arrived: https://github.com/JediNakDev/lob/pull/1. Closed and unlinked it as a duplicate; no merge/deployment happened. Publish `exchange-simulator`, open the replacement main-target PR, and link it to this thread. Frontend/native validation remains the receipts above; no redundant test rerun for a fast-forward plus documentation.
