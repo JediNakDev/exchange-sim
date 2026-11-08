@@ -15,11 +15,10 @@
 #include <chrono>
 #include <cstdint>
 #include <functional>
-#include <list>
-#include <mutex>
 #include <string>
 #include <string_view>
 #include <thread>
+#include <vector>
 
 namespace exsim::api {
 
@@ -45,24 +44,31 @@ public:
     HttpServer(const HttpServer&) = delete;
     HttpServer& operator=(const HttpServer&) = delete;
 
-    // Binds and listens, then starts accepting. Throws std::runtime_error.
+    // Binds and listens, then starts accepting. Throws std::runtime_error,
+    // also when already running; a failed start leaves no descriptor or
+    // thread behind. start() after stop() binds again.
     void start();
-    // Stops accepting, closes every connection and joins all threads.
+    // Stops accepting, closes every connection and joins all threads. Does
+    // nothing when not running. start() and stop() are called by the owner
+    // thread only.
     void stop();
     [[nodiscard]] std::uint16_t port() const noexcept { return bound_port_; }
     [[nodiscard]] std::size_t active_connection_count() const noexcept { return active_connections_.load(); }
 
 private:
-    struct Connection {
+    // One per allowed concurrent connection, allocated by start(). Only the
+    // accept thread (and stop(), after joining it) claims, joins and closes a
+    // slot, so the slot array needs no lock. The connection thread never
+    // closes its descriptor, so stop() cannot shut down a reused one.
+    struct ConnectionSlot {
         int socket_descriptor = -1;
-        std::thread thread;
-        std::atomic<bool> finished{false};
+        std::thread thread;  // joinable while the slot is in use
+        std::atomic<bool> is_finished{false};
     };
 
     void accept_loop();
-    void serve_connection(Connection& connection);
-    void reap_finished_connections();
-    bool send_all(int socket_descriptor, std::string_view bytes);
+    void join_finished_connections();
+    void serve_connection(int socket_descriptor);
 
     HttpServerOptions options_;
     HttpRequestHandler handler_;
@@ -72,8 +78,7 @@ private:
     std::atomic<bool> stopping_{false};
     std::atomic<std::size_t> active_connections_{0};
     std::thread accept_thread_;
-    std::mutex connections_mutex_;
-    std::list<Connection> connections_;
+    std::vector<ConnectionSlot> connection_slots_;
 };
 
 }  // namespace exsim::api

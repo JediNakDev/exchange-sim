@@ -3,15 +3,21 @@
 
 #include "exsim/api/http_message.hpp"
 #include "exsim/api/http_server.hpp"
+#include "tests/framework/alloc_counter.hpp"
 #include "tests/framework/test.hpp"
 
 #include <arpa/inet.h>
+#include <fcntl.h>
 #include <netinet/in.h>
+#include <netinet/tcp.h>
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <unistd.h>
 
+#include <atomic>
 #include <chrono>
+#include <optional>
+#include <stdexcept>
 #include <string>
 #include <thread>
 
@@ -36,6 +42,8 @@ public:
         timeval timeout{};
         timeout.tv_sec = 5;
         ::setsockopt(socket_descriptor_, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
+        const int enabled = 1;  // each send_text() leaves as its own segment, so fragments reach the server apart
+        ::setsockopt(socket_descriptor_, IPPROTO_TCP, TCP_NODELAY, &enabled, sizeof(enabled));
     }
     ~TestClientConnection() { ::close(socket_descriptor_); }
     TestClientConnection(const TestClientConnection&) = delete;
@@ -88,12 +96,45 @@ HttpResponse echo_path_handler(const HttpRequest& request) {
     return response;
 }
 
+HttpResponse echo_body_handler(const HttpRequest& request) {
+    HttpResponse response;
+    response.body = "[" + request.method + " " + request.path + " body=" + request.body + "]";
+    return response;
+}
+
 HttpResponse plain_rejection(int status, std::string_view code, std::string_view) {
     HttpResponse response;
     response.status = status;
     response.body = std::string(code);
     response.close_connection = true;
     return response;
+}
+
+std::size_t count_open_descriptors() {
+    std::size_t open_descriptors = 0;
+    for (int descriptor = 0; descriptor < 4096; ++descriptor)
+        if (::fcntl(descriptor, F_GETFD) != -1) ++open_descriptors;
+    return open_descriptors;
+}
+
+// Retries until the server answers `path` on a fresh connection; a closed
+// connection frees its slot only after the server joins its thread.
+bool eventually_answers(std::uint16_t port, const std::string& path) {
+    for (int attempt = 0; attempt < 40; ++attempt) {
+        TestClientConnection client(port);
+        client.send_text("GET " + path + " HTTP/1.1\r\nConnection: close\r\n\r\n");
+        if (client.receive_until_closed().find("GET " + path + " body=0") != std::string::npos) return true;
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    }
+    return false;
+}
+
+bool wait_for_active_connections(const HttpServer& server, std::size_t expected) {
+    for (int attempt = 0; attempt < 200; ++attempt) {
+        if (server.active_connection_count() == expected) return true;
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+    return false;
 }
 
 }  // namespace
@@ -281,4 +322,269 @@ TEST_CASE(api_http_server, stop_closes_open_keep_alive_connections) {
     server.stop();
     CHECK(std::chrono::steady_clock::now() - started < std::chrono::seconds(3));
     CHECK(client.receive_until_closed().empty());
+}
+
+TEST_CASE(api_http_parse, head_parse_stops_before_the_body) {
+    const std::string head = "POST /v1/runs HTTP/1.1\r\nContent-Length: 5\r\n\r\n";
+    for (std::size_t length = 0; length < head.size(); ++length) {
+        HttpRequest request;
+        CHECK(parse_http_request_head(std::string_view(head).substr(0, length), HttpLimits{}, request).status ==
+              HttpParseStatus::NeedMoreData);
+    }
+    for (const std::string& buffer : {head, head + "ab", head + "abcdeGET"}) {
+        HttpRequest request;
+        const auto result = parse_http_request_head(buffer, HttpLimits{}, request);
+        REQUIRE(result.status == HttpParseStatus::Complete);
+        CHECK_EQ(result.consumed_bytes, head.size());
+        CHECK_EQ(result.body_bytes, 5u);
+        CHECK(request.body.empty());
+        CHECK_EQ(request.path, std::string("/v1/runs"));
+    }
+    HttpRequest request;
+    const auto full = parse_http_request(head + "abcdeGET", HttpLimits{}, request);
+    REQUIRE(full.status == HttpParseStatus::Complete);
+    CHECK_EQ(full.consumed_bytes, head.size() + 5);
+    CHECK_EQ(request.body, std::string("abcde"));
+}
+
+TEST_CASE(api_http_parse, header_errors_take_precedence_over_body_size) {
+    HttpLimits limits;
+    limits.max_body_bytes = 10;
+    const std::pair<const char*, HttpParseStatus> cases[] = {
+        {"POST / HTTP/1.1\r\nContent-Length: 11\r\nTransfer-Encoding: chunked\r\n\r\n", HttpParseStatus::NotImplemented},
+        {"POST / HTTP/1.1\r\nContent-Length: 11\r\nBad Name: x\r\n\r\n", HttpParseStatus::BadRequest},
+        {"POST / HTTP/1.1\r\nContent-Length: 11\r\nContent-Length: 12\r\n\r\n", HttpParseStatus::BadRequest},
+        {"POST / HTTP/1.1\r\nContent-Length: 11\r\n\r\n", HttpParseStatus::BodyTooLarge},
+    };
+    for (const auto& [text, expected] : cases) {
+        HttpRequest head_request;
+        HttpRequest full_request;
+        CHECK(parse_http_request_head(text, limits, head_request).status == expected);
+        CHECK(parse_http_request(text, limits, full_request).status == expected);
+    }
+}
+
+TEST_CASE(api_http_server, fragmented_bodies_keep_pipeline_boundaries) {
+    HttpServerOptions options;
+    options.port = 0;
+    HttpServer server(options, echo_body_handler, plain_rejection);
+    server.start();
+    const std::string pipeline =
+        "POST /a HTTP/1.1\r\nContent-Length: 10\r\n\r\n0123456789"
+        "GET /b HTTP/1.1\r\n\r\n"
+        "POST /c HTTP/1.1\r\nContent-Length: 3\r\n\r\nxyz"
+        "POST /d HTTP/1.1\r\nContent-Length: 4\r\nConnection: close\r\n\r\nlast";
+    {
+        // Splits inside the body, at a request boundary and inside a header name.
+        TestClientConnection client(server.port());
+        std::size_t offset = 0;
+        for (const std::size_t split : {std::size_t{43}, std::size_t{50}, std::size_t{70}, std::size_t{90}, std::size_t{130}, pipeline.size()}) {
+            client.send_text(std::string_view(pipeline).substr(offset, split - offset));
+            offset = split;
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        }
+        const std::string received = client.receive_until_closed();
+        const std::size_t first = received.find("[POST /a body=0123456789]");
+        const std::size_t second = received.find("[GET /b body=]");
+        const std::size_t third = received.find("[POST /c body=xyz]");
+        const std::size_t fourth = received.find("[POST /d body=last]");
+        CHECK(first != std::string::npos);
+        CHECK(second != std::string::npos && second > first);
+        CHECK(third != std::string::npos && third > second);
+        CHECK(fourth != std::string::npos && fourth > third);
+    }
+    {
+        TestClientConnection client(server.port());
+        for (const char byte : pipeline) client.send_text(std::string_view(&byte, 1));
+        const std::string received = client.receive_until_closed();
+        CHECK(received.find("[POST /a body=0123456789]") != std::string::npos);
+        CHECK(received.find("[GET /b body=]") != std::string::npos);
+        CHECK(received.find("[POST /c body=xyz]") != std::string::npos);
+        CHECK(received.find("[POST /d body=last]") != std::string::npos);
+    }
+    server.stop();
+}
+
+TEST_CASE(api_http_server, oversized_and_malformed_heads_are_rejected_before_the_body) {
+    HttpServerOptions options;
+    options.port = 0;
+    options.idle_timeout = std::chrono::milliseconds(5'000);
+    options.limits.max_body_bytes = 1024;
+    HttpServer server(options, echo_body_handler, plain_rejection);
+    server.start();
+    const auto started = std::chrono::steady_clock::now();
+    {
+        TestClientConnection client(server.port());
+        client.send_text("POST /big HTTP/1.1\r\nContent-Le");
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        client.send_text("ngth: 1025\r\n\r\n0123");  // most of the declared body never arrives
+        CHECK_EQ(client.receive_until_closed().rfind("HTTP/1.1 413", 0), 0u);
+    }
+    {
+        TestClientConnection client(server.port());
+        client.send_text("POST /bad HTTP/1.1\r\nContent-Length: 5000\r\n");
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        client.send_text("Transfer-Encoding: chunked\r\n\r\n");
+        CHECK_EQ(client.receive_until_closed().rfind("HTTP/1.1 501", 0), 0u);
+    }
+    {
+        // A served request followed by a malformed one on the same connection.
+        TestClientConnection client(server.port());
+        client.send_text("POST /ok HTTP/1.1\r\nContent-Length: 2\r\n\r\nhiGET /x HTTP/1.1\r\nBad Name: y\r\n\r\n");
+        const std::string received = client.receive_until_closed();
+        const std::size_t served = received.find("[POST /ok body=hi]");
+        const std::size_t rejected = received.find("HTTP/1.1 400");
+        CHECK(served != std::string::npos);
+        CHECK(rejected != std::string::npos && rejected > served);
+    }
+    // Answered on arrival of the head, not after the 5 s idle timeout.
+    CHECK(std::chrono::steady_clock::now() - started < std::chrono::seconds(3));
+    server.stop();
+}
+
+// The connection thread is the only one that reads the request, so the
+// handler of a first request opens an allocation scope on that thread and
+// the handler of the next request on the same connection reads it: the count
+// covers receiving and parsing the second request.
+TEST_CASE(api_http_server, fragmented_body_parses_the_head_once) {
+    if (!testfw::allocation_counting_available()) return;
+    struct ConnectionThreadMeasurement {
+        std::optional<testfw::AllocationScope> scope;
+        std::atomic<std::size_t> allocations_while_reading{0};
+    } measurement;
+    const auto measuring_handler = [&measurement](const HttpRequest& request) {
+        if (request.path == "/start") {
+            measurement.scope.emplace();
+        } else {
+            measurement.allocations_while_reading = measurement.scope->count();
+            measurement.scope.reset();
+        }
+        HttpResponse response;
+        response.body = "done";
+        return response;
+    };
+    HttpServerOptions options;
+    options.port = 0;
+    HttpServer server(options, measuring_handler, plain_rejection);
+    server.start();
+    TestClientConnection client(server.port());
+    const auto allocations_reading_upload = [&](std::size_t body_bytes) {
+        client.send_text("GET /start HTTP/1.1\r\n\r\n");
+        (void)client.receive_until("done", 1);
+        // A header value longer than the small-string buffer, as browsers send.
+        client.send_text("POST /upload HTTP/1.1\r\nContent-Type: application/octet-stream\r\n"
+                         "User-Agent: exsim-http-tests fragmented body allocation regression\r\nContent-Length: " +
+                         std::to_string(body_bytes) + "\r\n\r\n" + std::string(body_bytes, 'b'));
+        (void)client.receive_until("done", 1);
+        return measurement.allocations_while_reading.load();
+    };
+    const std::size_t small_upload_allocations = allocations_reading_upload(16);
+    // 512 KiB arrives over at least 32 reads of the server's 16 KiB chunk.
+    const std::size_t large_upload_allocations = allocations_reading_upload(512 * 1024);
+    // Re-parsing the head on every read would add several allocations per
+    // read; only receive-buffer doublings and the body copy remain.
+    CHECK_LE(large_upload_allocations, small_upload_allocations + 16);
+    server.stop();
+}
+
+TEST_CASE(api_http_server, connection_slots_are_bounded_and_reused) {
+    HttpServerOptions options;
+    options.port = 0;
+    options.max_connections = 2;
+    HttpServer server(options, echo_path_handler, plain_rejection);
+    server.start();
+    for (int round = 0; round < 4; ++round) {
+        {
+            TestClientConnection first(server.port());
+            TestClientConnection second(server.port());
+            first.send_text("GET /first HTTP/1.1\r\n\r\n");
+            second.send_text("GET /second HTTP/1.1\r\n\r\n");
+            CHECK(first.receive_until("GET /first body=0", 1).find("GET /first body=0") != std::string::npos);
+            CHECK(second.receive_until("GET /second body=0", 1).find("GET /second body=0") != std::string::npos);
+            CHECK_EQ(server.active_connection_count(), 2u);
+            TestClientConnection over_capacity(server.port());
+            CHECK_EQ(over_capacity.receive_until_closed().rfind("HTTP/1.1 503", 0), 0u);
+        }
+        CHECK(wait_for_active_connections(server, 0));
+    }
+    CHECK(eventually_answers(server.port(), "/after-rounds"));
+    server.stop();
+    CHECK_EQ(server.active_connection_count(), 0u);
+}
+
+TEST_CASE(api_http_server, restart_and_failed_start_leave_no_descriptors) {
+    const std::size_t descriptors_before = count_open_descriptors();
+    HttpServerOptions options;
+    options.port = 0;
+    HttpServer server(options, echo_path_handler, plain_rejection);
+    server.start();
+    const std::uint16_t first_port = server.port();
+    const std::size_t descriptors_running = count_open_descriptors();
+    bool duplicate_start_threw = false;
+    try {
+        server.start();
+    } catch (const std::runtime_error&) {
+        duplicate_start_threw = true;
+    }
+    CHECK(duplicate_start_threw);
+    CHECK_EQ(count_open_descriptors(), descriptors_running);
+
+    HttpServerOptions taken_port_options;
+    taken_port_options.port = first_port;
+    HttpServer second_server(taken_port_options, echo_path_handler, plain_rejection);
+    bool failed_start_threw = false;
+    try {
+        second_server.start();
+    } catch (const std::runtime_error&) {
+        failed_start_threw = true;
+    }
+    CHECK(failed_start_threw);
+    CHECK_EQ(count_open_descriptors(), descriptors_running);
+    second_server.stop();  // nothing to stop
+    CHECK(eventually_answers(first_port, "/still-running"));
+
+    server.stop();
+    server.stop();
+    CHECK_EQ(count_open_descriptors(), descriptors_before);
+    server.start();
+    CHECK(eventually_answers(server.port(), "/restarted"));
+    server.stop();
+    // The failed server can start once the port is free.
+    second_server.start();
+    CHECK(eventually_answers(first_port, "/second-server"));
+    second_server.stop();
+    CHECK_EQ(count_open_descriptors(), descriptors_before);
+}
+
+TEST_CASE(api_http_server, throwing_handler_or_responder_drops_one_connection_only) {
+    const auto throwing_handler = [](const HttpRequest& request) -> HttpResponse {
+        if (request.path == "/throw-non-standard") throw 7;
+        return echo_path_handler(request);
+    };
+    HttpServerOptions options;
+    options.port = 0;
+    HttpServer server(options, throwing_handler, plain_rejection);
+    server.start();
+    {
+        TestClientConnection client(server.port());
+        client.send_text("GET /throw-non-standard HTTP/1.1\r\nConnection: close\r\n\r\n");
+        const std::string received = client.receive_until_closed();
+        CHECK_EQ(received.rfind("HTTP/1.1 500", 0), 0u);
+        CHECK(received.find("internal_error") != std::string::npos);
+    }
+    server.stop();
+
+    const auto throwing_responder = [](int, std::string_view, std::string_view) -> HttpResponse {
+        throw std::runtime_error("responder failed");
+    };
+    HttpServer fragile_server(options, echo_path_handler, throwing_responder);
+    fragile_server.start();
+    {
+        TestClientConnection client(fragile_server.port());
+        client.send_text("not http\r\n\r\n");
+        CHECK(client.receive_until_closed().empty());
+    }
+    CHECK(eventually_answers(fragile_server.port(), "/survived"));
+    CHECK(wait_for_active_connections(fragile_server, 0));
+    fragile_server.stop();
 }

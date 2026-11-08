@@ -58,10 +58,19 @@ enum class HttpParseStatus : std::uint8_t {
 struct HttpParseResult {
     HttpParseStatus status = HttpParseStatus::NeedMoreData;
     std::size_t consumed_bytes = 0;
+    std::size_t body_bytes = 0;  // declared Content-Length of a Complete result
     std::string error_message;  // for the rejection response
 };
 
 [[nodiscard]] HttpParseResult parse_http_request(std::string_view buffer, const HttpLimits& limits, HttpRequest& request);
+
+// Parses only the request line and header section, with the same checks and
+// rejection order as parse_http_request(). On Complete, `consumed_bytes` ends
+// after the blank line, `body_bytes` is the declared body length (already
+// checked against max_body_bytes) and `request.body` is empty. A reader that
+// receives the body in fragments calls this once per request instead of
+// re-parsing the headers on every read.
+[[nodiscard]] HttpParseResult parse_http_request_head(std::string_view buffer, const HttpLimits& limits, HttpRequest& request);
 
 // Percent-decodes a path or query component ('+' is a space only in queries).
 // Returns nullopt for a malformed escape or a decoded NUL byte.

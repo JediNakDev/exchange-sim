@@ -119,7 +119,7 @@ std::optional<std::string> percent_decode(std::string_view text, bool plus_is_sp
     return decoded;
 }
 
-HttpParseResult parse_http_request(std::string_view buffer, const HttpLimits& limits, HttpRequest& request) {
+HttpParseResult parse_http_request_head(std::string_view buffer, const HttpLimits& limits, HttpRequest& request) {
     const std::size_t request_line_end = buffer.find(kLineEnd);
     if (request_line_end == std::string_view::npos) {
         if (buffer.size() > limits.max_request_line_bytes) return rejection(HttpParseStatus::HeadersTooLarge, "request line too long");
@@ -220,14 +220,22 @@ HttpParseResult parse_http_request(std::string_view buffer, const HttpLimits& li
 
     const std::uint64_t body_length = content_length.value_or(0);
     if (body_length > limits.max_body_bytes) return rejection(HttpParseStatus::BodyTooLarge, "request body too large");
-    const std::size_t body_start = header_section_end + kHeaderSectionEnd.size();
-    if (buffer.size() - body_start < body_length) return {};
-    request.body = std::string(buffer.substr(body_start, static_cast<std::size_t>(body_length)));
     request.keep_alive = http_1_0 ? connection_keep_alive && !connection_close : !connection_close;
 
     HttpParseResult result;
     result.status = HttpParseStatus::Complete;
-    result.consumed_bytes = body_start + static_cast<std::size_t>(body_length);
+    result.consumed_bytes = header_section_end + kHeaderSectionEnd.size();
+    result.body_bytes = static_cast<std::size_t>(body_length);
+    return result;
+}
+
+HttpParseResult parse_http_request(std::string_view buffer, const HttpLimits& limits, HttpRequest& request) {
+    HttpParseResult result = parse_http_request_head(buffer, limits, request);
+    if (result.status != HttpParseStatus::Complete) return result;
+    const std::size_t head_bytes = result.consumed_bytes;
+    if (buffer.size() - head_bytes < result.body_bytes) return {};
+    request.body.assign(buffer.substr(head_bytes, result.body_bytes));
+    result.consumed_bytes = head_bytes + result.body_bytes;
     return result;
 }
 

@@ -1,5 +1,6 @@
 #include "exsim/api/http_server.hpp"
 
+#include <algorithm>
 #include <arpa/inet.h>
 #include <cerrno>
 #include <cstring>
@@ -7,6 +8,7 @@
 #include <netinet/tcp.h>
 #include <poll.h>
 #include <stdexcept>
+#include <system_error>
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <unistd.h>
@@ -49,6 +51,20 @@ int status_for(HttpParseStatus status) noexcept {
     }
 }
 
+// False when the peer is gone, the write timeout expired or no byte moved.
+bool send_all(int socket_descriptor, std::string_view bytes) {
+    while (!bytes.empty()) {
+        const ssize_t sent = ::send(socket_descriptor, bytes.data(), bytes.size(), kSendFlags);
+        if (sent > 0) {
+            bytes.remove_prefix(static_cast<std::size_t>(sent));
+            continue;
+        }
+        if (sent < 0 && errno == EINTR) continue;
+        return false;
+    }
+    return true;
+}
+
 }  // namespace
 
 HttpServer::HttpServer(HttpServerOptions options, HttpRequestHandler handler, HttpRejectionResponder rejection_responder)
@@ -57,60 +73,61 @@ HttpServer::HttpServer(HttpServerOptions options, HttpRequestHandler handler, Ht
 HttpServer::~HttpServer() { stop(); }
 
 void HttpServer::start() {
+    if (accept_thread_.joinable()) throw std::runtime_error("HTTP server is already running");
     sockaddr_in address{};
     address.sin_family = AF_INET;
     address.sin_port = htons(options_.port);
     if (inet_pton(AF_INET, options_.bind_address.c_str(), &address.sin_addr) != 1)
         throw std::runtime_error("invalid IPv4 bind address: " + options_.bind_address);
-    listen_descriptor_ = ::socket(AF_INET, SOCK_STREAM, 0);
-    if (listen_descriptor_ < 0) throw std::runtime_error(std::string("socket: ") + std::strerror(errno));
-    const int enabled = 1;
-    (void)setsockopt(listen_descriptor_, SOL_SOCKET, SO_REUSEADDR, &enabled, sizeof(enabled));
-    if (::bind(listen_descriptor_, reinterpret_cast<const sockaddr*>(&address), sizeof(address)) != 0) {
-        const std::string message = std::strerror(errno);
-        ::close(listen_descriptor_);
+    const int listener = ::socket(AF_INET, SOCK_STREAM, 0);
+    if (listener < 0) throw std::runtime_error(std::string("socket: ") + std::strerror(errno));
+    try {
+        const int enabled = 1;
+        (void)setsockopt(listener, SOL_SOCKET, SO_REUSEADDR, &enabled, sizeof(enabled));
+        if (::bind(listener, reinterpret_cast<const sockaddr*>(&address), sizeof(address)) != 0) {
+            const int bind_error = errno;
+            throw std::runtime_error("bind " + options_.bind_address + ":" + std::to_string(options_.port) + ": " + std::strerror(bind_error));
+        }
+        if (::listen(listener, 128) != 0) {
+            const int listen_error = errno;
+            throw std::runtime_error(std::string("listen: ") + std::strerror(listen_error));
+        }
+        sockaddr_in bound{};
+        socklen_t bound_length = sizeof(bound);
+        if (::getsockname(listener, reinterpret_cast<sockaddr*>(&bound), &bound_length) == 0) bound_port_ = ntohs(bound.sin_port);
+        connection_slots_ = std::vector<ConnectionSlot>(options_.max_connections);
+        listen_descriptor_ = listener;
+        stopping_ = false;
+        accept_thread_ = std::thread([this] { accept_loop(); });
+    } catch (...) {
+        ::close(listener);
         listen_descriptor_ = -1;
-        throw std::runtime_error("bind " + options_.bind_address + ":" + std::to_string(options_.port) + ": " + message);
+        throw;
     }
-    if (::listen(listen_descriptor_, 128) != 0) {
-        const std::string message = std::strerror(errno);
-        ::close(listen_descriptor_);
-        listen_descriptor_ = -1;
-        throw std::runtime_error("listen: " + message);
-    }
-    sockaddr_in bound{};
-    socklen_t bound_length = sizeof(bound);
-    if (::getsockname(listen_descriptor_, reinterpret_cast<sockaddr*>(&bound), &bound_length) == 0) bound_port_ = ntohs(bound.sin_port);
-    stopping_ = false;
-    accept_thread_ = std::thread([this] { accept_loop(); });
 }
 
 void HttpServer::stop() {
-    if (stopping_.exchange(true)) return;
-    if (accept_thread_.joinable()) accept_thread_.join();
-    if (listen_descriptor_ >= 0) {
-        ::close(listen_descriptor_);
-        listen_descriptor_ = -1;
+    if (!accept_thread_.joinable()) return;
+    stopping_ = true;
+    accept_thread_.join();
+    ::close(listen_descriptor_);
+    listen_descriptor_ = -1;
+    for (ConnectionSlot& slot : connection_slots_)
+        if (slot.thread.joinable()) ::shutdown(slot.socket_descriptor, SHUT_RDWR);
+    for (ConnectionSlot& slot : connection_slots_) {
+        if (!slot.thread.joinable()) continue;
+        slot.thread.join();
+        ::close(slot.socket_descriptor);
+        slot.socket_descriptor = -1;
     }
-    std::lock_guard lock(connections_mutex_);
-    for (Connection& connection : connections_) ::shutdown(connection.socket_descriptor, SHUT_RDWR);
-    for (Connection& connection : connections_) {
-        if (connection.thread.joinable()) connection.thread.join();
-        ::close(connection.socket_descriptor);
-    }
-    connections_.clear();
 }
 
-void HttpServer::reap_finished_connections() {
-    std::lock_guard lock(connections_mutex_);
-    for (auto iterator = connections_.begin(); iterator != connections_.end();) {
-        if (iterator->finished.load()) {
-            if (iterator->thread.joinable()) iterator->thread.join();
-            ::close(iterator->socket_descriptor);
-            iterator = connections_.erase(iterator);
-        } else {
-            ++iterator;
-        }
+void HttpServer::join_finished_connections() {
+    for (ConnectionSlot& slot : connection_slots_) {
+        if (!slot.thread.joinable() || !slot.is_finished.load()) continue;
+        slot.thread.join();
+        ::close(slot.socket_descriptor);
+        slot.socket_descriptor = -1;
     }
 }
 
@@ -118,81 +135,110 @@ void HttpServer::accept_loop() {
     while (!stopping_.load()) {
         pollfd listener{listen_descriptor_, POLLIN, 0};
         const int ready = ::poll(&listener, 1, 100);
-        reap_finished_connections();
+        join_finished_connections();
         if (ready <= 0) continue;
         const int client = ::accept(listen_descriptor_, nullptr, nullptr);
         if (client < 0) continue;
         configure_client_socket(client, options_);
-        if (active_connections_.load() >= options_.max_connections) {
+        const auto free_slot = std::find_if(connection_slots_.begin(), connection_slots_.end(),
+                                            [](const ConnectionSlot& slot) { return !slot.thread.joinable(); });
+        if (free_slot != connection_slots_.end()) {
+            ConnectionSlot& slot = *free_slot;
+            slot.socket_descriptor = client;
+            slot.is_finished = false;
+            ++active_connections_;
+            try {
+                slot.thread = std::thread([this, &slot] {
+                    try {
+                        serve_connection(slot.socket_descriptor);
+                    } catch (...) {
+                        // Allocation failure or a throwing rejection responder drops this connection only.
+                    }
+                    // Send FIN now instead of when the accept thread next reaps the slot.
+                    ::shutdown(slot.socket_descriptor, SHUT_WR);
+                    slot.is_finished = true;
+                    --active_connections_;
+                });
+                continue;
+            } catch (const std::system_error&) {
+                // No thread for this connection: answer it like a full server.
+                --active_connections_;
+                slot.socket_descriptor = -1;
+            }
+        }
+        try {
             HttpResponse response = rejection_responder_(503, "service_unavailable", "too many concurrent connections; retry shortly");
             response.close_connection = true;
             (void)send_all(client, serialize_http_response(response, false));
-            ::shutdown(client, SHUT_RDWR);
-            ::close(client);
-            continue;
+        } catch (...) {
+            // The connection is closed below either way.
         }
-        ++active_connections_;
-        std::lock_guard lock(connections_mutex_);
-        Connection& connection = connections_.emplace_back();
-        connection.socket_descriptor = client;
-        connection.thread = std::thread([this, &connection] {
-            serve_connection(connection);
-            --active_connections_;
-            connection.finished = true;
-        });
+        ::shutdown(client, SHUT_RDWR);
+        ::close(client);
     }
 }
 
-bool HttpServer::send_all(int socket_descriptor, std::string_view bytes) {
-    while (!bytes.empty()) {
-        const ssize_t sent = ::send(socket_descriptor, bytes.data(), bytes.size(), kSendFlags);
-        if (sent < 0) {
-            if (errno == EINTR) continue;
-            return false;
-        }
-        bytes.remove_prefix(static_cast<std::size_t>(sent));
-    }
-    return true;
-}
-
-void HttpServer::serve_connection(Connection& connection) {
-    const int socket_descriptor = connection.socket_descriptor;
-    std::string buffer;
+void HttpServer::serve_connection(int socket_descriptor) {
+    // Bytes from request_start on are not served yet. Serving a request only
+    // advances request_start; consumed bytes are dropped once, right before
+    // the next read, so pipelined requests cost no per-request memmove.
+    std::string received_bytes;
+    std::size_t request_start = 0;
+    HttpRequest request;
+    // Set once the current request's line and headers are parsed, so a body
+    // arriving over many reads does not re-parse them.
+    bool has_request_head = false;
+    std::size_t request_head_bytes = 0;
+    std::size_t request_body_bytes = 0;
     std::size_t requests_served = 0;
     char chunk[16 * 1024];
     while (!stopping_.load()) {
-        HttpRequest request;
-        const HttpParseResult parsed = parse_http_request(buffer, options_.limits, request);
-        if (parsed.status == HttpParseStatus::NeedMoreData) {
-            const ssize_t received = ::recv(socket_descriptor, chunk, sizeof(chunk), 0);
-            if (received > 0) {
-                buffer.append(chunk, static_cast<std::size_t>(received));
-                continue;
-            }
-            if (received < 0 && errno == EINTR) continue;
-            if (received < 0 && (errno == EAGAIN || errno == EWOULDBLOCK) && !buffer.empty()) {
-                HttpResponse response = rejection_responder_(408, "invalid_request", "request incomplete before the idle timeout");
+        const std::string_view pending = std::string_view(received_bytes).substr(request_start);
+        if (!has_request_head) {
+            const HttpParseResult head = parse_http_request_head(pending, options_.limits, request);
+            if (head.status == HttpParseStatus::Complete) {
+                has_request_head = true;
+                request_head_bytes = head.consumed_bytes;
+                request_body_bytes = head.body_bytes;
+            } else if (head.status != HttpParseStatus::NeedMoreData) {
+                HttpResponse response = rejection_responder_(status_for(head.status), "invalid_request", head.error_message);
                 (void)send_all(socket_descriptor, serialize_http_response(response, false));
+                return;
             }
-            return;  // peer closed, timeout or error
         }
-        if (parsed.status != HttpParseStatus::Complete) {
-            const int status = status_for(parsed.status);
-            HttpResponse response = rejection_responder_(status, "invalid_request", parsed.error_message);
+        if (has_request_head && pending.size() - request_head_bytes >= request_body_bytes) {
+            request.body.assign(pending.substr(request_head_bytes, request_body_bytes));
+            request_start += request_head_bytes + request_body_bytes;
+            has_request_head = false;
+            ++requests_served;
+            HttpResponse response;
+            try {
+                response = handler_(request);
+            } catch (const std::exception& error) {
+                response = rejection_responder_(500, "internal_error", error.what());
+            } catch (...) {
+                response = rejection_responder_(500, "internal_error", "request handler failed");
+            }
+            const bool keep_alive = request.keep_alive && !response.close_connection &&
+                                    requests_served < options_.max_requests_per_connection && !stopping_.load();
+            if (!send_all(socket_descriptor, serialize_http_response(response, keep_alive)) || !keep_alive) return;
+            request = HttpRequest{};
+            continue;
+        }
+
+        received_bytes.erase(0, request_start);
+        request_start = 0;
+        const ssize_t received = ::recv(socket_descriptor, chunk, sizeof(chunk), 0);
+        if (received > 0) {
+            received_bytes.append(chunk, static_cast<std::size_t>(received));
+            continue;
+        }
+        if (received < 0 && errno == EINTR) continue;
+        if (received < 0 && (errno == EAGAIN || errno == EWOULDBLOCK) && !received_bytes.empty()) {
+            HttpResponse response = rejection_responder_(408, "invalid_request", "request incomplete before the idle timeout");
             (void)send_all(socket_descriptor, serialize_http_response(response, false));
-            return;
         }
-        buffer.erase(0, parsed.consumed_bytes);
-        ++requests_served;
-        HttpResponse response;
-        try {
-            response = handler_(request);
-        } catch (const std::exception& error) {
-            response = rejection_responder_(500, "internal_error", error.what());
-        }
-        const bool keep_alive = request.keep_alive && !response.close_connection && requests_served < options_.max_requests_per_connection &&
-                                !stopping_.load();
-        if (!send_all(socket_descriptor, serialize_http_response(response, keep_alive)) || !keep_alive) return;
+        return;  // peer closed, timeout or error
     }
 }
 
