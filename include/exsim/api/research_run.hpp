@@ -98,8 +98,15 @@ struct RunArtifacts {
     std::unordered_map<ClOrdId, std::size_t> order_by_client_order_id;
     std::unordered_map<OrderId, std::size_t> order_by_exchange_order_id;
     std::unordered_map<MatchId, std::size_t> fill_by_match_id;
+    // markouts row at fill_index * kMaxMarkoutHorizons + horizon_index, or
+    // kNoMarkoutRow; a later row for the same pair replaces an earlier one.
+    std::vector<std::size_t> markout_row_by_fill_horizon;
+
+    static constexpr std::size_t kNoMarkoutRow = ~std::size_t{0};
 
     void index_event(std::uint64_t position);
+    void index_markout(std::size_t row);
+    [[nodiscard]] std::size_t markout_row(std::uint64_t fill_index, std::size_t horizon_index) const noexcept;
     void rebuild_indexes();
 };
 

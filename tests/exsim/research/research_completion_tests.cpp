@@ -30,6 +30,104 @@ TEST_CASE(research_allocations, ledger_ring_and_failure_paths) {
     CHECK_EQ(allocations, 0u);
 }
 
+// Arrival queue evidence walks the engine's FIFO level. The level here is
+// reshaped before the strategy order arrives by a partial fill (A keeps its
+// place), a quantity-down replace (B keeps its place) and a quantity-up
+// replace (A loses its place), and again before the strategy replaces its own
+// order by a fill that removes B and part of C. The whole run allocates nothing.
+TEST_CASE(research_allocations, fifo_queue_evidence_after_partial_fill_and_replacement) {
+    const ExperimentConfig config = quiet_market_config();
+    Simulation<HookStrategy> simulation(config, 1);
+    const auto scripted_replace = [](ClOrdId cl_ord_id, Quantity new_total_qty) {
+        ReplaceOrder replace;
+        replace.session = kScriptedSession;
+        replace.orig_cl_ord_id = cl_ord_id;
+        replace.price = cents(9900);
+        replace.qty = new_total_qty;
+        return Command{replace};
+    };
+    REQUIRE(simulation.schedule_scripted_command(1 * kMicrosecond, scripted_limit_order(1, Side::BUY, cents(9900), 10)));
+    REQUIRE(simulation.schedule_scripted_command(2 * kMicrosecond, scripted_limit_order(2, Side::BUY, cents(9900), 20)));
+    REQUIRE(simulation.schedule_scripted_command(3 * kMicrosecond, scripted_limit_order(3, Side::BUY, cents(9900), 30)));
+    REQUIRE(simulation.schedule_scripted_command(4 * kMicrosecond,
+                                                 scripted_limit_order(4, Side::SELL, cents(9900), 4, TimeInForce::IOC)));
+    REQUIRE(simulation.schedule_scripted_command(5 * kMicrosecond, scripted_replace(2, 12)));
+    REQUIRE(simulation.schedule_scripted_command(6 * kMicrosecond, scripted_replace(1, 20)));
+    // Level before the strategy order arrives at 105us: B12, C30, A16.
+    REQUIRE(simulation.schedule_scripted_command(120 * kMicrosecond, scripted_limit_order(5, Side::BUY, cents(9900), 50)));
+    REQUIRE(simulation.schedule_scripted_command(130 * kMicrosecond,
+                                                 scripted_limit_order(6, Side::SELL, cents(9900), 15, TimeInForce::IOC)));
+    // Level before the strategy replace arrives: C27, A16, strategy 10, G50.
+
+    ClOrdId strategy_order = 0;
+    bool replace_sent = false;
+    simulation.strategy().start = [&](StrategyContext& context) {
+        strategy_order = context.submit_limit_order(Side::BUY, cents(9900), 10, TimeInForce::Day, false);
+    };
+    simulation.strategy().report = [&](const ExecutionReport& report, StrategyContext& context) {
+        if (report.kind == ReportKind::Rested && !replace_sent) replace_sent = context.replace_order(strategy_order, cents(9900), 8);
+    };
+
+    LifecycleRecord new_order_arrival;
+    LifecycleRecord replace_arrival;
+    std::size_t allocations = 0;
+    RunStop stop;
+    {
+        testfw::AllocationScope scope;
+        do {
+            stop = simulation.run();
+            for (const LifecycleRecord& row : simulation.recorder().lifecycle.records()) {
+                if (row.stage != LifecycleStage::ExchangeArrival) continue;
+                if (row.request == CommandType::NewOrder) new_order_arrival = row;
+                if (row.request == CommandType::Replace) replace_arrival = row;
+            }
+            simulation.recorder().clear();
+        } while (stop == RunStop::FlushRequired);
+        allocations = scope.count();
+    }
+    CHECK(stop == RunStop::Completed);
+    REQUIRE(replace_sent);
+
+    REQUIRE(new_order_arrival.stage == LifecycleStage::ExchangeArrival);
+    CHECK(new_order_arrival.has_queue_position);
+    CHECK_EQ(new_order_arrival.queue_orders_ahead, 3u);
+    CHECK_EQ(new_order_arrival.queue_ahead_qty, 58u);
+    CHECK_EQ(new_order_arrival.level_qty, 58u);
+
+    REQUIRE(replace_arrival.stage == LifecycleStage::ExchangeArrival);
+    CHECK(replace_arrival.has_queue_position);
+    CHECK_EQ(replace_arrival.queue_orders_ahead, 2u);
+    CHECK_EQ(replace_arrival.queue_ahead_qty, 43u);
+    CHECK_EQ(replace_arrival.level_qty, 103u);
+    CHECK_EQ(replace_arrival.leaves_qty, 10u);
+
+    if (testfw::allocation_counting_available()) CHECK_EQ(allocations, 0u);
+}
+
+// A full simulation queue fails the run through the same preallocated paths:
+// the strategy's 100 in-flight arrivals do not fit a 64-slot queue.
+TEST_CASE(research_allocations, simulation_queue_full_fails_without_allocating) {
+    ExperimentConfig config = quiet_market_config();
+    config.limits.simulation_queue_capacity = 64;
+    config.risk.max_open_orders = 128;
+    config.risk.max_order_qty = 1;
+    validate_experiment_config(config);
+    Simulation<HookStrategy> simulation(config, 1);
+    simulation.strategy().start = [](StrategyContext& context) {
+        for (int order = 0; order < 100; ++order) (void)context.submit_limit_order(Side::BUY, cents(9900), 1, TimeInForce::Day, false);
+    };
+    std::size_t allocations = 0;
+    RunStop stop;
+    {
+        testfw::AllocationScope scope;
+        stop = run_to_end(simulation);
+        allocations = scope.count();
+    }
+    CHECK(stop == RunStop::Failed);
+    CHECK(simulation.termination() == TerminationReason::SimulationQueueFull);
+    if (testfw::allocation_counting_available()) CHECK_EQ(allocations, 0u);
+}
+
 template <typename Strategy>
 void check_runner_allocations(StrategyKind kind) {
     auto config = busy_market_config(2 * kNanosPerSecond);

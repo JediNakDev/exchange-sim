@@ -268,13 +268,32 @@ void RunArtifacts::index_event(std::uint64_t position) {
     }
 }
 
+// Fills are recorded densely from fill_index 0, so a row whose fill is not
+// recorded (or whose horizon is out of range) can match no fill and is skipped.
+void RunArtifacts::index_markout(std::size_t row) {
+    const research::MarkoutRecord& markout = markouts[row];
+    if (markout.fill_index >= fills.size() || markout.horizon_index >= research::kMaxMarkoutHorizons) return;
+    const std::size_t slot = markout.fill_index * research::kMaxMarkoutHorizons + markout.horizon_index;
+    if (slot >= markout_row_by_fill_horizon.size())
+        markout_row_by_fill_horizon.resize((markout.fill_index + 1) * research::kMaxMarkoutHorizons, kNoMarkoutRow);
+    markout_row_by_fill_horizon[slot] = row;
+}
+
+std::size_t RunArtifacts::markout_row(std::uint64_t fill_index, std::size_t horizon_index) const noexcept {
+    if (fill_index >= markout_row_by_fill_horizon.size() / research::kMaxMarkoutHorizons || horizon_index >= research::kMaxMarkoutHorizons)
+        return kNoMarkoutRow;
+    return markout_row_by_fill_horizon[fill_index * research::kMaxMarkoutHorizons + horizon_index];
+}
+
 void RunArtifacts::rebuild_indexes() {
     orders.clear();
     order_by_client_order_id.clear();
     order_by_exchange_order_id.clear();
     fill_by_match_id.clear();
+    markout_row_by_fill_horizon.clear();
     for (std::uint64_t position = 0; position < events.size(); ++position) index_event(position);
     for (std::size_t index = 0; index < fills.size(); ++index) fill_by_match_id[fills[index].match_id] = index;
+    for (std::size_t row = 0; row < markouts.size(); ++row) index_markout(row);
 }
 
 // ---- Construction and persistence ------------------------------------------------------
@@ -608,7 +627,10 @@ research::RunStop ResearchRun::step_driver_locked() {
             artifacts_.fills.push_back(fill);
         }
         consumed_fills_ = recorder.fills.size();
-        for (const research::MarkoutRecord& markout : recorder.markouts.records().subspan(consumed_markouts_)) artifacts_.markouts.push_back(markout);
+        for (const research::MarkoutRecord& markout : recorder.markouts.records().subspan(consumed_markouts_)) {
+            artifacts_.markouts.push_back(markout);
+            artifacts_.index_markout(artifacts_.markouts.size() - 1);
+        }
         consumed_markouts_ = recorder.markouts.size();
         for (const research::SeriesSample& sample : recorder.samples.records().subspan(consumed_samples_)) artifacts_.samples.push_back(sample);
         consumed_samples_ = recorder.samples.size();

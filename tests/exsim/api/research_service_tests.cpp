@@ -405,6 +405,59 @@ TEST_CASE(api_service, idempotency_replays_successes_and_rejects_reuse) {
     CHECK_EQ(service.get("/v1/experiments").body.find("items")->items.size(), 1u);
 }
 
+// Each fill row's markout status comes from the per-(fill, horizon) markout
+// index; the summary's per-horizon counts come from the simulation metrics.
+// Both must agree for every horizon, live and after a restart reloads the run.
+TEST_CASE(api_service, fills_page_markouts_reconcile_with_summary_markout_counts) {
+    const std::filesystem::path directory = fresh_service_directory("fill_markouts");
+    const auto check_markouts = [](ServiceUnderTest& service, const std::string& run_id) {
+        const ServiceResponse summary = service.get("/v1/runs/" + run_id + "/summary");
+        REQUIRE_EQ(summary.status, 200);
+        const JsonValue* summary_markouts = summary.body.find("markouts");
+        REQUIRE(summary_markouts != nullptr);
+        REQUIRE(!summary_markouts->items.empty());
+        std::map<std::string, std::map<std::string, std::uint64_t>> status_count_by_horizon;
+        std::string cursor;
+        for (;;) {
+            const ServiceResponse page = service.get("/v1/runs/" + run_id + "/fills?limit=37" + (cursor.empty() ? "" : "&cursor=" + cursor));
+            REQUIRE_EQ(page.status, 200);
+            for (const JsonValue& fill : page.body.find("items")->items) {
+                const JsonValue* markouts = fill.find("markouts");
+                REQUIRE_EQ(markouts->items.size(), summary_markouts->items.size());
+                for (const JsonValue& markout : markouts->items) {
+                    const std::string& status = markout.find("status")->text;
+                    ++status_count_by_horizon[markout.find("horizonNs")->text][status];
+                    CHECK_EQ(markout.find("markoutTotal")->is_null(), status != "available");
+                }
+            }
+            const JsonValue* next = page.body.find("page")->find("nextCursor");
+            if (next->is_null()) break;
+            cursor = next->text;
+        }
+        std::uint64_t available_total = 0;
+        for (const JsonValue& horizon : summary_markouts->items) {
+            const auto& counts = status_count_by_horizon[horizon.find("horizonNs")->text];
+            const auto count_of = [&](const char* status) { const auto found = counts.find(status); return found == counts.end() ? 0 : found->second; };
+            CHECK_EQ(std::to_string(count_of("available")), horizon.find("availableFillCount")->text);
+            CHECK_EQ(std::to_string(count_of("unavailable_no_mark")), horizon.find("unavailableFillCount")->text);
+            CHECK_EQ(std::to_string(count_of("censored_past_run_end")), horizon.find("censoredFillCount")->text);
+            available_total += count_of("available");
+        }
+        CHECK_GT(available_total, 0u);
+    };
+    std::string run_id;
+    {
+        ServiceUnderTest service(directory);
+        run_id = create_run(service, create_experiment(service, 0, "fill_markouts", R"(["4"])"), "4");
+        service.drain_executor();
+        REQUIRE_EQ(service.get("/v1/runs/" + run_id).text_at({"state"}), std::string("completed"));
+        check_markouts(service, run_id);
+        service.service().shutdown();
+    }
+    ServiceUnderTest restarted(directory);
+    check_markouts(restarted, run_id);
+}
+
 TEST_CASE(api_service, a_restarted_service_serves_stored_runs_and_fails_interrupted_ones) {
     const std::filesystem::path directory = fresh_service_directory("restart");
     std::string completed_run;

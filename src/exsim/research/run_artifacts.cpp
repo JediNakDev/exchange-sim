@@ -517,9 +517,7 @@ void RunArtifactWriter::write_command_records(const RunRecorder& recorder) {
         json.key("command").string(exsim::to_string(record.command.type));
         sim::visit_fields(record.command, [&](const sim::Field& field) { put_engine_field(json, field); });
         json.end_object();
-        line_buffer_ = json.text();
-        line_buffer_ += '\n';
-        commands_jsonl_ << line_buffer_;
+        commands_jsonl_ << json.text() << '\n';
 
         // Independent replay: a second engine fed the recorded commands
         // regenerates the event stream, which must match the online digest.
@@ -541,9 +539,7 @@ void RunArtifactWriter::write_command_records(const RunRecorder& recorder) {
             json.key("event").string(sim::event_type_name(event.type));
             sim::visit_fields(event, [&](const sim::Field& field) { put_engine_field(json, field); });
             json.end_object();
-            line_buffer_ = json.text();
-            line_buffer_ += '\n';
-            events_jsonl_ << line_buffer_;
+            events_jsonl_ << json.text() << '\n';
             ++replay.event_count;
             ++event_index_in_command;
         }
@@ -629,9 +625,7 @@ void RunArtifactWriter::write_lifecycle_records(const RunRecorder& recorder) {
             json.null();
         }
         json.end_object();
-        line_buffer_ = json.text();
-        line_buffer_ += '\n';
-        lifecycle_jsonl_ << line_buffer_;
+        lifecycle_jsonl_ << json.text() << '\n';
     }
 }
 
@@ -663,9 +657,7 @@ void RunArtifactWriter::write_fill_records(const RunRecorder& recorder) {
         if (record.has_mid_before) json.doubled_price_text(record.spread_capture_times_two);
         else json.null();
         json.end_object();
-        line_buffer_ = json.text();
-        line_buffer_ += '\n';
-        ledger_jsonl_ << line_buffer_;
+        ledger_jsonl_ << json.text() << '\n';
     }
 }
 
@@ -688,36 +680,34 @@ void RunArtifactWriter::write_markout_records(const RunRecorder& recorder) {
         if (record.status == MarkoutStatus::Measured) json.doubled_price_text(record.markout_times_two);
         else json.null();
         json.end_object();
-        line_buffer_ = json.text();
-        line_buffer_ += '\n';
-        markouts_jsonl_ << line_buffer_;
+        markouts_jsonl_ << json.text() << '\n';
     }
 }
 
 void RunArtifactWriter::write_series_samples(const RunRecorder& recorder) {
     for (const SeriesSample& sample : recorder.samples.records()) {
-        line_buffer_.clear();
-        append_csv_integer(line_buffer_, sample.time);
-        append_csv_price(line_buffer_, sample.exchange.has_bid, sample.exchange.bid_price);
-        append_csv_integer(line_buffer_, sample.exchange.has_bid ? sample.exchange.bid_qty : 0);
-        append_csv_price(line_buffer_, sample.exchange.has_ask, sample.exchange.ask_price);
-        append_csv_integer(line_buffer_, sample.exchange.has_ask ? sample.exchange.ask_qty : 0);
-        append_csv_price(line_buffer_, sample.visible.has_bid, sample.visible.bid_price);
-        append_csv_integer(line_buffer_, sample.visible.has_bid ? sample.visible.bid_qty : 0);
-        append_csv_price(line_buffer_, sample.visible.has_ask, sample.visible.ask_price);
-        append_csv_integer(line_buffer_, sample.visible.has_ask ? sample.visible.ask_qty : 0);
-        append_csv_signed(line_buffer_, sample.position);
-        append_csv_signed(line_buffer_, sample.known_position);
-        append_csv_price(line_buffer_, true, sample.cash);
-        append_csv_price(line_buffer_, true, sample.realized_pnl);
-        append_csv_price(line_buffer_, true, sample.fees);
-        append_csv_doubled_price(line_buffer_, sample.has_mark, sample.mark_times_two);
-        append_csv_doubled_price(line_buffer_, sample.has_equity, sample.unrealized_pnl_times_two);
-        append_csv_doubled_price(line_buffer_, sample.has_equity, sample.equity_times_two);
-        append_csv_integer(line_buffer_, sample.open_bid_qty);
-        line_buffer_ += std::to_string(sample.open_ask_qty);
-        line_buffer_ += '\n';
-        series_csv_ << line_buffer_;
+        series_line_buffer_.clear();
+        append_csv_integer(series_line_buffer_, sample.time);
+        append_csv_price(series_line_buffer_, sample.exchange.has_bid, sample.exchange.bid_price);
+        append_csv_integer(series_line_buffer_, sample.exchange.has_bid ? sample.exchange.bid_qty : 0);
+        append_csv_price(series_line_buffer_, sample.exchange.has_ask, sample.exchange.ask_price);
+        append_csv_integer(series_line_buffer_, sample.exchange.has_ask ? sample.exchange.ask_qty : 0);
+        append_csv_price(series_line_buffer_, sample.visible.has_bid, sample.visible.bid_price);
+        append_csv_integer(series_line_buffer_, sample.visible.has_bid ? sample.visible.bid_qty : 0);
+        append_csv_price(series_line_buffer_, sample.visible.has_ask, sample.visible.ask_price);
+        append_csv_integer(series_line_buffer_, sample.visible.has_ask ? sample.visible.ask_qty : 0);
+        append_csv_signed(series_line_buffer_, sample.position);
+        append_csv_signed(series_line_buffer_, sample.known_position);
+        append_csv_price(series_line_buffer_, true, sample.cash);
+        append_csv_price(series_line_buffer_, true, sample.realized_pnl);
+        append_csv_price(series_line_buffer_, true, sample.fees);
+        append_csv_doubled_price(series_line_buffer_, sample.has_mark, sample.mark_times_two);
+        append_csv_doubled_price(series_line_buffer_, sample.has_equity, sample.unrealized_pnl_times_two);
+        append_csv_doubled_price(series_line_buffer_, sample.has_equity, sample.equity_times_two);
+        append_csv_integer(series_line_buffer_, sample.open_bid_qty);
+        series_line_buffer_ += std::to_string(sample.open_ask_qty);
+        series_line_buffer_ += '\n';
+        series_csv_ << series_line_buffer_;
     }
 }
 
@@ -781,8 +771,9 @@ void RunArtifactWriter::finish(RunRecorder& recorder) {
 }
 
 void RunArtifactWriter::write_execution_decisions(const RunRecorder& recorder) {
+    JsonWriter json;
     for (const auto& row : recorder.decisions.records()) {
-        JsonWriter json;
+        json.clear();
         json.begin_object().key("index").integer_text(decisions_written_++);
         json.key("time_ns").integer_text(row.time).key("kind").string(row.report ? "child_report" : "decision");
         json.key("target_qty").integer_text(row.target).key("known_filled_qty").integer_text(row.filled);
@@ -797,7 +788,7 @@ void RunArtifactWriter::write_execution_decisions(const RunRecorder& recorder) {
         json.key("report_leaves_qty").integer_text(row.result.leaves_qty).key("report_cum_qty").integer_text(row.result.cum_qty);
         json.key("reject_reason").string(to_string(row.result.reject_reason)).key("cancel_reason").string(to_string(row.result.cancel_reason));
         json.end_object();
-        decisions_jsonl_ << json.take() << '\n';
+        decisions_jsonl_ << json.text() << '\n';
     }
 }
 

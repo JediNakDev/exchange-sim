@@ -153,9 +153,6 @@ SimulationCore::SimulationCore(const ExperimentConfig& experiment_config, std::u
     instrument_id_ = engine_.add_instrument(config_.instrument);
     if (instrument_id_ != kResearchInstrumentId) throw std::invalid_argument("research instrument rejected by the engine");
 
-    level_order_capacity_ = config_.engine.max_orders;
-    level_order_ids_ = std::make_unique<OrderId[]>(level_order_capacity_);
-
     derived_seeds_.push_back({"strategy", derive_stream_seed(run_master_seed, "strategy")});
     derived_seeds_.push_back({"latency", derive_stream_seed(run_master_seed, "latency")});
     for (std::size_t index = 0; index < config_.agents.size(); ++index) {
@@ -648,20 +645,17 @@ LifecycleRecord SimulationCore::capture_strategy_arrival(const StrategyRequestAr
     return row;
 }
 
-SimulationCore::LevelQueue SimulationCore::measure_level_queue(Side side, Price price, OrderId order_id) noexcept {
+SimulationCore::LevelQueue SimulationCore::measure_level_queue(Side side, Price price, OrderId order_id) const noexcept {
     LevelQueue level;
-    const std::size_t count = engine_.level_orders(instrument_id_, side, price, level_order_ids_.get(), level_order_capacity_);
-    for (std::size_t position = 0; position < count; ++position) {
-        const auto resting = engine_.find_order(level_order_ids_[position]);
-        if (!resting) continue;
-        level.level_qty += resting->leaves_qty;
-        if (order_id != 0 && level_order_ids_[position] == order_id) {
+    engine_.for_each_level_order(instrument_id_, side, price, [&](const OrderInfo& resting) {
+        level.level_qty += resting.leaves_qty;
+        if (order_id != 0 && resting.order_id == order_id) {
             level.found = true;
         } else if (!level.found) {
-            level.qty_ahead += resting->leaves_qty;
+            level.qty_ahead += resting.leaves_qty;
             ++level.orders_ahead;
         }
-    }
+    });
     return level;
 }
 

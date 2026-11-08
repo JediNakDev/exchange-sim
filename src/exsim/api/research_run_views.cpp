@@ -830,11 +830,7 @@ std::string ResearchRun::render_fills_json(const PageQuery& page, std::optional<
         filter_order = find_order_locked(*order_id);
         if (filter_order == nullptr) throw ApiFailure(404, "not_found", "no own order with orderId " + std::to_string(*order_id) + " in this run");
     }
-    // Markout rows by (fill index, horizon).
     const std::size_t horizons = config.metrics.markout_horizon_count;
-    std::unordered_map<std::uint64_t, std::size_t> markout_rows;
-    for (std::size_t index = 0; index < artifacts_.markouts.size(); ++index)
-        markout_rows[artifacts_.markouts[index].fill_index * research::kMaxMarkoutHorizons + artifacts_.markouts[index].horizon_index] = index;
 
     ApiJsonWriter json;
     json.begin_object();
@@ -910,17 +906,17 @@ std::string ResearchRun::render_fills_json(const PageQuery& page, std::optional<
         json.end_object();
         json.key("markouts").begin_array();
         for (std::size_t horizon = 0; horizon < horizons; ++horizon) {
-            const auto row = markout_rows.find(fill.fill_index * research::kMaxMarkoutHorizons + horizon);
+            const std::size_t row = artifacts_.markout_row(fill.fill_index, horizon);
+            const research::MarkoutRecord* markout = row == RunArtifacts::kNoMarkoutRow ? nullptr : &artifacts_.markouts[row];
             json.begin_object();
             json.key("horizonNs").unsigned_text(config.metrics.markout_horizons_ns[horizon]);
-            if (row != markout_rows.end() && artifacts_.markouts[row->second].status == research::MarkoutStatus::Measured) {
-                const research::MarkoutRecord& markout = artifacts_.markouts[row->second];
+            if (markout != nullptr && markout->status == research::MarkoutStatus::Measured) {
                 json.key("status").string("available");
-                json.key("referenceMidPrice").string(doubled(markout.mid_times_two));
-                json.key("markoutPerShare").string(doubled(markout.qty == 0 ? 0 : markout.markout_times_two / static_cast<std::int64_t>(markout.qty)));
-                json.key("markoutTotal").string(doubled(markout.markout_times_two));
+                json.key("referenceMidPrice").string(doubled(markout->mid_times_two));
+                json.key("markoutPerShare").string(doubled(markout->qty == 0 ? 0 : markout->markout_times_two / static_cast<std::int64_t>(markout->qty)));
+                json.key("markoutTotal").string(doubled(markout->markout_times_two));
             } else {
-                const bool unavailable = row != markout_rows.end() && artifacts_.markouts[row->second].status == research::MarkoutStatus::Unavailable;
+                const bool unavailable = markout != nullptr && markout->status == research::MarkoutStatus::Unavailable;
                 json.key("status").string(unavailable ? "unavailable_no_mark" : "censored_past_run_end");
                 json.key("referenceMidPrice").null();
                 json.key("markoutPerShare").null();

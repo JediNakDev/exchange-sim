@@ -311,8 +311,7 @@ private:
     };
     [[nodiscard]] LifecycleRecord capture_strategy_arrival(const StrategyRequestArrival& request,
                                                            std::uint64_t command_index) noexcept;
-    // Uses level_order_ids_ as scratch space.
-    [[nodiscard]] LevelQueue measure_level_queue(Side side, Price price, OrderId order_id) noexcept;
+    [[nodiscard]] LevelQueue measure_level_queue(Side side, Price price, OrderId order_id) const noexcept;
     bool handle_strategy_event(const Event& event, std::uint64_t command_index) noexcept;
     void handle_strategy_fill(const Event& event, const FillLeg& leg, Side side, std::uint64_t command_index) noexcept;
     void schedule_report(const ExecutionReport& report) noexcept;
@@ -344,8 +343,6 @@ private:
     MatchingEngine engine_;
     InstrumentId instrument_id_ = 0;
     EventBuffer event_buffer_;
-    std::unique_ptr<OrderId[]> level_order_ids_;
-    std::size_t level_order_capacity_ = 0;
 
     std::vector<std::unique_ptr<sim::bots::MarketMaker>> market_makers_;
     std::vector<std::unique_ptr<sim::bots::NoiseTaker>> noise_takers_;

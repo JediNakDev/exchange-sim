@@ -154,7 +154,7 @@ private:
     std::ofstream series_csv_;
     std::ofstream decisions_jsonl_;
     std::uint64_t decisions_written_ = 0;
-    std::string line_buffer_;
+    std::string series_line_buffer_;
     std::chrono::system_clock::time_point wall_started_;
     std::chrono::steady_clock::time_point steady_started_;
     bool begun_ = false;
