@@ -1,0 +1,301 @@
+Skip to research content
+exsim.
+Experiments
+Compare
+Connections
+Research
+Run analysis
+Seed 901
+completed
+run_b1771ba83140d3d6 / exp_5dc17a744b24255b, deterministic research, interactive synthetic
+Inspect events
+VALIDATION-RECHECK measured-zero-terminal
+twap execution; config 563ec1b981e4
+Events processed 1,191
+Simulated time 3.000 s of 3 s
+summary final at event 1191
+
+Run complete. Residual position 1 shares, residual open orders 0.
+
+Completion and execution cost
+
+final summary at event 1191
+
+Parent filled / requested (shares)
+1 / 1
+Parent completion (ratio)
+1.000000
+Parent residual quantity (shares)
+0
+Executed cost including fees (USD)
+0.01300
+Decision slippage, executed quantity (USD)
+0.01000
+
+Positive signed costs are worse for buys and sells. Shortfall includes net fees; slippage excludes fees. Both cover filled quantity only. Residual opportunity cost is unavailable, so lower cost with lower completion is not an unconditional improvement.
+
+Next decision
+Explain fills and queue events
+Create variant
+Compare against this experiment
+Native execution trace
+Schedule decisions and delivered reports explaining parent-order residuals.
+Refresh execution trace
+
+One page per request, up to 100 records. No automatic refresh. Refresh replaces this page; previous evidence is hidden until the request succeeds.
+
+Native reproduction and independent replay verified. native_reproduction_and_replay_verified
+
+Run
+run_b1771ba83140d3d6
+Run state
+completed
+Master seed
+901
+Parent quantity (shares)
+1
+Start (ns)
+1000000000
+Final target (shares)
+1
+Final target due (ns)
+1900000000
+Observation deadline (ns)
+2000000000
+Observation status
+window_observed
+Total trace records in run
+12
+
+Full execution window observed. Residual shares can remain despite a completed simulation. The final target is due at the scheduled time above; the deadline is not an extra final retry. TWAP does not retry after its final scheduled slice.
+
+Current page only: 12 exact records (10 decisions, 2 delivered child reports) out of 12 total. Tables and chart do not imply coverage of the entire run. Each decision is a scheduled TWAP callback or sweep retry on delivered data. Target due, known fills, outstanding reservation and residual are strategy-known shares at that callback, not final exchange fills. Requested shares are the positive target deficit before cap/lot rounding; headroom is worst-case same-side position capacity. Visible touch and source time refer only to delivered market data.
+
+Execution decisions on this page (shares)
+Current-page decision callbacks only, in simulated time; no interpolation to the final target or observation deadline. Child reports are excluded. Plot positions are approximate; sampled values are available below.
+Known filled (shares)
+Cumulative target due (shares)
+1s
+1.25s
+1.5s
+1.9s
+0
+0.25
+0.5
+0.75
+1
+Read sampled values for Execution decisions on this page (shares)
+Index	Callback (ns)	Target due (shares)	Known filled	Parent residual	Outstanding	Requested	Child cap	Position headroom	Submitted	Reason / skip	Client ID	Source sequence	Source time (ns)	Visible touch (USD)	Limit (USD)
+0	1000000000	0	0	1	0	0	200	500	0	target_satisfied	Unavailable	65	995881527	100.0300	100.0800
+1	1100000000	0	0	1	0	0	200	500	0	target_satisfied	Unavailable	72	1039387400	100.0100	100.0600
+2	1200000000	0	0	1	0	0	200	500	0	target_satisfied	Unavailable	77	1154933745	100.0300	100.0800
+3	1300000000	0	0	1	0	0	200	500	0	target_satisfied	Unavailable	85	1292159965	Unavailable	Unavailable
+4	1400000000	0	0	1	0	0	200	500	0	target_satisfied	Unavailable	94	1383046489	100.0100	100.0600
+5	1500000000	0	0	1	0	0	200	500	0	target_satisfied	Unavailable	97	1454787850	100.0100	100.0600
+6	1600000000	0	0	1	0	0	200	500	0	target_satisfied	Unavailable	103	1577283969	100.0300	100.0800
+7	1700000000	0	0	1	0	0	200	500	0	target_satisfied	Unavailable	113	1689668959	Unavailable	Unavailable
+8	1800000000	0	0	1	0	0	200	500	0	target_satisfied	Unavailable	120	1784685550	Unavailable	Unavailable
+9	1900000000	1	0	1	0	1	200	500	1	submitted	1	127	1867479639	100.0400	100.0900
+Delivered child reports on this page
+
+Delivery time differs from exchange time. Request-only zero/null fields on these reports are unused and excluded from the decision chart. Decision rows identify client ID and callback time; reports link to the exchange lifecycle when an order ID is available.
+
+Index	Delivered (ns)	Client ID	Report kind	Exchange (ns)	Exchange order / lifecycle	Match ID	Quantity	Leaves	Cumulative	Reject reason	Cancel reason	Trace reason
+10	1900229929	1	accepted	1900115489	195	0	1	1	0	NONE	USER_REQUESTED	accepted
+11	1900231100	1	fill	1900115489	195	125	1	0	1	NONE	USER_REQUESTED	fill
+Execution trace, page 1: 12 records; end of list
+Previous execution trace
+Next execution trace
+Reproduce and export
+Repeat this exact saved configuration and seed as a new attempt, or download complete native artifacts. A repeat creates new API identities; compare canonical event and ledger digests.
+Repeat this seed
+Download complete audit
+
+Local integrity and reproduction commands
+Equity (USD)
+last value in bucket, buckets of 10 ms. Plot positions are approximate; sampled values are available below.
+0.01s
+0.76s
+1.51s
+2.26s
+3s
+999999.975
+999999.9815
+999999.988
+999999.9945
+1000000.001
+Read sampled values for Equity (USD)
+Inventory (shares)
+last value in bucket, buckets of 10 ms. Plot positions are approximate; sampled values are available below.
+0.01s
+0.76s
+1.51s
+2.26s
+3s
+0
+0.25
+0.5
+0.75
+1
+Read sampled values for Inventory (shares)
+Drawdown (USD)
+last value in bucket, buckets of 10 ms. Plot positions are approximate; sampled values are available below.
+0.01s
+0.76s
+1.51s
+2.26s
+3s
+0
+0.006
+0.012
+0.018
+0.024
+Read sampled values for Drawdown (USD)
+Summary
+Manifest
+State history
+Parent-order execution
+Execution window observed
+A completed simulation can still leave unexecuted parent shares.
+Parent instruction
+buy 1 shares
+Filled parent shares
+1
+Fill notional (USD)
+100.0200
+Net fees paid (USD)
+0.0030
+Exchange mid at decision
+100.01000
+Delivered mid at decision
+100.01000
+Parent decision time
+1.000000 s
+First parent fill
+1.900115 s
+Last parent fill
+1.900115 s
+Participation market volume (shares)
+3,520
+Parent completion(derived)
+1.000000
+Parent residual quantity
+0
+Decision slippage, executed quantity
+0.01000
+Decision slippage per filled share(derived)
+0.010000
+Executed cost including fees
+0.01300
+Executed cost per filled share(derived)
+0.013000
+Participation through last parent fill(derived)
+0.000284
+
+Costs use the exchange-truth mid at the parent decision, which may differ from the delivered mid. Positive signed costs mean worse execution for either side. Decision slippage excludes fees; implementation shortfall includes net fees. Lower filled-quantity costs do not resolve completion risk. Costs cover filled quantity only; residual opportunity cost is unavailable. Total costs are in USD; per-share costs are in USD/share. Participation uses all market trades after declaration through the last parent fill, including own trades.
+
+Outbound request diagnostics
+Submitted counts are outbound requests by kind. Exchange rejections use that kind’s submitted count as denominator. Pre-trade host risk blocks occur before submission and are separate risk evidence. Replacements use the cancel/replace channel. Arrival transit is exchange arrival minus submit, in ns; samples cover observed arrivals, including rejected requests.
+Request	Submitted	Exchange rejected / submitted	Reject reasons (count)	Arrival samples	Min (ns)	Max (ns)	Mean (ns)
+New order	1	0 / 1	None reported	1	115489	115489	115489.000000
+Cancel	0	0 / 0	None reported	0	Unavailable	Unavailable	Unavailable
+Replace	0	0 / 0	None reported	0	Unavailable	Unavailable	Unavailable
+Ledger
+Equity = cash + position x mark (exchange mid). Net P&L = realized + unrealized - fees.
+Initial cash
+1,000,000.0000
+Cash
+999,899.9770
+Position (shares)
+1
+Mark
+100.02000
+Equity
+999,999.99700
+Gross realized P&L
+0.0000
+Unrealized P&L
+0.00000
+Net fees paid
+0.0030
+Net P&L
+-0.00300
+Average cost basis (derived)
+100.020000
+Spread capture total
+-0.01000
+Orders and risk
+filled shares of own orders divided by shares accepted by the exchange (new orders plus replace increases, including orders later cancelled)
+New orders submitted / accepted / rejected
+1 / 1 / 0
+Canceled (cancel races lost)
+0 (0)
+Fills (maker / taker)
+1 (0 / 1)
+Filled / submitted shares
+1 / 1
+Fill rate by shares (derived)
+1.000000
+Quote exposure time
+0 ns
+Max long / short (shares)
+1 / 0
+Orders blocked by risk
+0
+Max drawdown
+0.02300
+Drawdown peak to trough
+n/a to 2.000 s
+Markouts
+Signed markout uses exchange mid: buy = future mid - fill price; sell = fill price - future mid. It includes the initial spread edge, so it is not pure post-fill mid-price drift. The mean weights eligible shares, not fills. Totals include available fills only. Horizons not yet reached or past run end are censored, not zero.
+Horizon	Eligible fills	Eligible shares	No mark	Censored	Total (USD)	Mean per share (derived)
+1.1 s	1	1	0	0	0.00000	0.000000
+Latency observed
+Configured value versus what the event log shows.
+Path	Configured	Samples	Min	Max
+feed	50 µs	205	50.479 µs	69.871 µs
+order entry	100 µs	1	115.489 µs	115.489 µs
+acknowledgment	100 µs	2	114.44 µs	115.611 µs
+cancel	80 µs	0	n/a	n/a
+All metrics
+Exact metrics come from the fixed-point ledger; derived ones are rounded half-to-even after the fact.
+Metric	Value	Unit	Exactness
+Net P&L	-0.00300	USD	exact
+Ending equity	999,999.99700	USD	exact
+Gross realized P&L	0.0000	USD	exact
+Unrealized P&L	0.00000	USD	exact
+Net fees paid	0.0030	USD	exact
+Ending position	1	shares	exact
+Max long position	1	shares	exact
+Max short position	0	shares	exact
+Max drawdown	0.02300	USD	exact
+Fills	1	count	exact
+Filled shares	1	shares	exact
+Maker fills	0	count	exact
+Taker fills	1	count	exact
+Fill rate (shares)	1.000000	ratio	derived
+Orders submitted	1	count	exact
+New-order rejections	0	count	exact
+Cancel requests	0	count	exact
+Cancel rejections	0	count	exact
+Replace requests	0	count	exact
+Replace rejections	0	count	exact
+Orders canceled	0	count	exact
+Cancel races lost	0	count	exact
+Spread capture	-0.01000	USD	exact
+Markout total @ 1.1 s	0.00000	USD	exact
+Markout per eligible share @ 1.1 s	0.000000	USD/share	derived
+Markout eligible shares @ 1.1 s	1	shares	exact
+Markout eligible fills @ 1.1 s	1	count	exact
+Markout fills without a mark @ 1.1 s	0	count	exact
+Markout censored fills @ 1.1 s	0	count	exact
+Quote exposure time	0 ns	time	exact
+Parent completion	1.000000	ratio	derived
+Parent residual quantity	0	shares	exact
+Decision slippage, executed quantity	0.01000	USD	exact
+Decision slippage per filled share	0.010000	USD/share	derived
+Executed cost including fees	0.01300	USD	exact
+Executed cost per filled share	0.013000	USD/share	derived
+Participation through last parent fill	0.000284	ratio	derived
+exsim research
+1s

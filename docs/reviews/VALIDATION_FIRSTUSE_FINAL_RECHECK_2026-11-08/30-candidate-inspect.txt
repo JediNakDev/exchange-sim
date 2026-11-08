@@ -1,0 +1,72 @@
+Skip to research content
+exsim.
+
+Strategy research, explained.
+
+Experiments
+Compare
+Connections
+Interactive synthetic
+
+Controlled markets.
+Reproducible experiments.
+
+Build an experiment
+Simulated time
+Research
+Fill inspection
+Research mode
+Single venue
+Inspect seed
+101
+completed
+run_a73f11e0ae403273 / seed 101, 22,266 events processed. Run summary
+Candidate
+VALIDATION-RECHECK candidate
+immediate sweep execution; config 9632e6d2b84b
+Return to baseline / candidate comparison
+event 0 / 22265
+Go
+Focus this bar, then use the arrow keys (Shift for 25).
+#	Sim time	Stage	Event	Actor	Visibility	Order	Side	Price	Qty	Detail
+0	0.000000000 s	outbound order	order arrived at exchange	background market maker	exchange truth		buy	99.9900	100	background_market_maker order buy 100 @ 99.9900 reached the exchange
+1	0.000000000 s	exchange processing	order accepted	exchange	exchange truth	1	buy	99.9900	100	accepted order 1 buy 100 @ 99.9900
+2	0.000000000 s	exchange processing	order rested	exchange	exchange truth	1	buy	99.9900		order 1 rests 100 @ 99.9900
+3	0.000000000 s	outbound order	order arrived at exchange	background market maker	exchange truth		buy	99.9800	100	background_market_maker order buy 100 @ 99.9800 reached the exchange
+4	0.000000000 s	exchange processing	order accepted	exchange	exchange truth	2	buy	99.9800	100	accepted order 2 buy 100 @ 99.9800
+5	0.000000000 s	exchange processing	order rested	exchange	exchange truth	2	buy	99.9800		order 2 rests 100 @ 99.9800
+6	0.000000000 s	outbound order	order arrived at exchange	background market maker	exchange truth		buy	99.9700	100	background_market_maker order buy 100 @ 99.9700 reached the exchange
+7	0.000000000 s	exchange processing	order accepted	exchange	exchange truth	3	buy	99.9700	100	accepted order 3 buy 100 @ 99.9700
+8	0.000000000 s	exchange processing	order rested	exchange	exchange truth	3	buy	99.9700		order 3 rests 100 @ 99.9700
+9	0.000000000 s	outbound order	order arrived at exchange	background market maker	exchange truth		sell	100.0100	100	background_market_maker order sell 100 @ 100.0100 reached the exchange
+10	0.000000000 s	exchange processing	order accepted	exchange	exchange truth	4	sell	100.0100	100	accepted order 4 sell 100 @ 100.0100
+11	0.000000000 s	exchange processing	order rested	exchange	exchange truth	4	sell	100.0100		order 4 rests 100 @ 100.0100
+12	0.000000000 s	outbound order	order arrived at exchange	background market maker	exchange truth		sell	100.0200	100	background_market_maker order sell 100 @ 100.0200 reached the exchange
+Exchange truth
+exact simulated truth
+Own	Orders	Shares	Price
+Empty book
+Strategy-visible
+exact simulated truth. The feed delivers top of book only, without order counts
+Own	Orders	Shares	Price
+Empty book
+Fill explanation
+Select a fill or an own order below to see its lifecycle, queue position and ledger effect.
+
+Select a fill or an own order to explain it.
+
+Fills
+Own orders
+Fills, page 1: 6 records; end of list
+Previous fills
+Next fills
+Match	Event	Sim time	Order	Side	Price	Qty	Role	Queue ahead at rest	Position after	Realized change
+63	383	1.000113100 s	95	buy	99.9900	100	taker	n/a	100	0.0000
+64	384	1.000113100 s	95	buy	100.0000	100	taker	n/a	200	0.0000
+65	396	1.005742344 s	97	buy	100.0100	100	taker	n/a	300	0.0000
+66	397	1.005742344 s	97	buy	100.0200	100	taker	n/a	400	0.0000
+70	424	1.066024722 s	102	buy	100.0200	96	taker	n/a	496	0.0000
+73	465	1.100184471 s	112	buy	99.9900	4	taker	n/a	500	0.0000
+exsim research
+Inspect the assumptions behind every result.
+20

@@ -1,0 +1,299 @@
+Skip to research content
+exsim.
+Experiments
+Compare
+Connections
+Research
+Paired comparison
+Compare experiments
+Judge candidate outcomes against a baseline on matched seeds, then inspect the runs behind the difference.
+Baseline
+VALIDATION-RECHECK measured-zero-terminal
+exp_5dc17a744b24255b
+Candidate
+VALIDATION-RECHECK measured-zero-twin
+exp_e4dcf40b3917bc6d
+Paired seeds
+Only reproduced, completed runs enter this paired comparison. Failed, incomplete and unpaired runs are excluded; this can bias the result.
+
+Paired (1): 901
+
+Baseline only: none
+
+Candidate only: none
+
+VALIDATION-RECHECK measured-zero-terminal vs VALIDATION-RECHECK measured-zero-twin
+
+Assumption differences (0)
+Everything that differs between the two configurations. If more than the variable under test changed, the comparison mixes effects.
+Category	Assumption	Baseline	Candidate
+Identical configurations.
+Comparison eligibility and selected attempts
+Most recent eligible attempt in creation order, once per planned seed and experiment. Pin this cohort before sharing. Failed, cancelled, incomplete, censored execution windows and failed reproduction are excluded; a fully observed execution window may still leave parent shares unfilled.
+
+0 ineligible attempts; 0 execution windows cut short. 0 planned seed entries never launched. Inspect reasons below before interpreting directional outcomes.
+
+Inspect every planned seed and run attempt
+Execution completion and filled-quantity costs by seed
+
+Cost totals are USD on executed shares, including net fees, against the exchange mid at parent declaration. Residual opportunity cost is unavailable. Compare both quantities and costs before preferring an alternative.
+
+Seed	Baseline	Candidate
+901
+
+Filled shares: 1
+
+Residual shares: 0
+
+Completion ratio: 1.000000
+
+Executed cost incl fees (USD): 0.01300
+
+
+
+Filled shares: 1
+
+Residual shares: 0
+
+Completion ratio: 1.000000
+
+Executed cost incl fees (USD): 0.01300
+
+Request and quote-update diagnostics by selected attempt
+Markout eligibility and conditional fill quality
+
+Quantity-weighted signed USD/share against exchange mid: buy = future mid - fill price; sell = fill price - future mid. Includes initial spread edge, not pure mid-price drift. Compare eligible shares and censored coverage alongside conditional values; USD totals describe economic scale.
+
+Side / seed / horizon	Eligible shares / fills	No mark / censored fills	USD / eligible share	Total USD
+Baseline / 901 / 1.1 s	1 / 1	0 / 0	0.000000	0.00000
+Candidate / 901 / 1.1 s	1 / 1	0 / 0	0.000000	0.00000
+Pin selected attempts
+Download comparison receipt
+
+This URL follows the latest eligible attempts until pinned. Receipt records selected runs and artifact digests; later attempts remain visible in the ledger.
+
+Candidate impact across matched seeds
+Candidate minus baseline. Costs and completion must be judged together. Synthetic seed results do not establish real-market profitability.
+Read costs with completion
+
+Costs use the exchange mid at parent declaration, not each child’s arrival mid. Positive signed costs are worse for buys and sells. Decision slippage excludes fees; executed cost including fees adds net fees.
+
+Costs cover filled shares only, in USD or USD/share as labeled. Unexecuted opportunity cost is unavailable. A lower cost on fewer filled shares is not an unconditional improvement.
+
+Participation divides parent fills by all market-traded shares from declaration through the last parent fill, including own trades. Different last-fill times mean different volume horizons.
+
+Parent completion
+
+0.000000 ratio
+
+No mean difference
+
+n = 1; better / worse / tied: 0 / 0 / 1
+
+Parent residual quantity
+
+0.000000 shares
+
+No mean difference
+
+n = 1; better / worse / tied: 0 / 0 / 1
+
+Executed cost including fees
+
+0.000000 USD
+
+No mean difference
+
+n = 1; better / worse / tied: 0 / 0 / 1
+
+Decision slippage, executed quantity
+
+0.000000 USD
+
+No mean difference
+
+n = 1; better / worse / tied: 0 / 0 / 1
+
+Paired difference to inspect
+Parent completion
+
+No mean difference. Positive differences favor the candidate. Available pairs: 1 of 1. Dispersion and standard error require at least two observations.
+
+901
+Master seed
+0
+1
+2
+3
+4
+ratio
+
+Plot positions are approximate. The table retains service values (derived); missing values are unavailable. Zero means tied, not missing. Open either run to inspect the outcome.
+
+Seed	Baseline	Candidate	Difference (ratio)
+901	1.000000	1.000000	0.000000
+Charted runs
+Mean across paired seeds (derived)
+
+All charts share one simulated-time axis. Gaps mean a run had ended or not yet started.
+
+Equity (USD)
+Mean across paired seeds. Plot positions are approximate; sampled values are available below.
+Baseline
+Candidate
+0.0125s
+0.7625s
+1.5125s
+2.2625s
+3s
+999999.975
+999999.9815
+999999.988
+999999.9945
+1000000.001
+Read sampled values for Equity (USD)
+Inventory (shares)
+Mean across paired seeds. Plot positions are approximate; sampled values are available below.
+Baseline
+Candidate
+0.0125s
+0.7625s
+1.5125s
+2.2625s
+3s
+0
+0.25
+0.5
+0.75
+1
+Read sampled values for Inventory (shares)
+Drawdown (USD)
+Mean across paired seeds. Plot positions are approximate; sampled values are available below.
+Baseline
+Candidate
+0.0125s
+0.7625s
+1.5125s
+2.2625s
+3s
+0
+0.006
+0.012
+0.018
+0.024
+Read sampled values for Drawdown (USD)
+Metric differences
+Mean, sample standard deviation (n - 1) and standard error of the paired differences. With few seeds, read the per-seed values and the better / worse counts, not just the mean.
+Metric	Unit	n	Mean diff	Std dev	Std error	Min diff	Max diff	Better / worse / tied	Per-seed differences (candidate - baseline)
+Net P&L	USD, higher is better	1	0.000000	n/a	n/a	0.00000	0.00000	0 / 0 / 1
+901: 0.00000
+
+Ending equity	USD, higher is better	1	0.000000	n/a	n/a	0.00000	0.00000	0 / 0 / 1
+901: 0.00000
+
+Gross realized P&L	USD, higher is better	1	0.000000	n/a	n/a	0.0000	0.0000	0 / 0 / 1
+901: 0.0000
+
+Unrealized P&L	USD, higher is better	1	0.000000	n/a	n/a	0.00000	0.00000	0 / 0 / 1
+901: 0.00000
+
+Net fees paid	USD, lower is better	1	0.000000	n/a	n/a	0.0000	0.0000	0 / 0 / 1
+901: 0.0000
+
+Ending position	shares	1	0.000000	n/a	n/a	0	0	Not applicable
+901: 0
+
+Max long position	shares	1	0.000000	n/a	n/a	0	0	Not applicable
+901: 0
+
+Max short position	shares	1	0.000000	n/a	n/a	0	0	Not applicable
+901: 0
+
+Max drawdown	USD, lower is better	1	0.000000	n/a	n/a	0.00000	0.00000	0 / 0 / 1
+901: 0.00000
+
+Fills	count	1	0.000000	n/a	n/a	0	0	Not applicable
+901: 0
+
+Filled shares	shares	1	0.000000	n/a	n/a	0	0	Not applicable
+901: 0
+
+Maker fills	count	1	0.000000	n/a	n/a	0	0	Not applicable
+901: 0
+
+Taker fills	count	1	0.000000	n/a	n/a	0	0	Not applicable
+901: 0
+
+Fill rate (shares)derived	ratio	1	0.000000	n/a	n/a	0.000000	0.000000	Not applicable
+901: 0.000000
+
+Orders submitted	count	1	0.000000	n/a	n/a	0	0	Not applicable
+901: 0
+
+New-order rejections	count	1	0.000000	n/a	n/a	0	0	Not applicable
+901: 0
+
+Cancel requests	count	1	0.000000	n/a	n/a	0	0	Not applicable
+901: 0
+
+Cancel rejections	count	1	0.000000	n/a	n/a	0	0	Not applicable
+901: 0
+
+Replace requests	count	1	0.000000	n/a	n/a	0	0	Not applicable
+901: 0
+
+Replace rejections	count	1	0.000000	n/a	n/a	0	0	Not applicable
+901: 0
+
+Orders canceled	count	1	0.000000	n/a	n/a	0	0	Not applicable
+901: 0
+
+Cancel races lost	count, lower is better	1	0.000000	n/a	n/a	0	0	0 / 0 / 1
+901: 0
+
+Spread capture	USD, higher is better	1	0.000000	n/a	n/a	0.00000	0.00000	0 / 0 / 1
+901: 0.00000
+
+Markout total @ 1.1 s	USD, higher is better	1	0.000000	n/a	n/a	0.00000	0.00000	0 / 0 / 1
+901: 0.00000
+
+Markout per eligible share @ 1.1 sderived	USD/share, higher is better	1	0.000000	n/a	n/a	0.000000	0.000000	0 / 0 / 1
+901: 0.000000
+
+Markout eligible shares @ 1.1 s	shares	1	0.000000	n/a	n/a	0	0	Not applicable
+901: 0
+
+Markout eligible fills @ 1.1 s	count	1	0.000000	n/a	n/a	0	0	Not applicable
+901: 0
+
+Markout fills without a mark @ 1.1 s	count	1	0.000000	n/a	n/a	0	0	Not applicable
+901: 0
+
+Markout censored fills @ 1.1 s	count	1	0.000000	n/a	n/a	0	0	Not applicable
+901: 0
+
+Quote exposure time	time	1	+0 ns	n/a	n/a	0 ns	0 ns	Not applicable
+901: 0 ns
+
+Parent completionderived	ratio, higher is better	1	0.000000	n/a	n/a	0.000000	0.000000	0 / 0 / 1
+901: 0.000000
+
+Parent residual quantity	shares, lower is better	1	0.000000	n/a	n/a	0	0	0 / 0 / 1
+901: 0
+
+Decision slippage, executed quantity	USD, lower is better	1	0.000000	n/a	n/a	0.00000	0.00000	0 / 0 / 1
+901: 0.00000
+
+Decision slippage per filled sharederived	USD/share, lower is better	1	0.000000	n/a	n/a	0.000000	0.000000	0 / 0 / 1
+901: 0.000000
+
+Executed cost including fees	USD, lower is better	1	0.000000	n/a	n/a	0.00000	0.00000	0 / 0 / 1
+901: 0.00000
+
+Executed cost per filled sharederived	USD/share, lower is better	1	0.000000	n/a	n/a	0.000000	0.000000	0 / 0 / 1
+901: 0.000000
+
+Participation through last parent fillderived	ratio	1	0.000000	n/a	n/a	0.000000	0.000000	Not applicable
+901: 0.000000
+exsim research
+0.006

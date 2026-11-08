@@ -1,0 +1,234 @@
+Skip to research content
+exsim.
+
+Strategy research, explained.
+
+Experiments
+Compare
+Connections
+Interactive synthetic
+
+Controlled markets.
+Reproducible experiments.
+
+Build an experiment
+Simulated time
+Research
+Run analysis
+Research mode
+Single venue
+Seed 103
+cancelled
+run_866d04015e206d3d / exp_59aba9ec14e219e2, deterministic research, interactive synthetic
+Inspect events
+VALIDATION-RECHECK baseline
+twap execution; config ea7ababd69fb
+Events processed 100
+Simulated time 0.185 s of 60 s
+summary final at event 100
+
+cancelled by request; the residual position and open orders are kept (runner termination: cancel_requested) Residual position 0 shares, residual open orders 0.
+
+Completion and execution cost
+
+final summary at event 100
+
+Parent filled / requested (shares)
+n/a / 500
+Parent completion (ratio)
+parent order not declared
+Parent residual quantity (shares)
+parent order not declared
+Executed cost including fees (USD)
+parent order not declared
+Decision slippage, executed quantity (USD)
+parent order not declared
+
+Positive signed costs are worse for buys and sells. Shortfall includes net fees; slippage excludes fees. Both cover filled quantity only. Residual opportunity cost is unavailable, so lower cost with lower completion is not an unconditional improvement.
+
+Next decision
+Explain fills and queue events
+Create variant
+Compare against this experiment
+Native execution trace
+Schedule decisions and delivered reports explaining parent-order residuals.
+Refresh execution trace
+
+One page per request, up to 100 records. No automatic refresh. Refresh replaces this page; previous evidence is hidden until the request succeeds.
+
+Loading execution trace page; no current evidence available.
+
+Loading execution trace...
+Previous execution trace
+Next execution trace
+Reproduce and export
+Repeat this exact saved configuration and seed as a new attempt, or download complete native artifacts. A repeat creates new API identities; compare canonical event and ledger digests.
+Repeat this seed
+Download complete audit
+
+Local integrity and reproduction commands
+Summary
+Manifest
+State history
+Parent-order execution
+Execution window cut short
+Parent metrics are unavailable before the scheduled decision.
+Parent instruction
+buy 500 shares
+Filled parent shares
+n/a
+Fill notional (USD)
+n/a
+Net fees paid (USD)
+n/a
+Exchange mid at decision
+n/a
+Delivered mid at decision
+n/a
+Parent decision time
+Not declared yet
+First parent fill
+No fill observed
+Last parent fill
+No fill observed
+Participation market volume (shares)
+n/a
+Parent completion(derived)
+parent order not declared
+Parent residual quantity
+parent order not declared
+Decision slippage, executed quantity
+parent order not declared
+Decision slippage per filled share(derived)
+parent order not declared
+Executed cost including fees
+parent order not declared
+Executed cost per filled share(derived)
+parent order not declared
+Participation through last parent fill(derived)
+parent order not declared
+
+Costs use the exchange-truth mid at the parent decision, which may differ from the delivered mid. Positive signed costs mean worse execution for either side. Decision slippage excludes fees; implementation shortfall includes net fees. Lower filled-quantity costs do not resolve completion risk. Costs cover filled quantity only; residual opportunity cost is unavailable. Total costs are in USD; per-share costs are in USD/share. Participation uses all market trades after declaration through the last parent fill, including own trades.
+
+Outbound request diagnostics
+Submitted counts are outbound requests by kind. Exchange rejections use that kind’s submitted count as denominator. Pre-trade host risk blocks occur before submission and are separate risk evidence. Replacements use the cancel/replace channel. Arrival transit is exchange arrival minus submit, in ns; samples cover observed arrivals, including rejected requests.
+Request	Submitted	Exchange rejected / submitted	Reject reasons (count)	Arrival samples	Min (ns)	Max (ns)	Mean (ns)
+New order	0	0 / 0	None reported	0	Unavailable	Unavailable	Unavailable
+Cancel	0	0 / 0	None reported	0	Unavailable	Unavailable	Unavailable
+Replace	0	0 / 0	None reported	0	Unavailable	Unavailable	Unavailable
+Ledger
+Equity = cash + position x mark (exchange mid). Net P&L = realized + unrealized - fees.
+Initial cash
+1,000,000.0000
+Cash
+1,000,000.0000
+Position (shares)
+0
+Mark
+100.00000
+Equity
+1,000,000.00000
+Gross realized P&L
+0.0000
+Unrealized P&L
+0.00000
+Net fees paid
+0.0000
+Net P&L
+0.00000
+Average cost basis (derived)
+n/a
+Spread capture total
+0.00000
+Orders and risk
+filled shares of own orders divided by shares accepted by the exchange (new orders plus replace increases, including orders later cancelled)
+New orders submitted / accepted / rejected
+0 / 0 / 0
+Canceled (cancel races lost)
+0 (0)
+Fills (maker / taker)
+0 (0 / 0)
+Filled / submitted shares
+0 / 0
+Fill rate by shares (derived)
+n/a
+Quote exposure time
+0 ns
+Max long / short (shares)
+0 / 0
+Orders blocked by risk
+0
+Max drawdown
+0.00000
+Drawdown peak to trough
+n/a to n/a
+Markouts
+Signed markout uses exchange mid: buy = future mid - fill price; sell = fill price - future mid. It includes the initial spread edge, so it is not pure post-fill mid-price drift. The mean weights eligible shares, not fills. Totals include available fills only. Horizons not yet reached or past run end are censored, not zero.
+Horizon	Eligible fills	Eligible shares	No mark	Censored	Total (USD)	Mean per share (derived)
+100 ms	0	0	0	0	Unavailable: no eligible fills	n/a
+1 s	0	0	0	0	Unavailable: no eligible fills	n/a
+5 s	0	0	0	0	Unavailable: no eligible fills	n/a
+Latency observed
+Configured value versus what the event log shows.
+Path	Configured	Samples	Min	Max
+feed	50 µs	20	50.395 µs	69.532 µs
+order entry	100 µs	0	n/a	n/a
+acknowledgment	100 µs	0	n/a	n/a
+cancel	80 µs	0	n/a	n/a
+All metrics
+Exact metrics come from the fixed-point ledger; derived ones are rounded half-to-even after the fact.
+Metric	Value	Unit	Exactness
+Net P&L	0.00000	USD	exact
+Ending equity	1,000,000.00000	USD	exact
+Gross realized P&L	0.0000	USD	exact
+Unrealized P&L	0.00000	USD	exact
+Net fees paid	0.0000	USD	exact
+Ending position	0	shares	exact
+Max long position	0	shares	exact
+Max short position	0	shares	exact
+Max drawdown	0.00000	USD	exact
+Fills	0	count	exact
+Filled shares	0	shares	exact
+Maker fills	0	count	exact
+Taker fills	0	count	exact
+Fill rate (shares)	no shares submitted	ratio	derived
+Orders submitted	0	count	exact
+New-order rejections	0	count	exact
+Cancel requests	0	count	exact
+Cancel rejections	0	count	exact
+Replace requests	0	count	exact
+Replace rejections	0	count	exact
+Orders canceled	0	count	exact
+Cancel races lost	0	count	exact
+Spread capture	0.00000	USD	exact
+Markout total @ 100 ms	no_measured_markout_shares	USD	exact
+Markout per eligible share @ 100 ms	no_measured_markout_shares	USD/share	derived
+Markout eligible shares @ 100 ms	0	shares	exact
+Markout eligible fills @ 100 ms	0	count	exact
+Markout fills without a mark @ 100 ms	0	count	exact
+Markout censored fills @ 100 ms	0	count	exact
+Markout total @ 1 s	no_measured_markout_shares	USD	exact
+Markout per eligible share @ 1 s	no_measured_markout_shares	USD/share	derived
+Markout eligible shares @ 1 s	0	shares	exact
+Markout eligible fills @ 1 s	0	count	exact
+Markout fills without a mark @ 1 s	0	count	exact
+Markout censored fills @ 1 s	0	count	exact
+Markout total @ 5 s	no_measured_markout_shares	USD	exact
+Markout per eligible share @ 5 s	no_measured_markout_shares	USD/share	derived
+Markout eligible shares @ 5 s	0	shares	exact
+Markout eligible fills @ 5 s	0	count	exact
+Markout fills without a mark @ 5 s	0	count	exact
+Markout censored fills @ 5 s	0	count	exact
+Quote exposure time	0 ns	time	exact
+Parent completion	parent_order_not_declared	ratio	derived
+Parent residual quantity	parent_order_not_declared	shares	exact
+Decision slippage, executed quantity	parent_order_not_declared	USD	exact
+Decision slippage per filled share	parent_order_not_declared	USD/share	derived
+Executed cost including fees	parent_order_not_declared	USD	exact
+Executed cost per filled share	parent_order_not_declared	USD/share	derived
+Participation through last parent fill	parent_order_not_declared	ratio	derived
+exsim research
+Inspect the assumptions behind every result.
+cancel accepted; run is cancelled
+step accepted; run is paused
+0
