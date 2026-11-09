@@ -1,6 +1,0 @@
-Restart, old-sidecar, corrupt-pin, symlink, oversized pass; partial corruption counterexample reproduced
-Traceback (most recent call last):
-  File "/Users/jedi/.t3/worktrees/lob/t3-ff6e6207/docs/reviews/NATIVE_PERSONA_RECHECK_2026-11-08/restart_probe.py", line 5, in <module>
-    src=pathlib.Path(__file__).with_name('probe.py').read_text();exec(src[:src.index("c=json.loads")])
-  File "<string>", line 6, in <module>
-ValueError: too many values to unpack (expected 5)

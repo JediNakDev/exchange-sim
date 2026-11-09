@@ -1,8 +1,8 @@
 // Exact execution decision pagination and recorded partial terminal evidence.
-#include "exsim/api/research_run.hpp"
-#include "exsim/api/api_json.hpp"
-#include "exsim/research/run_artifacts.hpp"
-#include "exsim/research/json.hpp"
+#include "api/research_run.hpp"
+#include "api/api_json.hpp"
+#include "research/run_artifacts.hpp"
+#include "research/json.hpp"
 #include <fstream>
 #include <limits>
 namespace exsim::api {

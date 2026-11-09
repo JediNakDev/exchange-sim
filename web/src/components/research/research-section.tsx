@@ -7,7 +7,7 @@ type ResearchSectionProps = Omit<ComponentProps<"section">, "title"> & {
   actions?: ReactNode;
 };
 
-/** A page section: h2 title, optional description and actions, then content. See docs/UI_DESIGN.md section 5. */
+/** A page section: h2 title, optional description and actions, then content. See UI design section 5. */
 export function ResearchSection({ title, description, actions, className, children, ...sectionProps }: ResearchSectionProps) {
   const headingId = useId();
   // An explicit aria-label names the region instead of the visible heading, because aria-labelledby would override it.

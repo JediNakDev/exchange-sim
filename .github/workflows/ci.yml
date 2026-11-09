@@ -25,7 +25,7 @@ jobs:
         run: make -j4 test MODE=${{ matrix.mode }} CXX=${{ matrix.cxx }} EXTRA_CXXFLAGS=-Werror
       - name: tools and examples
         if: matrix.mode == 'release'
-        run: make -j4 tools examples MODE=release CXX=${{ matrix.cxx }} EXTRA_CXXFLAGS=-Werror
+        run: make -j4 apps test-tools MODE=release CXX=${{ matrix.cxx }} EXTRA_CXXFLAGS=-Werror
 
   research-postgres:
     name: PostgreSQL metadata, isolated workers and recovery
@@ -56,7 +56,7 @@ jobs:
       - name: native API with PostgreSQL
         run: make -j2 WITH_POSTGRES=1 build/release/exsim_api EXTRA_CXXFLAGS=-Werror
       - name: real database lifecycle and failure tests
-        run: python3 tests/integration/postgres_api_test.py
+        run: python3 test/integration/postgres_api_test.py
 
   research-compose:
     name: container deployment and persistent research results
@@ -68,11 +68,11 @@ jobs:
         run: |
           sh docker/create-secrets.sh
           docker compose config --quiet
-          python3 tests/integration/compose_secrets_test.py
+          python3 test/integration/compose_secrets_test.py
       - name: build runtime images
         run: docker compose build
       - name: deploy, execute a real run and recreate the stack
-        run: python3 tests/integration/compose_deployment_test.py
+        run: python3 test/integration/compose_deployment_test.py
 
   research-web:
     name: research UI, HTTP contract and delivery invariants
@@ -99,12 +99,14 @@ jobs:
         run: |
           bun run typecheck
           bun run lint --max-warnings 0
-          bun test ./tests
+          bun run test
       - name: production frontend
         working-directory: web
         run: bun run build
       - name: native API and artifact verifier for browser contracts
         run: make -j2 build/release/exsim_api build/release/exsim_research CXX=clang++ EXTRA_CXXFLAGS=-Werror
+      - name: selected exchange protocols over real worker sessions
+        run: python3 test/integration/research_sessions_test.py
       - name: browser failure and recovery invariants
         working-directory: web
         run: |
@@ -112,9 +114,9 @@ jobs:
           bun run test:browser
       - name: real HTTP contract and native artifact integration
         working-directory: web
-        run: bun test ./e2e/exsim-api-binary.e2e.ts
+        run: bun test ./test/e2e/exsim-api-binary.e2e.ts
       - name: package and offline restore invariants
-        run: python3 -B scripts/deployment/test_research_delivery.py
+        run: python3 -B test/integration/test_research_delivery.py
       - name: keep browser failure traces
         if: failure()
         uses: actions/upload-artifact@v4
@@ -129,7 +131,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: build optimised tools
-        run: make -j4 tools MODE=perf CXX=clang++
+        run: make -j4 test-tools MODE=perf CXX=clang++
       - name: engine benchmark (fails on any hot-path allocation)
         run: ./build/perf/exsim_bench --ops 200000
       - name: codec benchmark (fails on any allocation or codec error)
@@ -152,9 +154,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: build research runner
-        run: make -j4 tools MODE=release CXX=${{ matrix.cxx }} EXTRA_CXXFLAGS=-Werror
+        run: make -j4 test-tools MODE=release CXX=${{ matrix.cxx }} EXTRA_CXXFLAGS=-Werror
       - name: run every research config over fixed seeds
-        run: sh .github/scripts/research_digests.sh build/release/exsim_research "research-digests-${{ matrix.os }}-${{ matrix.cxx }}.txt"
+        run: sh test/integration/research_digests.sh build/release/exsim_research "research-digests-${{ matrix.os }}-${{ matrix.cxx }}.txt"
       - uses: actions/upload-artifact@v4
         with:
           name: research-digests-${{ matrix.os }}-${{ matrix.cxx }}
@@ -197,7 +199,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: build fuzzer
-        run: make -j4 tools MODE=${{ matrix.mode }} CXX=clang++ EXTRA_CXXFLAGS=-Werror
+        run: make -j4 test-tools MODE=${{ matrix.mode }} CXX=clang++ EXTRA_CXXFLAGS=-Werror
       - name: canary (an injected oracle bug must be caught)
         run: |
           if ./build/${{ matrix.mode }}/exsim_fuzz --inject --profile mixed --seeds 50 --steps 2000 \

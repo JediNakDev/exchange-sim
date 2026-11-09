@@ -1,6 +1,6 @@
-#include "exsim/api/canonical_event_log.hpp"
+#include "api/canonical_event_log.hpp"
 
-#include "exsim/api/api_json.hpp"
+#include "api/api_json.hpp"
 
 #include <algorithm>
 #include <stdexcept>
@@ -541,7 +541,10 @@ void CanonicalEventBuilder::append_command(const CommandRecord& command_record, 
                     record.present |= kHasOrderId;
                     record.order_id = rejected.order_id;
                 }
-                reports_to_strategy = rejected.session == research::kStrategySessionId;
+                const bool silent_ouch = config_.order_entry_protocol == server::Protocol::Ouch42 &&
+                    (rejected.cmd == CommandType::Cancel ||
+                    (rejected.cmd == CommandType::Replace && rejected.reason == RejectReason::UnknownOrder));
+                reports_to_strategy = rejected.session == research::kStrategySessionId && !silent_ouch;
                 break;
             }
             case EventType::Rested: {
@@ -656,9 +659,9 @@ void CanonicalEventBuilder::append_command(const CommandRecord& command_record, 
         log.push_back(record);
     }
 
-    // The runner publishes market data after a command that traded or moved the top of book.
+    // Full ITCH delivery includes deeper-book changes and every nonempty event batch.
     const research::TopOfBook top_after = shadow_top_of_book();
-    if (trade_count > 0 || !(top_after == last_published_top_)) {
+    if (event_buffer_.size() != 0 || trade_count > 0 || !(top_after == last_published_top_)) {
         last_published_top_ = top_after;
         ++published_market_data_count_;
         const std::uint64_t source = log.empty() ? kNoEventPosition : log.size() - 1;

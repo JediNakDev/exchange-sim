@@ -1,4 +1,4 @@
-# exsim
+# Exsim
 
 A simple exchange simulator for testing trading strategies with various trading protocal supported.
 

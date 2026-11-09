@@ -1,6 +1,6 @@
-#include "exsim/api/research_service.hpp"
-#include "exsim/api/api_json.hpp"
-#include "exsim/research/run_artifacts.hpp"
+#include "api/research_service.hpp"
+#include "api/api_json.hpp"
+#include "research/run_artifacts.hpp"
 #include <algorithm>
 
 namespace exsim::api {

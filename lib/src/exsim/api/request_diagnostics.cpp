@@ -1,5 +1,5 @@
-#include "exsim/api/request_diagnostics.hpp"
-#include "exsim/api/api_json.hpp"
+#include "api/request_diagnostics.hpp"
+#include "api/api_json.hpp"
 #include <map>
 #include <algorithm>
 #include <deque>

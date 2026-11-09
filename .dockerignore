@@ -16,3 +16,6 @@ build
 **/playwright-report
 **/__pycache__
 **/.DS_Store
+
+# Standalone book tools are outside the exsim runtime images.
+legacy/

@@ -1,7 +1,7 @@
-#include "exsim/research/run_compare.hpp"
+#include "research/run_compare.hpp"
 
-#include "exsim/research/json.hpp"
-#include "exsim/research/run_artifacts.hpp"
+#include "research/json.hpp"
+#include "research/run_artifacts.hpp"
 
 #include <algorithm>
 #include <charconv>

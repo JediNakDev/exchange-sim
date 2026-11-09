@@ -1,4 +1,4 @@
-#include <exsim/net/stream_buffers.hpp>
+#include <net/stream_buffers.hpp>
 namespace exsim::net {
 ReceiveResult ReceiveBuffer::receive_from(int fd) noexcept {
     const auto tail = writable_tail();

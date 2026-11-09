@@ -1,4 +1,4 @@
-#include "exsim/research/process_simulation.hpp"
+#include "research/process_simulation.hpp"
 #include <bit>
 
 namespace exsim::research {
@@ -11,11 +11,26 @@ StrategyIdentity builtin_strategy_identity(StrategyKind kind) {
     }
     throw std::invalid_argument("unknown built-in strategy kind");
 }
-ProcessSimulation::ProcessSimulation(const ExperimentConfig& config, std::uint64_t seed) : SimulationCore(config,seed) {
-    ipc::Frame bootstrap; std::uint32_t version = 1;
+ProcessSimulation::ProcessSimulation(const ExperimentConfig& config, std::uint64_t seed) : SimulationCore(config,seed), session_(*this) {
+    ipc::Frame bootstrap; std::uint32_t version = 2;
     bootstrap.fields(version,seed);
     bootstrap.field(const_cast<StrategyConfig&>(config.strategy));
-    bootstrap.field(const_cast<RiskLimits&>(config.risk)); ipc::send_frame(trader_.socket(),bootstrap);
+    bootstrap.field(const_cast<RiskLimits&>(config.risk));
+    bootstrap.field(const_cast<InstrumentConfig&>(config.instrument));
+    auto protocol = config.order_entry_protocol; bootstrap.field(protocol);
+    auto max_orders = static_cast<std::uint64_t>(config.engine.max_orders); bootstrap.field(max_orders);
+    ipc::send_frame(trader_.socket(),bootstrap);
+    // Complete real protocol login/negotiation before the strategy can run.
+    for (unsigned attempt = 0;; ++attempt) {
+        if (attempt > 32) throw std::runtime_error("research session handshake did not settle");
+        auto request = ipc::receive_frame(trader_.socket());
+        StrategyAction action; ipc::action_fields(request,action); request.finish();
+        if (action.kind == StrategyActionKind::Done) break;
+        if (action.kind != StrategyActionKind::Session) throw std::runtime_error("order before research session login");
+        const auto result = session_.receive_request(trader_.socket());
+        ipc::Frame response; auto value = result; response.field(value); ipc::send_frame(trader_.socket(),response);
+        session_.send_control(trader_.socket()); ipc::send_visible(trader_.socket(),strategy_view());
+    }
     auto ready = ipc::receive_frame(trader_.socket()); std::uint32_t reply = 0; ready.field(reply); ready.finish();
     if (reply != version) throw std::runtime_error("trader protocol version mismatch");
 }
@@ -38,10 +53,15 @@ RunStop ProcessSimulation::run(const RunBounds& bounds) {
 }
 void ProcessSimulation::callback(const SimulationEvent& event) {
     const int socket = trader_.socket();
-    ipc::Frame delivery; auto kind = event.kind; delivery.field(kind);
+    ipc::Frame delivery; auto kind = event.kind; auto callback_time = now(); delivery.fields(kind,callback_time,reconnect_); reconnect_ = false;
     if (kind == SimulationEventKind::MarketDataDelivery) delivery.field(const_cast<MarketDataUpdate&>(event.data.market_data));
     if (kind == SimulationEventKind::ExecutionReportDelivery) delivery.field(const_cast<ExecutionReport&>(event.data.report));
-    ipc::send_frame(socket,delivery); ipc::send_visible(socket,strategy_view());
+    if (kind == SimulationEventKind::SessionTimer) session_.tick();
+    ipc::send_frame(socket,delivery);
+    session_.send_control(socket);
+    if (kind == SimulationEventKind::MarketDataDelivery) session_.send_market(socket,event.data.market_data.sequence);
+    if (kind == SimulationEventKind::ExecutionReportDelivery) session_.send_report(socket,event.protocol_sequence);
+    ipc::send_visible(socket,strategy_view());
     auto& context = strategy_context();
     // Each action is acknowledged before the next action. This preserves
     // risk/order-view semantics and the scheduler's existing enqueue order.
@@ -52,14 +72,15 @@ void ProcessSimulation::callback(const SimulationEvent& event) {
         switch (action.kind) {
             case StrategyActionKind::Done: return;
             case StrategyActionKind::Headroom: result = std::bit_cast<std::uint64_t>(context.position_headroom(action.side,action.token)); break;
-            case StrategyActionKind::NewOrder: result = context.submit_limit_order(action.side,action.price,action.qty,action.tif,action.post_only); break;
-            case StrategyActionKind::Cancel: result = context.cancel_order(action.token); break;
-            case StrategyActionKind::Replace: result = context.replace_order(action.token,action.price,action.qty); break;
+            case StrategyActionKind::Session: result = session_.receive_request(socket); break;
+            case StrategyActionKind::NewOrder:
+            case StrategyActionKind::Cancel:
+            case StrategyActionKind::Replace: throw std::runtime_error("research order bypassed exchange protocol");
             case StrategyActionKind::Wake: context.wake_at(action.time); break;
             case StrategyActionKind::Parent: context.declare_parent_order(action.side,action.qty); break;
             case StrategyActionKind::Decision: context.record_execution_decision(action.decision); break;
         }
-        ipc::Frame response; response.field(result); ipc::send_frame(socket,response); ipc::send_visible(socket,strategy_view());
+        ipc::Frame response; response.field(result); ipc::send_frame(socket,response); session_.send_control(socket); ipc::send_visible(socket,strategy_view());
     }
 }
 } // namespace exsim::research

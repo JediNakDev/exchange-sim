@@ -401,6 +401,20 @@ function ExperimentEditor({ parentId, intent, preset, requestedStrategy }: { par
                   </Select>
                 </Field>
               ) : null}
+              <Field className="mt-4">
+                <FieldLabel htmlFor="order-entry-protocol">Exchange protocol</FieldLabel>
+                <Select value={draft.config.orderEntryProtocol ?? "ouch42"} onValueChange={(protocol) => updateDraft((next) => {
+                  if (protocol === "ouch42" || protocol === "fix44" || protocol === "fixp_sbe") next.config.orderEntryProtocol = protocol;
+                })}>
+                  <SelectTrigger id="order-entry-protocol" className="w-full"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ouch42">OUCH 4.2 / SoupBinTCP</SelectItem>
+                    <SelectItem value="fix44">FIX 4.4</SelectItem>
+                    <SelectItem value="fixp_sbe">SBE / FIXP</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FieldDescription>Uses full exchange sessions and ITCH market data between the local trader and exchange processes.</FieldDescription>
+              </Field>
               <p className="mt-2 text-xs text-muted-foreground">Choose the built-in strategy here; configure its order, timing and risk parameters below.</p>
               <a href="#strategy-parameters" className="mt-3 inline-block text-xs underline underline-offset-4">Configure strategy parameters</a>
             </div>

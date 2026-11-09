@@ -29,3 +29,8 @@ lob_demo
 # Local Compose credentials and configuration
 .secrets/
 .env
+
+# Local validation output
+output/
+__pycache__/
+legacy/

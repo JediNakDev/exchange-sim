@@ -1,7 +1,7 @@
-#include "exsim/research/experiment_config.hpp"
+#include "research/experiment_config.hpp"
 
-#include "exsim/research/seed_derivation.hpp"
-#include "exsim/sim/price_text.hpp"
+#include "research/seed_derivation.hpp"
+#include "sim/price_text.hpp"
 
 #include <algorithm>
 #include <charconv>
@@ -83,7 +83,7 @@ bool is_market_maker_kind(StrategyKind kind) noexcept {
 
 // Strategy keys and the kinds that accept them.
 bool strategy_key_applies(std::string_view key, StrategyKind kind) noexcept {
-    if (key == "kind" || key == "stp") return true;
+    if (key == "kind" || key == "stp" || key == "protocol") return true;
     if (key == "half_spread_ticks" || key == "quote_size" || key == "requote_interval" ||
         key == "requote_threshold_ticks" || key == "post_only")
         return is_market_maker_kind(kind);
@@ -311,6 +311,13 @@ private:
             if (!parse_strategy_kind(value, strategy.kind)) fail("unknown strategy kind '" + std::string(value) + "'");
             return;
         }
+        if (key == "protocol") {
+            if (value == "ouch42") config_.order_entry_protocol = server::Protocol::Ouch42;
+            else if (value == "fix44") config_.order_entry_protocol = server::Protocol::Fix44;
+            else if (value == "fixp_sbe") config_.order_entry_protocol = server::Protocol::FixpSbe;
+            else fail("protocol must be ouch42, fix44 or fixp_sbe");
+            return;
+        }
         if (key == "stp") return require(parse_stp(value, strategy.stp), key);
         if (key == "half_spread_ticks") return require(parse_integer(value, strategy.quoting.half_spread_ticks), key);
         if (key == "quote_size") return require(parse_integer(value, strategy.quoting.quote_size), key);
@@ -489,6 +496,7 @@ std::size_t effective_recorder_flush_margin(const ExperimentConfig& config) noex
 }
 
 void validate_experiment_config(ExperimentConfig& config) {
+    check(config.order_entry_protocol <= server::Protocol::FixpSbe, "unknown order-entry protocol");
     check(config.strategy.kind <= StrategyKind::ImmediateSweepExecutor, "unknown strategy kind");
     check(config.accounting.mark <= MarkConvention::LastTrade, "unknown mark convention");
     auto& instrument = config.instrument;
@@ -719,6 +727,7 @@ ConfigEntries canonical_config_entries(const ExperimentConfig& config) {
     add("runner.recorder_command_capacity", std::to_string(config.limits.recorder_command_capacity));
     add("runner.recorder_record_capacity", std::to_string(config.limits.recorder_record_capacity));
     add("runner.recorder_flush_margin", std::to_string(config.limits.recorder_flush_margin));
+    add("strategy.protocol", std::string(server::to_string(config.order_entry_protocol)));
     add("strategy.kind", std::string(to_string(config.strategy.kind)));
     for (auto& entry : strategy_parameter_entries(config.strategy)) add("strategy." + entry.first, entry.second);
     for (std::size_t index = 0; index < config.agents.size(); ++index) {

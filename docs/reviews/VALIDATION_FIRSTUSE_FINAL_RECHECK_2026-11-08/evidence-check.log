@@ -1,4 +1,0 @@
-audit all inventory SHA/size checks pass
-partial-audit all inventory SHA/size checks pass
-cancelled-audit all inventory SHA/size checks pass
-pin, retry identity, idempotency, unavailable vs genuine zero, recovery and overflow observations confirmed

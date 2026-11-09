@@ -1,9 +1,9 @@
 // Complete, fixed-name, bounded-memory native audit transfer. No user paths.
-#include "exsim/api/research_run.hpp"
-#include "exsim/api/postgres_store.hpp"
-#include "exsim/api/api_json.hpp"
-#include "exsim/api/sha256.hpp"
-#include "exsim/research/run_artifacts.hpp"
+#include "api/research_run.hpp"
+#include "api/postgres_store.hpp"
+#include "api/api_json.hpp"
+#include "api/sha256.hpp"
+#include "research/run_artifacts.hpp"
 #include <fstream>
 
 namespace exsim::api {
@@ -38,7 +38,7 @@ std::string ResearchRun::render_audit_export_json(std::optional<std::uint64_t> a
         json.key("schemaVersion").string("exsim.audit-export/1");
         json.key("state").string(to_api_string(state_));
         json.key("reproductionSupported").boolean(state_ == ApiRunState::Completed);
-        json.key("verificationCommand").string("python3 scripts/research_audit.py verify PACKAGE");
+        json.key("verificationCommand").string("python3 test/tools/audit/research_audit.py verify PACKAGE");
         json.key("reproductionCommand");
         if (state_ == ApiRunState::Completed) json.string("exsim_research verify PACKAGE/runner"); else json.null();
         json.key("items").begin_array();

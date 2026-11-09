@@ -1,4 +1,4 @@
-#include "exsim/server/runtime/thread_affinity.hpp"
+#include "server/runtime/thread_affinity.hpp"
 
 #if defined(__linux__)
 #include <pthread.h>

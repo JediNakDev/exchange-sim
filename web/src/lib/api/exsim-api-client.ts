@@ -1,4 +1,4 @@
-// Typed clients for docs/api/openapi.yaml. Types come from generated-schema.d.ts
+// Typed clients for config/api/openapi.yaml. Types come from generated-schema.d.ts
 // (run `bun run generate-api-types` after editing the contract).
 //
 // The browser talks to the same-origin proxy at /api/exsim, which forwards to

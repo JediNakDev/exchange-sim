@@ -6,15 +6,15 @@
     "dev": "bun scripts/run-development-servers.ts",
     "dev:mock": "bun scripts/run-development-servers.ts --mock",
     "dev:next": "next dev",
-    "mock-server": "bun mock-server/start-mock-server.ts",
+    "mock-server": "bun test/mock-server/start-mock-server.ts",
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
-    "test": "bun test",
-    "test:e2e": "make -C .. MODE=release build/release/exsim_api && bun test ./e2e/exsim-api-binary.e2e.ts",
-    "generate-api-types": "openapi-typescript ../docs/api/openapi.yaml -o src/lib/api/generated-schema.d.ts",
-    "test:browser": "bun scripts/prepare-browser-assets.ts && playwright test"
+    "test": "bun test ./test/unit ./test/review",
+    "test:e2e": "make -C .. MODE=release build/release/exsim_api && bun test ./test/e2e/exsim-api-binary.e2e.ts",
+    "generate-api-types": "openapi-typescript ../config/api/openapi.yaml -o src/lib/api/generated-schema.d.ts",
+    "test:browser": "bun test/prepare-browser-assets.ts && playwright test"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",

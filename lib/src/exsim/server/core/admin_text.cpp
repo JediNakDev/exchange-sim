@@ -1,6 +1,6 @@
-#include "exsim/server/core/admin_text.hpp"
+#include "server/core/admin_text.hpp"
 
-#include "exsim/server/config.hpp"
+#include "server/config.hpp"
 
 #include <algorithm>
 #include <vector>
