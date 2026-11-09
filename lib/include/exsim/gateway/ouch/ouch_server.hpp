@@ -663,7 +663,7 @@ private:
     void copy_token(ClOrdId cl_ord_id, OuchToken& destination) const noexcept {
         const std::string_view token = tokens_.token(cl_ord_id);
         destination.fill(' ');
-        std::memcpy(destination.data(), token.data(), std::min(token.size(), destination.size()));
+        if (!token.empty()) std::memcpy(destination.data(), token.data(), std::min(token.size(), destination.size()));
     }
 
     [[nodiscard]] static std::string_view token_view(const OuchToken& token) noexcept {

@@ -227,3 +227,32 @@ Exact retained logs under `output/process-architecture-2026-11-09/logs/`:
 `exsim-pr3-journal-ready-negative.log` (expected failure of old timing).
 The temporary negative-control source and binaries remain only in ignored
 output. CI on the repair and the main merge are pending.
+
+## PR3 OUCH null-view sanitizer repair
+
+Debug job129015266198 on144b34c stopped at ouch_server.hpp:666. A core-originated
+order can have a client ID absent from the gateway token table; token() then
+returns an empty string_view whose data pointer is null. Passing that pointer
+to memcpy is undefined even when the requested byte count is zero.
+
+copy_token now performs memcpy only for nonempty tokens. Its destination is
+still initialized to spaces, and valid token copying/truncation is unchanged.
+The existing stale-connection regression now decodes the actual stored OUCH
+accepted report and requires an all-space token, retaining its session binding
+and order-lifetime checks. No matching rule, allocation contract or sanitizer
+setting changed.
+
+A focused Linux GCC14 ASan/UBSan build reproduces the precise null-pointer
+error with an isolated copy of the old header. With the fix, the same focused
+binary passes all7 OUCH/core tests. A native release focused binary also passes
+7/7, including the existing no-allocation guard. No full native suite was rerun
+locally for this one-line repair; CI remains responsible for that matrix.
+
+Exact logs under `output/process-architecture-2026-11-09/logs/`:
+`exsim-pr3-gcc-debug-144b34c.log`,
+`exsim-pr3-ouch-null-linux-sanitizer.log`,
+`exsim-pr3-ouch-null-release-build.log`,
+`exsim-pr3-ouch-null-release-tests.log`.
+The old-header fixture and reproducible focused Linux script remain only in
+ignored output as `ouch-server-before-null-fix.hpp` and
+`run-ouch-null-linux.sh`. Disposable compilation containers were removed.

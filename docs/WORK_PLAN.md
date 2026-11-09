@@ -5,7 +5,7 @@ Updated 2026-11-09. This is a recovery checkpoint, not live delegate status. Kee
 ## Current continuation queue
 
 **Publication and main merge, 2026-11-09:** user authorized pushing and merging.
-Source317ff66 is pushed on `exchange-simulator`; PR
+Source065494f is pushed on `exchange-simulator`; PR
 https://github.com/JediNakDev/exsim/pull/3 targets main and remains watched.
 GitHub reports the repository moved from `lob` to `exsim`; existing origin
 redirects successfully. Personal/local files and separate demo media are
@@ -75,6 +75,23 @@ release/debug compilation passes. Logs and negative-control source/binaries:
 `logs/exsim-pr3-journal-ready-*` and `logs/exsim-pr3-gcc-release-144b34c.log`.
 Next: push this repair, follow the existing PR3 watch and merge after CI passes.
 Earlier fixes144b34c/a151e24/317ff66 are already pushed. No new watch/delegate.
+
+**PR3 OUCH empty-token sanitizer repair, 2026-11-09:** debug job129015266198
+on144b34c reports undefined behavior in OuchUserState::copy_token: an unknown
+internal client ID yields an empty string_view with null data, passed to
+memcpy even with length zero. Parent guards the copy on nonempty tokens,
+retaining the existing all-space destination and bounded hot-path behavior.
+The stale-binding regression now checks the actual accepted wire token is
+space-padded; its binding/expiry assertions remain intact.
+
+Linux GCC14 ASan/UBSan reproduces the exact null-pointer report using an
+isolated old header, then passes all OUCH/core7/7 with the fix. Native release
+OUCH/core7/7 also passes, including its allocation guard. No sanitizer is
+disabled and no timeout is changed. Logs and reproduction script/header are
+retained under `output/process-architecture-2026-11-09/`, primarily
+`logs/exsim-pr3-ouch-null-*` and `logs/exsim-pr3-gcc-debug-144b34c.log`.
+Next: push the fix, cancel this task's superseded CI runs, follow the existing
+PR3 watch and merge after current checks pass. No replacement watch/delegate.
 
 **Trader/exchange architecture, completed 2026-11-09:**
 User requested `exsim_apid`, `exsim_traderd`, `exsim_exchanged`, reusable
