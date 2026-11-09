@@ -5,7 +5,7 @@ Updated 2026-11-09. This is a recovery checkpoint, not live delegate status. Kee
 ## Current continuation queue
 
 **Publication and main merge, 2026-11-09:** user authorized pushing and merging.
-Sourcea151e24 is pushed on `exchange-simulator`; PR
+Source317ff66 is pushed on `exchange-simulator`; PR
 https://github.com/JediNakDev/exsim/pull/3 targets main and remains watched.
 GitHub reports the repository moved from `lob` to `exsim`; existing origin
 redirects successfully. Personal/local files and separate demo media are
@@ -58,6 +58,23 @@ coverage remains for CI. Logs:
 `output/process-architecture-2026-11-09/logs/exsim-pr3-web-*`.
 Next: push this web repair, follow the existing PR3 watch, fix any remaining
 checks and merge once green. Do not create a replacement watch or delegate.
+
+**PR3 journal-readiness CI repair, 2026-11-09:** GCC release job129015250526
+on144b34c passed1033/1034 cases; only journal backpressure failed. Its child
+signaled readiness before server construction, charging cold startup against
+the300ms reactor deadline. Parent moves readiness after startup/pipe filling
+(or after the supported nonregular-journal rejection), validates an actual R
+byte, and contains unexpected child exceptions. The existing5s startup wait,
+300ms reactor wait and exit-status assertions remain. A deliberate350ms startup
+pause proves startup is excluded; an isolated old-readiness negative control
+fails with that pause, while the repaired case passes. Production is unchanged.
+
+Focused runtime-review7/7 passes in release and ASan/UBSan. Linux GCC14 fortified
+release/debug compilation passes. Logs and negative-control source/binaries:
+`output/process-architecture-2026-11-09/`, with
+`logs/exsim-pr3-journal-ready-*` and `logs/exsim-pr3-gcc-release-144b34c.log`.
+Next: push this repair, follow the existing PR3 watch and merge after CI passes.
+Earlier fixes144b34c/a151e24/317ff66 are already pushed. No new watch/delegate.
 
 **Trader/exchange architecture, completed 2026-11-09:**
 User requested `exsim_apid`, `exsim_traderd`, `exsim_exchanged`, reusable

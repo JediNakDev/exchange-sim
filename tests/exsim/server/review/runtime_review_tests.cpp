@@ -50,7 +50,9 @@ TEST_CASE(server_runtime_review, journal_backpressure_does_not_block_reactor) {
     const pid_t child = ::fork();
     REQUIRE(child >= 0);
     if (child == 0) {
-        if (::write(ready_pipe[1], "R", 1) != 1) ::_exit(13);
+        ::close(ready_pipe[0]);
+        // Model cold-start scheduling beyond the 300 ms reactor budget.
+        ::poll(nullptr, 0, 350);
         try {
         auto config = make_e2e_config(false, "/dev/fd/" + std::to_string(journal_pipe[1]));
         config.journal_flush_interval_ms = 1;
@@ -67,17 +69,22 @@ TEST_CASE(server_runtime_review, journal_backpressure_does_not_block_reactor) {
         // Fill the remaining tail, including space smaller than PIPE_BUF.
         while (::write(journal_pipe[1], bytes.data(), 1) > 0) {}
         ::fcntl(journal_pipe[1], F_SETFL, flags);
+        // Startup and pipe preparation are outside the reactor deadline.
+        if (::write(ready_pipe[1], "R", 1) != 1) ::_exit(13);
         runtime.poll_once(); // periodic journal flush writes a footer to a full pipe
         ::_exit(0);
         } catch (const std::invalid_argument&) {
             // A pipe is an unsupported journal destination. Rejecting it
             // before the reactor starts is also a bounded outcome.
+            if (::write(ready_pipe[1], "R", 1) != 1) ::_exit(13);
             ::_exit(0);
-        }
+        } catch (...) { ::_exit(14); }
     }
     ::close(ready_pipe[1]);
     pollfd readiness{ready_pipe[0], POLLIN, 0};
-    const bool ready = ::poll(&readiness, 1, 5000) == 1;
+    char ready_marker = 0;
+    const bool ready = ::poll(&readiness, 1, 5000) == 1 &&
+        (readiness.revents & POLLIN) != 0 && ::read(ready_pipe[0], &ready_marker, 1) == 1 && ready_marker == 'R';
     bool exited = false;
     int status = 0;
     if (ready) {

@@ -196,3 +196,34 @@ Retained logs under `output/process-architecture-2026-11-09/logs/`:
 `exsim-pr3-web-types.log`, `exsim-pr3-web-lint.log`.
 Intermediate browser failures and route-only checks remain in the same directory
 for diagnosis; the final three-case log is the accepted browser result here.
+
+## PR3 journal readiness synchronization repair
+
+GCC release job129015250526 on144b34c passed1033/1034 tests. The sole failure
+was the journal-backpressure probe's CHECK(exited). It signaled R before
+constructing ServerRuntime, so the parent started a300ms reactor deadline while
+the child was still doing cold allocations and startup validation.
+
+Readiness now follows startup and full-pipe preparation. If the nonregular
+journal destination is rejected during startup, readiness is sent after that
+bounded rejection. The parent consumes and validates R instead of accepting
+any pipe poll result as readiness. Unexpected child exceptions exit with a
+distinct failure code. The5s setup wait,300ms operation deadline, exit-status
+checks and nonblocking/journal-rejection outcomes are retained unchanged.
+
+A350ms startup scheduling pause in the fixture makes the phase distinction
+explicit. An ignored-output negative control built from the old readiness
+placement fails CHECK(exited) under that pause. The repaired runtime review
+selection passes7/7 in release and7/7 with ASan/UBSan. Linux GCC14 compiles the
+final translation unit in fortified release/debug modes with warnings as
+errors. No production code changed and no full native suite was rerun locally.
+
+Exact retained logs under `output/process-architecture-2026-11-09/logs/`:
+`exsim-pr3-gcc-release-144b34c.log`, `exsim-pr3-journal-ready-build.log`,
+`exsim-pr3-journal-ready-tests.log`, `exsim-pr3-journal-ready-linux-compile.log`,
+`exsim-pr3-journal-ready-debug-build.log`,
+`exsim-pr3-journal-ready-debug-tests.log`,
+`exsim-pr3-journal-ready-negative-build.log`,
+`exsim-pr3-journal-ready-negative.log` (expected failure of old timing).
+The temporary negative-control source and binaries remain only in ignored
+output. CI on the repair and the main merge are pending.
