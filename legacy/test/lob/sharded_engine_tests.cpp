@@ -2,7 +2,7 @@
 // fill-limit interplay (finding 36) and client-id mapping reclamation
 // (finding 37).
 
-#include "../framework/test.hpp"
+#include <test/framework/test.hpp>
 #include <lob/engine/sharded_engine.hpp>
 
 #include <algorithm>

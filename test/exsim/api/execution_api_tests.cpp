@@ -706,7 +706,7 @@ TEST_CASE(execution_api, slow_replace_native_study_exposes_own_rejections_and_ma
     // This fixture uses the documented default OUCH/full-ITCH model. Exact
     // counts and share denominators were independently audited from canonical
     // events/markouts and reproduced through real process sessions. Receipt:
-    // docs/quality/LEGACY_LOB_FULL_SESSIONS_2026-11-09.md.
+    // Protocol sessions retain their own admission and replace behavior.
     const auto* counts=summary.body.find("orders")->find("requestDiagnostics");REQUIRE(counts);REQUIRE_EQ(counts->items.size(),3u);
     CHECK_EQ(text(counts->items[0],"exchangeRejectedCount"),std::string("4"));
     CHECK_EQ(text(counts->items[1],"exchangeRejectedCount"),std::string("0"));

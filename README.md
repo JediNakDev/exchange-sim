@@ -55,7 +55,8 @@ docker compose up -d --build --wait
 - `lib/` and `include/`: reusable C++ code.
 - `src/`: API, trader and exchange daemons.
 - `tools/`: protocol clients, research CLI, audit and deployment helpers.
-- `test/`: native tests, benchmark, fuzz, scenarios and validation tools.
+- `test/`: native tests, protocol benchmarks, fuzz, scenarios and validation tools.
+- `legacy/`: standalone order book examples, sharding, replay tools and old benchmark results.
 - `web/`: frontend app, with frontend tests in `web/test/`.
 - `config/`: runtime configs, OpenAPI contract and SBE schema.
 
@@ -68,7 +69,9 @@ cd web
 bun run test
 ```
 
-`make bench` builds the Google Benchmark suite. It needs google-benchmark installed.
+`make bench` builds the exsim protocol benchmarks. `make legacy` builds and checks the standalone book tools.
+`make legacy-bench` builds their benchmark suite. Both benchmark targets use Google Benchmark.
+It needs google-benchmark installed.
 Python helpers handle audit files, packaging and integration checks. Simulation stays in C++.
 
 ## Key Design Decisions

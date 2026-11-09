@@ -8,15 +8,15 @@
 # - `sample` captures a sampled call-stack profile (similar to perf record).
 #
 # Usage:
-#   test/benchmark/profiling/run_macos.sh [output_dir]
+#   legacy/test/benchmark/profiling/run_macos.sh [output_dir]
 set -euo pipefail
 
-BENCH=build/bench/benchmark
-OUT=${1:-test/benchmark/profiling/macos_$(date +%Y%m%d_%H%M%S)}
+BENCH=build/bench/legacy/benchmark
+OUT=${1:-legacy/test/benchmark/profiling/macos_$(date +%Y%m%d_%H%M%S)}
 FILTER=${PERF_FILTER:-Mixed}
 
 if [[ ! -x "$BENCH" ]]; then
-    echo "error: $BENCH not found — run 'make bench' first" >&2
+    echo "error: $BENCH not found — run 'make legacy-bench' first" >&2
     exit 1
 fi
 mkdir -p "$OUT"

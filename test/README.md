@@ -12,6 +12,7 @@ make bench
 
 `make tools` builds application tools. `make test-tools` builds benchmarks, differential fuzz, scenario and replay checks.
 The replay and scenario tools use an independent reference engine for validation.
+Standalone book examples, ITCH replay and sharding tests live in `legacy/`.
 
 ## Fuzz
 

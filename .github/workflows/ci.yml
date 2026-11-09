@@ -22,10 +22,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: build and test
-        run: make -j4 test MODE=${{ matrix.mode }} CXX=${{ matrix.cxx }} EXTRA_CXXFLAGS=-Werror
+        run: make -j4 test legacy-test MODE=${{ matrix.mode }} CXX=${{ matrix.cxx }} EXTRA_CXXFLAGS=-Werror
       - name: tools and examples
         if: matrix.mode == 'release'
-        run: make -j4 tools test-tools examples MODE=release CXX=${{ matrix.cxx }} EXTRA_CXXFLAGS=-Werror
+        run: make -j4 tools test-tools legacy-tools examples MODE=release CXX=${{ matrix.cxx }} EXTRA_CXXFLAGS=-Werror
 
   research-postgres:
     name: PostgreSQL metadata, isolated workers and recovery
@@ -105,6 +105,8 @@ jobs:
         run: bun run build
       - name: native API and artifact verifier for browser contracts
         run: make -j2 build/release/exsim_api build/release/exsim_research CXX=clang++ EXTRA_CXXFLAGS=-Werror
+      - name: selected exchange protocols over real worker sessions
+        run: python3 test/integration/research_sessions_test.py
       - name: browser failure and recovery invariants
         working-directory: web
         run: |

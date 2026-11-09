@@ -1,9 +1,9 @@
 #ifndef LOB_ENGINE_SHARDED_ENGINE_HPP
 #define LOB_ENGINE_SHARDED_ENGINE_HPP
 
-#include "../flat_hash_map.hpp"
-#include "../order_book.hpp"
-#include "spsc_queue.hpp"
+#include <lob/flat_hash_map.hpp>
+#include <lob/order_book.hpp>
+#include <lob/engine/spsc_queue.hpp>
 #include <atomic>
 #include <cstddef>
 #include <cstdint>

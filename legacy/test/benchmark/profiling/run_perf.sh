@@ -8,19 +8,19 @@
 #   - perf annotate top hotspots
 #
 # Usage:
-#   test/benchmark/profiling/run_perf.sh [output_dir]
+#   legacy/test/benchmark/profiling/run_perf.sh [output_dir]
 #
-# Defaults: writes artifacts under test/benchmark/profiling/perf_$(date +%s)/
-# Requires: linux-tools-common (perf), repo built via `make bench`.
+# Defaults: writes artifacts under legacy/test/benchmark/profiling/perf_$(date +%s)/
+# Requires: linux-tools-common (perf), repo built via `make legacy-bench`.
 set -euo pipefail
 
-BENCH=build/bench/benchmark
-OUT=${1:-test/benchmark/profiling/perf_$(date +%Y%m%d_%H%M%S)}
+BENCH=build/bench/legacy/benchmark
+OUT=${1:-legacy/test/benchmark/profiling/perf_$(date +%Y%m%d_%H%M%S)}
 CORE=${PERF_CORE:-0}
 FILTER=${PERF_FILTER:-Mixed}
 
 if [[ ! -x "$BENCH" ]]; then
-    echo "error: $BENCH not found — run 'make bench' first" >&2
+    echo "error: $BENCH not found — run 'make legacy-bench' first" >&2
     exit 1
 fi
 mkdir -p "$OUT"

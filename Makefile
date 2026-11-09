@@ -1,12 +1,14 @@
 # Exchange simulator build.
 #
-#   make                    library objects, tests, tools, examples (MODE=release)
+#   make                    library objects, tests and exsim tools (MODE=release)
 #   make test               build + run the full test suite
 #   make test MODE=debug    same, with AddressSanitizer + UBSan
 #   make test MODE=tsan     same, with ThreadSanitizer
 #   make check              test in release and debug (sanitizer) modes
 #   make tools MODE=perf    optimised tool binaries (-O3 -march=native -flto)
-#   make bench              Google Benchmark suite (MODE=bench)
+#   make bench              exsim protocol benchmarks (MODE=bench)
+#   make legacy             standalone book tests, tools and examples
+#   make legacy-bench       standalone book benchmark suite
 #   make clean
 #
 # Sources are discovered automatically:
@@ -14,7 +16,7 @@
 #   src/<daemon>/*.cpp      daemon entry points, linked separately
 #   test/{exsim,framework,lob}/**/*.cpp and test/main.cpp: run_tests
 #   tools/<name>/*.cpp      one binary per directory: build/<mode>/<name>
-#   examples/<name>.cpp     one binary per file: build/<mode>/examples/<name>
+#   legacy/examples/*.cpp   opt-in via make examples
 #   test/benchmark/**/*.cpp build/bench/benchmark
 
 .DEFAULT_GOAL := all
@@ -63,7 +65,7 @@ obj = $(patsubst %.cpp,$(BUILD)/obj/%.o,$(1))
 
 LIB_SRCS := $(shell find lib/src -name '*.cpp' | sort)
 TEST_SRCS := test/main.cpp $(shell find test/exsim test/framework test/lob -name '*.cpp' | sort)
-EXAMPLE_SRCS := $(sort $(wildcard examples/*.cpp))
+EXAMPLE_SRCS := $(sort $(wildcard legacy/examples/*.cpp))
 DAEMON_NAMES := exsim_apid exsim_traderd exsim_exchanged
 DAEMON_BINS := $(addprefix $(BUILD)/,$(DAEMON_NAMES))
 
@@ -79,6 +81,16 @@ ifeq ($(shell uname -s),Darwin)
   BENCH_LDFLAGS := -L$(BENCHMARK_PREFIX)/lib
 endif
 
+# Standalone LOB applications and sharding code are opt-in.
+LEGACY_SRCS := $(shell find legacy/src -name '*.cpp' 2>/dev/null | sort)
+LEGACY_OBJS := $(call obj,$(LEGACY_SRCS))
+LEGACY_TEST_SRCS := $(wildcard legacy/test/lob/*.cpp)
+LEGACY_TOOL_SRCS := $(wildcard legacy/test/tools/*/*.cpp)
+LEGACY_BENCH_SRCS := $(shell find legacy/test/benchmark -name '*.cpp' 2>/dev/null | sort)
+LEGACY_TEST_BIN := $(BUILD)/legacy/run_tests
+LEGACY_TOOL_BIN := $(BUILD)/legacy/itch_replay
+LEGACY_BENCH_BIN := build/bench/legacy/benchmark
+
 # Quote arbitrary configuration text as one shell argument.
 shell_quote = '$(subst ','"'"',$(1))'
 # Parse-time content stamps change timestamps only when the configuration changes.
@@ -88,19 +100,20 @@ $(shell printf '%s\n' $(call shell_quote,$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(BENCH_
 $(shell cmp -s $(BUILD)/compile.tmp $(BUILD)/compile.config || cp $(BUILD)/compile.tmp $(BUILD)/compile.config)
 $(shell printf '%s\n' $(call shell_quote,$(CXX) $(CXXFLAGS) $(LDFLAGS) $(LDLIBS) $(BENCH_LDFLAGS)) > $(BUILD)/link.tmp)
 $(shell cmp -s $(BUILD)/link.tmp $(BUILD)/link.config || cp $(BUILD)/link.tmp $(BUILD)/link.config)
-$(shell printf '%s\n' $(call shell_quote,$(LIB_SRCS) $(TEST_SRCS) $(EXAMPLE_SRCS) $(wildcard tools/*/*.cpp) $(TEST_TOOL_SRCS) $(wildcard src/*/*.cpp) $(shell find test/benchmark -name '*.cpp' | sort)) > $(BUILD)/sources.tmp)
+$(shell printf '%s\n' $(call shell_quote,$(LIB_SRCS) $(TEST_SRCS) $(EXAMPLE_SRCS) $(wildcard tools/*/*.cpp) $(TEST_TOOL_SRCS) $(wildcard src/*/*.cpp) $(LEGACY_SRCS) $(LEGACY_TEST_SRCS) $(LEGACY_TOOL_SRCS) $(LEGACY_BENCH_SRCS) $(shell find test/benchmark -name '*.cpp' | sort)) > $(BUILD)/sources.tmp)
 $(shell cmp -s $(BUILD)/sources.tmp $(BUILD)/sources.config || cp $(BUILD)/sources.tmp $(BUILD)/sources.config)
 
 LIB_OBJS := $(call obj,$(LIB_SRCS))
+BOOK_OBJS := $(call obj,lib/src/order_book.cpp)
 TEST_BIN := $(BUILD)/run_tests
 TOOL_BINS := $(addprefix $(BUILD)/,$(TOOL_NAMES))
-EXAMPLE_BINS := $(patsubst examples/%.cpp,$(BUILD)/examples/%,$(EXAMPLE_SRCS))
+EXAMPLE_BINS := $(patsubst legacy/examples/%.cpp,$(BUILD)/legacy/examples/%,$(EXAMPLE_SRCS))
 
 .PHONY: all lib test check tools test-tools examples bench bench-run clean itch-replay
 
 $(TEST_BIN) $(TEST_TOOL_BINS) $(TOOL_BINS) $(EXAMPLE_BINS): $(BUILD)/link.config $(BUILD)/sources.config
 
-all: $(DAEMON_BINS) $(BUILD)/exsim_api $(TEST_BIN) $(TEST_TOOL_BINS) $(TOOL_BINS) $(EXAMPLE_BINS)
+all: $(DAEMON_BINS) $(BUILD)/exsim_api $(TEST_BIN) $(TEST_TOOL_BINS) $(TOOL_BINS)
 
 lib: $(LIB_OBJS)
 
@@ -143,7 +156,7 @@ $(foreach t,$(TEST_TOOL_NAMES),$(eval $(call TEST_TOOL_RULE,$(t))))
 
 test-tools: $(TEST_TOOL_BINS)
 
-$(BUILD)/examples/%: $(BUILD)/obj/examples/%.o $(LIB_OBJS)
+$(BUILD)/legacy/examples/%: $(BUILD)/obj/legacy/examples/%.o $(BOOK_OBJS)
 	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(filter %.o,$^) -o $@ $(LDLIBS)
 
@@ -160,7 +173,7 @@ examples: $(EXAMPLE_BINS)
 
 # Back-compat alias for the 1.4.0 README.
 itch-replay:
-	$(MAKE) MODE=perf build/perf/itch_replay
+	$(MAKE) MODE=perf build/perf/legacy/itch_replay
 
 # ---------------------------------------------------------------------------
 # Google Benchmark suite (Homebrew on macOS, system install on Linux).
@@ -187,5 +200,35 @@ bench-run: bench
 clean:
 	rm -rf build
 
-ALL_OBJS := $(LIB_OBJS) $(call obj,$(TEST_SRCS) $(EXAMPLE_SRCS) $(BENCH_SRCS) $(wildcard tools/*/*.cpp) $(TEST_TOOL_SRCS) $(wildcard src/*/*.cpp))
+.PHONY: legacy legacy-test legacy-tools legacy-bench
+legacy: legacy-test legacy-tools examples
+legacy-tools: $(LEGACY_TOOL_BIN)
+legacy-test: $(LEGACY_TEST_BIN)
+	./$(LEGACY_TEST_BIN) $(FILTER)
+
+$(BUILD)/obj/legacy/%.o: CPPFLAGS += -I legacy/include
+# These tests compare exsim codecs with the old ITCH representation.
+$(BUILD)/obj/test/exsim/protocol/%.o: CPPFLAGS += -I legacy/include
+
+$(LEGACY_TEST_BIN) $(LEGACY_TOOL_BIN) $(EXAMPLE_BINS): $(BUILD)/link.config $(BUILD)/sources.config
+$(LEGACY_TEST_BIN): $(call obj,test/main.cpp test/framework/alloc_counter.cpp $(LEGACY_TEST_SRCS)) $(LEGACY_OBJS) $(BOOK_OBJS)
+	@mkdir -p $(dir $@)
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(filter %.o,$^) -o $@ $(LDLIBS)
+
+$(LEGACY_TOOL_BIN): $(call obj,$(LEGACY_TOOL_SRCS)) $(BOOK_OBJS)
+	@mkdir -p $(dir $@)
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(filter %.o,$^) -o $@ $(LDLIBS)
+
+ifeq ($(MODE),bench)
+$(LEGACY_BENCH_BIN): $(BUILD)/link.config $(BUILD)/sources.config
+$(LEGACY_BENCH_BIN): $(call obj,$(LEGACY_BENCH_SRCS)) $(LEGACY_OBJS) $(BOOK_OBJS)
+	@mkdir -p $(dir $@)
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(filter %.o,$^) -o $@ $(BENCH_LDFLAGS) -lbenchmark $(LDLIBS)
+$(BUILD)/obj/legacy/test/benchmark/%.o: CPPFLAGS += -I legacy/test/benchmark $(BENCH_CPPFLAGS)
+endif
+
+legacy-bench:
+	$(MAKE) MODE=bench $(LEGACY_BENCH_BIN)
+
+ALL_OBJS := $(LIB_OBJS) $(call obj,$(TEST_SRCS) $(EXAMPLE_SRCS) $(BENCH_SRCS) $(wildcard tools/*/*.cpp) $(TEST_TOOL_SRCS) $(wildcard src/*/*.cpp) $(LEGACY_SRCS) $(LEGACY_TEST_SRCS) $(LEGACY_TOOL_SRCS) $(LEGACY_BENCH_SRCS))
 -include $(ALL_OBJS:.o=.d)

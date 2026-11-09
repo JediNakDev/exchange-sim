@@ -3,19 +3,19 @@
 Build the benchmark from the repository root:
 
 ```sh
-make bench
+make legacy-bench
 ```
 
 On Linux, use perf:
 
 ```sh
-test/benchmark/profiling/run_perf.sh
+legacy/test/benchmark/profiling/run_perf.sh
 ```
 
 On macOS, use sample and Instruments:
 
 ```sh
-test/benchmark/profiling/run_macos.sh
+legacy/test/benchmark/profiling/run_macos.sh
 ```
 
 Both scripts accept an output directory. `PERF_FILTER` selects the benchmark;

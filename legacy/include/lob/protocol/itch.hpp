@@ -1,8 +1,8 @@
 #ifndef LOB_PROTOCOL_ITCH_HPP
 #define LOB_PROTOCOL_ITCH_HPP
 
-#include "../compiler.hpp"
-#include "../types.hpp"
+#include <lob/compiler.hpp>
+#include <lob/types.hpp>
 #include <cstdint>
 #include <cstring>
 

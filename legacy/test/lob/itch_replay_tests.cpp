@@ -12,11 +12,11 @@
 // dropped through tools/itch_replay (same dispatch) with the same
 // invariant checks toggled on.
 
-#include "../framework/test.hpp"
-#include "test/tools/itch_replay/diff.hpp"
-#include "test/tools/itch_replay/itch_replayer.hpp"
-#include "test/tools/itch_replay/reference_book.hpp"
-#include "test/tools/itch_replay/synthetic.hpp"
+#include <test/framework/test.hpp>
+#include "legacy/test/tools/itch_replay/diff.hpp"
+#include "legacy/test/tools/itch_replay/itch_replayer.hpp"
+#include "legacy/test/tools/itch_replay/reference_book.hpp"
+#include "legacy/test/tools/itch_replay/synthetic.hpp"
 
 #include <lob/order_book.hpp>
 #include <lob/protocol/itch.hpp>
