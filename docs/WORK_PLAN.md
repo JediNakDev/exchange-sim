@@ -4,17 +4,22 @@ Updated 2026-11-09. This is a recovery checkpoint, not live delegate status. Kee
 
 ## Current continuation queue
 
-**Publication and main merge, 2026-11-09:** user authorized pushing and merging
-the completed implementation. Previous PR2 was already merged; parent
-fast-forwarded `exchange-simulator` to `origin/main` at2907879 before committing
-this cumulative daemon/Docker/Pg/frontend source snapshot. Source dependencies,
-contracts, tests and reports are included. Personal `.agents/`, `.claude/`,
-`output/`, `skills-lock.json`, the local dev supervisor script and separate demo
-media remain outside the commit. Existing validation is recorded in the process
-architecture receipt; this publication performs no deployment or migration.
-Next: push the commit, open and link its main-target PR, merge after required
-checks, and retain unrelated local files.
+**Publication and main merge, 2026-11-09:** user authorized pushing and merging.
+Source15434f5 is pushed on `exchange-simulator`; PR
+https://github.com/JediNakDev/exsim/pull/3 targets main and remains watched.
+GitHub reports the repository moved from `lob` to `exsim`; existing origin
+redirects successfully. Personal/local files and separate demo media are
+preserved outside the commit. No deployment or migration.
 
+CI GCC release/debug jobs129014144973/129014144762 failed on an ignored pipe
+write result under `-Werror=unused-result`. Parent now checks the complete
+write in that durability probe and two equivalent runtime readiness probes;
+child failure gets a distinct exit status. No assertions or production code
+changed. Linux GCC14 fortified release/debug compilation of both files passes;
+focused durability17/17 and runtime-review7/7 pass. Logs:
+`output/process-architecture-2026-11-09/logs/exsim-pr3-gcc-*`.
+Next: push this repair, follow existing CI notifications, and merge PR3 once
+checks pass. No delegate or replacement watch is needed.
 
 **Trader/exchange architecture, completed 2026-11-09:**
 User requested `exsim_apid`, `exsim_traderd`, `exsim_exchanged`, reusable

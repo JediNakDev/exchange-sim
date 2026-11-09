@@ -110,3 +110,19 @@ worker support, browser WebSocket delivery, or standard OUCH/ITCH research
 session is claimed. Existing production/dev processes and data were preserved.
 There are no remaining implementation steps for the recorded UDS research
 process split. Changes are uncommitted and have not been deployed.
+
+## PR3 GCC portability repair
+
+After source15434f5 was pushed to PR3, GitHub GCC release/debug jobs failed at
+`research_service_durability_tests.cpp:126`: glibc's fortified `write()` is
+annotated `warn_unused_result`, and a void cast does not consume that result.
+The repair checks that the complete status was written before the child exits.
+Two equivalent readiness writes in runtime review probes get the same check.
+No production behavior or test assertions change.
+
+Linux GCC14 with `-D_FORTIFY_SOURCE=3 -Werror` compiles both affected translation
+units in release and ASan/UBSan modes. Local focused durability17/17 and
+runtime-review7/7 pass. Logs retained under the output log directory:
+`exsim-pr3-gcc-{release,debug}-failed.log`,
+`exsim-pr3-gcc-fix-{build,linux-compile,durability-tests,runtime-tests}.log`.
+CI rerun and main merge remain pending at this checkpoint.

@@ -50,7 +50,7 @@ TEST_CASE(server_runtime_review, journal_backpressure_does_not_block_reactor) {
     const pid_t child = ::fork();
     REQUIRE(child >= 0);
     if (child == 0) {
-        (void)::write(ready_pipe[1], "R", 1);
+        if (::write(ready_pipe[1], "R", 1) != 1) ::_exit(13);
         try {
         auto config = make_e2e_config(false, "/dev/fd/" + std::to_string(journal_pipe[1]));
         config.journal_flush_interval_ms = 1;
@@ -118,7 +118,7 @@ TEST_CASE(server_runtime_review, a_full_log_pipe_does_not_block_shutdown) {
         while (::write(log_pipe[1], bytes.data(), bytes.size()) > 0) {}
         while (::write(log_pipe[1], bytes.data(), 1) > 0) {}
         ::fcntl(log_pipe[1], F_SETFL, flags);
-        (void)::write(ready_pipe[1], "R", 1);
+        if (::write(ready_pipe[1], "R", 1) != 1) ::_exit(13);
         runtime.request_shutdown();
         runtime.poll_once();
         ::_exit(runtime.finished() ? 0 : 12);
