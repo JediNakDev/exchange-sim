@@ -65,7 +65,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                 <SidebarFooter className="border-t border-sidebar-border">
                   <UtilityNavigation />
                   <p className="px-2 py-1 text-xs/relaxed text-muted-foreground group-data-[collapsible=icon]:hidden">
-                    Research runs use built-in models and simulated time. Custom strategy setup is coming soon.
+                    Research runs use built-in models and simulated time.
                   </p>
                 </SidebarFooter>
                 <SidebarRail />

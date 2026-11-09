@@ -401,7 +401,7 @@ function ExperimentEditor({ parentId, intent, preset, requestedStrategy }: { par
                   </Select>
                 </Field>
               ) : null}
-              <p className="mt-2 text-xs text-muted-foreground">Choose the built-in strategy here; configure its order, timing and risk parameters below. Custom strategy setup is coming soon.</p>
+              <p className="mt-2 text-xs text-muted-foreground">Choose the built-in strategy here; configure its order, timing and risk parameters below.</p>
               <a href="#strategy-parameters" className="mt-3 inline-block text-xs underline underline-offset-4">Configure strategy parameters</a>
             </div>
             {parent ? <p className="mt-3 text-sm text-muted-foreground">Variant of {parent.name}. Source assumptions are copied exactly. Choosing another task or preset changes the assumptions but keeps this study lineage. Review every changed field before interpreting a treatment.</p> : null}

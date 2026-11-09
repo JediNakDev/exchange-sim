@@ -103,8 +103,8 @@ jobs:
       - name: production frontend
         working-directory: web
         run: bun run build
-      - name: real C++ API contract binary
-        run: make -j2 build/release/exsim_api CXX=clang++ EXTRA_CXXFLAGS=-Werror
+      - name: native API and artifact verifier for browser contracts
+        run: make -j2 build/release/exsim_api build/release/exsim_research CXX=clang++ EXTRA_CXXFLAGS=-Werror
       - name: browser failure and recovery invariants
         working-directory: web
         run: |

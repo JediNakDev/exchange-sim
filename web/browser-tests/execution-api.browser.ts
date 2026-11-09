@@ -234,6 +234,7 @@ test("native evidence UI excludes censored windows, pins attempts and exports a 
     expect(unpack.status, unpack.stderr).toBe(0);
     expect(readFileSync(join(output, "runner/events.jsonl"), "utf8").trim().split("\n").length).toBeGreaterThan(1000);
     const verify = spawnSync(resolve("../build/release/exsim_research"), ["verify", join(output, "runner")], { encoding: "utf8" });
+    expect(verify.error, "native artifact verifier must launch").toBeUndefined();
     expect(verify.status, verify.stderr).toBe(0);
     const shortConfig = structuredClone(config);
     shortConfig.seedSet.masterSeeds = ["901"];

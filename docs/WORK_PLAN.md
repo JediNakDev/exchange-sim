@@ -5,7 +5,7 @@ Updated 2026-11-09. This is a recovery checkpoint, not live delegate status. Kee
 ## Current continuation queue
 
 **Publication and main merge, 2026-11-09:** user authorized pushing and merging.
-Source15434f5 is pushed on `exchange-simulator`; PR
+Sourcea151e24 is pushed on `exchange-simulator`; PR
 https://github.com/JediNakDev/exsim/pull/3 targets main and remains watched.
 GitHub reports the repository moved from `lob` to `exsim`; existing origin
 redirects successfully. Personal/local files and separate demo media are
@@ -38,6 +38,26 @@ the valid full-suite evidence. Logs retained under
 `output/process-architecture-2026-11-09/logs/exsim-pr3-postgres-*`.
 Next: push this fixture repair, follow the existing PR3 watch and merge once CI
 passes. Earlier GCC repair144b34c is already pushed. No new watch or delegate.
+
+**PR3 web CI repair, 2026-11-09:** PostgreSQL failure on144b34c is the same
+old600s fixture already repaired by a151e24. Web job129015250568 passed29/32
+browser cases. Parent repairs the three failures: CI now builds the independent
+`exsim_research` verifier as well as the API; browser preparation fails early if
+either binary is missing. The audit test retains actual unpack/reproduce and
+zero-exit checks and adds an explicit verifier-launch assertion. Route-reset
+coverage follows the loaded study name after summary navigation settles, then
+opens Runs and recovery, preserving same-document and late-response assertions.
+Connections coverage follows the documented unavailable-telemetry state and
+built-in setup continuation. Remaining custom-strategy Coming soon copy was
+removed from Connections, setup help and sidebar; no backend semantics changed.
+
+Fresh production build and three scoped browser cases pass3/3 in9.3s; ordinary
+frontend123/123 in4.19s, typecheck and scoped lint pass. UI_DESIGN records the
+navigation/copy decisions. Test-tier guidance used scoped cases; full browser
+coverage remains for CI. Logs:
+`output/process-architecture-2026-11-09/logs/exsim-pr3-web-*`.
+Next: push this web repair, follow the existing PR3 watch, fix any remaining
+checks and merge once green. Do not create a replacement watch or delegate.
 
 **Trader/exchange architecture, completed 2026-11-09:**
 User requested `exsim_apid`, `exsim_traderd`, `exsim_exchanged`, reusable

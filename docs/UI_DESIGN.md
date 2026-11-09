@@ -214,3 +214,17 @@ typography and primitive rules above. The active configuration workflow uses the
 
 Configuration flow artifact:
 [CONFIGURATION_FLOW_2026-11-09.html](reviews/CONFIGURATION_FLOW_2026-11-09.html).
+
+### Browser contract alignment, 2026-11-09
+
+Run analysis identifies its parent study by its loaded human-readable name in
+the Research context region. Navigation tests must follow that real Next link
+without relying on the transient raw-ID fallback. Wait for run-summary navigation
+to finish before selecting its study link; individual attempts live under the
+study Runs and recovery tab. The navigation checks must still prove
+selection/cursor reset and rejection of late responses across run routes.
+
+Connections labels an absent report as No live gateway telemetry reported.
+It explains that this cannot establish whether a separately launched server is
+running. The continuation opens built-in strategy setup. Custom-strategy setup
+and Coming soon copy are absent from Connections, study setup and the sidebar.

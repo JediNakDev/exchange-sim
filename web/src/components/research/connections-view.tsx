@@ -28,7 +28,7 @@ export function ConnectionsView() {
     <>
       <PageHeading
         title="Connections and faults"
-        description="Read-only gateway telemetry. Custom trading strategy setup is coming soon."
+        description="Read-only gateway sessions, market data feeds and fault telemetry."
       />
       <div className="border-t pt-6"><h2 className="text-base font-medium">Reported gateway telemetry</h2><p className="mt-1 text-xs text-muted-foreground">{status ? `API report: ${humanizeEnumValue(status.serviceState)}, observed ${formatWallClockTime(status.observedAt)}. ${status.telemetryDroppedUpdateCount} telemetry updates dropped.` : "Loading the research API telemetry report."} This API does not automatically monitor a separately started protocol server.</p></div>
       {connections.failure ? <ApiFailureAlert failure={connections.failure} onRetry={connections.reload} /> : null}

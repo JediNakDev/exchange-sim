@@ -385,7 +385,7 @@ test("time-series charts have distinct names and a keyboard-readable sampled alt
   }
 });
 
-test("protocol empty states explain the separate mode and offer a research continuation", async ({ page }) => {
+test("protocol empty states distinguish absent telemetry and offer built-in research", async ({ page }) => {
   await installService(page, new MockResearchService(), async (route, request, forward) => {
     if (!new URL(request.url).pathname.endsWith("/connections")) return false;
     const status = await (await forward()).json();
@@ -393,11 +393,12 @@ test("protocol empty states explain the separate mode and offer a research conti
     return true;
   });
   await page.goto("/connections");
-  await expect(page.getByRole("heading", { name: "Real-time protocol service is not running here" })).toBeVisible();
-  await expect(page.getByText(/No order-entry sessions reported/)).toBeVisible();
-  await expect(page.getByText(/No protocol fault scenarios reported/)).toBeVisible();
-  await page.getByRole("link", { name: "Return to research experiments" }).click();
-  await expect(page).toHaveURL(/\/research$/);
+  await expect(page.getByRole("heading", { name: "No live gateway telemetry reported" })).toBeVisible();
+  await expect(page.getByText(/This does not establish whether a separately launched server is running/)).toBeVisible();
+  await expect(page.getByText(/No sessions supplied by this API/)).toBeVisible();
+  await expect(page.getByText(/No fault telemetry supplied/)).toBeVisible();
+  await page.getByRole("link", { name: "Configure built-in strategy research" }).click();
+  await expect(page).toHaveURL(/\/experiments\/new$/);
 });
 
 test("a field-specific service error opens its section and focuses the invalid input", async ({ page }) => {

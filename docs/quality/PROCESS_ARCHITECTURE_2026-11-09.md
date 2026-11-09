@@ -161,3 +161,38 @@ Exact retained logs under `output/process-architecture-2026-11-09/logs/`:
 
 The temporary diagnostic copy and test-image setup remain only in ignored
 output or `/tmp`; only the bounded fixture and these receipts are committed.
+
+## PR3 browser contract repair
+
+The PostgreSQL failure reported on144b34c repeats the fixture failure already
+fixed by a151e24. Web job129015250568 passed29/32 browser cases and exposed:
+
+- Native audit reproduction invoked `exsim_research`, but the clean CI job only
+  built the API. CI now builds both tools. Browser preparation checks both
+  prerequisites, and the audit probe checks launch success before preserving
+  its zero-exit and artifact-evidence assertions.
+- The run-route regression looked for a raw study ID while the current UI
+  displays its loaded name. It now waits for the summary route and heading,
+  follows the named study context link, and opens Runs and recovery before
+  selecting the second run. Same-document identity, cursor/selection reset,
+  colliding-fill evidence and late uncancelled response checks are unchanged.
+- Connections had intentionally changed from an offline-server claim to an
+  unavailable-telemetry report. The test follows that documented state and its
+  built-in setup continuation. Remaining custom-strategy Coming soon copy in
+  the page descriptions, setup help and sidebar is also removed.
+
+UI_DESIGN records the deliberate navigation and empty-state wording. No
+matching, accounting, latency, protocol or PostgreSQL behavior changed.
+
+After a fresh production build, scoped browser cases pass3/3 in9.3s. Ordinary
+frontend tests pass123/123 in4.19s; typecheck and scoped lint pass. The test-tier
+skill guided selection of the three affected browser cases, retaining the
+existing regression assertions. A full browser rerun remains for CI.
+
+Retained logs under `output/process-architecture-2026-11-09/logs/`:
+`exsim-pr3-web-144b34c.log`, `exsim-pr3-pg-144b34c.log`,
+`exsim-pr3-web-production-build.log`, `exsim-pr3-web-native-tools-build.log`,
+`exsim-pr3-web-focused-browser-final.log`, `exsim-pr3-web-unit.log`,
+`exsim-pr3-web-types.log`, `exsim-pr3-web-lint.log`.
+Intermediate browser failures and route-only checks remain in the same directory
+for diagnosis; the final three-case log is the accepted browser result here.
