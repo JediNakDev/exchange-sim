@@ -21,6 +21,24 @@ focused durability17/17 and runtime-review7/7 pass. Logs:
 Next: push this repair, follow existing CI notifications, and merge PR3 once
 checks pass. No delegate or replacement watch is needed.
 
+**PR3 PostgreSQL CI fixture repair, 2026-11-09:** job129014131122 on15434f5
+passed26/27 tests; its API-suspension probe required600 simulated seconds to
+complete within15 wall seconds. Confirmed actual worker independence: original
+probe passes normally, and the workload completes with the API suspended under
+0.25CPU when the diagnostic wait permits it (whole test46.956s). Production
+code is unchanged. The committed fixture now uses60 simulated seconds with the
+same15-second deadline, plus exact end-time/nonzero-event assertions and proof
+that PostgreSQL stays running-state until the suspended API resumes.
+
+Repaired focused test passes under0.25CPU (whole test5.894s). Full real
+PostgreSQL18 suite passes27/27 in69.973s in a disposable init-enabled container;
+all test containers/volumes removed. Initial combined test harness without an
+init process mishandled adopted orphan processes; the init-enabled rerun is
+the valid full-suite evidence. Logs retained under
+`output/process-architecture-2026-11-09/logs/exsim-pr3-postgres-*`.
+Next: push this fixture repair, follow the existing PR3 watch and merge once CI
+passes. Earlier GCC repair144b34c is already pushed. No new watch or delegate.
+
 **Trader/exchange architecture, completed 2026-11-09:**
 User requested `exsim_apid`, `exsim_traderd`, `exsim_exchanged`, reusable
 libraries, custom-strategy removal and Docker correction. Implemented by parent

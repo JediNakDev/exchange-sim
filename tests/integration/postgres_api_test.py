@@ -405,7 +405,11 @@ class PostgresApiTests(unittest.TestCase):
         baselines, _ = self.request("/v1/baselines")
         baseline = baselines["items"][0]
         config = baseline["config"]
-        config["bounds"]["endSimulationTimeNs"] = "600000000000"
+        # This proves control-plane independence, not a throughput target.
+        # Real trader/exchange IPC makes the old ten-minute workload sensitive
+        # to shared-runner CPU contention. Keep the existing 15-second deadline
+        # with one simulated minute and verify all work completes before SIGCONT.
+        config["bounds"]["endSimulationTimeNs"] = "60000000000"
         experiment = self.request("/v1/experiments", {"name": "independent worker", "description": "",
             "derivedFromBaselineId": baseline["baselineId"], "config": config}, "independent-experiment", 201)[0]
         run_id = self.create_run(experiment)["runId"]
@@ -420,11 +424,17 @@ class PostgresApiTests(unittest.TestCase):
             self.assertEqual(json.loads(record_path.read_text())["state"], "running",
                              "fixture completed before API suspension")
             while time.monotonic() < deadline:
-                if record_path.exists() and json.loads(record_path.read_text())["state"] == "completed":
+                record = json.loads(record_path.read_text())
+                if record["state"] == "completed":
+                    self.assertGreater(int(record["processedEventCount"]), 0)
+                    self.assertEqual(record["finalSimulationTimeNs"], config["bounds"]["endSimulationTimeNs"])
+                    # Only the suspended API may publish PostgreSQL metadata.
+                    self.assertEqual(self.sql("SELECT state FROM exsim.runs"), "running")
                     break
+                self.assertEqual(record["state"], "running", record)
                 time.sleep(0.02)
             else:
-                self.fail("worker did not finish while API was suspended")
+                self.fail(f"worker did not finish while API was suspended: {record}")
         finally:
             os.kill(process.pid, signal.SIGCONT)
         self.await_state(run_id, "completed")

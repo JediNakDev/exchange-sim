@@ -126,3 +126,38 @@ runtime-review7/7 pass. Logs retained under the output log directory:
 `exsim-pr3-gcc-{release,debug}-failed.log`,
 `exsim-pr3-gcc-fix-{build,linux-compile,durability-tests,runtime-tests}.log`.
 CI rerun and main merge remain pending at this checkpoint.
+
+## PR3 PostgreSQL independence fixture repair
+
+Job129014131122 on15434f5 passed26/27 checks. Its independence test required a
+ten-minute simulated workload to finish within15 wall seconds while the API
+was suspended. Actual trader/exchange IPC makes that an implicit throughput
+assumption under variable CI CPU contention. The original probe passes in the
+local Linux image; under0.25CPU a diagnostic run completes with the API still
+suspended when allowed a longer diagnostic wait (whole test46.956s).
+
+The committed test keeps the15-second deadline and checks one simulated minute
+instead. It also requires nonzero processed events, the exact final simulated
+time, and PostgreSQL metadata still in running-state before SIGCONT. Thus it
+continues to require completion without API control IPC and explicitly checks
+the sole-metadata-writer boundary. No production code or run limit changes.
+
+The repaired focused test passes under0.25CPU (whole test5.894s). The full real
+PostgreSQL18 suite passes27/27 in69.973s using the existing verified Linux
+runtime binaries in a disposable init-enabled container. CI uses PostgreSQL16
+and remains pending. This adds full local PostgreSQL coverage beyond the
+initial implementation receipt. The first combined local harness lacked an
+init process for the orphan tests and is not accepted as full-suite evidence;
+its log is preserved alongside the successful rerun. All disposable containers
+and their volumes were removed; installed databases were untouched.
+
+Exact retained logs under `output/process-architecture-2026-11-09/logs/`:
+- `exsim-pr3-postgres-failed.log`: original CI failure.
+- `exsim-pr3-postgres-reproduction.log`: original local focused pass.
+- `exsim-pr3-postgres-slow-diagnostic.log`: original workload at0.25CPU.
+- `exsim-pr3-postgres-repaired-focused.log`: repaired fixture at0.25CPU.
+- `exsim-pr3-postgres-repaired-suite-init.log`: valid27/27 full rerun.
+- `exsim-pr3-postgres-repaired-suite.log`: first local harness failure.
+
+The temporary diagnostic copy and test-image setup remain only in ignored
+output or `/tmp`; only the bounded fixture and these receipts are committed.
