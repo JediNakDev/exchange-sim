@@ -2,7 +2,6 @@ FROM debian:trixie-slim AS build
 RUN apt-get update && apt-get install -y --no-install-recommends g++ make libpq-dev ca-certificates && rm -rf /var/lib/apt/lists/*
 WORKDIR /source
 COPY Makefile ./
-COPY include/ include/
 COPY lib/ lib/
 COPY src/ src/
 # The Makefile inventories these trees even when building just the API.

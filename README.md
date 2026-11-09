@@ -52,7 +52,7 @@ docker compose up -d --build --wait
 
 ## Project Layout
 
-- `lib/` and `include/`: reusable C++ code.
+- `lib/`: reusable C++ code and public headers.
 - `src/`: API, trader and exchange daemons.
 - `tools/`: protocol clients, research CLI, audit and deployment helpers.
 - `test/`: native tests, protocol benchmarks, fuzz, scenarios and validation tools.

@@ -15,7 +15,7 @@ make legacy-bench
 Binaries go in `build/<mode>/legacy/`. Run these commands from the repository root.
 `make examples` builds just the book example; `make legacy-tools` builds the ITCH replay tool.
 
-The OrderBook itself stays in `include/lob/` and `lib/src/order_book.cpp` because
+The OrderBook itself stays in `lib/include/lob/` and `lib/src/order_book.cpp` because
 exsim now uses it for resting orders. Its pools, maps, price levels, shared types
 and journal SPSC queue also stay in the active tree.
 Exsim codec tests still compare bytes against the old ITCH representation.

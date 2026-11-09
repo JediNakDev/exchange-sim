@@ -25,7 +25,7 @@ MODE ?= release
 CXX ?= c++
 STD := -std=c++20
 WARNINGS := -Wall -Wextra -Wpedantic -Wshadow
-CPPFLAGS := -I lib/include -I include -I . -MMD -MP
+CPPFLAGS := -I lib/include -I . -MMD -MP
 # The production MatchingEngine is linked into run_tests, so the differential,
 # scenario, preflight and allocation tests also run against it by default.
 CPPFLAGS += -DEXSIM_TEST_PRODUCTION
