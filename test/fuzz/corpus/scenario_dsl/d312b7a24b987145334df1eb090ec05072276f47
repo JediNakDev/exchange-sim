@@ -1,0 +1,6 @@
+instrument AA=1  phase=CONTINUOUS
+session alice own
+session bob ow(2
+NEW_ORDER insÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿqty=5  price=0 type=MARKET,
+expect count 3
+exL

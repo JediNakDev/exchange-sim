@@ -1,0 +1,87 @@
+# SPEC 6: replace of partially filled orders. Priority kept iff no force, same price
+# and qty-cum <= leaves; qty <= cum cancels with the OLD token and the request token;
+# priority loss assigns a new OrderId and re-enters as aggressor (Continuous) or rests
+# directly (call phase). Auction reference = last trade price once set (SPEC 2, 9).
+instrument AAA tick=0.01 lot=1 max_qty=100 min=99 max=101 ref=101 phase=CONTINUOUS
+session alice firmA
+session bob firmB
+NEW_ORDER instrument=AAA session=alice cl_ord_id=a side=BUY qty=10 price=100
+NEW_ORDER instrument=AAA session=bob cl_ord_id=x1 side=SELL qty=4 price=100
+expect count 2
+expect accepted order_id=2
+expect fill match_id=1 buy.order_id=1 buy.leaves_qty=6 buy.cum_qty=4
+NEW_ORDER instrument=AAA session=alice cl_ord_id=b side=BUY qty=5 price=100
+# same total, same price: new leaves 6 == old leaves 6, priority kept
+REPLACE session=alice orig_cl_ord_id=a qty=10 price=100 ts=9
+expect count 1
+expect replaced instrument=AAA ts=9 old_order_id=1 new_order_id=1 orig_cl_ord_id=a cl_ord_id=a session=alice side=BUY old_price=100 price=100 old_leaves_qty=6 qty=10 leaves_qty=6 cum_qty=4 priority_kept=true
+# reduce with a new token: kept, token re-keyed, level quantity shrinks
+REPLACE session=alice orig_cl_ord_id=a cl_ord_id=a2 qty=8 price=100
+expect count 1
+expect replaced old_order_id=1 new_order_id=1 orig_cl_ord_id=a cl_ord_id=a2 old_leaves_qty=6 qty=8 leaves_qty=4 cum_qty=4 priority_kept=true
+expect depth AAA bid 100:9:2
+expect order session=alice cl_ord_id=a2 order_id=1 qty=8 leaves_qty=4 cum_qty=4
+CANCEL session=alice orig_cl_ord_id=a
+expect count 1
+expect rejected instrument=0 cmd=CANCEL reason=UNKNOWN_ORDER session=alice cl_ord_id=0 orig_cl_ord_id=a order_id=0
+# FIFO position kept: the next sell hits OrderId 1 before b
+NEW_ORDER instrument=AAA session=bob cl_ord_id=x2 side=SELL qty=2 price=100
+expect count 2
+expect accepted order_id=4
+expect fill match_id=2 qty=2 buy.order_id=1 buy.cl_ord_id=a2 buy.leaves_qty=2 buy.cum_qty=6
+# qty 9 => new leaves 3 > old leaves 2: priority lost, new OrderId 5, cum preserved
+REPLACE session=alice orig_cl_ord_id=a2 qty=9 price=100
+expect count 2
+expect replaced old_order_id=1 new_order_id=5 orig_cl_ord_id=a2 cl_ord_id=a2 old_price=100 price=100 old_leaves_qty=2 qty=9 leaves_qty=3 cum_qty=6 priority_kept=false
+expect rested order_id=5 cl_ord_id=a2 side=BUY price=100 leaves_qty=3
+expect depth AAA bid 100:8:2
+# qty == cum: order done; Canceled carries the old token and the request token
+REPLACE session=alice orig_cl_ord_id=a2 cl_ord_id=r1 qty=6 price=100
+expect count 1
+expect canceled order_id=5 cl_ord_id=a2 request_cl_ord_id=r1 session=alice side=BUY price=100 canceled_qty=3 cum_qty=6 reason=USER_REQUESTED was_resting=true leaves_qty=0
+expect depth AAA bid 100:5:1
+# price change: priority lost, matches as aggressor in Continuous
+NEW_ORDER instrument=AAA session=bob cl_ord_id=x3 side=SELL qty=5 price=100.5
+REPLACE session=alice orig_cl_ord_id=b qty=5 price=100.5
+expect count 2
+expect replaced old_order_id=3 new_order_id=7 old_price=100 price=100.5 old_leaves_qty=5 qty=5 leaves_qty=5 cum_qty=0 priority_kept=false
+expect fill match_id=3 price=100.5 qty=5 aggressor=BUY buy.order_id=7 buy.cl_ord_id=b buy.session=alice buy.leaves_qty=0 buy.cum_qty=5 sell.order_id=6 sell.cl_ord_id=x3 sell.session=bob sell.leaves_qty=0 sell.cum_qty=5
+expect depth AAA bid
+expect depth AAA ask
+# quantity increase at the same price loses priority without force_priority_loss
+NEW_ORDER instrument=AAA session=alice cl_ord_id=c side=BUY qty=5 price=99
+NEW_ORDER instrument=AAA session=alice cl_ord_id=d side=BUY qty=5 price=99
+REPLACE session=alice orig_cl_ord_id=c qty=6 price=99
+expect count 2
+expect replaced old_order_id=8 new_order_id=10 priority_kept=false leaves_qty=6
+expect rested order_id=10
+NEW_ORDER instrument=AAA session=bob cl_ord_id=x4 side=SELL qty=5 price=99
+expect count 2
+expect accepted order_id=11
+expect fill match_id=4 price=99 qty=5 buy.order_id=9 buy.cl_ord_id=d
+# call phase: a crossing priority-loss replace rests without matching
+NEW_ORDER instrument=AAA session=bob cl_ord_id=x5 side=SELL qty=5 price=100
+SET_PHASE instrument=AAA phase=PRE_OPEN
+REPLACE session=alice orig_cl_ord_id=c qty=6 price=100.5
+expect count 2
+expect replaced old_order_id=10 new_order_id=13 old_price=99 price=100.5 priority_kept=false
+expect rested order_id=13 price=100.5 leaves_qty=6
+expect depth AAA bid 100.5:6:1
+expect depth AAA ask 100:5:1
+# candidates 100 and 100.5 tie on V=5 and |I|=1; reference is the last trade 99
+# (not the configured 101), so 100 is closer
+SET_PHASE instrument=AAA phase=CONTINUOUS
+expect count 3
+expect fill match_id=5 price=100 qty=5 aggressor=NONE buy.order_id=13 buy.leaves_qty=1 buy.cum_qty=5 sell.order_id=12 sell.leaves_qty=0 sell.cum_qty=5
+expect auction_summary price=100 matched_qty=5 match_id=6
+expect phase_changed old_phase=PRE_OPEN new_phase=CONTINUOUS
+expect depth AAA bid 100.5:1:1
+# post-only replace that would cross the best bid is rejected with target ID and instrument
+NEW_ORDER instrument=AAA session=alice post_only=true cl_ord_id=e side=SELL qty=5 price=100.6
+REPLACE session=alice orig_cl_ord_id=e qty=5 price=100.5
+expect count 1
+expect rejected instrument=AAA cmd=REPLACE reason=POST_ONLY_WOULD_CROSS session=alice cl_ord_id=0 orig_cl_ord_id=e order_id=14
+REPLACE session=alice orig_cl_ord_id=e qty=5 price=100.51
+expect count 2
+expect replaced old_order_id=14 new_order_id=15 priority_kept=false
+expect rested order_id=15 price=100.51

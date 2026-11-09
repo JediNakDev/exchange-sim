@@ -1,0 +1,231 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    name: ${{ matrix.os }} ${{ matrix.cxx }} ${{ matrix.mode }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-24.04, cxx: g++,     mode: release }
+          - { os: ubuntu-24.04, cxx: g++,     mode: debug }
+          - { os: ubuntu-24.04, cxx: clang++, mode: release }
+          - { os: ubuntu-24.04, cxx: clang++, mode: debug }
+          - { os: ubuntu-24.04, cxx: clang++, mode: tsan }
+          - { os: macos-15,     cxx: clang++, mode: release }
+          - { os: macos-15,     cxx: clang++, mode: debug }
+    steps:
+      - uses: actions/checkout@v4
+      - name: build and test
+        run: make -j4 test MODE=${{ matrix.mode }} CXX=${{ matrix.cxx }} EXTRA_CXXFLAGS=-Werror
+      - name: tools and examples
+        if: matrix.mode == 'release'
+        run: make -j4 apps test-tools MODE=release CXX=${{ matrix.cxx }} EXTRA_CXXFLAGS=-Werror
+
+  research-postgres:
+    name: PostgreSQL metadata, isolated workers and recovery
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    services:
+      postgres:
+        # Match Ubuntu 24.04's dump/restore client major version.
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: exsim-ci-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: exsim-ci-only
+    steps:
+      - uses: actions/checkout@v4
+      - name: PostgreSQL client and C library
+        run: sudo apt-get update && sudo apt-get install -y libpq-dev postgresql-client-16
+      - name: native API with PostgreSQL
+        run: make -j2 WITH_POSTGRES=1 build/release/exsim_api EXTRA_CXXFLAGS=-Werror
+      - name: real database lifecycle and failure tests
+        run: python3 test/integration/postgres_api_test.py
+
+  research-compose:
+    name: container deployment and persistent research results
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: disposable local credentials and Compose validation
+        run: |
+          sh docker/create-secrets.sh
+          docker compose config --quiet
+          python3 test/integration/compose_secrets_test.py
+      - name: build runtime images
+        run: docker compose build
+      - name: deploy, execute a real run and recreate the stack
+        run: python3 test/integration/compose_deployment_test.py
+
+  research-web:
+    name: research UI, HTTP contract and delivery invariants
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: frozen frontend dependencies
+        working-directory: web
+        run: bun install --frozen-lockfile
+      - name: generated API types match the contract
+        working-directory: web
+        run: |
+          bun run generate-api-types
+          git diff --exit-code -- src/lib/api/generated-schema.d.ts
+      - name: frontend types, lint and invariant tests
+        working-directory: web
+        run: |
+          bun run typecheck
+          bun run lint --max-warnings 0
+          bun run test
+      - name: production frontend
+        working-directory: web
+        run: bun run build
+      - name: native API and artifact verifier for browser contracts
+        run: make -j2 build/release/exsim_api build/release/exsim_research CXX=clang++ EXTRA_CXXFLAGS=-Werror
+      - name: selected exchange protocols over real worker sessions
+        run: python3 test/integration/research_sessions_test.py
+      - name: browser failure and recovery invariants
+        working-directory: web
+        run: |
+          bunx playwright install --with-deps chromium --only-shell
+          bun run test:browser
+      - name: real HTTP contract and native artifact integration
+        working-directory: web
+        run: bun test ./test/e2e/exsim-api-binary.e2e.ts
+      - name: package and offline restore invariants
+        run: python3 -B test/integration/test_research_delivery.py
+      - name: keep browser failure traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: research-browser-failures
+          path: web/test-results/
+          if-no-files-found: ignore
+
+  perf-smoke:
+    name: perf build + zero-allocation bench smoke
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: build optimised tools
+        run: make -j4 test-tools MODE=perf CXX=clang++
+      - name: engine benchmark (fails on any hot-path allocation)
+        run: ./build/perf/exsim_bench --ops 200000
+      - name: codec benchmark (fails on any allocation or codec error)
+        run: ./build/perf/exsim_codec_bench --iterations 200000 --rounds 3
+
+  research-determinism:
+    # The research runner promises byte-identical artifacts for the same config
+    # and seed. Each platform and compiler writes one digest per artifact, and
+    # research-determinism-compare requires them all to be equal, across
+    # x86_64 Linux (g++, clang++) and arm64 macOS (Apple clang).
+    name: research determinism (${{ matrix.os }} ${{ matrix.cxx }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-24.04, cxx: g++ }
+          - { os: ubuntu-24.04, cxx: clang++ }
+          - { os: macos-15,     cxx: clang++ }
+    steps:
+      - uses: actions/checkout@v4
+      - name: build research runner
+        run: make -j4 test-tools MODE=release CXX=${{ matrix.cxx }} EXTRA_CXXFLAGS=-Werror
+      - name: run every research config over fixed seeds
+        run: sh test/integration/research_digests.sh build/release/exsim_research "research-digests-${{ matrix.os }}-${{ matrix.cxx }}.txt"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: research-digests-${{ matrix.os }}-${{ matrix.cxx }}
+          path: research-digests-*.txt
+
+  research-determinism-compare:
+    name: research artifacts identical across platforms
+    needs: research-determinism
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: research-digests-*
+          merge-multiple: true
+      - name: compare digests
+        run: |
+          set -e
+          reference=$(ls research-digests-*.txt | head -n 1)
+          for digests in research-digests-*.txt; do
+            echo "$digests: $(wc -l < "$digests") artifacts"
+            if ! cmp -s "$reference" "$digests"; then
+              echo "research artifacts differ between $reference and $digests:"
+              diff "$reference" "$digests" | head -n 40
+              exit 1
+            fi
+          done
+
+  differential-fuzz:
+    # Random command streams through the production engine and the independent
+    # oracle, compared event by event. Release covers volume; debug runs the
+    # same streams under ASan and UBSan.
+    name: differential fuzz vs oracle (${{ matrix.mode }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { mode: release, seeds: 1000 }
+          - { mode: debug,   seeds: 200 }
+    steps:
+      - uses: actions/checkout@v4
+      - name: build fuzzer
+        run: make -j4 test-tools MODE=${{ matrix.mode }} CXX=clang++ EXTRA_CXXFLAGS=-Werror
+      - name: canary (an injected oracle bug must be caught)
+        run: |
+          if ./build/${{ matrix.mode }}/exsim_fuzz --inject --profile mixed --seeds 50 --steps 2000 \
+               --artifact "$RUNNER_TEMP/canary" > /dev/null 2>&1; then
+            echo "fuzzer missed the injected LIFO bug"; exit 1
+          fi
+      - name: fixed seeds
+        run: |
+          mkdir -p fuzz-reproducers
+          for profile in mixed tiny; do
+            ./build/${{ matrix.mode }}/exsim_fuzz --profile $profile --seed 1 --seeds ${{ matrix.seeds }} \
+              --steps 2000 --artifact fuzz-reproducers/fixed-$profile
+          done
+      - name: rolling seeds (new range each run)
+        run: |
+          mkdir -p fuzz-reproducers
+          first_seed=$(( ${{ github.run_number }} * 1000000 ))
+          echo "first seed $first_seed; reproduce with --seed $first_seed --seeds ${{ matrix.seeds }} --steps 2000"
+          for profile in mixed tiny; do
+            ./build/${{ matrix.mode }}/exsim_fuzz --profile $profile --seed $first_seed --seeds ${{ matrix.seeds }} \
+              --steps 2000 --artifact fuzz-reproducers/rolling-$profile
+          done
+      - name: keep shrunk reproducers
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-reproducers-${{ matrix.mode }}
+          path: fuzz-reproducers/
+          if-no-files-found: ignore

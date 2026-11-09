@@ -1,0 +1,3 @@
+instrument ANUOUS
+session alice Struntime_own
+session bob kept=false nepested

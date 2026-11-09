@@ -1,0 +1,66 @@
+instrument AAA tick=0.01 lot=max=101 ref=]10p0 hase=CONTINminUOUS
+session a
+
+
+
+
+
+
+
+
+1
+expecta
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+1
+expect replacde=BUY qty
+
+
+
+
+
+
+
+
+
+
+
+
+&
+
+
+1
+expe
+sess
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+1
+expect replacde=BUY qty
+e=BUY qty=10 price=100
+REPLACE session=alace oig_cl_ord_id=a qt

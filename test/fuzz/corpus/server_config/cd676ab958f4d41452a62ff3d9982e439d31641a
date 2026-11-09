@@ -1,0 +1,15 @@
+             # FI= pre_open
+
+[instrument SPY]
+tick_size = 0.01
+min_price = 0.01
+max_price = 2000.80
+reference_price = 5.40
+initial_phase = continuous
+
+[user ALICE]
+password == ouch42
+session_id = 1
+owner = 1
+stp = cancel_resting
+cancel_on_disconnect = true

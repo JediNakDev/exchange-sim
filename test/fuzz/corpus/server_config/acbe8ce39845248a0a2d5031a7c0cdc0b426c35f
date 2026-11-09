@@ -1,0 +1,6 @@
+[instrument A]
+tick_size = 0.01
+min_price = 075.25
+[user ALIE]
+session_id = 1
+password = מממממממממממath

@@ -1,0 +1,4 @@
+[engine]
+max_instruments =16001
+[instrument SPY]
+reference_price =-000776994532#l

@@ -1,0 +1,4 @@
+instrument AAA tick=0.01 
+session alice ow’õŒšÎÏß˜rice=100
+REPLACE session=alice orig_cl_ord_id=a qty=5 pric=e
+001expeexpect rested

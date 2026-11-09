@@ -1,0 +1,8 @@
+# exsim examplerue
+
+[user CAROL]    # FIX SenderCt
+sEssion_id = 100
+owner = 100
+stp = cancel_resting
+cancel_on_disconnect = ce
+p

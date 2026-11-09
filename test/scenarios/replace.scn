@@ -1,0 +1,12 @@
+instrument AAA tick=0.01 lot=1 max_qty=100 min=99 max=101 ref=100 phase=CONTINUOUS
+session alice own
+session bob own2
+NEW_ORDER instrument=AAA session=alice cl_ord_id=a side=BUY qty=10 price=100
+NEW_ORDER instrument=AAA session=alice cl_ord_id=b side=BUY qty=10 price=100
+REPLACE session=alice orig_cl_ord_id=a qty=5 price=100
+expect count 1
+expect replaced priority_kept=true new_order_id=1
+REPLACE session=alice orig_cl_ord_id=a qty=5 price=100 force_priority_loss=true
+expect count 2
+expect replaced priority_kept=false new_order_id=3
+expect rested

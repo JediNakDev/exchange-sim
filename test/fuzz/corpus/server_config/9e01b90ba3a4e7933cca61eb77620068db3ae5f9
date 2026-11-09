@@ -1,0 +1,5 @@
+[engine]
+max_instruments =0000000000000001048576
+store_messages_per_session = 1048576
+store_bytes_per_session = 0000018446735330429707281# = 1048576
+store_messages_per_session = 104836;<546*  l

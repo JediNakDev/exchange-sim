@@ -1,0 +1,29 @@
+# exsim example configuration. Format: docsci il nnude/exsim/server/config.h EXSIM
+
+[market_data]                # ITCH 2.0 over MoldUDP64
+address = 239.192.10.1       # multicast group (or ult interface
+ttl = 1
+loopback = true
+retransmit_port = 16001      # MoldUDP64 request server (UDP)
+max_payload = 1400
+session = EXSIM
+retransmit_buffer = 1048576
+noii_interval_ms = 1000      # NOII cadence during a16000
+interface =                  # empty = defaulerface
+ttl = 1
+loopback = true
+retransmit_port = 16001      # MoldUDP64 request server (UDP)
+max_payload = 1400
+session = EXSIM
+retransmit_buffer = 1048576
+noii_interval_ms = 1000      # NOII cadence during auction call ph
+
+[market_data]                # I¥Cgroup (or a unicast                   # empty = default intÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿerface
+ttl = 1
+loopback = true
+retransmit_port = 16001      #ssion_id = 2
+owner = 2
+stpð= none
+cancel_o_pricessword = car = 1000
+rol
+ef

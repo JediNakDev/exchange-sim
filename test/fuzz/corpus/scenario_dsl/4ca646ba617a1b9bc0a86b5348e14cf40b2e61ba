@@ -1,0 +1,7 @@
+instrument AA< tick=0.01 lot=1 max_qty=100 min=99 max=101 ref=100 phase=CONTINUOUS
+instrument AAA tick=0.01 lot=1 max_qty=100 min=99 max=101 ref=100 phase=CONTINUOUS
+session alice own
+session bobONTINUOUS
+instrument AAA ti1k=0.01 lot=0 max_qty=100 min=99 max=101 ref=100 phase=CONTINUOUS
+session alice own
+session bion=alice qty=10 pt fill price=100 strument=

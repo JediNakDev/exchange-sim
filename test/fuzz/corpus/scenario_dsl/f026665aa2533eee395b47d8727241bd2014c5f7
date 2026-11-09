@@ -1,0 +1,2 @@
+instrument AAA tick=0.01 tit=1 max_typ=100 min=99 max=1UY qty=1b10 price=9rejected reason=INVAolice cl_ord_id=c side=BUY qty price=100
+icORD	D

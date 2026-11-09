@@ -1,0 +1,7 @@
+# l_phe_open
+
+[instrument SPY]
+tick_size = 50.1
+min_price = 0.01
+max_price = 20000.0
+reference_price = 0

@@ -1,0 +1,460 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  exsim binary order entry: SBE 1.0 application messages over a FIXP 1.0 session.
+
+  This schema is owned by exsim. It follows only the open FIX Trading Community
+  standards and copies no venue schema:
+    * Simple Binary Encoding (SBE) 1.0 with the November 2020 errata.
+    * FIX Performance Session Layer (FIXP) 1.0. The session message layouts and
+      template ids 1..18 are the ones of the FIXP 1.0 reference SBE schema
+      (package FIXP); they are re-declared here under the exsim schema id so that
+      one message header and one schema id cover the whole TCP stream.
+    * Simple Open Framing Header (SOFH) 1.0.
+
+  Framing (SOFH 1.0, "Encoding of the Simple Open Framing Header"): every message
+  is preceded by 6 bytes, Message_Length uint32 big-endian (counts the SOFH, the
+  SBE message header, the root block and any variable length data) and
+  Encoding_Type uint16 big-endian 0xEB50 (SBE 1.0 little-endian). SOFH is the
+  only big-endian structure on the wire; every SBE field is little-endian.
+
+  Message header: the SBE 1.0 recommended 12 byte header (SBE 5.2.1).
+  Application messages are fixed length (numGroups = 0, numVarDataFields = 0).
+  Session messages carry at most one variable length field (Credentials or
+  Reason). No repeating groups are used anywhere.
+
+  Extension rule (SBE 7.3.1 and 7.4): a later version may only append fields to
+  a root block or append variable length fields. Decoders use the header
+  blockLength to skip unknown trailing block bytes. Version 1 decoders reject
+  messages whose header version is 0.
+
+  Template id ranges: 1..99 FIXP session layer, 100..199 client to server
+  application messages, 200..299 server to client application messages.
+
+  Custom field ids 7900..7999 are exsim user defined tags (FIX user defined
+  range 5000..9999). Tag 7928 SelfTradePrevention is shared with the exsim
+  FIX 4.4 gateway.
+-->
+<sbe:messageSchema xmlns:sbe="http://fixprotocol.io/2016/sbe"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   package="exsim_order_entry"
+                   id="22597"
+                   version="1"
+                   semanticVersion="FIXP 1.0 SBE 1.0"
+                   description="exsim order entry (wire bytes of schema id 22597 read 'EX' in little-endian)"
+                   byteOrder="littleEndian"
+                   headerType="messageHeader"
+                   xsi:schemaLocation="http://fixprotocol.io/2016/sbe sbe.xsd">
+    <types>
+        <!-- SBE 5.2.1 recommended message header, 12 bytes. -->
+        <composite name="messageHeader" description="Template id and length of message root">
+            <type name="blockLength" primitiveType="uint16"/>
+            <type name="templateId" primitiveType="uint16"/>
+            <type name="schemaId" primitiveType="uint16"/>
+            <type name="version" primitiveType="uint16"/>
+            <type name="numGroups" primitiveType="uint16"/>
+            <type name="numVarDataFields" primitiveType="uint16"/>
+        </composite>
+
+        <!-- FIXP 1.0 session types (FIXP reference schema). -->
+        <type name="UUID" primitiveType="uint8" length="16" description="RFC 4122 version 4 session identifier"/>
+        <type name="nanotime" primitiveType="uint64" description="Nanoseconds since the Unix epoch"/>
+        <type name="DeltaMillisecs" primitiveType="uint32" description="Time interval in milliseconds"/>
+        <type name="ordinal" primitiveType="uint64" description="Sequence number"/>
+        <type name="ordinalOptional" primitiveType="uint64" presence="optional" nullValue="18446744073709551615"/>
+        <type name="cardinal" primitiveType="uint32" description="Message count"/>
+        <composite name="Object" description="Variable length octet string (SBE 4.8.2); at most 128 bytes in exsim">
+            <type name="length" primitiveType="uint16" maxValue="128" semanticType="Length"/>
+            <type name="varData" length="0" primitiveType="uint8" semanticType="data"/>
+        </composite>
+        <composite name="CharacterString" description="Variable length ASCII text (SBE 4.8.2); at most 128 bytes in exsim">
+            <type name="length" primitiveType="uint16" maxValue="128" semanticType="Length"/>
+            <type name="varData" length="0" primitiveType="char" semanticType="String"/>
+        </composite>
+        <enum name="FlowType" encodingType="uint8">
+            <validValue name="Recoverable">0</validValue>
+            <validValue name="Idempotent">1</validValue>
+            <validValue name="Unsequenced">2</validValue>
+            <validValue name="None">3</validValue>
+        </enum>
+        <enum name="NegotiationRejectCode" encodingType="uint8">
+            <validValue name="Credentials">0</validValue>
+            <validValue name="FlowTypeNotSupported">1</validValue>
+            <validValue name="DuplicateId">2</validValue>
+            <validValue name="Unspecified">3</validValue>
+        </enum>
+        <enum name="EstablishmentRejectCode" encodingType="uint8">
+            <validValue name="Unnegotiated">0</validValue>
+            <validValue name="AlreadyEstablished">1</validValue>
+            <validValue name="SessionBlocked">2</validValue>
+            <validValue name="KeepaliveInterval">3</validValue>
+            <validValue name="Credentials">4</validValue>
+            <validValue name="Unspecified">5</validValue>
+        </enum>
+        <enum name="RetransmitRejectCode" encodingType="uint8">
+            <validValue name="OutOfRange">0</validValue>
+            <validValue name="InvalidSession">1</validValue>
+            <validValue name="RequestLimitExceeded">2</validValue>
+        </enum>
+        <enum name="TerminationCode" encodingType="uint8">
+            <validValue name="Finished">0</validValue>
+            <validValue name="UnspecifiedError">1</validValue>
+            <validValue name="ReRequestOutOfBounds">2</validValue>
+            <validValue name="ReRequestInProgress">3</validValue>
+        </enum>
+
+        <!-- Application types. -->
+        <type name="ClOrdIdType" primitiveType="uint64" minValue="1"
+              description="Client order token; 0 is invalid; never reused by one user within a trading day"/>
+        <type name="ClOrdIdOptional" primitiveType="uint64" presence="optional" nullValue="0"/>
+        <type name="OrderIdType" primitiveType="uint64" description="Exchange order id; 0 = none"/>
+        <type name="ExecIdType" primitiveType="uint64" description="Unique per user per trading day"/>
+        <type name="MatchIdType" primitiveType="uint64"/>
+        <type name="SeqNumType" primitiveType="uint64"/>
+        <type name="TemplateIdType" primitiveType="uint16"/>
+        <type name="Qty" primitiveType="uint32"/>
+        <type name="QtyOptional" primitiveType="uint32" presence="optional" nullValue="0"
+              description="0 = absent"/>
+        <type name="Count" primitiveType="uint32"/>
+        <type name="SymbolType" primitiveType="char" length="8" characterEncoding="US-ASCII"
+              description="Instrument symbol, NUL padded (SBE 4.7.2); trailing spaces are also accepted"/>
+
+        <!-- SBE 4.5 decimal with constant exponent: wire size 8 bytes. -->
+        <composite name="Price" description="Price = mantissa * 10^-4">
+            <type name="mantissa" primitiveType="int64"/>
+            <type name="exponent" primitiveType="int8" presence="constant">-4</type>
+        </composite>
+        <composite name="PriceOptional" description="Price = mantissa * 10^-4; mantissa INT64_MIN = null">
+            <type name="mantissa" primitiveType="int64" presence="optional" nullValue="-9223372036854775808"/>
+            <type name="exponent" primitiveType="int8" presence="constant">-4</type>
+        </composite>
+        <!-- SBE 4.10.3 UTCTimestamp with constant unit: wire size 8 bytes. -->
+        <composite name="UTCTimestampNanos" description="Nanoseconds since the Unix epoch">
+            <type name="time" primitiveType="uint64"/>
+            <type name="unit" primitiveType="uint8" presence="constant">9</type>
+        </composite>
+
+        <enum name="SideEnum" encodingType="char">
+            <validValue name="Buy">1</validValue>
+            <validValue name="Sell">2</validValue>
+        </enum>
+        <enum name="OrdTypeEnum" encodingType="char">
+            <validValue name="Market">1</validValue>
+            <validValue name="Limit">2</validValue>
+        </enum>
+        <enum name="TimeInForceEnum" encodingType="char">
+            <validValue name="Day">0</validValue>
+            <validValue name="GoodTillCancel">1</validValue>
+            <validValue name="ImmediateOrCancel">3</validValue>
+            <validValue name="FillOrKill">4</validValue>
+        </enum>
+        <enum name="SelfTradePreventionEnum" encodingType="char" description="NUL (0) = use the user default">
+            <validValue name="None">N</validValue>
+            <validValue name="CancelResting">R</validValue>
+            <validValue name="CancelAggressor">A</validValue>
+            <validValue name="CancelBoth">B</validValue>
+        </enum>
+        <set name="ExecInstSet" encodingType="uint8">
+            <choice name="ParticipateDontInitiate" description="FIX ExecInst 6, post only">0</choice>
+        </set>
+        <enum name="OrdStatusEnum" encodingType="char">
+            <validValue name="New">0</validValue>
+            <validValue name="PartiallyFilled">1</validValue>
+            <validValue name="Filled">2</validValue>
+            <validValue name="Canceled">4</validValue>
+            <validValue name="Rejected">8</validValue>
+        </enum>
+        <enum name="ExecTypeEnum" encodingType="char">
+            <validValue name="New">0</validValue>
+            <validValue name="Canceled">4</validValue>
+            <validValue name="Replaced">5</validValue>
+            <validValue name="Rejected">8</validValue>
+            <validValue name="Trade">F</validValue>
+        </enum>
+        <enum name="LastLiquidityIndEnum" encodingType="uint8">
+            <validValue name="AddedLiquidity">1</validValue>
+            <validValue name="RemovedLiquidity">2</validValue>
+            <validValue name="Auction">4</validValue>
+        </enum>
+        <enum name="BooleanEnum" encodingType="uint8" description="SBE 4.13.6 Boolean">
+            <validValue name="False">0</validValue>
+            <validValue name="True">1</validValue>
+        </enum>
+        <enum name="OrdRejReasonEnum" encodingType="uint8">
+            <validValue name="UnknownSymbol">1</validValue>
+            <validValue name="ExchangeClosed">2</validValue>
+            <validValue name="UnknownOrder">5</validValue>
+            <validValue name="DuplicateOrder">6</validValue>
+            <validValue name="Other">99</validValue>
+        </enum>
+        <enum name="CxlRejResponseToEnum" encodingType="char">
+            <validValue name="OrderCancelRequest">1</validValue>
+            <validValue name="OrderCancelReplaceRequest">2</validValue>
+        </enum>
+        <enum name="CxlRejReasonEnum" encodingType="uint8">
+            <validValue name="UnknownOrder">1</validValue>
+            <validValue name="DuplicateClOrdId">6</validValue>
+            <validValue name="Other">99</validValue>
+        </enum>
+        <enum name="MassCancelRequestTypeEnum" encodingType="char">
+            <validValue name="CancelOrdersForSecurity">1</validValue>
+            <validValue name="CancelAllOrders">7</validValue>
+        </enum>
+        <enum name="MassCancelResponseEnum" encodingType="char">
+            <validValue name="CancelRequestRejected">0</validValue>
+            <validValue name="CancelOrdersForSecurity">1</validValue>
+            <validValue name="CancelAllOrders">7</validValue>
+        </enum>
+        <enum name="MassCancelRejectReasonEnum" encodingType="uint8" description="255 = null (request accepted)">
+            <validValue name="MassCancelNotSupported">0</validValue>
+            <validValue name="InvalidOrUnknownSecurity">1</validValue>
+            <validValue name="Other">99</validValue>
+        </enum>
+        <enum name="BusinessRejectReasonEnum" encodingType="uint8">
+            <validValue name="Other">0</validValue>
+            <validValue name="UnsupportedMessageType">3</validValue>
+        </enum>
+        <enum name="ExsimCancelReasonEnum" encodingType="uint8" description="Values equal exsim::CancelReason">
+            <validValue name="UserRequested">0</validValue>
+            <validValue name="ImmediateOrCancel">1</validValue>
+            <validValue name="FillOrKill">2</validValue>
+            <validValue name="SelfTradePrevention">3</validValue>
+            <validValue name="MassCancel">4</validValue>
+            <validValue name="CancelOnDisconnect">5</validValue>
+            <validValue name="EndOfDay">6</validValue>
+        </enum>
+        <enum name="ExsimRejectReasonEnum" encodingType="uint8"
+              description="1..12 equal exsim::RejectReason (engine); 64 and above are gateway reasons">
+            <validValue name="None">0</validValue>
+            <validValue name="UnknownInstrument">1</validValue>
+            <validValue name="InvalidClOrdId">2</validValue>
+            <validValue name="DuplicateClOrdId">3</validValue>
+            <validValue name="InvalidQuantity">4</validValue>
+            <validValue name="InvalidPrice">5</validValue>
+            <validValue name="InvalidField">6</validValue>
+            <validValue name="MarketClosed">7</validValue>
+            <validValue name="InstrumentHalted">8</validValue>
+            <validValue name="NotAllowedInPhase">9</validValue>
+            <validValue name="PostOnlyWouldCross">10</validValue>
+            <validValue name="CapacityExceeded">11</validValue>
+            <validValue name="UnknownOrder">12</validValue>
+            <validValue name="ClOrdIdAlreadyUsedToday">64</validValue>
+            <validValue name="TokenTableFull">65</validValue>
+            <validValue name="OutboundStoreFull">66</validValue>
+            <validValue name="InjectedReject">67</validValue>
+            <validValue name="RequestHadNoEffect">69</validValue>
+        </enum>
+    </types>
+
+    <!-- ===================== FIXP 1.0 session layer ===================== -->
+
+    <sbe:message name="Negotiate" id="1" blockLength="25" description="FIXP 4.2.1; client to server">
+        <field name="SessionId" id="1" type="UUID" offset="0"/>
+        <field name="Timestamp" id="2" type="nanotime" offset="16"/>
+        <field name="ClientFlow" id="3" type="FlowType" offset="24" description="exsim accepts Idempotent only"/>
+        <data name="Credentials" id="4" type="Object" description="ASCII 'username:password'"/>
+    </sbe:message>
+    <sbe:message name="NegotiationResponse" id="2" blockLength="25" description="FIXP 4.2.2">
+        <field name="SessionId" id="1" type="UUID" offset="0"/>
+        <field name="RequestTimestamp" id="5" type="nanotime" offset="16"/>
+        <field name="ServerFlow" id="6" type="FlowType" offset="24" description="Always Recoverable"/>
+        <data name="Credentials" id="4" type="Object" description="Always empty"/>
+    </sbe:message>
+    <sbe:message name="NegotiationReject" id="3" blockLength="25" description="FIXP 4.2.3">
+        <field name="SessionId" id="1" type="UUID" offset="0"/>
+        <field name="RequestTimestamp" id="5" type="nanotime" offset="16"/>
+        <field name="Code" id="7" type="NegotiationRejectCode" offset="24"/>
+        <data name="Reason" id="8" type="CharacterString"/>
+    </sbe:message>
+    <sbe:message name="Establish" id="5" blockLength="36" description="FIXP 4.3.1; client to server">
+        <field name="SessionId" id="1" type="UUID" offset="0"/>
+        <field name="Timestamp" id="2" type="nanotime" offset="16"/>
+        <field name="KeepaliveInterval" id="9" type="DeltaMillisecs" offset="24"/>
+        <field name="NextSeqNo" id="11" type="ordinalOptional" offset="28"
+               description="Ignored: the client flow is idempotent, its numbering restarts with Sequence"/>
+        <data name="Credentials" id="4" type="Object" description="Empty when Negotiate ran on the same connection"/>
+    </sbe:message>
+    <sbe:message name="EstablishmentAck" id="6" blockLength="36" description="FIXP 4.3.2; sequence forming">
+        <field name="SessionId" id="1" type="UUID" offset="0"/>
+        <field name="RequestTimestamp" id="5" type="nanotime" offset="16"/>
+        <field name="KeepaliveInterval" id="9" type="DeltaMillisecs" offset="24" description="Server keepalive"/>
+        <field name="NextSeqNo" id="11" type="ordinalOptional" offset="28"
+               description="Next server application sequence number"/>
+    </sbe:message>
+    <sbe:message name="EstablishmentReject" id="7" blockLength="25" description="FIXP 4.3.3">
+        <field name="SessionId" id="1" type="UUID" offset="0"/>
+        <field name="RequestTimestamp" id="5" type="nanotime" offset="16"/>
+        <field name="Code" id="12" type="EstablishmentRejectCode" offset="24"/>
+        <data name="Reason" id="8" type="CharacterString"/>
+    </sbe:message>
+    <sbe:message name="Sequence" id="8" blockLength="8" description="FIXP 3.5.1 and 4.5; sequence forming and keepalive">
+        <field name="NextSeqNo" id="11" type="ordinal" offset="0"/>
+    </sbe:message>
+    <sbe:message name="UnsequencedHeartbeat" id="10" blockLength="0"
+                 description="FIXP 4.5; defined for completeness, rejected on the idempotent flow"/>
+    <sbe:message name="RetransmitRequest" id="11" blockLength="36" description="FIXP 4.6.1; client to server">
+        <field name="SessionId" id="1" type="UUID" offset="0"/>
+        <field name="Timestamp" id="2" type="nanotime" offset="16"/>
+        <field name="FromSeqNo" id="13" type="ordinal" offset="24"/>
+        <field name="Count" id="14" type="cardinal" offset="32"/>
+    </sbe:message>
+    <sbe:message name="Retransmission" id="12" blockLength="36" description="FIXP 4.6.2; sequence forming">
+        <field name="SessionId" id="1" type="UUID" offset="0"/>
+        <field name="RequestTimestamp" id="5" type="nanotime" offset="16"/>
+        <field name="NextSeqNo" id="11" type="ordinal" offset="24"/>
+        <field name="Count" id="14" type="cardinal" offset="32"/>
+    </sbe:message>
+    <sbe:message name="RetransmitReject" id="13" blockLength="25" description="FIXP 4.6.2.3">
+        <field name="SessionId" id="1" type="UUID" offset="0"/>
+        <field name="RequestTimestamp" id="5" type="nanotime" offset="16"/>
+        <field name="Code" id="15" type="RetransmitRejectCode" offset="24"/>
+        <data name="Reason" id="8" type="CharacterString"/>
+    </sbe:message>
+    <sbe:message name="Terminate" id="14" blockLength="17" description="FIXP 4.4">
+        <field name="SessionId" id="1" type="UUID" offset="0"/>
+        <field name="Code" id="16" type="TerminationCode" offset="16"/>
+        <data name="Reason" id="8" type="CharacterString"/>
+    </sbe:message>
+    <sbe:message name="NotApplied" id="18" blockLength="12"
+                 description="FIXP 4.8.2; server to client application message on the recoverable flow">
+        <field name="FromSeqNo" id="13" type="ordinal" offset="0"/>
+        <field name="Count" id="14" type="cardinal" offset="8"/>
+    </sbe:message>
+
+    <!-- ================= Application: client to server ================== -->
+
+    <sbe:message name="NewOrderSingle" id="100" blockLength="33" semanticType="D">
+        <field name="ClOrdId" id="11" type="ClOrdIdType" offset="0"/>
+        <field name="Price" id="44" type="PriceOptional" offset="8" description="Required for Limit; ignored for Market"/>
+        <field name="OrderQty" id="38" type="Qty" offset="16"/>
+        <field name="Symbol" id="55" type="SymbolType" offset="20"/>
+        <field name="Side" id="54" type="SideEnum" offset="28"/>
+        <field name="OrdType" id="40" type="OrdTypeEnum" offset="29"/>
+        <field name="TimeInForce" id="59" type="TimeInForceEnum" offset="30"/>
+        <field name="ExecInst" id="18" type="ExecInstSet" offset="31"/>
+        <field name="SelfTradePrevention" id="7928" type="SelfTradePreventionEnum" offset="32"/>
+    </sbe:message>
+    <sbe:message name="OrderCancelRequest" id="101" blockLength="20" semanticType="F">
+        <field name="ClOrdId" id="11" type="ClOrdIdType" offset="0" description="Token of this request"/>
+        <field name="OrigClOrdId" id="41" type="ClOrdIdType" offset="8" description="Token of the live order"/>
+        <field name="ReduceToTotalQty" id="7906" type="QtyOptional" offset="16"
+               description="Absent (0) = cancel fully; else new TOTAL quantity including filled, priority kept"/>
+    </sbe:message>
+    <sbe:message name="OrderCancelReplaceRequest" id="102" blockLength="29" semanticType="G">
+        <field name="ClOrdId" id="11" type="ClOrdIdType" offset="0" description="New token of the order"/>
+        <field name="OrigClOrdId" id="41" type="ClOrdIdType" offset="8"/>
+        <field name="Price" id="44" type="Price" offset="16"/>
+        <field name="OrderQty" id="38" type="Qty" offset="24" description="New TOTAL quantity including filled"/>
+        <field name="ForcePriorityLoss" id="7903" type="BooleanEnum" offset="28"/>
+    </sbe:message>
+    <sbe:message name="OrderMassCancelRequest" id="103" blockLength="17" semanticType="q">
+        <field name="ClOrdId" id="11" type="ClOrdIdType" offset="0"/>
+        <field name="Symbol" id="55" type="SymbolType" offset="8" description="Used when MassCancelRequestType = 1"/>
+        <field name="MassCancelRequestType" id="530" type="MassCancelRequestTypeEnum" offset="16"/>
+    </sbe:message>
+
+    <!-- ================= Application: server to client ================== -->
+
+    <sbe:message name="ExecutionReportNew" id="200" blockLength="66" semanticType="8">
+        <field name="OrderId" id="37" type="OrderIdType" offset="0"/>
+        <field name="ClOrdId" id="11" type="ClOrdIdType" offset="8"/>
+        <field name="ExecId" id="17" type="ExecIdType" offset="16"/>
+        <field name="TransactTime" id="60" type="UTCTimestampNanos" offset="24"/>
+        <field name="Price" id="44" type="PriceOptional" offset="32" description="Null for Market"/>
+        <field name="OrderQty" id="38" type="Qty" offset="40"/>
+        <field name="LeavesQty" id="151" type="Qty" offset="44"/>
+        <field name="CumQty" id="14" type="Qty" offset="48"/>
+        <field name="Symbol" id="55" type="SymbolType" offset="52"/>
+        <field name="Side" id="54" type="SideEnum" offset="60"/>
+        <field name="OrdType" id="40" type="OrdTypeEnum" offset="61"/>
+        <field name="TimeInForce" id="59" type="TimeInForceEnum" offset="62"/>
+        <field name="OrdStatus" id="39" type="OrdStatusEnum" offset="63"/>
+        <field name="ExecInst" id="18" type="ExecInstSet" offset="64"/>
+        <field name="SelfTradePrevention" id="7928" type="SelfTradePreventionEnum" offset="65"/>
+        <field name="ExecType" id="150" type="ExecTypeEnum" presence="constant" valueRef="ExecTypeEnum.New"/>
+    </sbe:message>
+    <sbe:message name="ExecutionReportTrade" id="201" blockLength="71" semanticType="8">
+        <field name="OrderId" id="37" type="OrderIdType" offset="0"/>
+        <field name="ClOrdId" id="11" type="ClOrdIdType" offset="8"/>
+        <field name="ExecId" id="17" type="ExecIdType" offset="16"/>
+        <field name="TransactTime" id="60" type="UTCTimestampNanos" offset="24"/>
+        <field name="LastPx" id="31" type="Price" offset="32"/>
+        <field name="TrdMatchId" id="880" type="MatchIdType" offset="40"/>
+        <field name="LastQty" id="32" type="Qty" offset="48"/>
+        <field name="LeavesQty" id="151" type="Qty" offset="52"/>
+        <field name="CumQty" id="14" type="Qty" offset="56"/>
+        <field name="Symbol" id="55" type="SymbolType" offset="60"/>
+        <field name="Side" id="54" type="SideEnum" offset="68"/>
+        <field name="OrdStatus" id="39" type="OrdStatusEnum" offset="69"/>
+        <field name="LastLiquidityInd" id="851" type="LastLiquidityIndEnum" offset="70"/>
+        <field name="ExecType" id="150" type="ExecTypeEnum" presence="constant" valueRef="ExecTypeEnum.Trade"/>
+    </sbe:message>
+    <sbe:message name="ExecutionReportCancel" id="202" blockLength="63" semanticType="8"
+                 description="LeavesQty = 0: order gone. LeavesQty > 0: quantity reduction, priority kept">
+        <field name="OrderId" id="37" type="OrderIdType" offset="0"/>
+        <field name="ClOrdId" id="11" type="ClOrdIdType" offset="8"
+               description="Request token (cancel, replace or mass cancel) when present, else the order token"/>
+        <field name="OrigClOrdId" id="41" type="ClOrdIdType" offset="16" description="Order token"/>
+        <field name="ExecId" id="17" type="ExecIdType" offset="24"/>
+        <field name="TransactTime" id="60" type="UTCTimestampNanos" offset="32"/>
+        <field name="CanceledQty" id="7907" type="Qty" offset="40" description="Quantity removed by this report"/>
+        <field name="LeavesQty" id="151" type="Qty" offset="44"/>
+        <field name="CumQty" id="14" type="Qty" offset="48"/>
+        <field name="Symbol" id="55" type="SymbolType" offset="52"/>
+        <field name="Side" id="54" type="SideEnum" offset="60"/>
+        <field name="OrdStatus" id="39" type="OrdStatusEnum" offset="61"/>
+        <field name="CancelReason" id="7901" type="ExsimCancelReasonEnum" offset="62"/>
+        <field name="ExecType" id="150" type="ExecTypeEnum" presence="constant" valueRef="ExecTypeEnum.Canceled"/>
+    </sbe:message>
+    <sbe:message name="ExecutionReportReplace" id="203" blockLength="79" semanticType="8">
+        <field name="OrderId" id="37" type="OrderIdType" offset="0"/>
+        <field name="PreviousOrderId" id="7904" type="OrderIdType" offset="8"/>
+        <field name="ClOrdId" id="11" type="ClOrdIdType" offset="16"/>
+        <field name="OrigClOrdId" id="41" type="ClOrdIdType" offset="24"/>
+        <field name="ExecId" id="17" type="ExecIdType" offset="32"/>
+        <field name="TransactTime" id="60" type="UTCTimestampNanos" offset="40"/>
+        <field name="Price" id="44" type="Price" offset="48"/>
+        <field name="OrderQty" id="38" type="Qty" offset="56" description="New TOTAL quantity"/>
+        <field name="LeavesQty" id="151" type="Qty" offset="60"/>
+        <field name="CumQty" id="14" type="Qty" offset="64"/>
+        <field name="Symbol" id="55" type="SymbolType" offset="68"/>
+        <field name="Side" id="54" type="SideEnum" offset="76"/>
+        <field name="OrdStatus" id="39" type="OrdStatusEnum" offset="77"/>
+        <field name="PriorityRetained" id="7905" type="BooleanEnum" offset="78"/>
+        <field name="ExecType" id="150" type="ExecTypeEnum" presence="constant" valueRef="ExecTypeEnum.Replaced"/>
+    </sbe:message>
+    <sbe:message name="ExecutionReportReject" id="204" blockLength="34" semanticType="8"
+                 description="Rejected NewOrderSingle">
+        <field name="ClOrdId" id="11" type="ClOrdIdType" offset="0"/>
+        <field name="ExecId" id="17" type="ExecIdType" offset="8"/>
+        <field name="TransactTime" id="60" type="UTCTimestampNanos" offset="16"/>
+        <field name="Symbol" id="55" type="SymbolType" offset="24"/>
+        <field name="OrdRejReason" id="103" type="OrdRejReasonEnum" offset="32"/>
+        <field name="ExsimRejectReason" id="7902" type="ExsimRejectReasonEnum" offset="33"/>
+        <field name="ExecType" id="150" type="ExecTypeEnum" presence="constant" valueRef="ExecTypeEnum.Rejected"/>
+        <field name="OrdStatus" id="39" type="OrdStatusEnum" presence="constant" valueRef="OrdStatusEnum.Rejected"/>
+    </sbe:message>
+    <sbe:message name="OrderCancelReject" id="205" blockLength="35" semanticType="9">
+        <field name="ClOrdId" id="11" type="ClOrdIdType" offset="0"/>
+        <field name="OrigClOrdId" id="41" type="ClOrdIdType" offset="8"/>
+        <field name="OrderId" id="37" type="OrderIdType" offset="16"/>
+        <field name="TransactTime" id="60" type="UTCTimestampNanos" offset="24"/>
+        <field name="CxlRejResponseTo" id="434" type="CxlRejResponseToEnum" offset="32"/>
+        <field name="CxlRejReason" id="102" type="CxlRejReasonEnum" offset="33"/>
+        <field name="ExsimRejectReason" id="7902" type="ExsimRejectReasonEnum" offset="34"/>
+    </sbe:message>
+    <sbe:message name="OrderMassCancelReport" id="206" blockLength="32" semanticType="r">
+        <field name="ClOrdId" id="11" type="ClOrdIdType" offset="0"/>
+        <field name="TransactTime" id="60" type="UTCTimestampNanos" offset="8"/>
+        <field name="TotalAffectedOrders" id="533" type="Count" offset="16"/>
+        <field name="Symbol" id="55" type="SymbolType" offset="20"/>
+        <field name="MassCancelRequestType" id="530" type="MassCancelRequestTypeEnum" offset="28"/>
+        <field name="MassCancelResponse" id="531" type="MassCancelResponseEnum" offset="29"/>
+        <field name="MassCancelRejectReason" id="532" type="MassCancelRejectReasonEnum" offset="30"/>
+        <field name="ExsimRejectReason" id="7902" type="ExsimRejectReasonEnum" offset="31"/>
+    </sbe:message>
+    <sbe:message name="BusinessMessageReject" id="207" blockLength="11" semanticType="j">
+        <field name="RefSeqNum" id="45" type="SeqNumType" offset="0" description="Client sequence number of the rejected message"/>
+        <field name="RefMsgType" id="372" type="TemplateIdType" offset="8" description="SBE template id of the rejected message"/>
+        <field name="BusinessRejectReason" id="380" type="BusinessRejectReasonEnum" offset="10"/>
+    </sbe:message>
+</sbe:messageSchema>

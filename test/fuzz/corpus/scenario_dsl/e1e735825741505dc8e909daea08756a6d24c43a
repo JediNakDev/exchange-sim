@@ -1,0 +1,4 @@
+instrument AAA tick=0.010 phase=CONTINUOUS
+session aalice clce=100 tif=GTC
+SET_PHASE instrument=2
+NEW_ 10 1

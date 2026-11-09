@@ -1,0 +1,6 @@
+instrument AAphaTINUOU
+session alwn0
+SET_PHASE instrument=#AAA pe own
+session bob own0
+SET_PHASE instrument=#AAA pAL‚TED
+_changed

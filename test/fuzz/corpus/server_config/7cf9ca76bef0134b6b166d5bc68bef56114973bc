@@ -1,0 +1,7 @@
+#xsi.
+
+[exchange]
+name= EXSIM jti¤on
+max_connections = 65
+heartbeat_interval_ms = 2004
+sn = _rue

@@ -1,0 +1,27 @@
+"use client";
+import Link from "next/link";
+import { useApiResource } from "@/hooks/use-api-resource";
+import { getBrowserApiClient, unwrapApiResult, type ApiSchemas } from "@/lib/api/exsim-api-client";
+import { formatDecimalForDisplay, formatDurationNs } from "@/lib/exact-decimal-format";
+import { ResearchSection } from "@/components/research/research-section";
+import { SignedFigure } from "@/components/research/signed-figure";
+import { ApiFailureAlert } from "@/components/research/api-failure-alert";
+import { Button } from "@/components/ui/button";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+
+export function StudyOutcomes({ experiment, runs }: { experiment: ApiSchemas["Experiment"]; runs: ApiSchemas["Run"][] }) {
+  const completed = runs.filter((r) => r.state === "completed");
+  const seedRuns = experiment.config.seedSet.masterSeeds.map((seed) => completed.find((r) => r.masterSeed === seed));
+  const selected = seedRuns.filter((r): r is ApiSchemas["Run"] => r !== undefined);
+  const resource = useApiResource(selected.length ? `study-outcomes:${selected.map((r) => r.runId).join(":")}` : null, async (signal) => Promise.all(selected.map(async (run) => ({ run, summary: unwrapApiResult(await getBrowserApiClient().GET("/v1/runs/{runId}/summary", { params: { path: { runId: run.runId } }, signal })) }))), null);
+  const execution = experiment.config.strategy.strategyKind.endsWith("execution");
+  return <ResearchSection title={execution ? "Completion before cost" : "Return alongside inventory risk"} description={execution ? "Read unfilled quantity beside executed cost. A smaller cost on fewer shares is not an unconditional improvement." : "Assess net returns after fees, then inventory and drawdown. Conditional markouts describe the fills that have a measured horizon."}>
+    {resource.failure ? <ApiFailureAlert failure={resource.failure} title="Seed outcomes unavailable" onRetry={resource.reload} /> : null}
+    {!selected.length ? <p className="border p-5 text-sm text-muted-foreground">No completed attempts yet. Open Runs to start missing seeds, inspect paused work or review failures.</p> : resource.isLoading ? <p role="status">Loading seed outcomes…</p> : <div className="min-w-0 border bg-card"><Table aria-label="Study seed outcomes"><TableHeader><TableRow><TableHead>Seed</TableHead>{(execution ? ["Completion", "Filled / residual shares", "Executed cost incl fees (USD)", "Observation"] : ["Net P&L (USD)", "Max drawdown (USD)", "Long / short extremes (shares)", "Markout coverage"]).map((label) => <TableHead key={label} className="text-right">{label}</TableHead>)}<TableHead>Investigate</TableHead></TableRow></TableHeader><TableBody>{experiment.config.seedSet.masterSeeds.map((seed) => { const entry = resource.data?.find((x) => x.run.masterSeed === seed); if (!entry) return <TableRow key={seed}><TableCell className="font-mono">{seed}</TableCell><TableCell colSpan={4}>No completed attempt. Missing, active and interrupted work remains in Runs.</TableCell><TableCell><Link className="underline" href={`/runs?study=${experiment.experimentId}`}>Review runs</Link></TableCell></TableRow>; const { run, summary } = entry; const metric = (key: ApiSchemas["MetricKey"]) => summary.metrics.find((m) => m.metricKey === key)?.value ?? null; return <TableRow key={seed}><TableCell className="font-mono">{seed}</TableCell>{execution ? <>
+      <TableCell className="text-right font-mono">{formatDecimalForDisplay(metric("completion_ratio"))}</TableCell><TableCell className="text-right font-mono">{metric("filled_shares") ?? "Unavailable"} / {metric("residual_qty") ?? "Unavailable"}</TableCell><TableCell className="text-right font-mono"><SignedFigure formattedValue={formatDecimalForDisplay(metric("implementation_shortfall_total"), { signDisplay: "always" })} favourableDirection="lower" /></TableCell><TableCell className="text-right">{summary.execution?.observationStatus === "window_observed" ? "Full window observed" : summary.execution?.observationStatus === "censored_run_end" ? "Censored at run end" : "Not established"}</TableCell>
+    </> : <><TableCell className="text-right font-mono"><SignedFigure formattedValue={formatDecimalForDisplay(summary.accounting.netPnl, { signDisplay: "always" })} favourableDirection="higher" /></TableCell><TableCell className="text-right font-mono">{summary.risk.maxDrawdown}</TableCell><TableCell className="text-right font-mono">{summary.risk.maxLongPositionShares} / {summary.risk.maxShortPositionShares}</TableCell><TableCell className="text-right text-xs">{summary.markouts.map((m) => <p key={m.horizonNs}>{formatDurationNs(m.horizonNs)}: {m.availableShares ?? "Unknown"} measured shares, {m.censoredFillCount} censored fills</p>)}</TableCell></>}
+      <TableCell><Button asChild variant="outline" size="sm"><Link href={`/runs/${run.runId}`}>{execution && metric("residual_qty") !== "0" ? "Explain residual" : "Analyze seed"}</Link></Button></TableCell>
+    </TableRow>; })}</TableBody></Table></div>}
+    <p className="mt-3 max-w-prose text-xs text-muted-foreground">Most recent completed attempt per planned seed, as ordered by the service. This table is not an eligibility certificate. Native paired comparison checks reproduction, observation windows and selected attempts. Partial/failed attempts are not silently replaced in the run list.</p>
+  </ResearchSection>;
+}

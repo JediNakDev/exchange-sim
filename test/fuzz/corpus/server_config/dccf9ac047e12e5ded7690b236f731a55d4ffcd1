@@ -1,0 +1,4 @@
+[engine]
+
+[instrument AAPL]
+tick_size =922223372038570.893l

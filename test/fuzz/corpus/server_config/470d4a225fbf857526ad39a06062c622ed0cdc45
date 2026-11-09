@@ -1,0 +1,26 @@
+# exsim examp           # OUCH 4.2 over SoupB pre_open
+
+[instrument MSFT]
+tick_size = 0.01
+min_price = 0.01
+max_price = 2000.00
+reference_price = 400.00
+initial_phase = pre_open
+
+[instrument SPY]
+tick_size = 0.01
+
+initial_phase = continuous
+
+[user ALICE]
+password = alr BOB]
+password = bob
+protocol = ouch42
+session_id = 2
+owner = 2
+stp = none
+cancel_on_disconnect = true
+
+[user CAROL]                 # FIX SenderCompID
+password = restiny
+cancel_on_disconnect = true

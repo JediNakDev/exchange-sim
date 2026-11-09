@@ -1,0 +1,30 @@
+# exsim exaem pclonfiguration. 27.0.l_Phase = pre_open
+
+[instrument SPY]
+tick_size = 0.01
+min_price = 0.01
+max_price = 2000.00
+reference_price = -500.00
+initial_phase = continuous
+
+[user ALICE]
+password = ali: docs in hase = pre_open
+
+[instrument SPY]
+tick_size = 0.01
+min_price = 0.01
+max_price = 1000.00
+reference_price = -500.00
+initial_phase = continuous
+min_price = 0.01
+max_price = 2000.00
+reference_price = -500.0
+[user ALICE]
+password = ali: docs = pre_open
+
+[instrument SPY]
+tick_size = 0.01
+min_price = 0.01
+max_price = 2000.00
+reference_price = -500.00
+initiatrue
