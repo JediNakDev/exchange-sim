@@ -69,7 +69,6 @@ std::string_view admin_help() noexcept {
            "fault user <USER> drop_out <n>\n"
            "fault user <USER> disconnect\n"
            "fault user <USER> off\n"
-           "bots <on|off>\n"
            "shutdown\n";
 }
 
@@ -106,10 +105,6 @@ bool parse_admin(std::string_view line, AdminCommand& out, std::string& error) {
             return fail("usage: book <SYMBOL> [levels]");
         }
         c.symbol = std::string(t[1]);
-    } else if (iequals(verb, "bots")) {
-        if (!expect_args(2) || !(iequals(t[1], "on") || iequals(t[1], "off"))) return fail("usage: bots <on|off>");
-        c.op = AdminOp::Bots;
-        c.on = iequals(t[1], "on");
     } else if (iequals(verb, "fault")) {
         if (t.size() < 3) return fail("usage: fault md ... | fault user <USER> ...");
         if (iequals(t[1], "md")) {

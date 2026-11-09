@@ -99,25 +99,13 @@ bool printable_ascii(std::string_view s) noexcept {
     return true;
 }
 
-enum class Section { None, Exchange, MarketData, Engine, Journal, Instrument, User, Bot };
-
-// A [bot] key waiting for the end of its section: bot options depend on
-// `type`, which may appear after them.
-struct PendingBotKey {
-    std::string key;
-    std::string value;
-    int line_no = 0;
-};
+enum class Section { None, Exchange, MarketData, Engine, Journal, Instrument, User };
 
 struct Parser {
     ServerConfig& cfg;
     std::string& error;
     int line_no = 0;
     Section section = Section::None;
-    std::vector<PendingBotKey> pending_bot_keys{};
-    std::vector<int> bot_header_lines{};   // per cfg.bots entry
-    std::vector<bool> bot_stp_explicit{};  // per cfg.bots entry: stp set in the section
-
     bool fail(const std::string& msg) {
         error = std::to_string(line_no) + ": " + msg;
         return false;
@@ -135,9 +123,6 @@ struct Parser {
     bool unknown_key(std::string_view key) { return fail("unknown key '" + std::string(key) + "'"); }
 
     bool header(std::string_view h) {
-        if (!finish_bot_section()) {
-            return false;
-        }
         const std::size_t sp = h.find_first_of(" \t");
         const std::string kind = lower(trim(h.substr(0, sp)));
         const std::string_view arg = sp == std::string_view::npos ? std::string_view{} : trim(h.substr(sp));
@@ -171,84 +156,7 @@ struct Parser {
             section = Section::User;
             return true;
         }
-        if (kind == "bot") {
-            if (arg.empty() || arg.size() > sim::bots::BotName::kCapacity || !printable_ascii(arg)) {
-                return fail("bot name must be 1-32 printable characters");
-            }
-            BotSectionConfig b{};
-            b.name = std::string(arg);
-            cfg.bots.push_back(std::move(b));
-            bot_header_lines.push_back(line_no);
-            bot_stp_explicit.push_back(false);
-            pending_bot_keys.clear();
-            section = Section::Bot;
-            return true;
-        }
         return fail("unknown section [" + std::string(h) + "]");
-    }
-
-    // Applies the collected keys of the current [bot] section (no-op for
-    // any other section). Called at every header and at end of input.
-    bool finish_bot_section() {
-        if (section != Section::Bot) {
-            return true;
-        }
-        section = Section::None;
-        BotSectionConfig& bot = cfg.bots.back();
-        const int header_line = bot_header_lines.back();
-        bool have_type = false;
-        for (const PendingBotKey& k : pending_bot_keys) {
-            if (k.key != "type") {
-                continue;
-            }
-            const std::string type = lower(k.value);
-            if (type == "market_maker") bot.type = BotType::MarketMaker;
-            else if (type == "noise_taker") bot.type = BotType::NoiseTaker;
-            else return fail_at(k.line_no, "invalid value '" + k.value + "' for 'type' (market_maker|noise_taker)");
-            have_type = true;
-        }
-        if (!have_type) {
-            return fail_at(header_line, "bot " + bot.name + ": 'type' is required");
-        }
-        bot.market_maker.name.assign(bot.name);
-        bot.noise_taker.name.assign(bot.name);
-        for (const PendingBotKey& k : pending_bot_keys) {
-            if (k.key == "type") {
-                continue;
-            }
-            if (k.key == "user") {
-                bot.user = k.value;
-                continue;
-            }
-            if (k.key == "instrument") {
-                bot.instrument_symbol = k.value;
-                continue;
-            }
-            if (k.key == "session_id" || k.key == "owner") {
-                return fail_at(k.line_no, "bot key '" + k.key + "' is taken from the bot's user");
-            }
-            if (k.key == "name") {
-                return fail_at(k.line_no, "bot key 'name' is taken from the section header");
-            }
-            const bool applied = bot.type == BotType::MarketMaker
-                                     ? sim::bots::apply_bot_option(bot.market_maker, k.key, k.value)
-                                     : sim::bots::apply_bot_option(bot.noise_taker, k.key, k.value);
-            if (!applied) {
-                return fail_at(k.line_no, "invalid " + std::string(to_string(bot.type)) + " option '" + k.key +
-                                              " = " + k.value + "'");
-            }
-            if (k.key == "stp") {
-                bot_stp_explicit.back() = true;
-            }
-        }
-        if (bot.user.empty()) {
-            return fail_at(header_line, "bot " + bot.name + ": 'user' is required");
-        }
-        if (bot.instrument_symbol.empty()) {
-            return fail_at(header_line, "bot " + bot.name + ": 'instrument' is required");
-        }
-        pending_bot_keys.clear();
-        return true;
     }
 
     bool exchange_key(const std::string& k, std::string_view v) {
@@ -348,9 +256,6 @@ struct Parser {
             case Section::Journal: return journal_key(key, value);
             case Section::Instrument: return instrument_key(key, value);
             case Section::User: return user_key(key, value);
-            case Section::Bot:
-                pending_bot_keys.push_back(PendingBotKey{key, std::string(value), line_no});
-                return true;
         }
         return fail("internal error");
     }
@@ -411,70 +316,9 @@ struct Parser {
                         format_day_time(cfg.exchange.trading_day_end_ns) +
                         "): trading days that cross midnight are not supported");
         }
-        return validate_bots();
-    }
-
-    // Resolves user/symbol references and rejects bot configurations that
-    // could never submit a valid order (bots/README.md, "Cross-field").
-    bool validate_bots() {
-        if (cfg.bots.size() > kMaxBots) {
-            return fail("more than " + std::to_string(kMaxBots) + " [bot] sections");
-        }
-        std::set<std::string> bot_names;
-        std::set<std::string> bot_users;
-        for (std::size_t i = 0; i < cfg.bots.size(); ++i) {
-            BotSectionConfig& bot = cfg.bots[i];
-            line_no = bot_header_lines[i];
-            if (!bot_names.insert(bot.name).second) {
-                return fail("duplicate bot " + bot.name);
-            }
-            const UserConfig* user = cfg.find_user(bot.user);
-            if (user == nullptr) {
-                return fail("bot " + bot.name + ": unknown user " + bot.user);
-            }
-            if (!bot_users.insert(bot.user).second) {
-                return fail("bot " + bot.name + ": user " + bot.user + " is already driven by another bot");
-            }
-            std::size_t instrument_index = cfg.instruments.size();
-            for (std::size_t j = 0; j < cfg.instruments.size(); ++j) {
-                if (cfg.instruments[j].symbol.view() == bot.instrument_symbol) {
-                    instrument_index = j;
-                }
-            }
-            if (instrument_index == cfg.instruments.size()) {
-                return fail("bot " + bot.name + ": unknown instrument " + bot.instrument_symbol);
-            }
-            const InstrumentConfig& instrument = cfg.instruments[instrument_index];
-            for (sim::bots::BotConfig* identity :
-                 {static_cast<sim::bots::BotConfig*>(&bot.market_maker), static_cast<sim::bots::BotConfig*>(&bot.noise_taker)}) {
-                identity->session_id = user->session_id;
-                identity->owner = user->owner;
-                identity->instrument = static_cast<InstrumentId>(instrument_index + 1);
-                if (!bot_stp_explicit[i]) {
-                    identity->stp = user->stp;
-                }
-            }
-            if (bot.type == BotType::MarketMaker) {
-                const sim::bots::MarketMakerConfig& m = bot.market_maker;
-                const Quantity quoted = std::min(m.size, instrument.max_order_qty) / instrument.lot_size * instrument.lot_size;
-                if (quoted == 0) {
-                    return fail("bot " + bot.name + ": size is below the lot_size of " + bot.instrument_symbol);
-                }
-                if (m.order_capacity < std::size_t{2} * m.levels) {
-                    return fail("bot " + bot.name + ": order_capacity must hold 2 * levels orders");
-                }
-            } else {
-                const sim::bots::NoiseTakerConfig& t = bot.noise_taker;
-                const std::uint64_t lowest_lots = (std::uint64_t{t.min_size} + instrument.lot_size - 1) / instrument.lot_size;
-                const std::uint64_t highest_lots = std::min(t.max_size, instrument.max_order_qty) / instrument.lot_size;
-                if (lowest_lots == 0 || lowest_lots > highest_lots) {
-                    return fail("bot " + bot.name + ": min_size..max_size holds no lot multiple of " + bot.instrument_symbol);
-                }
-            }
-        }
-        line_no = 0;
         return true;
     }
+
 };
 
 }  // namespace
@@ -654,9 +498,6 @@ bool parse_config(std::string_view text, ServerConfig& out, std::string& error) 
         if (!p.key_value(line)) {
             return false;
         }
-    }
-    if (!p.finish_bot_section()) {
-        return false;
     }
     if (!p.validate()) {
         return false;

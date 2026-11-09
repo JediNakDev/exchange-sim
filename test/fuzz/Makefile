@@ -29,7 +29,7 @@ BUILD_DIRECTORY := $(REPOSITORY_ROOT)/build/fuzz
 CXX := clang++
 SEED_CXX ?= c++
 FUZZ_SANITIZERS := -fsanitize=address,undefined -fno-sanitize-recover=all
-CXXFLAGS := -std=c++20 -O1 -g -fno-omit-frame-pointer $(FUZZ_SANITIZERS) \
+CXXFLAGS := -std=c++23 -O1 -g -fno-omit-frame-pointer $(FUZZ_SANITIZERS) \
             -Wall -Wextra -Wpedantic -Wshadow $(EXTRA_CXXFLAGS)
 CPPFLAGS := -I $(REPOSITORY_ROOT)/lib/include -I $(REPOSITORY_ROOT) -MMD -MP
 
@@ -66,7 +66,7 @@ $(BUILD_DIRECTORY)/%: $(BUILD_DIRECTORY)/entry/%.o $(LIBRARY_OBJECTS)
 
 $(BUILD_DIRECTORY)/seed_generator: $(FUZZ_DIRECTORY)/seed_generator.cpp $(LIBRARY_SOURCES:%=$(REPOSITORY_ROOT)/%)
 	@mkdir -p $(dir $@)
-	$(SEED_CXX) -std=c++20 -O1 -I $(REPOSITORY_ROOT)/lib/include -I $(REPOSITORY_ROOT) \
+	$(SEED_CXX) -std=c++23 -O1 -I $(REPOSITORY_ROOT)/lib/include -I $(REPOSITORY_ROOT) \
 	    $(FUZZ_DIRECTORY)/seed_generator.cpp $(LIBRARY_SOURCES:%=$(REPOSITORY_ROOT)/%) -o $@ -lpthread
 
 seeds: $(BUILD_DIRECTORY)/seed_generator

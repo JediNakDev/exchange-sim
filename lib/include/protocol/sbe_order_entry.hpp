@@ -1,6 +1,6 @@
 #ifndef EXSIM_PROTOCOL_SBE_ORDER_ENTRY_HPP
 #define EXSIM_PROTOCOL_SBE_ORDER_ENTRY_HPP
-// Hand-written codec for config/protocols/fixp_sbe_format.xml (schema id
+// Hand-written codec for lib/include/protocol/fixp_sbe_format.xml (schema id
 // 22597, version 1): SBE 1.0 little-endian messages framed by SOFH 1.0.
 //
 //   SOFH (6 bytes, big-endian) | SBE message header (12 bytes) | root block |

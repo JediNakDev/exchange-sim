@@ -84,7 +84,7 @@ ApiJsonWriter& ApiJsonWriter::end_array() {
 
 ApiJsonWriter& ApiJsonWriter::key(std::string_view name) {
     before_value();
-    text_ += research::json_escape(name);
+    text_ += json_escape(name);
     text_ += ':';
     after_key_ = true;
     return *this;
@@ -92,7 +92,7 @@ ApiJsonWriter& ApiJsonWriter::key(std::string_view name) {
 
 ApiJsonWriter& ApiJsonWriter::string(std::string_view value) {
     before_value();
-    text_ += research::json_escape(value);
+    text_ += json_escape(value);
     return *this;
 }
 
@@ -292,13 +292,13 @@ std::uint64_t fnv1a64_bytes(std::string_view bytes, std::uint64_t seed) noexcept
 
 namespace {
 
-void serialize_into(const research::JsonValue& value, std::string& out) {
-    using Kind = research::JsonValue::Kind;
+void serialize_into(const JsonValue& value, std::string& out) {
+    using Kind = JsonValue::Kind;
     switch (value.kind) {
         case Kind::Null: out += "null"; return;
         case Kind::Boolean: out += value.boolean ? "true" : "false"; return;
         case Kind::Number: out += value.text; return;
-        case Kind::String: out += research::json_escape(value.text); return;
+        case Kind::String: out += json_escape(value.text); return;
         case Kind::Array: {
             out += '[';
             for (std::size_t index = 0; index < value.items.size(); ++index) {
@@ -312,7 +312,7 @@ void serialize_into(const research::JsonValue& value, std::string& out) {
             out += '{';
             for (std::size_t index = 0; index < value.members.size(); ++index) {
                 if (index != 0) out += ',';
-                out += research::json_escape(value.members[index].name);
+                out += json_escape(value.members[index].name);
                 out += ':';
                 serialize_into(value.members[index].value, out);
             }
@@ -324,7 +324,7 @@ void serialize_into(const research::JsonValue& value, std::string& out) {
 
 }  // namespace
 
-std::string serialize_json_value(const research::JsonValue& value) {
+std::string serialize_json_value(const JsonValue& value) {
     std::string out;
     serialize_into(value, out);
     return out;

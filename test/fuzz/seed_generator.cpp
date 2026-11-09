@@ -320,7 +320,7 @@ void add_text_seeds(const std::filesystem::path& repository_root) {
         add_seed("admin_command", line);
     }
 
-    std::ifstream example_config(repository_root / "config" / "exsim.conf", std::ios::binary);
+    std::ifstream example_config(repository_root / "test" / "fixtures" / "exchange.conf", std::ios::binary);
     add_seed("server_config", {std::istreambuf_iterator<char>(example_config), {}});
     add_seed("server_config",
              "[engine]\nmax_instruments = 2\nmax_orders = 1000\n[instrument AAPL]\ntick_size = 0.01\n"

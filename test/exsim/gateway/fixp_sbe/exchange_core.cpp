@@ -60,22 +60,6 @@ protocol = ouch42
 session_id = 3
 owner = 3
 
-[user MM1]
-password = mm1
-protocol = ouch42
-session_id = 100
-owner = 100
-
-[bot maker]
-type = market_maker
-user = MM1
-instrument = AAPL
-seed = 7
-levels = 2
-size = 100
-spread_ticks = 1
-requote_ms = 50
-fair_value_step_ms = 200
 )";
 
 struct SettableClock {
@@ -115,7 +99,7 @@ struct CoreExchange {
           user_states(config, EngineTestContext::small_user_state_settings()),
           session_settings(fixp::FixpSbeSessionSettings::from(config.exchange)),
           core(config, user_states, market_data, clock) {
-        core.set_bots_enabled(false);
+
     }
 
     std::string admin(std::string_view line) {

@@ -1,7 +1,7 @@
 #ifndef EXSIM_API_HTTP_SERVER_HPP
 #define EXSIM_API_HTTP_SERVER_HPP
 
-// Small blocking HTTP/1.1 server for the local research API.
+// Small blocking HTTP/1.1 server for the local exchange management API.
 //
 // One accept thread and one thread per connection, with a hard cap on
 // concurrent connections (extra connections get 503 and are closed), socket

@@ -697,7 +697,7 @@ private:
 // satisfies server::ExchangeCore's Sessions policy, so an OUCH-only server
 // passes it to the core directly; a server that also runs FIX forwards each
 // call for OUCH sessions to it. Sessions without an OUCH user state (FIX
-// users, bots) are ignored.
+// users) are ignored.
 template <OuchByteSink ByteSink>
 class OuchUserStateDirectory {
 public:
@@ -757,11 +757,8 @@ public:
     [[nodiscard]] std::size_t size() const noexcept { return user_states_.size(); }
 
 private:
-    [[nodiscard]] static bool is_wire_ouch_user(const server::UserConfig& user, const server::ServerConfig& config) {
+    [[nodiscard]] static bool is_wire_ouch_user(const server::UserConfig& user, const server::ServerConfig&) {
         if (user.protocol != server::Protocol::Ouch42 || user.session_id == 0) return false;
-        for (const server::BotSectionConfig& bot : config.bots) {
-            if (bot.user == user.username) return false;
-        }
         return true;
     }
 

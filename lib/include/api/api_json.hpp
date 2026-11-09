@@ -1,7 +1,7 @@
 #ifndef EXSIM_API_API_JSON_HPP
 #define EXSIM_API_API_JSON_HPP
 
-// JSON output and exact decimal encoding for the research API (HTTP API contract,
+// JSON output and exact decimal encoding for the exchange management API (HTTP API contract,
 // "Units and number encoding").
 //
 // Exact values are integers in engine fixed point (price units of 1/10000
@@ -9,7 +9,7 @@
 // scale the contract requires. Derived statistics are float64 rounded half to
 // even to 6 fractional digits. Nothing here is on a simulation hot path.
 
-#include "research/json.hpp"
+#include "api/json.hpp"
 
 #include <cstdint>
 #include <optional>
@@ -19,7 +19,7 @@
 
 namespace exsim::api {
 
-// Compact JSON writer with the same call shape as research::JsonWriter, plus
+// Compact JSON writer with the same call shape as JsonWriter, plus
 // raw() to embed an already serialized value (a stored configuration).
 class ApiJsonWriter {
 public:
@@ -97,7 +97,7 @@ struct ScaledDecimal {
 
 // Compact re-serialization of a parsed JSON value (members in their original
 // order, number literals verbatim).
-[[nodiscard]] std::string serialize_json_value(const research::JsonValue& value);
+[[nodiscard]] std::string serialize_json_value(const JsonValue& value);
 
 }  // namespace exsim::api
 

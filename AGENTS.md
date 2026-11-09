@@ -9,9 +9,12 @@
 
 ## User constraints
 
-- The first product workflow is execution and market-making research.
-- Frontend: Bun, Next.js, TypeScript, Tailwind CSS, shadcn/ui. Prefer existing shadcn components and meaningful names. Do not substitute another framework or package manager.
-- The tRPC choice is under evaluation. Current recommendation is an OpenAPI-described C++ HTTP API with generated TypeScript types, without a tRPC wrapper. Do not treat the global tRPC default as a final decision for this C++ backend.
+- Product: API-managed empty exchange processes. External trading engines supply all orders and liquidity.
+- No web frontend, built-in trader strategies, or PostgreSQL. Keep live exchange state in RAM, with config files and optional logs on disk.
+- Language: C++23 for production builds, tests, and editor tooling.
+- Management: an OpenAPI-described C++ HTTP API. Trading engines connect directly to each exchange's protocol endpoints.
+- Active verification: unit and integration tests on macOS and local OrbStack Ubuntu. Fuzz and end-to-end suites are deferred.
+- Leave README.md to the user; do not rewrite it.
 - Simulation, matching, exchange protocols, accounting, and simulated time belong in C++.
 - Use GPT/ChatGPT with high reasoning for resumed and new delegates (latest user decision 2026-11-05, "continue and turn all subagent to chatgpt"; this replaces the earlier Claude-only rule). Do not use local Ollama while the user is working on this machine.
 - Never include a co-author attribution in commits. Avoid em dashes in responses, comments, and new prose.

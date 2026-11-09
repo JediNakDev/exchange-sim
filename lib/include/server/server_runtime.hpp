@@ -9,9 +9,9 @@
 //   poll_once():
 //     poller.wait(busy_poll ? 0 : idle timeout)
 //     route events: gateway connections (-> on_data -> core.submit ->
-//                   dispatch to sessions, ITCH, bots), admin lines,
+//                   dispatch to sessions and ITCH), admin lines,
 //                   MoldUDP64 retransmission requests
-//     core.timer(now): end of day, bots, NOII / MoldUDP64 heartbeat,
+//     core.timer(now): end of day, NOII / MoldUDP64 heartbeat,
 //                      journal flush
 //     endpoints: delayed inbound bytes, gateway timers, requested closes
 //     core disconnect requests (`fault user X disconnect`)
@@ -52,7 +52,7 @@ namespace exsim::server {
 
 struct ServerRuntimeOptions {
     bool busy_poll = false;          // poller.wait(0): lowest latency, one core at 100%
-    int idle_poll_timeout_ms = 1;    // otherwise: timer resolution (bots, delays, heartbeats)
+    int idle_poll_timeout_ms = 1;    // otherwise: timer resolution (delays and heartbeats)
     // ns since local midnight at startup; nullopt reads the wall clock.
     std::optional<Timestamp> day_time_at_start;
     std::string admin_bind_address = "127.0.0.1";  // admin console: loopback unless told otherwise
@@ -60,7 +60,7 @@ struct ServerRuntimeOptions {
     runtime::MarketDataRuntimeSettings market_data{};
     std::size_t connection_receive_buffer_bytes = 64 * 1024;
     std::size_t connection_send_buffer_bytes = 4 * 1024 * 1024;
-    bool bots_enabled_at_start = true;
+    bool admin_enabled = true;
     std::FILE* log = stderr;  // startup listener reporting only; nullptr = silent
 };
 
@@ -86,7 +86,7 @@ public:
           core_(config_, sessions_, market_data_, clock_),
           endpoints_(make_endpoint<Gateways>(gateway_index<Gateways>())...),
           admin_(admin_tcp_config(), poller_, kAdminPollTag, core_) {
-        core_.set_bots_enabled(options_.bots_enabled_at_start);
+
     }
 
     BasicServerRuntime(const BasicServerRuntime&) = delete;
@@ -99,7 +99,7 @@ public:
         std::string failure;
         (open_endpoint<Gateways>(failure), ...);
         if (!failure.empty()) return failure;
-        if (net::ErrorCode error = admin_.open(); error != 0) {
+        if (net::ErrorCode error = options_.admin_enabled ? admin_.open() : 0; error != 0) {
             return "admin listener on " + options_.admin_bind_address + ":" +
                    std::to_string(config_.exchange.admin_port) + ": " + std::strerror(error);
         }
@@ -278,7 +278,7 @@ private:
                          static_cast<int>(length), text.data());
         };
         (print(Gateways::name, endpoint<Gateways>().listen_endpoint()), ...);
-        print("admin", admin_.listen_endpoint());
+        if (options_.admin_enabled) print("admin", admin_.listen_endpoint());
         print("md retransmission", market_data_.retransmission_endpoint());
         const std::size_t length = net::format_ipv4_endpoint(market_data_.feed_destination(), text);
         std::fprintf(options_.log, "exsim: md feed to %.*s%s\n", static_cast<int>(length), text.data(),

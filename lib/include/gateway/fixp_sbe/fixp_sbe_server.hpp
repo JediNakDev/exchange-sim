@@ -3,7 +3,7 @@
 
 // Server side of exsim binary order entry: SBE 1.0 application messages over a
 // FIXP 1.0 point-to-point session, framed with SOFH 1.0
-// (historical design notes, config/protocols/fixp_sbe_format.xml,
+// (historical design notes, lib/include/protocol/fixp_sbe_format.xml,
 // server contract section 2). Pure state machines over byte buffers:
 //
 //   FixpSbeUserState<Sink>   one per configured user for the whole trading day:
@@ -867,12 +867,11 @@ class FixpSbeUserStateDirectory {
 public:
     FixpSbeUserStateDirectory() = default;
 
-    // One user state per configured user of `protocol` that no bot drives (a
-    // bot owns its session exclusively, so it never logs in over FIXP).
+    // One user state per configured user of `protocol`.
     FixpSbeUserStateDirectory(const server::ServerConfig& config, const FixpSbeUserStateSettings& settings,
                               server::Protocol protocol = server::Protocol::FixpSbe) {
         for (const server::UserConfig& user : config.users) {
-            if (user.protocol != protocol || user.session_id == 0 || is_bot_user(user, config)) continue;
+            if (user.protocol != protocol || user.session_id == 0) continue;
             add_user(user, settings);
         }
     }
@@ -915,13 +914,6 @@ public:
     [[nodiscard]] std::size_t size() const noexcept { return user_states_.size(); }
 
 private:
-    [[nodiscard]] static bool is_bot_user(const server::UserConfig& user, const server::ServerConfig& config) {
-        for (const server::BotSectionConfig& bot : config.bots) {
-            if (bot.user == user.username) return true;
-        }
-        return false;
-    }
-
     std::vector<std::unique_ptr<FixpSbeUserState<ByteSink>>> user_states_;
     std::vector<FixpSbeUserState<ByteSink>*> user_state_by_session_;  // index = SessionId
 };
