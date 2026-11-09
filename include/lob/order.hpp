@@ -17,6 +17,8 @@ struct alignas(64) Order {
     Order* next_order;
     PriceLevel* parent_level;
     Side side;
+    // Optional owner metadata slot; the book never interprets it.
+    std::uint32_t context_index = 0;
 
     Order(OrderId id_, Price price_, Quantity quantity_, Side side_) noexcept
         : id(id_)

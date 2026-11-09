@@ -164,3 +164,16 @@ TEST_CASE(research_compare, unfinished_runs_are_excluded_and_nulls_are_unavailab
     b.runs[0].market_world = "historical_replay";
     CHECK(compare_run_sets(a, b).market_world_differs);
 }
+
+TEST_CASE(research_config, selected_full_session_protocol_is_validated_and_part_of_identity) {
+    auto ouch = parse_experiment_config("[strategy]\nprotocol = ouch42\n");
+    auto fix = parse_experiment_config("[strategy]\nprotocol = fix44\n");
+    auto sbe = parse_experiment_config("[strategy]\nprotocol = fixp_sbe\n");
+    CHECK_EQ(ouch.order_entry_protocol,server::Protocol::Ouch42);
+    CHECK_EQ(fix.order_entry_protocol,server::Protocol::Fix44);
+    CHECK_EQ(sbe.order_entry_protocol,server::Protocol::FixpSbe);
+    CHECK_NE(experiment_config_hash(ouch),experiment_config_hash(fix));
+    CHECK_NE(experiment_config_hash(fix),experiment_config_hash(sbe));
+    CHECK_EQ(config_error_line("[strategy]\nprotocol = imaginary\n"),2u);
+    CHECK(canonical_config_text(sbe).find("strategy.protocol=fixp_sbe\n") != std::string::npos);
+}

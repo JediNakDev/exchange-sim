@@ -50,7 +50,7 @@ using ConnectionId = std::uint64_t;
 
 enum class SubmitResult : std::uint8_t {
     Applied = 0,                 // handled by the engine (semantic rejections included), journaled, dispatched
-    Deferred = 1,                // submitted during dispatch: queued, applied before the outer submit returns
+    Deferred = 1,                // queued for later processing; ExchangeCore drains after dispatch, research at simulated arrival
     OutsideTradingDay = 2,       // stamped timestamp outside [trading_day_start, trading_day_end): not applied
     OutputCapacityExceeded = 3,  // EventBuffer smaller than the engine's bound (test-only sizing): not applied
     DeferredQueueFull = 4,       // re-entrant submit beyond the deferred queue: not applied

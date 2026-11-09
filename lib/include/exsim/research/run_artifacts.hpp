@@ -42,8 +42,8 @@ namespace exsim::research {
 inline constexpr std::uint32_t kArtifactSchemaVersion = 1;
 inline constexpr std::string_view kManifestSchema = "exsim.research.manifest/1";
 inline constexpr std::string_view kStatusSchema = "exsim.research.status/1";
-inline constexpr std::string_view kRunnerBuildId = "exsim.research.runner/1";
-inline constexpr std::string_view kEngineBuildId = "exsim.matching_engine/canonical_encoding=1";
+inline constexpr std::string_view kRunnerBuildId = "exsim.research.runner/2";
+inline constexpr std::string_view kEngineBuildId = "exsim.matching_engine/lob_order_book/canonical_encoding=1";
 
 // Every artifact a run directory may contain. A run directory may also hold
 // "<artifact>" + kAtomicWriteSuffix, left behind when a process dies inside

@@ -129,6 +129,19 @@ public:
     OrderBook(OrderBook&&) = delete;
     OrderBook& operator=(OrderBook&&) = delete;
 
+    // Passive storage operations for exchange rules (auctions, STP, IOC/FOK)
+    // implemented by the owning exchange. These never run implicit matching.
+    // A bounded book allocates only at construction. Zero leaves are retained
+    // until cancel_order so the owner can emit its final execution report.
+    [[nodiscard]] Order* rest_order(OrderId id, Price price, Quantity quantity,
+                                    Quantity leaves, Side side, std::uint32_t context_index);
+    [[nodiscard]] bool set_leaves(OrderId id, Quantity leaves) noexcept;
+    [[nodiscard]] bool amend_order(OrderId id, Quantity total, Quantity leaves) noexcept;
+    [[nodiscard]] const Order* find_order(OrderId id) const noexcept;
+    [[nodiscard]] const PriceLevel* price_level(Side side, Price price) const noexcept;
+    [[nodiscard]] std::optional<Price> next_price(Side side, Price from, bool ascending) const noexcept;
+    [[nodiscard]] std::uint64_t active_word(Side side, std::size_t word) const noexcept;
+
     [[nodiscard]] AddResult add_order(Price price, Quantity quantity, Side side);
     [[nodiscard]] bool cancel_order(OrderId order_id);
     // Sets the order's total quantity. If that leaves nothing to execute

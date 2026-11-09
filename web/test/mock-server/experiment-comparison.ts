@@ -11,6 +11,7 @@ type Schemas = components["schemas"];
 
 const CATEGORY_BY_TOP_LEVEL_KEY: Record<keyof ExperimentConfig, Schemas["AssumptionCategory"]> = {
   marketWorld: "market_world",
+  orderEntryProtocol: "strategy",
   instrument: "instrument",
   scenario: "scenario",
   strategy: "strategy",
@@ -86,6 +87,7 @@ export function flattenExperimentConfig(config: ExperimentConfig): FlattenedAssu
     }
     lines.push({ category, fieldPath, label: pathSegments.join("."), value: String(value), unit: inferUnitFromFieldName(fieldName) });
   };
+  if (!config.orderEntryProtocol) lines.push({ category: "strategy", fieldPath: "/orderEntryProtocol", label: "orderEntryProtocol", value: "ouch42", unit: null });
   for (const [topLevelKey, value] of Object.entries(config) as [keyof ExperimentConfig, unknown][]) {
     if (topLevelKey === "scenario") {
       const scenario = value as Schemas["MarketScenarioConfig"];

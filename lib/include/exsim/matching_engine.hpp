@@ -14,8 +14,7 @@
 // Setup cost: the constructor and add_instrument allocate and zero-fill all
 // of their storage up front. If it does not fit they throw std::bad_alloc or
 // std::length_error rather than returning, so size max_orders and price bands
-// for physical memory (per-order and per-tick costs of the production engine:
-// matching engine contract).
+// for physical memory, including the original LOB pools and per-instrument reservations.
 //
 // Semantics are specified in matching engine contract.
 

@@ -300,6 +300,10 @@ void SimulationCore::begin_run() noexcept {
     SimulationEvent start;
     start.kind = SimulationEventKind::StrategyStart;
     if (!push_simulation(0, start)) return;
+    if (end_time() >= kNanosPerSecond) {
+        SimulationEvent session_timer; session_timer.kind = SimulationEventKind::SessionTimer;
+        if (!push_simulation(kNanosPerSecond,session_timer)) return;
+    }
     ObservationEvent sample;
     sample.kind = ObservationKind::SeriesSample;
     (void)push_observation(0, sample);
@@ -398,6 +402,11 @@ bool SimulationCore::pop_simulation_event(SimulationEvent& strategy_event) noexc
         case SimulationEventKind::ScriptedCommand:
             process_exchange_command(entry.payload.data.scripted_command, CommandSource::Scripted, 0, nullptr);
             return false;
+        case SimulationEventKind::SessionTimer:
+            if (now_ <= end_time() && end_time() - now_ >= kNanosPerSecond)
+                (void)push_simulation(now_ + kNanosPerSecond,entry.payload);
+            strategy_event = entry.payload;
+            return true;
         case SimulationEventKind::StrategyStart:
         case SimulationEventKind::StrategyWakeup:
         case SimulationEventKind::MarketDataDelivery:
@@ -452,6 +461,7 @@ void SimulationCore::deliver_execution_report(const ExecutionReport& report) noe
             if (view != nullptr) {
                 view->state = OrderViewState::Live;
                 view->order_id = report.order_id;
+                if (view->cancel_after_ack) view->pending = PendingRequest::None;
             }
             break;
         case ReportKind::Rejected:
@@ -472,10 +482,8 @@ void SimulationCore::deliver_execution_report(const ExecutionReport& report) noe
             view->order_id = report.order_id;
             view->price = report.price;
             view->leaves_qty = report.leaves_qty;
-            if (view->cancel_after_ack && view->pending == PendingRequest::None) {
-                view->cancel_after_ack = false;
-                if (send_strategy_cancel(*view)) ++metrics_.cancels_resent_after_ack;
-            }
+            if (view->cancel_after_ack && view->pending == PendingRequest::None && !session_hooks_.owner)
+                (void)strategy_cancel_order(view->cl_ord_id);
             break;
         case ReportKind::Fill:
             visible_.known_position += signed_quantity(report.side, report.qty);
@@ -585,12 +593,19 @@ void SimulationCore::process_exchange_command(const Command& command, CommandSou
     digests_.event_count += events.size();
     metrics_.engine_events += events.size();
 
+    if (session_hooks_.market_batch) session_hooks_.market_batch(session_hooks_.owner,events);
+
     // Background agents see every batch immediately (zero-latency market model).
     for (auto& maker : market_makers_) maker->on_events(events);
     for (auto& taker : noise_takers_) taker->on_events(events);
 
     if (request != nullptr) push_lifecycle(arrival_row);
 
+    // The research run has one instrument. Preserve the complete batch's
+    // auction phase context when protocol reports are emitted event by event.
+    Phase auction_phase = Phase::Halted;
+    for (const auto& event : events)
+        if (event.type == EventType::PhaseChanged) auction_phase = event.phase_changed.old_phase;
     std::uint32_t trade_count = 0;
     std::uint64_t traded_qty = 0;
     Price last_trade_price = 0;
@@ -605,6 +620,7 @@ void SimulationCore::process_exchange_command(const Command& command, CommandSou
             ++metrics_.market_trades;
             metrics_.market_traded_qty += event.fill.qty;
         }
+        if (session_hooks_.event) session_hooks_.event(session_hooks_.owner,event,auction_phase);
         strategy_touched |= handle_strategy_event(event, command_index);
         if (state_ == RunState::Failed) return;
     }
@@ -616,7 +632,7 @@ void SimulationCore::process_exchange_command(const Command& command, CommandSou
         has_reference_mid_ = true;
         reference_mid_times_two_ = top_after.mid_times_two();
     }
-    if (trade_count > 0 || !(top_after == last_published_top_))
+    if (!events.empty() || trade_count > 0 || !(top_after == last_published_top_))
         publish_market_data(top_after, trade_count, traded_qty, last_trade_price, last_trade_aggressor);
 }
 
@@ -869,7 +885,12 @@ bool SimulationCore::handle_strategy_event(const Event& event, std::uint64_t com
         default: return false;
     }
     push_lifecycle(row);
-    schedule_report(report);
+    // OUCH specifies no response to cancel rejects or an unknown replacement.
+    // Keep exchange-truth evidence without inventing a strategy-visible reply.
+    const bool silent_ouch_reject = config_.order_entry_protocol == server::Protocol::Ouch42 &&
+        report.kind == ReportKind::Rejected && (report.rejected_command == CommandType::Cancel ||
+        (report.rejected_command == CommandType::Replace && report.reject_reason == RejectReason::UnknownOrder));
+    if (!silent_ouch_reject) schedule_report(report);
     return true;
 }
 
@@ -1033,6 +1054,8 @@ void SimulationCore::schedule_report(const ExecutionReport& report) noexcept {
     SimulationEvent event;
     event.kind = SimulationEventKind::ExecutionReportDelivery;
     event.data.report = report;
+    event.protocol_sequence = metrics_.reports_scheduled + 1;
+    if (session_hooks_.report) session_hooks_.report(session_hooks_.owner,event.protocol_sequence);
     if (push_simulation(delivery, event)) ++metrics_.reports_scheduled;
 }
 
@@ -1053,6 +1076,7 @@ void SimulationCore::publish_market_data(const TopOfBook& top, std::uint32_t tra
     SimulationEvent event;
     event.kind = SimulationEventKind::MarketDataDelivery;
     event.data.market_data = update;
+    if (session_hooks_.market) session_hooks_.market(session_hooks_.owner,update.sequence);
     if (push_simulation(delivery, event)) ++metrics_.market_data_published;
 }
 
@@ -1385,6 +1409,12 @@ bool SimulationCore::send_strategy_cancel(StrategyOrderView& view) noexcept {
     event.data.request.side = view.side;
     if (!push_simulation(arrival, event)) return false;
     view.pending = PendingRequest::Cancel;
+    // OUCH supplies no unknown-cancel response. Retain the client's cancel
+    // intent when a non-FIFO path can outrun a pending new order, then send
+    // it again after acknowledgment through the selected protocol.
+    if (config_.order_entry_protocol == server::Protocol::Ouch42 &&
+        !config_.latency.order_channel_fifo && view.state == OrderViewState::PendingNew)
+        view.cancel_after_ack = true;
     ++metrics_.cancel_requests_submitted;
     LifecycleRecord row;
     row.time = now_;
@@ -1409,15 +1439,18 @@ bool SimulationCore::strategy_cancel_order(ClOrdId cl_ord_id) noexcept {
     if (!in_strategy_callback_ || state_ != RunState::Running)
         return risk_reject(RiskRejectReason::RunNotActive, CommandType::Cancel, side, price, 0, cl_ord_id);
     if (view == nullptr) return risk_reject(RiskRejectReason::UnknownOrder, CommandType::Cancel, side, price, 0, cl_ord_id);
-    if (view->pending != PendingRequest::None || view->cancel_after_ack)
+    if (view->pending != PendingRequest::None || (view->cancel_after_ack && view->state != OrderViewState::Live))
         return risk_reject(RiskRejectReason::RequestInFlight, CommandType::Cancel, side, price, 0, cl_ord_id);
+    const bool retry = view->cancel_after_ack;
+    view->cancel_after_ack = false;
     if (!send_strategy_cancel(*view))
         return risk_reject(RiskRejectReason::QueueCapacity, CommandType::Cancel, side, price, 0, cl_ord_id);
+    if (retry) ++metrics_.cancels_resent_after_ack;
     visible_.last_risk_reject = RiskRejectReason::None;
     return true;
 }
 
-bool SimulationCore::strategy_replace_order(ClOrdId cl_ord_id, Price price, Quantity new_total_qty) noexcept {
+bool SimulationCore::strategy_replace_order(ClOrdId cl_ord_id, Price price, Quantity new_total_qty, bool force_priority_loss) noexcept {
     StrategyOrderView* view = view_slot(cl_ord_id);
     if (view != nullptr && !(view->live && view->cl_ord_id == cl_ord_id)) view = nullptr;
     const Side side = view != nullptr ? view->side : Side::BUY;
@@ -1446,6 +1479,7 @@ bool SimulationCore::strategy_replace_order(ClOrdId cl_ord_id, Price price, Quan
     replace.cl_ord_id = 0;  // keep the token
     replace.price = price;
     replace.qty = new_total_qty;
+    replace.force_priority_loss = force_priority_loss || config_.order_entry_protocol == server::Protocol::Ouch42;
     SimulationEvent event;
     event.kind = SimulationEventKind::StrategyRequestArrival;
     event.data.request.command = Command{replace};

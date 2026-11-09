@@ -137,6 +137,7 @@ TEST_CASE(research_causality, cancel_latency_applies_to_cancel_and_replace_reque
 
 TEST_CASE(research_causality, non_fifo_cancel_can_overtake_its_order_and_is_resent_after_ack) {
     ExperimentConfig config = quiet_market_config();
+    config.order_entry_protocol = server::Protocol::Fix44;
     config.latency.order_ns = 100 * kMicrosecond;
     config.latency.cancel_ns = 10 * kMicrosecond;
     config.latency.order_channel_fifo = false;
@@ -231,4 +232,29 @@ TEST_CASE(research_causality, delivered_messages_respect_latency_bounds_with_jit
     const RunMetrics& metrics = simulation.metrics();
     CHECK_GE(metrics.order_latency.min, latency.strategy_compute_ns + latency.order_ns);
     CHECK_GT(metrics.fill_count, 0u);
+}
+
+TEST_CASE(research_causality, ouch_retries_early_cancel_intent_without_inventing_a_reject_reply) {
+    auto config = quiet_market_config();
+    config.order_entry_protocol = server::Protocol::Ouch42;
+    config.latency.order_ns = 100*kMicrosecond;
+    config.latency.cancel_ns = 10*kMicrosecond;
+    config.latency.order_channel_fifo = false;
+    Simulation<HookStrategy> simulation(config,1);
+    std::vector<ReportKind> reports;
+    simulation.strategy().start = [&](StrategyContext& context) {
+        const auto token = context.submit_limit_order(Side::BUY,cents(9900),10,TimeInForce::Day,false);
+        REQUIRE(token != 0);
+        CHECK(context.cancel_order(token));
+    };
+    simulation.strategy().report = [&](const ExecutionReport& report,StrategyContext&) { reports.push_back(report.kind); };
+    REQUIRE_EQ(run_to_end(simulation),RunStop::Completed);
+    CHECK_EQ(simulation.metrics().cancel_requests_rejected,1u);
+    CHECK_EQ(simulation.metrics().cancels_resent_after_ack,1u);
+    CHECK_EQ(simulation.metrics().orders_canceled_by_request,1u);
+    CHECK_EQ(simulation.strategy_view().open_order_count,0u);
+    REQUIRE_EQ(reports.size(),3u);
+    CHECK_EQ(reports[0],ReportKind::Accepted);
+    CHECK_EQ(reports[1],ReportKind::Rested);
+    CHECK_EQ(reports[2],ReportKind::Canceled);
 }

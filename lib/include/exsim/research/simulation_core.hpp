@@ -129,6 +129,7 @@ enum class SimulationEventKind : std::uint8_t {
     MarketDataDelivery = 4,
     ExecutionReportDelivery = 5,
     ScriptedCommand = 6,
+    SessionTimer = 7,
 };
 
 struct StrategyRequestArrival {
@@ -142,6 +143,7 @@ struct SimulationEvent {
     SimulationEventKind kind = SimulationEventKind::StrategyStart;
     std::uint16_t agent_index = 0;
     std::uint64_t wakeup_generation = 0;
+    std::uint64_t protocol_sequence = 0;
     union Data {
         MarketDataUpdate market_data;
         ExecutionReport report;
@@ -213,6 +215,16 @@ struct DoubledValuation {
             2 * ledger_state.cash + position_value_times_two};
 }
 
+// Optional full-session observation hooks. They do not execute matching or
+// advance simulated time. All buffers are owned and bounded at run setup.
+struct SessionHooks {
+    void* owner = nullptr;
+    void (*event)(void*,const Event&,Phase) noexcept = nullptr;
+    void (*report)(void*,std::uint64_t) noexcept = nullptr;
+    void (*market)(void*,std::uint64_t) noexcept = nullptr;
+    void (*market_batch)(void*,std::span<const Event>) noexcept = nullptr;
+};
+
 class SimulationCore {
 public:
     SimulationCore(const ExperimentConfig& config, std::uint64_t master_seed);
@@ -255,6 +267,8 @@ public:
     [[nodiscard]] std::vector<BackgroundAgentSummary> background_agent_summaries() const;
     [[nodiscard]] const ExchangeTruthOrder* truth_order(ClOrdId cl_ord_id) const noexcept;
 
+    void attach_session_hooks(SessionHooks hooks) noexcept { session_hooks_ = hooks; }
+
     // ---- Control ---------------------------------------------------------
     // Cancels the run before its next step (state Cancelled).
     void request_stop() noexcept { stop_requested_ = true; }
@@ -265,7 +279,7 @@ public:
     // ---- Strategy host actions (called through StrategyContext) -----------
     [[nodiscard]] ClOrdId strategy_submit_limit_order(Side side, Price price, Quantity qty, TimeInForce tif, bool post_only) noexcept;
     bool strategy_cancel_order(ClOrdId cl_ord_id) noexcept;
-    bool strategy_replace_order(ClOrdId cl_ord_id, Price price, Quantity new_total_qty) noexcept;
+    bool strategy_replace_order(ClOrdId cl_ord_id, Price price, Quantity new_total_qty, bool force_priority_loss = false) noexcept;
     void strategy_wake_at(Timestamp time) noexcept;
     void strategy_declare_parent_order(Side side, Quantity qty) noexcept;
     void record_execution_decision(const ExecutionDecision& row) noexcept;
@@ -290,6 +304,7 @@ protected:
     StrategyContext& strategy_context() noexcept { return context_; }
 
 private:
+    SessionHooks session_hooks_{};
     struct BackgroundExchangeContext;
     struct BackgroundAgentSlot {
         BackgroundAgentKind kind = BackgroundAgentKind::MarketMaker;

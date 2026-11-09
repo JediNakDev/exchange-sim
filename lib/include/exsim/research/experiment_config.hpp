@@ -15,6 +15,7 @@
 // a seed sweep share one config_hash.
 
 #include "exsim/instrument.hpp"
+#include "exsim/server/config.hpp"
 #include "exsim/sim/bots/market_maker.hpp"
 #include "exsim/sim/bots/noise_taker.hpp"
 #include "exsim/types.hpp"
@@ -174,6 +175,7 @@ struct ExperimentConfig {
     std::uint64_t default_seed = 1;
     InstrumentConfig instrument;
     EngineSettings engine;
+    server::Protocol order_entry_protocol = server::Protocol::Ouch42;
     LatencyModel latency;
     FeeSchedule fees;
     RiskLimits risk;

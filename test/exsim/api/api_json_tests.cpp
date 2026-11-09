@@ -177,3 +177,26 @@ TEST_CASE(api_translation, assumption_differences_between_the_two_baselines) {
     CHECK(spread_differs);
     CHECK(list_assumption_differences(parse_json(baselines[0].config_json), parse_json(baselines[0].config_json)).empty());
 }
+
+TEST_CASE(api_translation, full_session_protocol_selects_the_runner_and_comparison_assumption) {
+    const auto& baseline = baseline_configurations().front();
+    auto config = baseline.config_json;
+    config.insert(1,"\"orderEntryProtocol\":\"fixp_sbe\",");
+    const auto translated = translate_experiment_config(parse_json(config),"/config");
+    REQUIRE(translated.translated.has_value());
+    CHECK_EQ(translated.translated->runner_config.order_entry_protocol,exsim::server::Protocol::FixpSbe);
+    const auto defaults = translate_experiment_config(parse_json(baseline.config_json),"/config");
+    REQUIRE(defaults.translated.has_value());
+    CHECK_EQ(defaults.translated->runner_config.order_entry_protocol,exsim::server::Protocol::Ouch42);
+    bool protocol_difference = false;
+    for (const auto& difference : list_assumption_differences(parse_json(baseline.config_json),parse_json(config))) {
+        if (difference.reference.field_path == "/orderEntryProtocol") {
+            CHECK_EQ(difference.reference.category,std::string("strategy"));
+            CHECK_EQ(difference.baseline_value,std::string("ouch42"));
+            protocol_difference = true;
+        }
+    }
+    CHECK(protocol_difference);
+    config = replace_once(config,"fixp_sbe","imaginary");
+    CHECK(has_issue_at(translate_experiment_config(parse_json(config),"/config").shape_issues,"/config/orderEntryProtocol"));
+}

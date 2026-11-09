@@ -24,7 +24,8 @@ constexpr std::string_view kEventOrderPolicy =
     "events at t=0 are enqueued as: background agent timers in configuration order, strategy start, first series "
     "sample. For one engine command the strategy's execution reports are enqueued in engine event order, then at most "
     "one market-data update. Background agents act synchronously at their timers and observe every engine event batch "
-    "immediately.";
+    "immediately. Full order-entry sessions use simulated one-second heartbeat ticks; every nonempty engine batch "
+    "produces a feed delivery, including deeper-book changes.";
 
 constexpr std::string_view kSeriesHeader =
     "time_ns,exchange_bid,exchange_bid_qty,exchange_ask,exchange_ask_qty,visible_bid,visible_bid_qty,visible_ask,"
@@ -245,6 +246,14 @@ std::string render_manifest_json(const SimulationCore& core, const StrategyIdent
 
     json.key("config_hash").string(format_hex64(experiment_config_hash(config)));
     json.key("config_hash_algorithm").string("fnv1a64 of the canonical configuration text (exsim.research.config/1); master seed excluded");
+    json.key("exchange_session").begin_object();
+    json.key("order_entry_protocol").string(server::to_string(config.order_entry_protocol));
+    json.key("market_data_protocol").string("itch50_moldudp64");
+    json.key("transport").string("private_unix_domain_stream_with_datagram_envelopes");
+    json.key("cancel_on_disconnect").boolean(false);
+    json.key("max_request_tokens").integer_text(65535);
+    json.key("recovery_delivery").string("Recovered reports wait for their original scheduled delivery; ITCH recovery requests never extend beyond the delivered feed head.");
+    json.end_object();
     json.key("data_hash").null();
     json.key("data_hash_note").string("synthetic market world: the run reads no input data");
     json.key("config").begin_object();

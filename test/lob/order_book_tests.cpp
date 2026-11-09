@@ -708,3 +708,60 @@ TEST_CASE(order_book_bounds, aggregate_quantity_overflow_does_not_wrap_or_mutate
     CHECK_EQ(trade.fills.front().quantity, 5u);
     CHECK_EQ(book.get_bid_quantity_at_top(), maximum - 5);
 }
+
+TEST_CASE(order_book_exchange_storage, passive_resting_preserves_fifo_ids_and_crossed_auction_books) {
+    OrderBook book(OrderBookConfig{3,3,0,100,1,false});
+    const auto* first = book.rest_order(41,60,20,15,Side::BUY,7);
+    REQUIRE(first != nullptr);
+    REQUIRE(book.rest_order(42,60,10,10,Side::BUY,8) != nullptr);
+    REQUIRE(book.rest_order(43,50,8,8,Side::SELL,9) != nullptr);
+    // Passive storage must not secretly execute an auction/cross or assign IDs.
+    CHECK_EQ(book.get_total_orders(),3u);
+    CHECK_EQ(book.get_best_bid().value(),60);
+    CHECK_EQ(book.get_best_ask().value(),50);
+    const auto* level = book.price_level(Side::BUY,60);
+    REQUIRE(level != nullptr);
+    CHECK_EQ(level->total_volume,25u);
+    CHECK_EQ(level->head_order->id,41u);
+    CHECK_EQ(level->head_order->next_order->id,42u);
+    CHECK_EQ(first->context_index,7u);
+    CHECK(book.rest_order(44,70,1,1,Side::BUY,10) == nullptr);
+    CHECK(book.set_leaves(41,0));
+    CHECK_EQ(level->total_volume,10u);
+    CHECK(book.find_order(41) != nullptr);
+    CHECK(book.cancel_order(41));
+    CHECK_EQ(book.price_level(Side::BUY,60)->head_order->id,42u);
+    CHECK(book.cancel_order(42));
+    CHECK(!book.get_best_bid().has_value());
+    CHECK(book.rest_order(44,70,1,1,Side::BUY,10) != nullptr);
+    CHECK_EQ(book.next_price(Side::BUY,0,true).value(),70);
+    CHECK_EQ(book.next_price(Side::BUY,100,false).value(),70);
+    CHECK(book.cancel_order(44));
+    REQUIRE(book.rest_order(std::numeric_limits<OrderId>::max(),70,1,1,Side::BUY,11) != nullptr);
+    const auto exhausted = book.add_order(100,1,Side::BUY);
+    CHECK_EQ(exhausted.order_id,0u);
+    CHECK(exhausted.fills.empty());
+    CHECK_EQ(book.find_order(43)->remaining_quantity,8u);
+}
+
+TEST_CASE(order_book_exchange_storage, reductions_reject_invalid_growth_and_allocate_nothing) {
+    OrderBook book(OrderBookConfig{2,2,0,100,1,false});
+    REQUIRE(book.rest_order(1,10,10,10,Side::BUY,1) != nullptr);
+    REQUIRE(book.rest_order(2,20,10,10,Side::SELL,2) != nullptr);
+    if (!testfw::allocation_counting_available()) return;
+    std::size_t count;
+    {
+        testfw::AllocationScope allocations;
+        CHECK(!book.set_leaves(1,11));
+        CHECK(!book.set_leaves(99,0));
+        CHECK(book.set_leaves(1,8));
+        CHECK(book.amend_order(1,9,7));
+        CHECK_EQ(book.find_order(1)->quantity,9u);
+        CHECK_EQ(book.find_order(1)->remaining_quantity,7u);
+        CHECK_EQ(book.price_level(Side::BUY,10)->total_volume,7u);
+        CHECK(book.cancel_order(2));
+        CHECK(book.rest_order(3,30,5,5,Side::SELL,3) != nullptr);
+        count = allocations.count();
+    }
+    CHECK_EQ(count,0u);
+}

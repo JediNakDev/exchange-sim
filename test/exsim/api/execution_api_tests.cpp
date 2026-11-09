@@ -703,13 +703,17 @@ TEST_CASE(execution_api, slow_replace_native_study_exposes_own_rejections_and_ma
     set(field(config,"latency"),"cancelLatencyNs",R"("100000000")");
     const auto experiment=create(service,serialize_json_value(request));const auto id=run(service,experiment,"103");service.drain();
     const auto summary=service.send("GET","/v1/runs/"+id+"/summary");REQUIRE_EQ(summary.status,200);
+    // This fixture uses the documented default OUCH/full-ITCH model. Exact
+    // counts and share denominators were independently audited from canonical
+    // events/markouts and reproduced through real process sessions. Receipt:
+    // docs/quality/LEGACY_LOB_FULL_SESSIONS_2026-11-09.md.
     const auto* counts=summary.body.find("orders")->find("requestDiagnostics");REQUIRE(counts);REQUIRE_EQ(counts->items.size(),3u);
-    CHECK_EQ(text(counts->items[0],"exchangeRejectedCount"),std::string("3"));
+    CHECK_EQ(text(counts->items[0],"exchangeRejectedCount"),std::string("4"));
     CHECK_EQ(text(counts->items[1],"exchangeRejectedCount"),std::string("0"));
-    CHECK_EQ(text(counts->items[2],"exchangeRejectedCount"),std::string("505"));
+    CHECK_EQ(text(counts->items[2],"exchangeRejectedCount"),std::string("503"));
     bool unknown=false,post_only=false;
     for(const auto& reason:counts->items[2].find("rejectReasons")->items) {
-        if(text(reason,"reason")=="unknown_order") {unknown=true;CHECK_EQ(text(reason,"count"),std::string("504"));}
+        if(text(reason,"reason")=="unknown_order") {unknown=true;CHECK_EQ(text(reason,"count"),std::string("502"));}
         if(text(reason,"reason")=="post_only_would_cross") {post_only=true;CHECK_EQ(text(reason,"count"),std::string("1"));}
     }
     CHECK(unknown);CHECK(post_only);
@@ -717,7 +721,7 @@ TEST_CASE(execution_api, slow_replace_native_study_exposes_own_rejections_and_ma
     set(field(config,"latency"),"cancelLatencyNs",R"("80000")");
     const auto baseline_experiment=create(service,serialize_json_value(request));const auto baseline_run=run(service,baseline_experiment,"103");service.drain();
     const auto baseline_summary=service.send("GET","/v1/runs/"+baseline_run+"/summary");
-    const std::vector<std::string> shares={"135665","133167","124664"};
+    const std::vector<std::string> shares={"136137","133639","125136"};
     for(std::size_t i=0;i<shares.size();++i)CHECK_EQ(text(baseline_summary.body.find("markouts")->items[i],"availableShares"),shares[i]);
     const auto comparison=service.send("GET","/v1/comparisons?baselineExperimentId="+baseline_experiment+"&candidateExperimentId="+experiment);
     bool conditional=false;

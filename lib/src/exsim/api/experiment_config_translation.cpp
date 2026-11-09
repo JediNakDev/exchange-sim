@@ -314,7 +314,7 @@ ConfigTranslationResult translate_experiment_config(const JsonValue& config, std
 
     if (!shape.object(&config, root,
                       {"marketWorld", "instrument", "scenario", "strategy", "seedSet", "latency", "fees", "risk", "initialCash", "markConvention",
-                       "markoutHorizonsNs", "bounds"}))
+                       "markoutHorizonsNs", "bounds"}, {"orderEntryProtocol"}))
         return result;
 
     TranslatedExperimentConfig translated;
@@ -480,6 +480,8 @@ ConfigTranslationResult translate_experiment_config(const JsonValue& config, std
     }
 
     // ---- strategy ------------------------------------------------------------
+    const auto protocol_pointer = child_pointer(root,"orderEntryProtocol");
+    const auto order_entry_protocol = shape.enumeration(config.find("orderEntryProtocol"),protocol_pointer,{"ouch42","fix44","fixp_sbe"});
     const std::string strategy_pointer = child_pointer(root, "strategy");
     const JsonValue* strategy = config.find("strategy");
     if (strategy != nullptr) {
@@ -500,6 +502,7 @@ ConfigTranslationResult translate_experiment_config(const JsonValue& config, std
                                {"startTimeNs", "executionDurationNs", "limitOffsetTicks"});
             if (shaped) {
                 runner_text.section("strategy", strategy_pointer);
+                if (order_entry_protocol) runner_text.entry("protocol",*order_entry_protocol,protocol_pointer);
                 runner_text.entry("kind", twap ? "twap_executor" : "immediate_sweep_executor", kind_pointer);
                 const std::string side_pointer = child_pointer(strategy_pointer, "parentSide");
                 if (const auto side = shape.enumeration(strategy->find("parentSide"), side_pointer, {"buy", "sell"}))
@@ -533,6 +536,7 @@ ConfigTranslationResult translate_experiment_config(const JsonValue& config, std
                                {"strategyKind", "halfSpreadTicks", "quoteQuantity", "requoteIntervalNs", "requoteThresholdTicks", "postOnly"});
             if (shaped) {
                 runner_text.section("strategy", strategy_pointer);
+                if (order_entry_protocol) runner_text.entry("protocol",*order_entry_protocol,protocol_pointer);
                 runner_text.entry("kind", *kind, kind_pointer);
                 const auto integer_into = [&](std::string_view api_name, std::string_view runner_key, std::string_view suffix) {
                     const std::string pointer = child_pointer(strategy_pointer, api_name);
@@ -785,6 +789,7 @@ namespace {
 
 std::string category_for_top_level_key(std::string_view key) {
     if (key == "marketWorld") return "market_world";
+    if (key == "orderEntryProtocol") return "strategy";
     if (key == "seedSet") return "seeds";
     if (key == "initialCash" || key == "markConvention" || key == "markoutHorizonsNs") return "accounting";
     return std::string(key);  // instrument, scenario, strategy, latency, fees, risk, bounds
@@ -873,6 +878,7 @@ void visit_assumption(const JsonValue& value, std::vector<std::string>& path, co
 std::vector<AssumptionLine> flatten_experiment_config(const JsonValue& config) {
     std::vector<AssumptionLine> lines;
     if (config.kind != Kind::Object) return lines;
+    if (!config.find("orderEntryProtocol")) lines.push_back({"strategy","/orderEntryProtocol","orderEntryProtocol","ouch42",std::nullopt});
     for (const auto& member : config.members) {
         if (member.name == "scenario" && member.value.kind == Kind::Object) {
             if (const JsonValue* scenario_id = member.value.find("scenarioId"))

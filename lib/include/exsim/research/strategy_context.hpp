@@ -146,7 +146,7 @@ struct StrategyVisibleState {
 };
 
 // Requests made by a strategy host across the private research transport.
-enum class StrategyActionKind : std::uint8_t { Headroom, NewOrder, Cancel, Replace, Wake, Parent, Decision, Done };
+enum class StrategyActionKind : std::uint8_t { Headroom, NewOrder, Cancel, Replace, Wake, Parent, Decision, Session, Done };
 struct StrategyAction {
     StrategyActionKind kind = StrategyActionKind::Done;
     Side side = Side::BUY;

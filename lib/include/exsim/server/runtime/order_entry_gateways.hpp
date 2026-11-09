@@ -48,9 +48,10 @@ namespace exsim::server::runtime {
 
 // ---- OUCH 4.2 over SoupBinTCP 3.0 ------------------------------------------------
 
-struct OuchGateway {
+template<class ByteSink>
+struct BasicOuchGateway {
     static constexpr std::string_view name = "ouch";
-    using UserDirectory = gateway::ouch::OuchUserStateDirectory<TcpSendSink>;
+    using UserDirectory = gateway::ouch::OuchUserStateDirectory<ByteSink>;
 
     [[nodiscard]] static std::unique_ptr<UserDirectory> make_user_directory(const ServerConfig& config) {
         return std::make_unique<UserDirectory>(config);
@@ -73,7 +74,7 @@ struct OuchGateway {
     public:
         explicit Connection(UserDirectory& users) noexcept : users_(users) {}
 
-        void open(TcpSendSink sink, server::ConnectionId connection_id, Core& core) noexcept {
+        void open(ByteSink sink, server::ConnectionId connection_id, Core& core) noexcept {
             session_.emplace(sink, users_, connection_id,
                              gateway::ouch::OuchSessionSettings::from(core.config().exchange), core.now());
         }
@@ -94,15 +95,16 @@ struct OuchGateway {
 
     private:
         UserDirectory& users_;
-        std::optional<gateway::ouch::OuchConnection<TcpSendSink>> session_;
+        std::optional<gateway::ouch::OuchConnection<ByteSink>> session_;
     };
 };
 
 // ---- FIX 4.4 -----------------------------------------------------------------------
 
-struct FixGateway {
+template<class ByteSink>
+struct BasicFixGateway {
     static constexpr std::string_view name = "fix";
-    using UserDirectory = gateway::fix::FixUserDirectory<TcpSendSink>;
+    using UserDirectory = gateway::fix::FixUserDirectory<ByteSink>;
 
     [[nodiscard]] static std::unique_ptr<UserDirectory> make_user_directory(const ServerConfig& config) {
         gateway::fix::FixUserLimits limits;
@@ -129,7 +131,7 @@ struct FixGateway {
     public:
         explicit Connection(UserDirectory& users) noexcept : session_(users) {}
 
-        void open(TcpSendSink sink, server::ConnectionId connection_id, Core& core) noexcept {
+        void open(ByteSink sink, server::ConnectionId connection_id, Core& core) noexcept {
             sink_ = sink;
             close_requested_by_server_ = false;
             session_.start(sink_, connection_id, core);
@@ -157,17 +159,18 @@ struct FixGateway {
         }
 
     private:
-        TcpSendSink sink_{};  // FixConnection keeps a pointer to it: the slot never moves
-        gateway::fix::FixConnection<Core, TcpSendSink> session_;
+        ByteSink sink_{};  // FixConnection keeps a pointer to it: the slot never moves
+        gateway::fix::FixConnection<Core, ByteSink> session_;
         bool close_requested_by_server_ = false;
     };
 };
 
 // ---- SBE 1.0 over FIXP 1.0 ---------------------------------------------------------
 
-struct FixpSbeGateway {
+template<class ByteSink>
+struct BasicFixpSbeGateway {
     static constexpr std::string_view name = "fixp_sbe";
-    using UserDirectory = gateway::fixp_sbe::FixpSbeUserStateDirectory<TcpSendSink>;
+    using UserDirectory = gateway::fixp_sbe::FixpSbeUserStateDirectory<ByteSink>;
 
     // Every `protocol = fixp_sbe` user that no bot drives, sized from [engine].
     [[nodiscard]] static std::unique_ptr<UserDirectory> make_user_directory(const ServerConfig& config) {
@@ -192,7 +195,7 @@ struct FixpSbeGateway {
     public:
         explicit Connection(UserDirectory& users) noexcept : users_(users) {}
 
-        void open(TcpSendSink sink, server::ConnectionId connection_id, Core& core) noexcept {
+        void open(ByteSink sink, server::ConnectionId connection_id, Core& core) noexcept {
             session_.emplace(sink, users_, connection_id,
                              gateway::fixp_sbe::FixpSbeSessionSettings::from(core.config().exchange), core.now());
         }
@@ -215,9 +218,13 @@ struct FixpSbeGateway {
 
     private:
         UserDirectory& users_;
-        std::optional<gateway::fixp_sbe::FixpSbeConnection<TcpSendSink>> session_;
+        std::optional<gateway::fixp_sbe::FixpSbeConnection<ByteSink>> session_;
     };
 };
+
+using OuchGateway = BasicOuchGateway<TcpSendSink>;
+using FixGateway = BasicFixGateway<TcpSendSink>;
+using FixpSbeGateway = BasicFixpSbeGateway<TcpSendSink>;
 
 }  // namespace exsim::server::runtime
 

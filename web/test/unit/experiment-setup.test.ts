@@ -59,12 +59,14 @@ describe("exact setup timing", () => {
 
 test("variant draft copies the saved configuration exactly and owns independent edits", () => {
   const config = structuredClone(BASELINE_CONFIGURATIONS[0].config);
+  config.orderEntryProtocol = "fixp_sbe";
   config.seedSet.masterSeeds = ["18446744073709551615"];
   config.latency.feedLatencyNs = "9007199254740993";
   config.fees.makerFeePerShare = "-0.00000001";
   const parent = { experimentId: "saved", derivedFromBaselineId: "original", name: "Saved assumptions", config } as ApiSchemas["Experiment"];
   const draft = draftFromExperiment(parent);
   expect(draft.config).toEqual(config);
+  expect(draft.config.orderEntryProtocol).toBe("fixp_sbe");
   expect(draft.config).not.toBe(config);
   expect(draft.parentExperimentId).toBe("saved");
   expect(draft.baselineId).toBe("original");

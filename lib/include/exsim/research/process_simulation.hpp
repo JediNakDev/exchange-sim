@@ -3,6 +3,7 @@
 #include "exsim/research/simulation_core.hpp"
 #include "exsim/ipc/strategy_wire.hpp"
 #include "exsim/research/run_artifacts.hpp"
+#include "exsim/research/exchange_session.hpp"
 
 namespace exsim::research {
 // Exchange-owned scheduling and matching. All strategy callbacks execute in
@@ -12,9 +13,17 @@ public:
     ProcessSimulation(const ExperimentConfig& config, std::uint64_t seed);
     RunStop run(const RunBounds& bounds = {});
     RunStop step() { return run(RunBounds{kNoTime,1}); }
+    // Deterministic boundary interventions for native connectivity/recovery
+    // research. They never restart a crashed trader or bypass a session.
+    void reconnect_order_entry() noexcept { reconnect_ = true; }
+    void drop_next_protocol_report() noexcept { session_.drop_next_report(); }
+    void drop_next_market_packet() noexcept { session_.drop_next_market_packet(); }
+    SessionStatistics session_statistics() const noexcept { return session_.statistics(); }
     int trader_pid() const noexcept { return trader_.pid(); }
 private:
     void callback(const SimulationEvent& event);
+    bool reconnect_ = false;
+    ExchangeSession session_;
     ipc::TraderProcess trader_;
 };
 StrategyIdentity builtin_strategy_identity(StrategyKind kind);

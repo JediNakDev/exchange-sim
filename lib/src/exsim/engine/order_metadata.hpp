@@ -1,24 +1,10 @@
-#ifndef EXSIM_ENGINE_ORDER_ARENA_HPP
-#define EXSIM_ENGINE_ORDER_ARENA_HPP
+#ifndef EXSIM_ENGINE_ORDER_METADATA_HPP
+#define EXSIM_ENGINE_ORDER_METADATA_HPP
 
-// Index-addressed order arena records.
-//
-// Every resting order owns one slot in two parallel arrays (structure of
-// arrays) addressed by a 32-bit OrderIndex. Index 0 is the nil sentinel, so a
-// zero-filled link means "none" and the arena holds max_orders + 1 slots.
-//
-//   OrderHot   32 B  everything a fill touches on the resting order: FIFO
-//                    successor, leaves/cum, STP owner and the identifiers
-//                    copied into the FillLeg. A partial fill of a resting
-//                    order touches exactly one 32 B record.
-//   OrderCold  32 B  everything else: FIFO predecessor, ladder position,
-//                    order attributes and the two ascending-OrderId lists
-//                    (engine-wide and per session). Touched on removal,
-//                    cancel, replace and queries.
-//
-// The FIFO predecessor of a level's head is never read (removal compares the
-// index against Level::head instead), so popping the head of a level never
-// has to touch the next order's cold record.
+// Exchange metadata indexed by the original LOB order's context_index.
+// The LOB owns resting orders, price levels, FIFO links and remaining shares.
+// These preallocated arrays retain session/STP attributes, cumulative fills,
+// and engine/session/instrument query lists. Index 0 means no metadata slot.
 
 #include <exsim/types.hpp>
 
@@ -46,7 +32,7 @@ inline constexpr unsigned kSessionTokenShift = 48;
 }
 
 struct OrderHot {
-    OrderIndex next;              // FIFO successor at the price level; free-list link when free
+    OrderIndex next;              // metadata free-list link when the slot is free
     Quantity leaves_qty;
     Quantity cum_qty;
     OwnerId owner;
@@ -56,7 +42,6 @@ struct OrderHot {
 static_assert(sizeof(OrderHot) == 32, "two hot records per cache line");
 
 struct OrderCold {
-    OrderIndex prev;              // FIFO predecessor; meaningless while the order is the level head
     std::uint32_t tick;           // ladder index: price = min_price + tick * tick_size
     InstrumentId instrument;
     Side side;
@@ -69,7 +54,7 @@ struct OrderCold {
     OrderIndex next_in_session;   // per-session list, ascending OrderId
     OrderIndex prev_in_session;
 };
-static_assert(sizeof(OrderCold) == 32, "two cold records per cache line");
+static_assert(sizeof(OrderCold) == 28);
 
 // Head and tail of an intrusive doubly linked list of orders.
 struct OrderListEnds {

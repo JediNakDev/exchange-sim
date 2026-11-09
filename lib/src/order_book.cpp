@@ -304,7 +304,7 @@ template void OrderBook::remove_order_from_book_impl<Side::SELL>(Order*);
 
 OrderBook::AddResult OrderBook::add_order(Price price, Quantity quantity, Side side) {
     fill_buffer_.clear();
-    if (LOB_UNLIKELY(!ensure_price_range(price))) {
+    if (LOB_UNLIKELY(next_order_id_ == 0 || !ensure_price_range(price))) {
         return AddResult{0, {}, 0, 0, false};
     }
     if (allow_growth_) {
@@ -351,6 +351,63 @@ OrderBook::AddResult OrderBook::add_order(Price price, Quantity quantity, Side s
     }
 
     return AddResult{order_id, fill_buffer_, remaining, 0, false};
+}
+
+Order* OrderBook::rest_order(OrderId id, Price price, Quantity quantity,
+                             Quantity leaves, Side side, std::uint32_t context_index) {
+    if (id == 0 || leaves == 0 || leaves > quantity || orders_.contains(id) || !ensure_price_range(price)) return nullptr;
+    if (allow_growth_) {
+        order_pool_.ensure_free_node();
+        level_pool_.ensure_free_node();
+        orders_.reserve(orders_.size() + 1);
+    }
+    Order* order = order_pool_.create(id,price,quantity,side);
+    if (!order) return nullptr;
+    order->remaining_quantity = leaves;
+    order->context_index = context_index;
+    if (!orders_.insert(id,order)) { order_pool_.destroy(order); return nullptr; }
+    const bool placed = side == Side::BUY ? add_order_to_book_impl<Side::BUY>(order) : add_order_to_book_impl<Side::SELL>(order);
+    if (!placed) { (void)orders_.erase(id); order_pool_.destroy(order); return nullptr; }
+    // Keep add_order's automatically generated identifiers disjoint when mixed.
+    if (next_order_id_ != 0 && id >= next_order_id_) next_order_id_ = id + 1;
+    return order;
+}
+
+bool OrderBook::set_leaves(OrderId id, Quantity leaves) noexcept {
+    Order** slot = orders_.find(id);
+    if (!slot) return false;
+    Order& order = **slot;
+    if (leaves > order.remaining_quantity) return false;
+    order.parent_level->total_volume -= order.remaining_quantity - leaves;
+    order.remaining_quantity = leaves;
+    return true;
+}
+
+bool OrderBook::amend_order(OrderId id, Quantity total, Quantity leaves) noexcept {
+    if (leaves > total || !set_leaves(id,leaves)) return false;
+    (*orders_.find(id))->quantity = total;
+    return true;
+}
+
+const Order* OrderBook::find_order(OrderId id) const noexcept {
+    auto slot = orders_.find(id);
+    return slot ? *slot : nullptr;
+}
+const PriceLevel* OrderBook::price_level(Side side, Price price) const noexcept {
+    if (price < min_price_ || price > max_price_) return nullptr;
+    return (side == Side::BUY ? bid_ladder_ : ask_ladder_)[ladder_index(price)];
+}
+std::optional<Price> OrderBook::next_price(Side side, Price from, bool ascending) const noexcept {
+    if (ascending && from > max_price_) return std::nullopt;
+    if (!ascending && from < min_price_) return std::nullopt;
+    from = std::clamp(from,min_price_,max_price_);
+    const auto& words = side == Side::BUY ? bid_active_words_ : ask_active_words_;
+    const auto index = ascending ? find_next_active(words,ladder_index(from)) : find_prev_active(words,ladder_index(from));
+    return index ? std::optional<Price>(min_price_ + static_cast<Price>(*index)) : std::nullopt;
+}
+std::uint64_t OrderBook::active_word(Side side, std::size_t word) const noexcept {
+    const auto& words = side == Side::BUY ? bid_active_words_ : ask_active_words_;
+    return word < words.size() ? words[word] : 0;
 }
 
 bool OrderBook::cancel_order(OrderId order_id) {

@@ -807,6 +807,11 @@ export interface components {
             masterSeeds: components["schemas"]["UnsignedIntegerString"][];
         };
         ExperimentConfig: {
+            /**
+             * @description Defaults to ouch42. Full order-entry session used between the trader and exchange processes. All choices use ITCH/MoldUDP64 market data over private Unix-domain transport.
+             * @enum {string}
+             */
+            orderEntryProtocol?: "ouch42" | "fix44" | "fixp_sbe";
             marketWorld: components["schemas"]["MarketWorld"];
             instrument: components["schemas"]["InstrumentRules"];
             scenario: components["schemas"]["MarketScenarioConfig"];
