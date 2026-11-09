@@ -1,12 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
+import { StudyFamilyPanel } from "@/components/research/study-family-panel";
+import { StudyOutcomes } from "@/components/research/study-outcomes";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { readExperimentRuns, startMissingSeedRuns } from "@/lib/api/research-workflow";
-import { GitCompareIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { KeyFigureList } from "@/components/research/key-figure-list";
 import { ResearchSection } from "@/components/research/research-section";
@@ -27,6 +29,9 @@ export function ExperimentDetailView() {
   const { experimentId } = useParams<{ experimentId: string }>();
   const router = useRouter();
   const apiClient = getBrowserApiClient();
+  const searchParams = useSearchParams();
+  const studyTab = ["results", "runs", "setup"].includes(searchParams.get("tab") ?? "") ? searchParams.get("tab")! : "results";
+  const setStudyTab = (tab: string) => { const params = new URLSearchParams(searchParams); params.set("tab", tab); router.replace(`/experiments/${experimentId}?${params}`, { scroll: false }); };
   const [startPaused, setStartPaused] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
   const starting = useRef(false);
@@ -96,25 +101,15 @@ export function ExperimentDetailView() {
         }
         actions={
           <div className="flex flex-wrap gap-2">
-          <Button asChild size="sm" variant="outline"><Link href={`/experiments/new?from=${encodeURIComponent(experiment.experimentId)}`}>Create variant</Link></Button>
-          {experiment.parentExperimentId ? (
-            <Button asChild size="sm" variant="outline">
-              <Link href={`/compare?baseline=${experiment.parentExperimentId}&candidate=${experiment.experimentId}`}>
-                <GitCompareIcon /> Compare with parent
-              </Link>
-            </Button>
-          ) : (
-            <Button asChild size="sm" variant="outline">
-              <Link href={`/compare?baseline=${experiment.experimentId}`}>
-                <GitCompareIcon /> Compare
-              </Link>
-            </Button>
-          )}
           {runList && missingSeeds.length > 0 ? <Button size="sm" disabled={isStarting || runListResource.failure !== null} onClick={() => void startMissing()}>{isStarting ? "Starting..." : "Start missing seeds"}</Button> : null}
           </div>
         }
       />
-      {experiment.description ? <p className="max-w-prose text-sm">{experiment.description}</p> : null}
+      <StudyFamilyPanel experiment={experiment} />
+      <Tabs value={studyTab} onValueChange={setStudyTab}>
+      <TabsList aria-label="Study sections"><TabsTrigger value="results">Results</TabsTrigger><TabsTrigger value="runs">Runs and recovery</TabsTrigger><TabsTrigger value="setup">Assumptions</TabsTrigger></TabsList>
+      <TabsContent value="results" className="space-y-6">{runList ? <StudyOutcomes experiment={experiment} runs={runList.items} /> : <p role="status">Loading seed runs…</p>}<Button size="sm" variant="outline" onClick={() => setStudyTab("runs")}>Review seed runs and recovery</Button><Button asChild variant="outline" size="sm"><Link href={`/compare?baseline=${experiment.parentExperimentId ?? experiment.experimentId}${experiment.parentExperimentId ? `&candidate=${experiment.experimentId}` : ""}`}>Compare on matched seeds</Link></Button></TabsContent>
+      <TabsContent value="runs" className="space-y-6">
       <ResearchSection title="Research progress" aria-label="Experiment overview">
         <p className="mt-1 text-sm text-muted-foreground">{humanizeEnumValue(experiment.config.strategy.strategyKind)} on {experiment.config.instrument.symbol}; {formatDurationNs(experiment.config.bounds.endSimulationTimeNs)} per seed. Change one assumption in a variant, then compare completed runs on common seeds.</p>
         <KeyFigureList figures={[
@@ -197,6 +192,9 @@ export function ExperimentDetailView() {
               </Table>
             </div>
         </ResearchSection>
+      </div>
+      </TabsContent>
+      <TabsContent value="setup">
         <ResearchSection title="Assumptions" description={<span className="font-mono break-all">config {experiment.configDigest.algorithm} {experiment.configDigest.hexDigest}</span>}>
             {assumptionsResource.failure ? <ApiFailureAlert failure={assumptionsResource.failure} onRetry={assumptionsResource.reload} /> : null}
             <div className="min-w-0 border bg-card [&>[data-slot=table-container]]:max-h-[36rem] [&>[data-slot=table-container]]:overflow-auto">
@@ -217,7 +215,8 @@ export function ExperimentDetailView() {
               </Table>
             </div>
         </ResearchSection>
-      </div>
+      </TabsContent>
+      </Tabs>
     </>
   );
 }

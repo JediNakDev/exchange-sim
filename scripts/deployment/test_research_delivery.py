@@ -25,6 +25,10 @@ class DeliveryTests(unittest.TestCase):
         self.api = self.root / "built-api"
         self.api.write_bytes(b"fixture API, never executed\n")
         self.api.chmod(0o700)
+        for name in ("exsim_exchanged", "exsim_traderd"):
+            worker = self.root / name
+            worker.write_bytes(b"fixture worker, never executed\n")
+            worker.chmod(0o700)
         self.standalone = self.root / "standalone"
         (self.standalone / ".next/static").mkdir(parents=True)
         (self.standalone / "server.js").write_text("// fixture standalone\n")
@@ -75,6 +79,18 @@ class DeliveryTests(unittest.TestCase):
         self.assertFalse((self.release / "frontend/.next/static/stale.js").exists())
         self.assertFalse((self.release / "frontend/public/stale.txt").exists())
         self.assertEqual((self.release / "frontend/public/icon.svg").read_text(), "<svg/>")
+
+    def test_package_requires_both_worker_binaries(self):
+        (self.root / "exsim_traderd").unlink()
+        with self.assertRaisesRegex(ValueError, "worker must be"):
+            self.package()
+        self.assertFalse(self.release.exists())
+
+    def test_file_only_backup_rejects_postgres_data(self):
+        (self.data / ".postgres-metadata").write_text("exsim.postgres/1\n")
+        with self.assertRaisesRegex(ValueError, "coordinated database dump"):
+            self.make_backup()
+        self.assert_clean_failure(self.backup)
 
     def test_package_optional_public_removes_stale_public(self):
         self.package(public=None)

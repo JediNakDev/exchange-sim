@@ -1,13 +1,10 @@
 "use client";
 
-// Read-only status of the real-time protocol mode: OUCH/FIX sessions, ITCH feed
-// gaps and injected faults. Nothing here can change the service.
+// Read-only protocol telemetry.
 
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
-import { NetworkIcon } from "lucide-react";
 import { ResearchSection } from "@/components/research/research-section";
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ApiFailureAlert } from "@/components/research/api-failure-alert";
 import { PageHeading } from "@/components/research/page-heading";
@@ -31,26 +28,19 @@ export function ConnectionsView() {
     <>
       <PageHeading
         title="Connections and faults"
-        description={
-          status ? (
-            <span>
-              {humanizeEnumValue(status.mode)} service {status.serviceState}, observed {formatWallClockTime(status.observedAt)}, {status.telemetryDroppedUpdateCount} telemetry updates dropped. Read only.
-            </span>
-          ) : (
-            "Read only."
-          )
-        }
+        description="Read-only gateway telemetry. Custom trading strategy setup is coming soon."
       />
+      <div className="border-t pt-6"><h2 className="text-base font-medium">Reported gateway telemetry</h2><p className="mt-1 text-xs text-muted-foreground">{status ? `API report: ${humanizeEnumValue(status.serviceState)}, observed ${formatWallClockTime(status.observedAt)}. ${status.telemetryDroppedUpdateCount} telemetry updates dropped.` : "Loading the research API telemetry report."} This API does not automatically monitor a separately started protocol server.</p></div>
       {connections.failure ? <ApiFailureAlert failure={connections.failure} onRetry={connections.reload} /> : null}
       {status?.serviceState === "not_running" ? <section className="border bg-card p-4 text-sm" aria-label="Protocol mode unavailable">
-        <h2 className="font-medium">Real-time protocol service is not running here</h2>
-        <p className="mt-1 text-muted-foreground">Deterministic research runs do not create OUCH/FIX sessions or ITCH feed connections. This read-only page cannot start gateways or configure faults. Start a separate protocol service using the server setup instructions when testing an external client.</p>
-        <Link className="mt-3 inline-block underline" href="/experiments">Return to research experiments</Link>
+        <h2 className="font-medium">No live gateway telemetry reported</h2>
+        <p className="mt-1 text-muted-foreground">The research API reports no attached gateway. This does not establish whether a separately launched server is running. Use your native server and client logs to verify connectivity; browser launch, control and live gateway telemetry are not integrated.</p>
+        <Link className="mt-3 inline-block underline" href="/experiments/new">Configure built-in strategy research</Link>
       </section> : null}
       {status ? (
         <div className="grid min-w-0 gap-8">
           <ResearchSection title="Order entry sessions">
-            <div className="min-w-0 border bg-card">
+            {status.sessions.length === 0 ? <p className="text-sm text-muted-foreground">No sessions supplied by this API. Use the native server logs to check its actual connection state.</p> : <div className="min-w-0 border bg-card">
               <Table className="text-xs" aria-label="Order entry sessions">
                 <TableHeader>
                   <TableRow>
@@ -69,7 +59,6 @@ export function ConnectionsView() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {status.sessions.length === 0 ? <TableRow><TableCell colSpan={12} className="whitespace-normal"><Empty><EmptyHeader><EmptyMedia variant="icon"><NetworkIcon /></EmptyMedia><EmptyTitle>No order-entry sessions reported.</EmptyTitle><EmptyDescription>{status.serviceState === "not_running" ? "Start the separate protocol service before connecting clients." : "Connect an external client to the running protocol service to observe sessions here."}</EmptyDescription></EmptyHeader></Empty></TableCell></TableRow> : null}
                   {status.sessions.map((session) => (
                     <TableRow key={session.sessionId}>
                       <TableCell className="font-mono">{session.sessionId}</TableCell>
@@ -92,9 +81,9 @@ export function ConnectionsView() {
                   ))}
                 </TableBody>
               </Table>
-            </div>
+            </div>}
           </ResearchSection>
-          {status.feeds.length === 0 ? <ResearchSection title="Market data feeds" description="No feeds reported. Deterministic research book views are available from each run’s event inspector; protocol feeds require the separate real-time service." /> : null}
+          {status.feeds.length === 0 ? <ResearchSection title="Market data feeds" description="No feed telemetry supplied by this API. Check feed reception in your native client. Deterministic research book views remain available in run inspection." /> : null}
           {status.feeds.map((feed) => (
             <ResearchSection key={feed.feedId} title={<>Feed {feed.feedId} ({humanizeEnumValue(feed.protocol)})</>} actions={<Badge variant="outline"><span aria-hidden="true" className={`size-1.5 rounded-full ${feed.recentGaps.some((gap) => gap.recoveryState !== "recovered") ? "bg-warning" : "bg-positive"}`} />{feed.recentGaps.some((gap) => gap.recoveryState !== "recovered") ? "Gaps" : "Healthy"}</Badge>} description={<span className="font-mono wrap-anywhere">
                   {feed.multicastGroup}, session {feed.mold64Session}, last sequence {formatIntegerText(feed.lastPublishedSequenceNumber)}, {feed.retransmissionRequestCount} retransmission requests
@@ -132,8 +121,8 @@ export function ConnectionsView() {
               </div>
             </ResearchSection>
           ))}
-          <ResearchSection title="Fault scenarios" description="Faults are configured outside the UI; this view only reports them.">
-            <div className="min-w-0 border bg-card">
+          <ResearchSection title="Fault scenarios" description="Fault injection belongs to the native server configuration and admin interface. This table displays only faults reported by the API.">
+            {status.faults.length === 0 ? <p className="text-sm text-muted-foreground">No fault telemetry supplied. Delayed-data research experiments are available in the Latency section of built-in setup.</p> : <div className="min-w-0 border bg-card">
               <Table className="text-xs" aria-label="Fault scenarios">
                 <TableHeader>
                   <TableRow>
@@ -146,7 +135,6 @@ export function ConnectionsView() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {status.faults.length === 0 ? <TableRow><TableCell colSpan={6} className="text-muted-foreground">No protocol fault scenarios reported. Configure faults in the separate protocol service; this page reports their state. Delayed-data research experiments are available through the Latency section in experiment setup.</TableCell></TableRow> : null}
                   {status.faults.map((fault) => (
                     <TableRow key={fault.faultId}>
                       <TableCell>{humanizeEnumValue(fault.faultKind)}</TableCell>
@@ -163,7 +151,7 @@ export function ConnectionsView() {
                   ))}
                 </TableBody>
               </Table>
-            </div>
+            </div>}
           </ResearchSection>
         </div>
       ) : null}

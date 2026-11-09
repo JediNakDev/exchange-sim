@@ -25,3 +25,7 @@ lob_demo
 
 # Dependency files
 *.d
+
+# Local Compose credentials and configuration
+.secrets/
+.env

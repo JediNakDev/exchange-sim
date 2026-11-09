@@ -1,0 +1,9 @@
+{
+  "checks": [
+    "pinning retains selected section",
+    "pinning identical cohort retains its draft",
+    "invalid receipt gives actionable error without page crash",
+    "no page errors"
+  ],
+  "errors": []
+}

@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import dynamic from "next/dynamic";
+import { ExecutionProgressChart } from "@/components/research/execution-progress-chart";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -27,6 +29,8 @@ import { useApiResource } from "@/hooks/use-api-resource";
 import { createIdempotencyKey, describeApiFailure, getBrowserApiClient, unwrapApiResult, type ApiSchemas } from "@/lib/api/exsim-api-client";
 import { formatDecimalForDisplay, formatDurationNs, formatIntegerText, formatSimulationTimeNs, formatWallClockTime } from "@/lib/exact-decimal-format";
 import { formatMetricValue, humanizeEnumValue, metricLabel, METRIC_UNIT_LABEL } from "@/lib/research-labels";
+
+const MarkoutProfileChart = dynamic(() => import("@/components/research/markout-profile-chart").then((m) => m.MarkoutProfileChart), { loading: () => <p role="status">Loading markout chart…</p> });
 
 const ACTIVE_RUN_POLL_INTERVAL_MS = 1000;
 const DEFAULT_STEP_EVENT_COUNT = "100";
@@ -278,6 +282,10 @@ function ManifestPanel({ manifest }: { manifest: ApiSchemas["RunManifest"] }) {
 
 export function RunDetailView() {
   const { runId } = useParams<{ runId: string }>();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const activeTab = ["overview", "execution", "summary", "manifest", "history"].includes(searchParams.get("tab") ?? "") ? searchParams.get("tab")! : "overview";
+  const changeTab = (tab: string) => { const params = new URLSearchParams(searchParams); params.set("tab", tab); router.replace(`/runs/${runId}?${params}`, { scroll: false }); };
   const comparisonQuery = useComparisonContext();
   const apiClient = getBrowserApiClient();
   const runResource = useApiResource(`run:${runId}`, async () => unwrapApiResult(await apiClient.GET("/v1/runs/{runId}", { params: { path: { runId } } })), (latestRun) =>
@@ -294,6 +302,7 @@ export function RunDetailView() {
 
   return (
     <>
+      <div className="space-y-3">
       <PageHeading
         title={
           <span className="flex flex-wrap items-center gap-2">
@@ -301,15 +310,7 @@ export function RunDetailView() {
             <RunStateBadge runState={run.state} />
           </span>
         }
-        description={
-          <span>
-            <span className="font-mono text-xs">{run.runId}</span>{" / "}
-            <Link className="underline" href={`/experiments/${run.experimentId}`}>
-              {run.experimentId}
-            </Link>
-            , {humanizeEnumValue(run.mode)}, {humanizeEnumValue(run.marketWorld)}
-          </span>
-        }
+        description={`${humanizeEnumValue(run.mode)}, ${humanizeEnumValue(run.marketWorld)}. Simulated time and exact native evidence.`}
         actions={
           <>
             <RunControls
@@ -347,33 +348,32 @@ export function RunDetailView() {
           <span className="font-mono">{run.terminalDiagnostics.residualPositionShares}</span> shares, residual open orders <span className="font-mono">{run.terminalDiagnostics.residualOpenOrderCount}</span>.
         </p>
       ) : null}
+      </div>
       {summaryResource.failure ? <ApiFailureAlert failure={summaryResource.failure} title="Summary unavailable or stale. Refresh before interpreting outcomes." onRetry={summaryResource.reload} /> : null}
       {summaryResource.data ? <TraderRunOutcomes summary={summaryResource.data} /> : null}
-      <nav aria-label="Continue research" className="flex flex-wrap items-center gap-2 text-xs">
-        <span className="text-muted-foreground">Next decision</span>
-        <Button asChild size="sm" variant="outline"><Link href={`/runs/${run.runId}/inspect${comparisonQuery}`}>Explain fills and queue events</Link></Button>
-        <Button asChild size="sm" variant="outline"><Link href={`/experiments/new?from=${encodeURIComponent(run.experimentId)}`}>Create variant</Link></Button>
-        <Button asChild size="sm" variant="outline"><Link href={`/compare?baseline=${encodeURIComponent(run.experimentId)}`}>Compare against this experiment</Link></Button>
-      </nav>
-      {summaryResource.data?.execution ? <ExecutionTracePanel key={run.runId} run={run} /> : null}
-      <RunAuditControls key={`audit:${run.runId}`} run={run} />
-      {seriesResource.data ? (
-        <div className="grid min-w-0 gap-4 xl:grid-cols-3">
-          {seriesResource.data.series.map((timeSeries) => (
-            <RunSeriesChart key={timeSeries.seriesKind} timeSeries={timeSeries} />
-          ))}
-        </div>
-      ) : null}
-      <Tabs defaultValue="summary">
-        <TabsList>
-          <TabsTrigger value="summary">Summary</TabsTrigger>
-          <TabsTrigger value="manifest">Manifest</TabsTrigger>
+
+      <Tabs value={activeTab} onValueChange={changeTab}>
+        <TabsList className="h-auto max-w-full flex-wrap justify-start">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          {summaryResource.data?.execution ? <TabsTrigger value="execution">Explain execution</TabsTrigger> : null}
+          <TabsTrigger value="summary">Diagnostics</TabsTrigger>
+          <TabsTrigger value="manifest">Provenance and export</TabsTrigger>
           <TabsTrigger value="history">State history</TabsTrigger>
         </TabsList>
+        <TabsContent value="overview" className="space-y-6">
+          {!summaryResource.data ? <p role="status">Loading strategy outcomes…</p> : summaryResource.data.execution ? <><ExecutionSummaryPanel summary={summaryResource.data} /><ExecutionProgressChart run={run} /></> : <>
+            <ResearchSection title="Returns and exposure over time" description="Read the same simulated time across equity, inventory and drawdown. Sampled paths do not replace the exact ledger.">
+              <div className="grid min-w-0 grid-cols-1 gap-4">{seriesResource.data?.series.map((timeSeries) => <RunSeriesChart key={timeSeries.seriesKind} timeSeries={timeSeries} initialCash={summaryResource.data?.accounting.initialCash} />)}</div>
+            </ResearchSection>
+            {summaryResource.data ? <MarkoutProfileChart markouts={summaryResource.data.markouts} /> : null}
+          </>}
+        </TabsContent>
+        <TabsContent value="execution">{summaryResource.data?.execution ? <ExecutionTracePanel key={run.runId} run={run} /> : null}</TabsContent>
         <TabsContent value="summary">
           {summaryResource.data ? <SummaryPanel summary={summaryResource.data} /> : <p className="text-sm text-muted-foreground">Loading summary...</p>}
         </TabsContent>
-        <TabsContent value="manifest">
+        <TabsContent value="manifest" className="space-y-6">
+          <RunAuditControls key={`audit:${run.runId}`} run={run} />
           {manifestResource.failure ? <ApiFailureAlert failure={manifestResource.failure} onRetry={manifestResource.reload} /> : null}
           {manifestResource.data ? <ManifestPanel manifest={manifestResource.data} /> : null}
         </TabsContent>
@@ -411,6 +411,12 @@ export function RunDetailView() {
           />
         </TabsContent>
       </Tabs>
+      <nav aria-label="Continue research" className="flex flex-wrap items-center gap-2 text-xs">
+        <span className="text-muted-foreground">Next decision</span>
+        <Button asChild size="sm" variant="outline"><Link href={`/runs/${run.runId}/inspect${comparisonQuery}`}>Explain fills and queue events</Link></Button>
+        <Button asChild size="sm" variant="outline"><Link href={`/experiments/new?from=${encodeURIComponent(run.experimentId)}`}>Create variant</Link></Button>
+        <Button asChild size="sm" variant="outline"><Link href={`/compare?baseline=${encodeURIComponent(run.experimentId)}`}>Compare against this experiment</Link></Button>
+      </nav>
     </>
   );
 }

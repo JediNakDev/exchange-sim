@@ -1,0 +1,178 @@
+bun test v1.4.4 (38afee6c8)
+
+review-tests/frontend-execution.review.test.tsx:
+(pass) actual execution panel renderer preserves exact money, unavailable values and window disclosure [54.72ms]
+(pass) zero parent fill is distinct from an undeclared parent in the real renderer [59.93ms]
+(pass) old summaries with no execution block render no execution panel [30.34ms]
+(pass) selected-fill search stops on a passed exact event position [1.79ms]
+(pass) selected-fill search propagates an in-flight abort to the fetch signal [0.25ms]
+(pass) selected-fill search rejects a repeated cursor after bounded reads [0.08ms]
+
+review-tests/frontend-recovery.review.test.tsx:
+(skip) FR-01: clearing a draft interval should leave an editable form
+(skip) FR-02: changing the variant source must not retain the old edited intent
+(skip) FR-03: a failed run refresh with retained data must be visible in summary
+(skip) FR-03: a failed run refresh with retained data must be visible in inspector
+(skip) FR-04: a selected lifecycle read failure must have an in-place retry
+
+tests/mock-api-contract.test.ts:
+(pass) every read operation returns contract-conformant bodies > service, baselines and experiments [75.19ms]
+(pass) every read operation returns contract-conformant bodies > run list filters and paginates [525.07ms]
+(pass) every read operation returns contract-conformant bodies > run artifacts [87.38ms]
+(pass) every read operation returns contract-conformant bodies > comparisons and connections [15.67ms]
+(pass) every read operation returns contract-conformant bodies > errors use the uniform error body [0.14ms]
+(pass) experiment creation > preview flattens assumptions and marks differences from the baseline [2.31ms]
+(pass) experiment creation > semantic problems are reported as field issues [0.52ms]
+(pass) experiment creation > idempotency keys replay the first response and reject a different body [0.74ms]
+(pass) run state machine > queued, running, pause, step, resume, completed, and invalid transitions [13.25ms]
+(pass) run state machine > cancel keeps artifacts up to the cancellation point, and seeds must belong to the experiment [7.81ms]
+(pass) native-only evidence endpoints explicitly reject synthetic fixture claims [0.08ms]
+
+tests/proxy-boundaries.test.ts:
+(pass) cross-site form and opaque-origin mutations never reach the service [0.45ms]
+(pass) bounded JSON forwards exact bodies and idempotency headers behind TLS termination [0.58ms]
+(pass) body limit applies to actual streamed bytes without trusting Content-Length [0.59ms]
+(pass) a broken upstream body returns structured failure instead of a Next error page [0.54ms]
+(pass) non-v1 paths are rejected before network access [0.03ms]
+
+tests/research-workspace.test.ts:
+(pass) nested variants stay in one study; missing parents remain accessible [28.54ms]
+(pass) corrupt cyclic lineage terminates and groups descendants consistently [29.16ms]
+(pass) configuration changes retain exact integers, arrays and added strategy fields [0.14ms]
+
+tests/trader-analytics.test.tsx:
+(pass) paired interpretation uses service direction and exact sign below float resolution [35.76ms]
+(pass) market-making priorities do not promote unavailable execution metrics [47.68ms]
+(pass) paired chart evidence retains exact large values, missing pairs and run links [37.83ms]
+(pass) non-comparable worlds produce no paired result surface [34.81ms]
+(pass) no paired observations are unavailable, not zero or a winner [35.82ms]
+(pass) market-making outcomes expose unavailable valuation and censored markouts [32.87ms]
+(pass) execution outcomes lead with residual and signed costs rather than P&L [35.57ms]
+(pass) neutral metric preference is not presented as equality [35.28ms]
+(pass) execution comparison carries benchmark, quantity scope and volume horizon definitions [29.56ms]
+
+tests/experiment-setup.test.ts:
+(pass) task selection uses executable service baselines > intent picks the requested family without changing any config strings [1.15ms]
+(pass) task selection uses executable service baselines > missing capability is unavailable instead of silently choosing another task [0.01ms]
+(pass) task selection uses executable service baselines > all editable strategies map to their task
+(pass) exact setup timing > unit changes round trip full uint64 values and one-nanosecond fractions [0.10ms]
+(pass) exact setup timing > typed decimal durations convert without floating point
+(pass) exact setup timing > rejects sub-nanosecond precision and malformed drafts without rounding [0.07ms]
+(pass) exact setup timing > readable descriptions preserve the last nanosecond
+(pass) variant draft copies the saved configuration exactly and owns independent edits [0.08ms]
+
+tests/exact-decimal-format.test.ts:
+(pass) exact decimal parsing and arithmetic > scaled conversion is exact and refuses precision loss [0.05ms]
+(pass) exact decimal parsing and arithmetic > values beyond 2^53 survive round trips [0.02ms]
+(pass) exact decimal parsing and arithmetic > subtraction and comparison align scales [0.02ms]
+(pass) display rounding is half-to-even on the text > 0.125 to 2 digits is 0.12
+(pass) display rounding is half-to-even on the text > 0.135 to 2 digits is 0.14
+(pass) display rounding is half-to-even on the text > 0.1251 to 2 digits is 0.13
+(pass) display rounding is half-to-even on the text > -2.5 to 0 digits is -2
+(pass) display rounding is half-to-even on the text > -3.5 to 0 digits is -4
+(pass) display rounding is half-to-even on the text > 2.675 to 2 digits is 2.68
+(pass) display rounding is half-to-even on the text > 1.005 to 2 digits is 1.00
+(pass) display rounding is half-to-even on the text > 9.995 to 2 digits is 10.00
+(pass) display rounding is half-to-even on the text > 7 to 3 digits is 7.000
+(pass) display rounding is half-to-even on the text > formatting groups thousands, keeps API digits and shows signs on request [0.03ms]
+(pass) nanosecond helpers > simulation time and durations are exact shifts [0.04ms]
+(pass) nanosecond helpers > event position stepping clamps without floats [0.02ms]
+
+tests/execution-presentation.test.tsx:
+(pass) actual execution panel renderer preserves exact money, unavailable values and window disclosure [26.52ms]
+(pass) zero parent fill is distinct from an undeclared parent in the real renderer [48.25ms]
+(pass) old summaries with no execution block render no execution panel [22.88ms]
+(pass) selected-fill search stops on a passed exact event position [0.15ms]
+(pass) selected-fill search propagates an in-flight abort to the fetch signal [0.07ms]
+(pass) selected-fill search rejects a repeated cursor after bounded reads [0.04ms]
+
+tests/compare-math.test.ts:
+(pass) fixture comparison > pairs all five seeds and is comparable [0.04ms]
+(pass) fixture comparison > per-seed values are the runs' own summary metrics and differences are exact [0.35ms]
+(pass) fixture comparison > dispersion statistics match an independent recomputation [0.24ms]
+(pass) fixture comparison > aligned series share one bucket grid and the means average the paired seeds [0.58ms]
+
+tests/research-workflow.test.ts:
+(pass) complete research lists > follows opaque cursors, including empty intermediate pages, without duplicate identities [0.10ms]
+(pass) complete research lists > fails on a cursor cycle instead of publishing a truncated list [0.03ms]
+(pass) complete research lists > does not turn a failed later page into a complete list [0.02ms]
+(pass) recoverable seed launches > stable bounded keys preserve full experiment and seed identity [2.10ms]
+(pass) recoverable seed launches > an accepted run with a lost reply is not duplicated by a fresh client retry [31.79ms]
+(pass) recoverable seed launches > two simultaneous launchers use the same seed keys [34.36ms]
+(pass) step bounds match the API, including keyboard form submissions [0.08ms]
+(pass) selected fill reads > stops at a match without enumerating unrelated later pages [23.71ms]
+(pass) selected fill reads > aborted selection starts no network work [0.20ms]
+(pass) selected fill reads > missing selected evidence is explicit rather than perpetual loading [0.06ms]
+
+tests/audit-download.test.ts:
+(pass) audit download preserves all bytes and exact identifiers after SHA-256 verification [0.39ms]
+(pass) audit corruption and mismatched offsets cannot produce a complete package [0.20ms]
+(pass) oversized browser audits are refused before reading any artifact chunks [0.04ms]
+
+tests/api-errors.test.ts:
+(pass) malformed upstream errors cannot crash the failure view [0.07ms]
+(pass) valid structured error context survives [0.01ms]
+
+tests/mm-diagnostics-ui.test.tsx:
+(pass) 505 replace rejects remain separate from 3 new rejects and zero cancel rejects [0.33ms]
+(pass) missing diagnostics and transit samples are unavailable rather than zero [0.38ms]
+(pass) priority reset retains unavailable replace and nonzero subsequent rest alongside kept reduction [0.30ms]
+(pass) only actual related fill evidence labels a causal race and exact jump targets [0.26ms]
+(pass) direct lifecycle link accepts decimal IDs exactly and rejects malformed IDs [0.02ms]
+(pass) markout shares and eligibility explain per-share weighting without inventing decomposition [25.40ms]
+(pass) original and replacement fills keep their own identity beside latest chain totals [27.88ms]
+
+tests/fixture-reconciliation.test.ts:
+(pass) fixture run run_fsw2seed101 reconciles > fills, positions, cash, fees and P&L [70.30ms]
+(pass) fixture run run_fsw2seed101 reconciles > markouts are censored exactly when the horizon passes run end [60.10ms]
+(pass) fixture run run_fsw2seed101 reconciles > fill events and FIFO evidence are consistent with the event log [59.15ms]
+(pass) fixture run run_fsw2seed202 reconciles > fills, positions, cash, fees and P&L [57.04ms]
+(pass) fixture run run_fsw2seed202 reconciles > markouts are censored exactly when the horizon passes run end [56.24ms]
+(pass) fixture run run_fsw2seed202 reconciles > fill events and FIFO evidence are consistent with the event log [56.91ms]
+(pass) fixture run run_fsw2seed303 reconciles > fills, positions, cash, fees and P&L [50.57ms]
+(pass) fixture run run_fsw2seed303 reconciles > markouts are censored exactly when the horizon passes run end [51.45ms]
+(pass) fixture run run_fsw2seed303 reconciles > fill events and FIFO evidence are consistent with the event log [50.62ms]
+(pass) fixture run run_fsw2seed404 reconciles > fills, positions, cash, fees and P&L [53.11ms]
+(pass) fixture run run_fsw2seed404 reconciles > markouts are censored exactly when the horizon passes run end [53.88ms]
+(pass) fixture run run_fsw2seed404 reconciles > fill events and FIFO evidence are consistent with the event log [54.47ms]
+(pass) fixture run run_fsw2seed505 reconciles > fills, positions, cash, fees and P&L [66.91ms]
+(pass) fixture run run_fsw2seed505 reconciles > markouts are censored exactly when the horizon passes run end [65.22ms]
+(pass) fixture run run_fsw2seed505 reconciles > fill events and FIFO evidence are consistent with the event log [69.11ms]
+(pass) fixture run run_fsw4seed101 reconciles > fills, positions, cash, fees and P&L [61.64ms]
+(pass) fixture run run_fsw4seed101 reconciles > markouts are censored exactly when the horizon passes run end [54.92ms]
+(pass) fixture run run_fsw4seed101 reconciles > fill events and FIFO evidence are consistent with the event log [57.05ms]
+(pass) fixture run run_fsw4seed202 reconciles > fills, positions, cash, fees and P&L [52.23ms]
+(pass) fixture run run_fsw4seed202 reconciles > markouts are censored exactly when the horizon passes run end [53.13ms]
+(pass) fixture run run_fsw4seed202 reconciles > fill events and FIFO evidence are consistent with the event log [52.98ms]
+(pass) fixture run run_fsw4seed303 reconciles > fills, positions, cash, fees and P&L [48.01ms]
+(pass) fixture run run_fsw4seed303 reconciles > markouts are censored exactly when the horizon passes run end [48.71ms]
+(pass) fixture run run_fsw4seed303 reconciles > fill events and FIFO evidence are consistent with the event log [47.89ms]
+(pass) fixture run run_fsw4seed404 reconciles > fills, positions, cash, fees and P&L [50.47ms]
+(pass) fixture run run_fsw4seed404 reconciles > markouts are censored exactly when the horizon passes run end [50.36ms]
+(pass) fixture run run_fsw4seed404 reconciles > fill events and FIFO evidence are consistent with the event log [50.85ms]
+(pass) fixture run run_fsw4seed505 reconciles > fills, positions, cash, fees and P&L [58.24ms]
+(pass) fixture run run_fsw4seed505 reconciles > markouts are censored exactly when the horizon passes run end [57.35ms]
+(pass) fixture run run_fsw4seed505 reconciles > fill events and FIFO evidence are consistent with the event log [59.22ms]
+
+tests/execution-trace-ui.test.tsx:
+(pass) observed page preserves exact evidence/seed and distinguishes target due from observation deadline [2.62ms]
+(pass) censored and partial terminal evidence never claim a full-window outcome or reproduction [2.34ms]
+(pass) report-only request zeros cannot enter the decision chart or be turned into synthetic endpoint rows [0.28ms]
+(pass) empty pages, missing order IDs and active runs provide explicit next actions [0.49ms]
+(pass) lifecycle links retain baseline/candidate strings and exact order IDs [0.02ms]
+(pass) trace request fetches exactly one bounded native page with opaque cursor and propagates cancellation [0.46ms]
+(pass) native unavailable errors propagate rather than falling back to fabricated trace [0.08ms]
+(pass) source wires identity-clearing refresh, cursor history, API cancellation and shared page controls [0.17ms]
+
+5 tests skipped:
+(skip) FR-01: clearing a draft interval should leave an editable form
+(skip) FR-02: changing the variant source must not retain the old edited intent
+(skip) FR-03: a failed run refresh with retained data must be visible in summary
+(skip) FR-03: a failed run refresh with retained data must be visible in inspector
+(skip) FR-04: a selected lifecycle read failure must have an in-place retry
+
+ 127 pass
+ 5 skip
+ 0 fail
+ 13330 expect() calls
+Ran 132 tests across 16 files. [4.16s]

@@ -8,6 +8,10 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { CheckIcon, EqualIcon, GitCompareArrowsIcon, TriangleAlertIcon, XIcon } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ExecutionTradeoffChart } from "@/components/research/execution-tradeoff-chart";
+import { ComparisonLibrary } from "@/components/research/comparison-library";
+import { ComparisonFinding } from "@/components/research/comparison-finding";
 import { Button } from "@/components/ui/button";
 import { ComparisonAuditEvidence } from "@/components/research/comparison-audit-evidence";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -127,13 +131,17 @@ export function ExperimentCompareView() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const apiClient = getBrowserApiClient();
-  const [chartedSeed, setChartedSeed] = useState(ALL_SEEDS);
+  const [findingDrafts, setFindingDrafts] = useState<Record<string, string>>({});
+  const chartedSeed = searchParams.get("seed") ?? ALL_SEEDS;
+  const setChartedSeed = (seed: string) => { const params = new URLSearchParams(searchParams); params.set("seed", seed); router.replace(`${pathname}?${params}`, { scroll: false }); };
   const experimentList = useApiResource("compare-experiments", () => readExperiments(apiClient), null);
   const experiments = experimentList.data?.items ?? [];
-  const baselineExperimentId = searchParams.get("baseline") ?? experiments.find((experiment) => experiment.parentExperimentId === null)?.experimentId ?? null;
-  const candidateExperimentId = searchParams.get("candidate") ?? experiments.find((experiment) => experiment.parentExperimentId === baselineExperimentId)?.experimentId ?? null;
+  const baselineExperimentId = searchParams.get("baseline") ?? null;
+  const candidateExperimentId = searchParams.get("candidate") ?? (baselineExperimentId ? experiments.find((experiment) => experiment.parentExperimentId === baselineExperimentId)?.experimentId : null) ?? null;
 
   const runSelection = searchParams.get("runSelection");
+  const activeTab = ["outcomes", "paths", "evidence", "finding"].includes(searchParams.get("tab") ?? "") ? searchParams.get("tab")! : "outcomes";
+  const changeTab = (tab: string) => { const params = new URLSearchParams(searchParams); params.set("tab", tab); router.replace(`${pathname}?${params}`, { scroll: false }); };
   const comparisonResource = useApiResource(
     baselineExperimentId && candidateExperimentId ? `comparison:${baselineExperimentId}:${candidateExperimentId}:${runSelection ?? "latest"}` : null,
     async () => unwrapApiResult(await apiClient.GET("/v1/comparisons", { params: { query: { baselineExperimentId: baselineExperimentId!, candidateExperimentId: candidateExperimentId!, ...(runSelection ? { runSelection } : {}), maxPoints: 240 } } })),
@@ -147,9 +155,14 @@ export function ExperimentCompareView() {
     nextSearchParams.delete("runSelection");
     if (role === "baseline" && !nextSearchParams.has("candidate") && candidateExperimentId) nextSearchParams.set("candidate", candidateExperimentId);
     if (role === "candidate" && !nextSearchParams.has("baseline") && baselineExperimentId) nextSearchParams.set("baseline", baselineExperimentId);
-    setChartedSeed(ALL_SEEDS);
+    nextSearchParams.delete("seed");
     router.replace(`${pathname}?${nextSearchParams.toString()}`);
   };
+
+  if (!baselineExperimentId && !candidateExperimentId) return <>
+    <PageHeading title="Compare" description="Revisit a study treatment, reopen pinned evidence or evaluate configurations across studies." />
+    {experimentList.failure ? <ApiFailureAlert failure={experimentList.failure} onRetry={experimentList.reload} /> : experimentList.isLoading ? <p role="status">Loading study comparisons…</p> : <ComparisonLibrary experiments={experiments} />}
+  </>;
 
   return (
     <>
@@ -188,6 +201,24 @@ export function ExperimentCompareView() {
             { label: "Candidate only", value: comparison.seedPairing.candidateOnlySeeds.length },
             { label: "Assumption differences", value: comparison.assumptionDifferences.length },
           ]} />
+
+
+          {comparison.seedPairing.pairedSeeds.length === 0 ? <Empty className="border bg-card"><EmptyHeader><EmptyMedia variant="icon"><GitCompareArrowsIcon /></EmptyMedia><EmptyTitle>No matched seeds to compare</EmptyTitle><EmptyDescription>Choose experiments with shared completed seeds to evaluate paired outcomes.</EmptyDescription></EmptyHeader><EmptyContent><Button asChild size="sm"><Link href={`/experiments/${comparison.candidate.experimentId}`}>Open candidate experiment</Link></Button></EmptyContent></Empty> : null}
+
+          {comparison.runSelection ? <div className="flex flex-wrap items-center gap-3 border bg-card p-3">
+            <Button size="sm" variant="outline" onClick={() => { const params = new URLSearchParams(searchParams); params.set("baseline", comparison.baseline.experimentId); params.set("candidate", comparison.candidate.experimentId); params.set("runSelection", comparison.runSelection!); router.replace(`${pathname}?${params}`); }}>Pin selected attempts</Button>
+            <Button size="sm" variant="outline" onClick={() => { const receipt = { format: "exsim.comparison-receipt/1", query: { baselineExperimentId: comparison.baseline.experimentId, candidateExperimentId: comparison.candidate.experimentId, runSelection: comparison.runSelection }, comparison }; const url = URL.createObjectURL(new Blob([JSON.stringify(receipt, null, 2)], { type: "application/json" })); const link = document.createElement("a"); link.href = url; link.download = "comparison-receipt.json"; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); }}>Download comparison receipt</Button>
+            <p className="text-xs text-muted-foreground">{runSelection ? "Cohort pinned in this URL." : "This URL follows the latest eligible attempts until pinned."} Receipt records selected runs and artifact digests; later attempts remain visible in the ledger.</p>
+          </div> : null}
+          <Tabs value={activeTab} onValueChange={changeTab}>
+            <TabsList className="h-auto max-w-full flex-wrap justify-start" aria-label="Comparison sections"><TabsTrigger value="outcomes">Trade-off and paired results</TabsTrigger><TabsTrigger value="paths">Paths over time</TabsTrigger><TabsTrigger value="evidence">Assumptions and eligibility</TabsTrigger><TabsTrigger value="finding">Record finding</TabsTrigger></TabsList>
+            <TabsContent value="outcomes" className="space-y-6">
+              <p className="max-w-prose text-sm text-muted-foreground">Candidate minus baseline on shared eligible seeds. Read absolute quantities, risk and observation coverage before preferring a treatment. {comparison.assumptionDifferences.length > 1 ? `${comparison.assumptionDifferences.length} changed fields: review assumptions to distinguish a single treatment from confounded effects.` : ""}</p>
+          <ExecutionTradeoffChart comparison={comparison} />
+          <PairedSeedAnalysis key={`${comparison.baseline.experimentId}:${comparison.candidate.experimentId}`} comparison={comparison} />
+              <ComparisonAuditEvidence comparison={comparison} />
+            </TabsContent>
+            <TabsContent value="evidence" className="space-y-8">
           <div className="grid min-w-0 gap-8">
             <ResearchSection title={<>Paired seeds</>} description={<>Only reproduced, completed runs enter this paired comparison. Failed, incomplete and unpaired runs are excluded; this can bias the result.</>}>
 <div className="flex flex-col gap-1 text-sm">
@@ -247,15 +278,11 @@ export function ExperimentCompareView() {
               </div>
             </ResearchSection>
           </div>
+              <ComparisonAuditEvidence comparison={comparison} />
+            </TabsContent>
+            <TabsContent value="finding" forceMount className="data-[state=inactive]:hidden"><ComparisonFinding key={`${comparison.baseline.experimentId}:${comparison.candidate.experimentId}`} comparison={comparison} finding={findingDrafts[comparison.runSelection ?? "unbound"] ?? ""} onFindingChange={(finding) => setFindingDrafts((previous) => ({ ...previous, [comparison.runSelection ?? "unbound"]: finding }))} /></TabsContent>
+            <TabsContent value="paths" className="space-y-6">
 
-          {comparison.seedPairing.pairedSeeds.length === 0 ? <Empty className="border bg-card"><EmptyHeader><EmptyMedia variant="icon"><GitCompareArrowsIcon /></EmptyMedia><EmptyTitle>No matched seeds to compare</EmptyTitle><EmptyDescription>Choose experiments with shared completed seeds to evaluate paired outcomes.</EmptyDescription></EmptyHeader><EmptyContent><Button asChild size="sm"><Link href={`/experiments/${comparison.candidate.experimentId}`}>Open candidate experiment</Link></Button></EmptyContent></Empty> : null}
-          <ComparisonAuditEvidence comparison={comparison} />
-          {comparison.runSelection ? <div className="flex flex-wrap items-center gap-3 border bg-card p-3">
-            <Button size="sm" variant="outline" onClick={() => { const params = new URLSearchParams({ baseline: comparison.baseline.experimentId, candidate: comparison.candidate.experimentId, runSelection: comparison.runSelection! }); router.replace(`${pathname}?${params}`); }}>Pin selected attempts</Button>
-            <Button size="sm" variant="outline" onClick={() => { const receipt = { format: "exsim.comparison-receipt/1", query: { baselineExperimentId: comparison.baseline.experimentId, candidateExperimentId: comparison.candidate.experimentId, runSelection: comparison.runSelection }, comparison }; const url = URL.createObjectURL(new Blob([JSON.stringify(receipt, null, 2)], { type: "application/json" })); const link = document.createElement("a"); link.href = url; link.download = "comparison-receipt.json"; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); }}>Download comparison receipt</Button>
-            <p className="text-xs text-muted-foreground">{runSelection ? "Cohort pinned in this URL." : "This URL follows the latest eligible attempts until pinned."} Receipt records selected runs and artifact digests; later attempts remain visible in the ledger.</p>
-          </div> : null}
-          <PairedSeedAnalysis key={`${comparison.baseline.experimentId}:${comparison.candidate.experimentId}`} comparison={comparison} />
 
           {comparison.comparable ? <>
           <div className="flex flex-wrap items-end gap-3">
@@ -304,6 +331,8 @@ export function ExperimentCompareView() {
             </div>
           </ResearchSection>
           </> : null}
+          </TabsContent>
+          </Tabs>
         </>
       ) : null}
     </>

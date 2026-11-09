@@ -14,10 +14,10 @@ export function TraderRunOutcomes({ summary }: { summary: ApiSchemas["RunSummary
     }),
   ] : [
     ["Net P&L (USD)", formatDecimalForDisplay(summary.accounting.netPnl, { signDisplay: "always" })],
-    ["Realized / unrealized P&L (USD)", `${formatDecimalForDisplay(summary.accounting.grossRealizedPnl, { signDisplay: "always" })} / ${formatDecimalForDisplay(summary.accounting.unrealizedPnl, { signDisplay: "always" })}`],
     ["Ending position (shares)", formatDecimalForDisplay(summary.accounting.positionShares)],
     ["Max long / short (shares)", `${formatIntegerText(summary.risk.maxLongPositionShares)} / ${formatIntegerText(summary.risk.maxShortPositionShares)}`],
     ["Max drawdown (USD)", formatDecimalForDisplay(summary.risk.maxDrawdown)],
+    ...(summary.markouts[0] ? [[`Measured shares at ${formatDurationNs(summary.markouts[0].horizonNs)}`, summary.markouts[0].availableShares ?? "Unavailable"] as [string, string]] : []),
   ];
   return <section className="flex min-w-0 flex-col gap-3" aria-label="Run outcomes">
     <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -31,15 +31,7 @@ export function TraderRunOutcomes({ summary }: { summary: ApiSchemas["RunSummary
     <p className="mt-4 max-w-prose text-xs leading-relaxed text-muted-foreground">{execution
       ? "Positive signed costs are worse for buys and sells. Shortfall includes net fees; slippage excludes fees. Both cover filled quantity only. Residual opportunity cost is unavailable, so lower cost with lower completion is not an unconditional improvement."
       : "Net P&L includes inventory valuation and fees. Spread capture alone is not profit. Read signed markouts with eligible exposure alongside inventory and drawdown; markouts include the initial spread edge."}</p>
-    {!execution ? <div className="mt-5 flex flex-col gap-3">
-      <h3 className="text-sm font-medium">Post-fill markouts</h3>
-      <p className="mt-1 max-w-prose text-xs/relaxed text-muted-foreground">Quantity-weighted USD/share against exchange mid: buy = future mid - fill price; sell = fill price - future mid. Positive is favorable and includes the initial spread edge. Per-share mean = sum(signed markout per share × eligible fill shares) / available shares. Eligible shares have an observed exchange mid at the horizon; no-mark and censored fills are excluded. Eligibility varies by horizon.</p>
-      {summary.markouts.length === 0 ? <p className="mt-2 text-sm">No markout horizons reported.</p> : <dl className="mt-3 flex flex-wrap gap-x-8 gap-y-3">{summary.markouts.map((markout) => <div key={markout.horizonNs}>
-        <dt className="text-xs text-muted-foreground">{formatDurationNs(markout.horizonNs)} ({markout.horizonNs} ns)</dt>
-        <dd className="font-mono text-sm tabular-nums">{markout.availableFillCount === "0" ? "Unavailable" : <SignedFigure formattedValue={formatDecimalForDisplay(markout.meanMarkoutPerShare, { signDisplay: "always" })} favourableDirection="higher" />}</dd>
-        <dd className="text-xs text-muted-foreground">{markout.availableShares ?? "Unavailable"} eligible shares; {markout.availableFillCount} eligible fills; {markout.unavailableFillCount} no mark; {markout.censoredFillCount} censored</dd>
-      </div>)}</dl>}
-    </div> : null}
+    {!execution ? <p className="max-w-prose text-xs text-muted-foreground">Measured coverage: {summary.markouts.slice(0, 1).map((m) => <span key={m.horizonNs} className="mr-3 inline-block">{formatDurationNs(m.horizonNs)}: {m.availableShares ?? "Unavailable"} eligible shares, {m.censoredFillCount} censored fills, {m.unavailableFillCount} no mark.</span>)} Means weight eligible shares; no-mark and censored fills are excluded. Other horizons are shown with the markout chart.</p> : null}
     {!execution && summary.accounting.markUnavailableReason ? <p className="mt-2 text-sm text-destructive">Terminal valuation unavailable: {humanizeEnumValue(summary.accounting.markUnavailableReason)}</p> : null}
   </section>;
 }

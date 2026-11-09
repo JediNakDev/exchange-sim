@@ -67,6 +67,7 @@ async function isolatedApi() {
 }
 
 async function openRun(page: Page) {
+  await page.getByRole("tab", { name: "Runs and recovery", exact: true }).click();
   const link = page.getByRole("link", { name: /^run_/ }).first();
   await expect(link).toBeVisible();
   await link.click();
@@ -81,7 +82,7 @@ async function fillTimingNs(page: Page, label: string, value: string) {
 }
 
 async function startReviewed(page: Page, name: string) {
-  await page.getByRole("heading", { name: "New experiment" }).scrollIntoViewIfNeeded();
+  await page.getByRole("heading", { name: /^New (study|variant)$/ }).scrollIntoViewIfNeeded();
   const nameInput = page.getByLabel("Name", { exact: true });
   await expect(nameInput).toBeVisible();
   await nameInput.fill(name);
@@ -119,11 +120,12 @@ test("a trader compares real TWAP and sweep runs with explicit parent costs and 
     await expect(page.getByLabel("Parent execution metrics")).toContainText(residual.value!);
     await expect(page.getByText(/Costs cover filled quantity only/)).toBeVisible();
     await page.setViewportSize({ width: 390, height: 844 });
+    await page.getByRole("tab", { name: "Diagnostics", exact: true }).click();
     await expect(page.getByRole("table", { name: "Outbound request diagnostics", exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390);
     await page.setViewportSize({ width: 1440, height: 1000 });
     await page.goto(`/experiments/${baselineId}`);
-    await page.getByRole("link", { name: "Create variant" }).click();
+    await page.getByRole("link", { name: "Test another change", exact: true }).click();
     await page.getByLabel("Execution method").click();
     await page.getByRole("option", { name: "Immediate sweep", exact: true }).click();
     const candidateId = await startReviewed(page, "Browser sweep execution");
@@ -132,6 +134,7 @@ test("a trader compares real TWAP and sweep runs with explicit parent costs and 
     expect(sweep.execution?.parentQuantity).toBe("500");
     expect(sweep.metrics.find((metric) => metric.metricKey === "completion_ratio")?.value).not.toBeNull();
     await page.goto(`/compare?baseline=${baselineId}&candidate=${candidateId}`);
+    await page.getByRole("tab", { name: "Paths over time", exact: true }).click();
     await expect(page.getByRole("cell", { name: "Parent completion", exact: false }).first()).toBeVisible();
     await expect(page.getByRole("cell", { name: "Executed cost including fees", exact: false }).first()).toBeVisible();
     const comparison: ApiSchemas["ExperimentComparison"] = await (await fetch(`${api.baseUrl}/v1/comparisons?baselineExperimentId=${baselineId}&candidateExperimentId=${candidateId}&maxPoints=10`)).json();
@@ -216,8 +219,9 @@ test("native evidence UI excludes censored windows, pins attempts and exports a 
     await receipt.saveAs(receiptPath);
     expect(JSON.parse(readFileSync(receiptPath, "utf8")).query.runSelection).toBe(new URL(pinnedUrl).searchParams.get("runSelection"));
     await page.goto(`/runs/${originalRuns[1].runId}`);
+    await page.getByRole("tab", { name: "Explain execution", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Native execution trace" })).toBeVisible();
-    await page.getByRole("tab", { name: "Manifest", exact: true }).click();
+    await page.getByRole("tab", { name: "Provenance and export", exact: true }).click();
     await expect(page.getByText("Recorded source revision", { exact: true })).toBeVisible();
     await expect(page.getByText(process.env.EXSIM_API_SOURCE_REVISION ?? "5394b84", { exact: true })).toBeVisible();
     const auditEvent = page.waitForEvent("download");
@@ -250,6 +254,7 @@ test("native evidence UI excludes censored windows, pins attempts and exports a 
     expect(markout.dispersion.meanDifference).toBeNull();
     expect(markout.dispersion.tiedCount).toBe(0);
     await page.goto(`/compare?baseline=${shortA.experimentId}&candidate=${shortB.experimentId}`);
+    await page.getByRole("tab", { name: "Paths over time", exact: true }).click();
     const horizon = page.getByRole("row").filter({ has: page.getByRole("cell", { name: "Markout total @ 5 s", exact: false }) });
     await expect(horizon).toContainText("n/a");
   } finally { await api.stop(); rmSync(downloadDirectory, { recursive: true, force: true }); }
@@ -277,6 +282,7 @@ test("native MM diagnostics expose replacement failures and replacement-chain FI
     slow.latency.cancelLatencyNs = "100000000";
     const candidate = await runStudy("Native MM delayed replacements", slow);
     await page.goto(`/runs/${candidate.run.runId}`);
+    await page.getByRole("tab", { name: "Diagnostics", exact: true }).click();
     const diagnostics = page.getByRole("table", { name: "Outbound request diagnostics", exact: true });
     const replaces = diagnostics.getByRole("row").filter({ has: page.getByRole("cell", { name: "Replace", exact: true }) });
     await expect(replaces).toContainText("505");

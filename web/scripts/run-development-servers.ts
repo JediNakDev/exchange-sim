@@ -23,7 +23,8 @@ function startResearchService(): ReturnType<typeof Bun.spawn> {
     return Bun.spawn(["bun", "mock-server/start-mock-server.ts"], { env: sharedEnvironment, stdout: "inherit", stderr: "inherit" });
   }
   console.log("dev: building the C++ research service (make MODE=release build/release/exsim_api)");
-  const build = Bun.spawnSync(["make", "-C", repositoryRoot, "MODE=release", "build/release/exsim_api"], { stdout: "inherit", stderr: "inherit" });
+  const build = Bun.spawnSync(["make", "-C", repositoryRoot, "MODE=release",
+    `WITH_POSTGRES=${process.env.EXSIM_DATABASE_URL ? "1" : "0"}`, "build/release/exsim_api"], { stdout: "inherit", stderr: "inherit" });
   if (build.exitCode !== 0) {
     console.error("dev: building exsim_api failed; fix the build or run `bun run dev:mock` for the TypeScript mock");
     process.exit(build.exitCode ?? 1);

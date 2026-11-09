@@ -24,7 +24,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { ApiFailureAlert } from "@/components/research/api-failure-alert";
 import { PageHeading } from "@/components/research/page-heading";
-import { readExperiments, startMissingSeedRuns } from "@/lib/api/research-workflow";
+import { startMissingSeedRuns } from "@/lib/api/research-workflow";
 import { useApiResource } from "@/hooks/use-api-resource";
 import { createIdempotencyKey, describeApiFailure, getBrowserApiClient, unwrapApiResult, type ApiSchemas } from "@/lib/api/exsim-api-client";
 import { formatDecimalForDisplay, formatDurationNs } from "@/lib/exact-decimal-format";
@@ -72,7 +72,7 @@ interface ExperimentDraft {
 function draftFromBaseline(baseline: ApiSchemas["BaselineConfiguration"]): ExperimentDraft {
   return {
     baselineId: baseline.baselineId,
-    name: `${baseline.name} variant`,
+    name: `${baseline.name} study`,
     description: "",
     parentExperimentId: NO_PARENT_EXPERIMENT,
     config: structuredClone(baseline.config),
@@ -226,15 +226,16 @@ export function ExperimentCreateView() {
   const searchParams = useSearchParams();
   const parentId = searchParams.get("from");
   const intent = searchParams.get("intent");
-  return <ExperimentEditor key={`${parentId ?? "new"}:${intent ?? "all"}`} parentId={parentId} intent={intent} />;
+  const preset = searchParams.get("baseline");
+  const strategy = searchParams.get("strategy");
+  return <ExperimentEditor key={`${parentId ?? "new"}:${intent ?? "all"}:${preset ?? "default"}:${strategy ?? "default"}`} parentId={parentId} intent={intent} preset={preset} requestedStrategy={strategy} />;
 }
 
-function ExperimentEditor({ parentId, intent }: { parentId: string | null; intent: string | null }) {
+function ExperimentEditor({ parentId, intent, preset, requestedStrategy }: { parentId: string | null; intent: string | null; preset: string | null; requestedStrategy: string | null }) {
   const router = useRouter();
   const apiClient = getBrowserApiClient();
   const serviceResource = useApiResource("service-capabilities", async () => unwrapApiResult(await apiClient.GET("/v1/service")), null);
   const baselineList = useApiResource("baselines", async () => unwrapApiResult(await apiClient.GET("/v1/baselines")), null);
-  const experimentList = useApiResource("experiments-for-parent", () => readExperiments(apiClient), null);
   const parentResource = useApiResource(parentId ? `variant:${parentId}` : null, async () => unwrapApiResult(await apiClient.GET("/v1/experiments/{experimentId}", { params: { path: { experimentId: parentId! } } })), null);
   const [editedDraft, setEditedDraft] = useState<ExperimentDraft | null>(null);
   const [previewOutcome, setPreviewOutcome] = useState<PreviewOutcome | null>(null);
@@ -245,9 +246,13 @@ function ExperimentEditor({ parentId, intent }: { parentId: string | null; inten
 
   const supportedKinds = serviceResource.data?.executableStrategyKinds.filter((kind) => EDITABLE_STRATEGY_KINDS.includes(kind));
   const executableBaselines = baselineList.data?.items.filter((baseline) => supportedKinds?.includes(baseline.config.strategy.strategyKind)) ?? [];
-  const firstBaseline = baselineForIntent(executableBaselines, intent);
+  const firstBaseline = executableBaselines.find((b) => b.baselineId === preset) ?? baselineForIntent(executableBaselines, intent);
   const parent = parentResource.data;
-  const draft = editedDraft ?? (parent ? draftFromExperiment(parent) : !parentId && firstBaseline ? draftFromBaseline(firstBaseline) : null);
+  const initialDraft = firstBaseline ? draftFromBaseline(firstBaseline) : null;
+  if (initialDraft && requestedStrategy === "inventory_aware_market_maker" && supportedKinds?.includes("inventory_aware_market_maker") && initialDraft.config.strategy.strategyKind === "fixed_spread_market_maker") {
+    initialDraft.config.strategy = { ...initialDraft.config.strategy, strategyKind: "inventory_aware_market_maker", inventorySkewTicksPerUnit: "1", inventorySkewUnitShares: "100", scaleSizeWithInventory: true };
+  }
+  const draft = editedDraft ?? (parent ? draftFromExperiment(parent) : !parentId && firstBaseline ? initialDraft : null);
   const createRequest = draft ? buildCreateRequest(draft) : null;
   const createRequestText = createRequest ? JSON.stringify(createRequest) : null;
   const isPreviewCurrent = previewOutcome !== null && previewOutcome.requestText === createRequestText;
@@ -284,6 +289,12 @@ function ExperimentEditor({ parentId, intent }: { parentId: string | null; inten
     const nextDraft = structuredClone(draft);
     applyChange(nextDraft);
     setEditedDraft(nextDraft);
+    setRequestFailure(null);
+  };
+  const chooseStartingPreset = (baseline: ApiSchemas["BaselineConfiguration"]) => {
+    const next = draftFromBaseline(baseline);
+    const nameWasGenerated = draft.parentExperimentId === NO_PARENT_EXPERIMENT && executableBaselines.some((preset) => draft.name === `${preset.name} study`);
+    setEditedDraft({ ...next, name: nameWasGenerated ? next.name : draft.name, description: draft.description, parentExperimentId: draft.parentExperimentId });
     setRequestFailure(null);
   };
   const strategyConfig = draft.config.strategy.strategyKind === "fixed_spread_market_maker" || draft.config.strategy.strategyKind === "inventory_aware_market_maker" ? draft.config.strategy : null;
@@ -327,12 +338,14 @@ function ExperimentEditor({ parentId, intent }: { parentId: string | null; inten
   };
 
   const latency = draft.config.latency;
-  const parentCandidates = experimentList.data?.items ?? (parent ? [parent] : []);
 
   return (
     <>
-      <PageHeading title="New experiment" description="Define the trading decision, hold market assumptions constant, then review and launch paired-seed research." />
-      {experimentList.failure ? <ApiFailureAlert failure={experimentList.failure} title="Could not load parent experiments" onRetry={experimentList.reload} /> : null}
+      <PageHeading title={parentId ? "New variant" : "New study"} description="Define the trading decision, hold market assumptions constant, then review and launch paired-seed research." />
+      <section aria-label="Testing workflow" className="flex flex-wrap items-center justify-between gap-3 border bg-muted/40 p-3">
+        <div><h2 className="text-sm font-medium">Built-in strategy research</h2><p className="mt-1 max-w-prose text-xs text-muted-foreground">Choose one of the four built-in C++ strategies and configure its research parameters.</p></div>
+      </section>
+      <ol aria-label="Built-in research workflow" className="grid list-inside list-decimal gap-2 text-xs text-muted-foreground sm:grid-cols-4"><li>Choose strategy</li><li>Set parameters and market assumptions</li><li>Review and run seeds</li><li>Compare variants and inspect fills</li></ol>
       <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_22rem]">
         <form
           id="experiment-setup"
@@ -350,24 +363,64 @@ function ExperimentEditor({ parentId, intent }: { parentId: string | null; inten
               {(["execution", "market-making"] as const).map((task) => {
                 const baseline = baselineForIntent(executableBaselines, task);
                 const selected = strategyIntent(draft.config.strategy.strategyKind) === task;
-                return <Button key={task} type="button" variant="outline" aria-pressed={selected} disabled={!baseline} className={cn("h-auto min-w-0 flex-col items-start gap-2 whitespace-normal border-transparent bg-card p-4 text-left", selected && "border-primary dark:border-primary")} onClick={() => { if (baseline && !selected) { setEditedDraft(draftFromBaseline(baseline)); setRequestFailure(null); } }}>
+                return <Button key={task} type="button" variant="outline" aria-pressed={selected} disabled={!baseline} className={cn("h-auto min-w-0 flex-col items-start gap-2 whitespace-normal border-transparent bg-card p-4 text-left", selected && "border-primary dark:border-primary")} onClick={() => { if (baseline && !selected) { chooseStartingPreset(baseline); } }}>
                   <span className="flex items-center gap-2 font-medium">{task === "execution" ? <TimerIcon aria-hidden="true" className={selected ? "text-primary" : "text-muted-foreground"} /> : <ArrowLeftRightIcon aria-hidden="true" className={selected ? "text-primary" : "text-muted-foreground"} />}{task === "execution" ? "Execute a parent order" : "Test a market maker"}</span>
                   <span className="text-xs font-normal text-muted-foreground">{!baseline ? "No executable baseline available" : task === "execution" ? "Completion, execution cost and residual quantity" : "Spread capture, inventory exposure and adverse selection"}</span>
                 </Button>;
               })}
             </div>
-            {parent ? <p className="mt-3 text-sm text-muted-foreground">Variant of {parent.name}. Source assumptions are copied exactly. Choosing a different task or baseline replaces them.</p> : null}
+            <div className="mt-4 max-w-xl"><h3 className="mb-2 text-sm font-medium">Trading strategy</h3>
+              {strategyConfig ? (
+              <Field>
+                <FieldLabel htmlFor="strategy-kind">Quoting model</FieldLabel>
+                <Select value={strategyConfig.strategyKind} onValueChange={(kind) => updateDraft((nextDraft) => {
+                  const previous = nextDraft.config.strategy as QuotingStrategyConfig;
+                  const common = { halfSpreadTicks: previous.halfSpreadTicks, quoteQuantity: previous.quoteQuantity, requoteIntervalNs: previous.requoteIntervalNs, requoteThresholdTicks: previous.requoteThresholdTicks, postOnly: previous.postOnly };
+                  nextDraft.config.strategy = kind === "inventory_aware_market_maker"
+                    ? { ...common, strategyKind: "inventory_aware_market_maker", inventorySkewTicksPerUnit: "1", inventorySkewUnitShares: "100", scaleSizeWithInventory: true }
+                    : { ...common, strategyKind: "fixed_spread_market_maker" };
+                })}>
+                  <SelectTrigger id="strategy-kind" className="w-full"><SelectValue /></SelectTrigger>
+                  <SelectContent>{supportedKinds.includes("fixed_spread_market_maker") ? <SelectItem value="fixed_spread_market_maker">Fixed-spread market maker</SelectItem> : null}{supportedKinds.includes("inventory_aware_market_maker") ? <SelectItem value="inventory_aware_market_maker">Inventory-aware market maker</SelectItem> : null}</SelectContent>
+                </Select>
+                <FieldDescription>Inventory-aware quoting skews prices away from accumulated inventory and can reduce the size that adds exposure.</FieldDescription>
+              </Field>
+              ) : executionConfig ? (
+                <Field>
+                  <FieldLabel htmlFor="execution-method">Execution method</FieldLabel>
+                  <Select value={executionConfig.strategyKind} onValueChange={(kind) => updateDraft((next) => {
+                    const previous = next.config.strategy as ApiSchemas["TwapExecutionConfig"] | ApiSchemas["ImmediateSweepExecutionConfig"];
+                    const common = { parentSide: previous.parentSide, parentQuantity: previous.parentQuantity, startTimeNs: previous.startTimeNs ?? "1000000000", executionDurationNs: previous.executionDurationNs ?? "30000000000", limitOffsetTicks: previous.limitOffsetTicks ?? "5" };
+                    next.config.strategy = kind === "twap_execution" ? { ...common, strategyKind: "twap_execution", sliceIntervalNs: "1000000000", sliceOrderType: "limit" } : { ...common, strategyKind: "immediate_sweep_execution" };
+                  })}>
+                    <SelectTrigger id="execution-method" className="w-full"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {supportedKinds.includes("twap_execution") ? <SelectItem value="twap_execution">TWAP</SelectItem> : null}
+                      {supportedKinds.includes("immediate_sweep_execution") ? <SelectItem value="immediate_sweep_execution">Immediate sweep</SelectItem> : null}
+                    </SelectContent>
+                  </Select>
+                </Field>
+              ) : null}
+              <p className="mt-2 text-xs text-muted-foreground">Choose the built-in strategy here; configure its order, timing and risk parameters below. Custom strategy setup is coming soon.</p>
+              <a href="#strategy-parameters" className="mt-3 inline-block text-xs underline underline-offset-4">Configure strategy parameters</a>
+            </div>
+            {parent ? <p className="mt-3 text-sm text-muted-foreground">Variant of {parent.name}. Source assumptions are copied exactly. Choosing another task or preset changes the assumptions but keeps this study lineage. Review every changed field before interpreting a treatment.</p> : null}
           </section>
           <FieldSet className="min-w-0 border bg-card p-4">
-            <FieldLegend>Experiment and baseline</FieldLegend>
+            <FieldLegend>Research question and starting point</FieldLegend>
             <FieldGroup className="grid gap-4 md:grid-cols-2">
+              <TextField label="Name" fieldPath="/name" inputMode="text" value={draft.name} onValueChange={(name) => updateDraft((nextDraft) => void (nextDraft.name = name))} issuesByFieldPath={issuesByFieldPath} />
               <Field>
-                <FieldLabel htmlFor="baseline-select">Baseline</FieldLabel>
+                <FieldLabel htmlFor="experiment-description">Hypothesis or notes</FieldLabel>
+                <Textarea id="experiment-description" rows={2} value={draft.description} onChange={(changeEvent) => updateDraft((nextDraft) => void (nextDraft.description = changeEvent.target.value))} />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="baseline-select">Starting preset</FieldLabel>
                 <Select
                   value={draft.baselineId}
                   onValueChange={(baselineId) => {
                     const baseline = baselineList.data?.items.find((candidate) => candidate.baselineId === baselineId);
-                    if (baseline) setEditedDraft(draftFromBaseline(baseline));
+                    if (baseline) chooseStartingPreset(baseline);
                   }}
                 >
                   <SelectTrigger id="baseline-select" className="w-full">
@@ -383,48 +436,14 @@ function ExperimentEditor({ parentId, intent }: { parentId: string | null; inten
                 </Select>
                 <FieldDescription>{baselineList.data.items.find((baseline) => baseline.baselineId === draft.baselineId)?.description}</FieldDescription>
               </Field>
-              <Field>
-                <FieldLabel htmlFor="parent-select">Parent experiment</FieldLabel>
-                <Select value={draft.parentExperimentId} onValueChange={(parentExperimentId) => updateDraft((nextDraft) => void (nextDraft.parentExperimentId = parentExperimentId))}>
-                  <SelectTrigger id="parent-select" className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={NO_PARENT_EXPERIMENT}>None</SelectItem>
-                    {parentCandidates.map((experiment) => (
-                      <SelectItem key={experiment.experimentId} value={experiment.experimentId}>
-                        {experiment.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FieldDescription>Lineage only; compare against any experiment later.</FieldDescription>
-              </Field>
-              <TextField label="Name" fieldPath="/name" inputMode="text" value={draft.name} onValueChange={(name) => updateDraft((nextDraft) => void (nextDraft.name = name))} issuesByFieldPath={issuesByFieldPath} />
-              <Field>
-                <FieldLabel htmlFor="experiment-description">Hypothesis or notes</FieldLabel>
-                <Textarea id="experiment-description" rows={2} value={draft.description} onChange={(changeEvent) => updateDraft((nextDraft) => void (nextDraft.description = changeEvent.target.value))} />
-              </Field>
+
             </FieldGroup>
           </FieldSet>
 
           {strategyConfig ? (
-            <FieldSet className="min-w-0 border bg-card p-4">
-              <FieldLegend>Research strategy</FieldLegend>
-              <Field>
-                <FieldLabel htmlFor="strategy-kind">Quoting model</FieldLabel>
-                <Select value={strategyConfig.strategyKind} onValueChange={(kind) => updateDraft((nextDraft) => {
-                  const previous = nextDraft.config.strategy as QuotingStrategyConfig;
-                  const common = { halfSpreadTicks: previous.halfSpreadTicks, quoteQuantity: previous.quoteQuantity, requoteIntervalNs: previous.requoteIntervalNs, requoteThresholdTicks: previous.requoteThresholdTicks, postOnly: previous.postOnly };
-                  nextDraft.config.strategy = kind === "inventory_aware_market_maker"
-                    ? { ...common, strategyKind: "inventory_aware_market_maker", inventorySkewTicksPerUnit: "1", inventorySkewUnitShares: "100", scaleSizeWithInventory: true }
-                    : { ...common, strategyKind: "fixed_spread_market_maker" };
-                })}>
-                  <SelectTrigger id="strategy-kind" className="w-full"><SelectValue /></SelectTrigger>
-                  <SelectContent>{supportedKinds.includes("fixed_spread_market_maker") ? <SelectItem value="fixed_spread_market_maker">Fixed-spread market maker</SelectItem> : null}{supportedKinds.includes("inventory_aware_market_maker") ? <SelectItem value="inventory_aware_market_maker">Inventory-aware market maker</SelectItem> : null}</SelectContent>
-                </Select>
-                <FieldDescription>Inventory-aware quoting skews prices away from accumulated inventory and can reduce the size that adds exposure.</FieldDescription>
-              </Field>
+            <FieldSet id="strategy-parameters" tabIndex={-1} className="min-w-0 scroll-mt-16 border bg-card p-4 outline-none target:border-primary focus-visible:ring-1 focus-visible:ring-ring">
+              <FieldLegend>Strategy parameters</FieldLegend>
+
               <FieldDescription>Quotes one level each side of the strategy-visible mid and requotes by cancel/replace on a timer.</FieldDescription>
               <FieldGroup className="grid gap-4 md:grid-cols-2">
                 <TextField label="Half spread" unit="ticks from the visible mid" fieldPath="/config/strategy/halfSpreadTicks" inputMode="numeric" value={strategyConfig.halfSpreadTicks} onValueChange={(halfSpreadTicks) => updateQuotingStrategy((nextStrategy) => void (nextStrategy.halfSpreadTicks = halfSpreadTicks))} issuesByFieldPath={issuesByFieldPath} />
@@ -450,24 +469,11 @@ function ExperimentEditor({ parentId, intent }: { parentId: string | null; inten
           ) : null}
 
           {executionConfig ? (
-            <FieldSet className="min-w-0 border bg-card p-4">
-              <FieldLegend>Parent-order execution</FieldLegend>
+            <FieldSet id="strategy-parameters" tabIndex={-1} className="min-w-0 scroll-mt-16 border bg-card p-4 outline-none target:border-primary focus-visible:ring-1 focus-visible:ring-ring">
+              <FieldLegend>Strategy parameters: parent-order execution</FieldLegend>
               <FieldDescription>Children are IOC limits priced through the delivered opposite touch by the protection distance, clamped to the instrument band. The child risk cap and position headroom can leave a residual parent quantity.</FieldDescription>
               <FieldGroup className="grid gap-4 md:grid-cols-2">
-                <Field>
-                  <FieldLabel htmlFor="execution-method">Execution method</FieldLabel>
-                  <Select value={executionConfig.strategyKind} onValueChange={(kind) => updateDraft((next) => {
-                    const previous = next.config.strategy as ApiSchemas["TwapExecutionConfig"] | ApiSchemas["ImmediateSweepExecutionConfig"];
-                    const common = { parentSide: previous.parentSide, parentQuantity: previous.parentQuantity, startTimeNs: previous.startTimeNs ?? "1000000000", executionDurationNs: previous.executionDurationNs ?? "30000000000", limitOffsetTicks: previous.limitOffsetTicks ?? "5" };
-                    next.config.strategy = kind === "twap_execution" ? { ...common, strategyKind: "twap_execution", sliceIntervalNs: "1000000000", sliceOrderType: "limit" } : { ...common, strategyKind: "immediate_sweep_execution" };
-                  })}>
-                    <SelectTrigger id="execution-method" className="w-full"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {supportedKinds.includes("twap_execution") ? <SelectItem value="twap_execution">TWAP</SelectItem> : null}
-                      {supportedKinds.includes("immediate_sweep_execution") ? <SelectItem value="immediate_sweep_execution">Immediate sweep</SelectItem> : null}
-                    </SelectContent>
-                  </Select>
-                </Field>
+
                 <Field>
                   <FieldLabel htmlFor="parent-side">Parent side</FieldLabel>
                   <Select value={executionConfig.parentSide} onValueChange={(side) => updateExecution((next) => { next.parentSide = side as ApiSchemas["Side"]; })}>

@@ -45,6 +45,7 @@ test("a partially launched batch remains saved and starts only its missing seed"
   await page.getByRole("button", { name: "Review assumptions" }).click();
   await page.getByRole("button", { name: "Create and start 3 runs" }).click();
   await expect(page.getByRole("heading", { name: "Partial batch regression" })).toBeVisible();
+  await page.getByRole("tab", { name: "Runs and recovery", exact: true }).click();
   await expect(page.getByText("1 of 3 seeds still need runs.", { exact: false })).toBeVisible();
   await page.getByText("Start paused", { exact: true }).click();
   await page.getByRole("button", { name: "Start missing seeds" }).click();
@@ -63,7 +64,7 @@ test("variants copy saved assumptions and hide models the service cannot execute
     return false;
   });
   await page.goto(`/experiments/${parent.experimentId}`);
-  await page.getByRole("link", { name: "Create variant" }).click();
+  await page.getByRole("link", { name: "Test another change", exact: true }).click();
   await expect(page.getByLabel("Name", { exact: true })).toHaveValue(`${parent.name} variant`);
   await page.getByRole("button", { name: "Review assumptions" }).click();
   await expect.poll(() => previewBody?.parentExperimentId).toBe(parent.experimentId);
@@ -144,10 +145,11 @@ test("offline activity counts are unavailable and recover through Try again", as
     return true;
   });
   await page.goto("/experiments");
-  await expect(page.getByLabel("Research activity").locator("dd")).toHaveText(["n/a", "n/a", "n/a"]);
+  await expect(page.getByText("Study list unavailable. Retry the request before interpreting this as an empty library.", { exact: true })).toBeVisible();
+  await expect(page.getByRole("table", { name: "Research studies" })).toHaveCount(0);
   fail = false;
   await page.getByRole("button", { name: "Try again" }).click();
-  await expect(page.getByLabel("Research activity").locator("dd").first()).toHaveText("2");
+  await expect(page.getByRole("table", { name: "Research studies" })).toBeVisible();
 });
 
 test("research routes retain mobile width and have no browser exceptions", async ({ page }) => {
@@ -175,7 +177,7 @@ test("duration drafts survive keyboard clearing and invalid intermediate text", 
     await input.press("ControlOrMeta+A");
     await input.press("Backspace");
     await expect(input).toHaveValue("");
-    await expect(page.getByRole("heading", { name: "New experiment" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /^New (study|variant)$/ })).toBeVisible();
     await input.fill("not yet a duration");
     await expect(input).toHaveValue("not yet a duration");
     await input.fill(original);
@@ -246,7 +248,7 @@ test("stationary lifecycle and series failures recover in place", async ({ page 
   await expect(page.getByText("Could not load run series")).toBeVisible();
   failSeries = false;
   await page.getByRole("button", { name: "Try again", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Equity (USD)" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Equity change from initial cash (USD)" })).toBeVisible();
   await page.goto("/runs/run_fsw2seed303/inspect");
   const fills = page.getByRole("table", { name: "Recorded fills" });
   await fills.locator("tbody tr").first().click();
@@ -270,7 +272,7 @@ test("capability discovery does not offer an unknown strategy without an editor"
   });
   await page.goto("/experiments/new");
   await expect(page.getByLabel("Name", { exact: true })).toBeVisible();
-  await page.getByLabel("Baseline", { exact: true }).click();
+  await page.getByLabel("Starting preset", { exact: true }).click();
   await expect(page.getByRole("option", { name: "Future strategy" })).toHaveCount(0);
   await expect(page.getByRole("option").first()).toBeVisible();
 });
@@ -280,14 +282,9 @@ test("library tasks and baseline-candidate selection lead to paired evidence", a
   await page.goto("/experiments");
   await expect(page.getByRole("link", { name: "Research execution", exact: true })).toHaveAttribute("href", "/experiments/new?intent=execution");
   await expect(page.getByRole("link", { name: "Research market making", exact: true })).toHaveAttribute("href", "/experiments/new?intent=market-making");
-  const selection = page.getByRole("checkbox", { name: /for comparison$/ });
-  await expect(selection).toHaveCount(2);
-  await selection.nth(0).focus();
-  await page.keyboard.press("Space");
-  await expect(selection.nth(0)).toBeChecked();
-  await expect(page).toHaveURL(/\/experiments$/);
-  await selection.nth(1).check();
-  await page.getByRole("link", { name: "Compare selected", exact: true }).click();
+  await page.getByRole("navigation", { name: "Primary", exact: true }).getByRole("link", { name: "Compare", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Compare", exact: true })).toBeVisible();
+  await page.getByRole("link", { name: "Compare this pair", exact: true }).first().click();
   await expect(page.getByRole("heading", { name: "Candidate impact across matched seeds" })).toBeVisible();
   await expect(page.getByLabel("Paired difference to inspect")).toBeVisible();
   await page.getByLabel("Paired difference to inspect").click();
@@ -298,12 +295,13 @@ test("library tasks and baseline-candidate selection lead to paired evidence", a
 test("experiment overview exposes analysis and interrupted-work distinctions", async ({ page }) => {
   await installService(page, new MockResearchService());
   await page.goto("/experiments/exp_fixedspreadw2");
+  await page.getByRole("tab", { name: "Runs and recovery", exact: true }).click();
   const overview = page.getByRole("region", { name: "Experiment overview" });
   await expect(overview.getByText("Seeds with completed runs")).toBeVisible();
   await expect(overview.getByText("Failed or cancelled runs")).toBeVisible();
   await overview.getByRole("link", { name: "Analyze a completed run" }).click();
   await expect(page.getByRole("heading", { name: "P&L and inventory risk" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Post-fill markouts" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Post-fill quality by horizon (USD/share)" })).toBeVisible();
 });
 
 test("timing units preserve nanoseconds and invalidate review only when assumptions change", async ({ page }) => {
@@ -377,7 +375,7 @@ test("keyboard fill selection announces and reaches its explanation without losi
 test("time-series charts have distinct names and a keyboard-readable sampled alternative", async ({ page }) => {
   await installService(page, new MockResearchService());
   await page.goto("/runs/run_fsw2seed303");
-  for (const title of ["Equity (USD)", "Inventory (shares)", "Drawdown (USD)"]) {
+  for (const title of ["Equity change from initial cash (USD)", "Inventory (shares)", "Drawdown (USD)"]) {
     await expect(page.getByRole("application", { name: title, exact: true })).toHaveCount(1);
     await page.getByText(`Read sampled values for ${title}`, { exact: true }).focus();
     await page.keyboard.press("Enter");
@@ -399,7 +397,7 @@ test("protocol empty states explain the separate mode and offer a research conti
   await expect(page.getByText(/No order-entry sessions reported/)).toBeVisible();
   await expect(page.getByText(/No protocol fault scenarios reported/)).toBeVisible();
   await page.getByRole("link", { name: "Return to research experiments" }).click();
-  await expect(page).toHaveURL(/\/experiments$/);
+  await expect(page).toHaveURL(/\/research$/);
 });
 
 test("a field-specific service error opens its section and focuses the invalid input", async ({ page }) => {
