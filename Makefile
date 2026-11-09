@@ -126,11 +126,13 @@ $(TEST_BIN): $(call obj,$(TEST_SRCS)) $(LIB_OBJS)
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(filter %.o,$^) -o $@ $(LDLIBS)
 
 define DAEMON_RULE
-$(BUILD)/$(1): $(call obj,$(sort $(wildcard src/$(1)/*.cpp))) $(LIB_OBJS) $(BUILD)/link.config $(BUILD)/sources.config
+$(BUILD)/$(1): $(call obj,$(sort $(wildcard src/$(2)/*.cpp))) $(LIB_OBJS) $(BUILD)/link.config $(BUILD)/sources.config
 	@mkdir -p $$(dir $$@)
 	$$(CXX) $$(CXXFLAGS) $$(LDFLAGS) $$(filter %.o,$$^) -o $$@ $$(LDLIBS)
 endef
-$(foreach d,$(DAEMON_NAMES),$(eval $(call DAEMON_RULE,$(d))))
+$(eval $(call DAEMON_RULE,exsim_apid,api))
+$(eval $(call DAEMON_RULE,exsim_traderd,trader))
+$(eval $(call DAEMON_RULE,exsim_exchanged,exchange))
 
 $(BUILD)/exsim_apid: | $(BUILD)/exsim_exchanged $(BUILD)/exsim_traderd
 $(BUILD)/exsim_research: | $(BUILD)/exsim_traderd
@@ -198,8 +200,6 @@ legacy-test: $(LEGACY_TEST_BIN)
 	./$(LEGACY_TEST_BIN) $(FILTER)
 
 $(BUILD)/obj/legacy/%.o: CPPFLAGS += -I legacy/include
-# These tests compare exsim codecs with the old ITCH representation.
-$(BUILD)/obj/test/exsim/protocol/%.o: CPPFLAGS += -I legacy/include
 
 $(LEGACY_TEST_BIN) $(LEGACY_TOOL_BIN) $(EXAMPLE_BINS): $(BUILD)/link.config $(BUILD)/sources.config
 $(LEGACY_TEST_BIN): $(call obj,test/main.cpp test/framework/alloc_counter.cpp $(LEGACY_TEST_SRCS)) $(LEGACY_OBJS) $(BOOK_OBJS)

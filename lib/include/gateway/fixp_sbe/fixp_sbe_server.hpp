@@ -3,7 +3,7 @@
 
 // Server side of exsim binary order entry: SBE 1.0 application messages over a
 // FIXP 1.0 point-to-point session, framed with SOFH 1.0
-// (historical design notes, config/protocols/exsim_order_entry_sbe.xml,
+// (historical design notes, config/protocols/fixp_sbe_format.xml,
 // server contract section 2). Pure state machines over byte buffers:
 //
 //   FixpSbeUserState<Sink>   one per configured user for the whole trading day:

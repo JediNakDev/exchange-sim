@@ -22,10 +22,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: build and test
-        run: make -j4 test legacy-test MODE=${{ matrix.mode }} CXX=${{ matrix.cxx }} EXTRA_CXXFLAGS=-Werror
+        run: make -j4 test MODE=${{ matrix.mode }} CXX=${{ matrix.cxx }} EXTRA_CXXFLAGS=-Werror
       - name: tools and examples
         if: matrix.mode == 'release'
-        run: make -j4 apps test-tools legacy-tools examples MODE=release CXX=${{ matrix.cxx }} EXTRA_CXXFLAGS=-Werror
+        run: make -j4 apps test-tools MODE=release CXX=${{ matrix.cxx }} EXTRA_CXXFLAGS=-Werror
 
   research-postgres:
     name: PostgreSQL metadata, isolated workers and recovery

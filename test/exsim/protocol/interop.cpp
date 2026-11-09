@@ -1,12 +1,10 @@
 #include "../../framework/test.hpp"
 #include <protocol/itch50.hpp>
 #include <protocol/ouch42.hpp>
-#include <lob/protocol/itch.hpp>
 using exsim::protocol::Status;
-TEST_CASE(proto_itch, legacy_interoperability) {
+TEST_CASE(proto_itch, add_order_golden) {
   namespace i = exsim::protocol::itch50;
   char b[128];
-  lob::itch::Message parsed;
   i::AddOrder a;
   a.timestamp = 123456;
   a.order_reference = 0x0102030405060708ULL;
@@ -25,51 +23,6 @@ TEST_CASE(proto_itch, legacy_interoperability) {
   CHECK_EQ(static_cast<unsigned char>(b[33]), 0x16);
   CHECK_EQ(static_cast<unsigned char>(b[34]), 0xed);
   CHECK_EQ(static_cast<unsigned char>(b[35]), 0x24);
-  REQUIRE(lob::itch::parse(b, parsed));
-  CHECK_EQ(parsed.add_order.order_ref, a.order_reference);
-  CHECK_EQ(parsed.add_order.price, a.price);
-  CHECK_EQ(parsed.add_order.timestamp_ns, a.timestamp);
-  CHECK_EQ(parsed.add_order.shares, a.shares);
-  i::AddOrderMPID f;
-  f.order_reference = 123;
-  f.shares = 42;
-  f.side = exsim::Side::SELL;
-  i::encode(f, b, sizeof b);
-  REQUIRE(lob::itch::parse(b, parsed));
-  CHECK_EQ(parsed.add_order.order_ref, 123U);
-  CHECK_EQ(parsed.add_order.shares, 42U);
-  i::OrderExecuted e;
-  e.order_reference = 12;
-  e.shares = 13;
-  e.match_number = 14;
-  i::encode(e, b, sizeof b);
-  REQUIRE(lob::itch::parse(b, parsed));
-  CHECK_EQ(parsed.order_executed.order_ref, 12U);
-  CHECK_EQ(parsed.order_executed.executed_shares, 13U);
-  CHECK_EQ(parsed.order_executed.match_number, 14U);
-  i::OrderCancel x;
-  x.order_reference = 15;
-  x.shares = 16;
-  i::encode(x, b, sizeof b);
-  REQUIRE(lob::itch::parse(b, parsed));
-  CHECK_EQ(parsed.order_cancel.order_ref, 15U);
-  CHECK_EQ(parsed.order_cancel.cancelled_shares, 16U);
-  i::OrderDelete d;
-  d.order_reference = 17;
-  i::encode(d, b, sizeof b);
-  REQUIRE(lob::itch::parse(b, parsed));
-  CHECK_EQ(parsed.order_delete.order_ref, 17U);
-  i::OrderReplace u;
-  u.original_reference = 18;
-  u.new_reference = 19;
-  u.shares = 20;
-  u.price = 21;
-  i::encode(u, b, sizeof b);
-  REQUIRE(lob::itch::parse(b, parsed));
-  CHECK_EQ(parsed.order_replace.original_order_ref, 18U);
-  CHECK_EQ(parsed.order_replace.new_order_ref, 19U);
-  CHECK_EQ(parsed.order_replace.shares, 20U);
-  CHECK_EQ(parsed.order_replace.price, 21);
 }
 TEST_CASE(proto_ouch, enter_golden) {
   namespace o = exsim::protocol::ouch42;

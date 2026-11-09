@@ -1,6 +1,5 @@
 #include "../../framework/test.hpp"
 #include <protocol/itch50.hpp>
-#include <lob/protocol/itch.hpp>
 using namespace exsim::protocol::itch50;
 TEST_CASE(proto_itch50, SystemEvent) {
   SystemEvent m{}, d{};

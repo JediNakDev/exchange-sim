@@ -1,4 +1,4 @@
-# exsim
+# Exsim
 
 A simple exchange simulator for testing trading strategies with various trading protocal supported.
 
@@ -49,29 +49,6 @@ Or you can skip all that and run it via docker compose.
 sh docker/create-secrets.sh
 docker compose up -d --build --wait
 ```
-
-## Project Layout
-
-- `lib/`: reusable C++ code and public headers.
-- `src/`: API, trader and exchange daemons.
-- `test/`: native tests, protocol benchmarks, fuzz, scenarios and validation tools, including the diagnostic CLIs.
-- `legacy/`: standalone order book examples, sharding, replay tools and old benchmark results.
-- `web/`: frontend app, with frontend tests in `web/test/`.
-- `config/`: runtime configs, OpenAPI contract and SBE schema.
-
-## Testing
-
-```sh
-make -j4 test
-make -j4 test-tools
-cd web
-bun run test
-```
-
-`make bench` builds the exsim protocol benchmarks. `make legacy` builds and checks the standalone book tools.
-`make legacy-bench` builds their benchmark suite. Both benchmark targets use Google Benchmark.
-It needs google-benchmark installed.
-Python helpers handle audit files, packaging and integration checks. Simulation stays in C++.
 
 ## Key Design Decisions
 

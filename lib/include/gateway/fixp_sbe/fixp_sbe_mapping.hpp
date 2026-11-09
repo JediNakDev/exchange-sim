@@ -2,7 +2,7 @@
 #define EXSIM_GATEWAY_FIXP_SBE_FIXP_SBE_MAPPING_HPP
 
 // Pure value mappings between the SBE order entry schema
-// (config/protocols/exsim_order_entry_sbe.xml) and the protocol-neutral engine
+// (config/protocols/fixp_sbe_format.xml) and the protocol-neutral engine
 // types (lib/include/types.hpp). Field semantics follow the FIX 4.4 rows of
 // gateway mapping section 3; differences are listed in historical design notes.
 

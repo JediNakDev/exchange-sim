@@ -33,3 +33,4 @@ lob_demo
 # Local validation output
 output/
 __pycache__/
+legacy/

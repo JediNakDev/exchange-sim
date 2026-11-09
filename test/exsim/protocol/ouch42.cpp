@@ -1,6 +1,5 @@
 #include "../../framework/test.hpp"
 #include <protocol/ouch42.hpp>
-#include <lob/protocol/itch.hpp>
 using namespace exsim::protocol::ouch42;
 TEST_CASE(proto_ouch42, EnterOrder) {
   EnterOrder m{}, d{};

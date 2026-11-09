@@ -2,7 +2,7 @@
 #define EXSIM_FUZZ_TARGETS_SBE_ORDER_ENTRY_HPP
 
 // SBE 1.0 order entry over SOFH framing (lib/include/protocol/sbe_order_entry.hpp,
-// schema config/protocols/exsim_order_entry_sbe.xml).
+// schema config/protocols/fixp_sbe_format.xml).
 //
 // 1. Frame header: decode_frame on the input matches an independent model of
 //    the SOFH and message header rules (length bounds, encoding type, schema,
