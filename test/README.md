@@ -10,7 +10,7 @@ make -j4 test-tools
 make bench
 ```
 
-`make tools` builds application tools. `make test-tools` builds benchmarks, differential fuzz, scenario and replay checks.
+`make apps` builds the API and its workers. `make test-tools` builds benchmarks, differential fuzz, scenario and replay checks, plus the diagnostic and research CLIs.
 The replay and scenario tools use an independent reference engine for validation.
 Standalone book examples, ITCH replay and sharding tests live in `legacy/`.
 

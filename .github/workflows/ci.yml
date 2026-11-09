@@ -25,7 +25,7 @@ jobs:
         run: make -j4 test legacy-test MODE=${{ matrix.mode }} CXX=${{ matrix.cxx }} EXTRA_CXXFLAGS=-Werror
       - name: tools and examples
         if: matrix.mode == 'release'
-        run: make -j4 tools test-tools legacy-tools examples MODE=release CXX=${{ matrix.cxx }} EXTRA_CXXFLAGS=-Werror
+        run: make -j4 apps test-tools legacy-tools examples MODE=release CXX=${{ matrix.cxx }} EXTRA_CXXFLAGS=-Werror
 
   research-postgres:
     name: PostgreSQL metadata, isolated workers and recovery
@@ -154,7 +154,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: build research runner
-        run: make -j4 tools MODE=release CXX=${{ matrix.cxx }} EXTRA_CXXFLAGS=-Werror
+        run: make -j4 test-tools MODE=release CXX=${{ matrix.cxx }} EXTRA_CXXFLAGS=-Werror
       - name: run every research config over fixed seeds
         run: sh test/integration/research_digests.sh build/release/exsim_research "research-digests-${{ matrix.os }}-${{ matrix.cxx }}.txt"
       - uses: actions/upload-artifact@v4

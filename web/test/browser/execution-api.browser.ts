@@ -147,6 +147,23 @@ test("a trader compares real TWAP and sweep runs with explicit parent costs and 
   }
 });
 
+test("SBE/FIXP can be reviewed, saved and started through the native API", async ({ page }) => {
+  const api = await isolatedApi();
+  try {
+    await page.goto("/experiments/new");
+    await page.getByLabel("Exchange protocol", { exact: true }).click();
+    await page.getByRole("option", { name: "SBE / FIXP", exact: true }).click();
+    await page.getByLabel(/Master seeds/).fill("42");
+    await fillTimingNs(page, "Simulation end", "500000000");
+    const created = page.waitForResponse((response) => response.url().endsWith("/v1/runs") && response.request().method() === "POST");
+    const [experimentId, response] = await Promise.all([startReviewed(page, "SBE FIXP protocol check"), created]);
+    expect(response.status()).toBe(201);
+    const saved = await (await fetch(`${api.baseUrl}/v1/experiments/${experimentId}`)).json();
+    expect(saved.config.orderEntryProtocol).toBe("fixp_sbe");
+    await openRun(page);
+  } finally { await api.stop(); }
+});
+
 test("inventory-aware quoting is reviewed and executed by the advertised C++ strategy", async ({ page }) => {
   const api = await isolatedApi();
   try {
@@ -230,7 +247,7 @@ test("native evidence UI excludes censored windows, pins attempts and exports a 
     const packagePath = join(downloadDirectory, "audit.json");
     await download.saveAs(packagePath);
     const output = join(downloadDirectory, "unpacked");
-    const unpack = spawnSync("python3", [resolve("../tools/audit/research_audit.py"), "unpack", packagePath, output], { encoding: "utf8" });
+    const unpack = spawnSync("python3", [resolve("../test/tools/audit/research_audit.py"), "unpack", packagePath, output], { encoding: "utf8" });
     expect(unpack.status, unpack.stderr).toBe(0);
     expect(readFileSync(join(output, "runner/events.jsonl"), "utf8").trim().split("\n").length).toBeGreaterThan(1000);
     const verify = spawnSync(resolve("../build/release/exsim_research"), ["verify", join(output, "runner")], { encoding: "utf8" });

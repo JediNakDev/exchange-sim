@@ -54,8 +54,7 @@ docker compose up -d --build --wait
 
 - `lib/`: reusable C++ code and public headers.
 - `src/`: API, trader and exchange daemons.
-- `tools/`: protocol clients, research CLI, audit and deployment helpers.
-- `test/`: native tests, protocol benchmarks, fuzz, scenarios and validation tools.
+- `test/`: native tests, protocol benchmarks, fuzz, scenarios and validation tools, including the diagnostic CLIs.
 - `legacy/`: standalone order book examples, sharding, replay tools and old benchmark results.
 - `web/`: frontend app, with frontend tests in `web/test/`.
 - `config/`: runtime configs, OpenAPI contract and SBE schema.

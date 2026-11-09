@@ -1,11 +1,11 @@
 # Exchange simulator build.
 #
-#   make                    library objects, tests and exsim tools (MODE=release)
+#   make                    library objects, applications and test tools (MODE=release)
 #   make test               build + run the full test suite
 #   make test MODE=debug    same, with AddressSanitizer + UBSan
 #   make test MODE=tsan     same, with ThreadSanitizer
 #   make check              test in release and debug (sanitizer) modes
-#   make tools MODE=perf    optimised tool binaries (-O3 -march=native -flto)
+#   make apps MODE=perf    optimised API and worker binaries (-O3 -march=native -flto)
 #   make bench              exsim protocol benchmarks (MODE=bench)
 #   make legacy             standalone book tests, tools and examples
 #   make legacy-bench       standalone book benchmark suite
@@ -15,7 +15,7 @@
 #   lib/src/**/*.cpp        reusable library implementation
 #   src/<daemon>/*.cpp      daemon entry points, linked separately
 #   test/{exsim,framework,lob}/**/*.cpp and test/main.cpp: run_tests
-#   tools/<name>/*.cpp      one binary per directory: build/<mode>/<name>
+#   test/tools/<name>/*.cpp validation and diagnostic CLIs
 #   legacy/examples/*.cpp   opt-in via make examples
 #   test/benchmark/**/*.cpp build/bench/benchmark
 
@@ -73,7 +73,6 @@ TEST_TOOL_NAMES := $(sort $(patsubst test/tools/%/,%,$(dir $(wildcard test/tools
 TEST_TOOL_SRCS := $(wildcard test/tools/*/*.cpp)
 TEST_TOOL_BINS := $(addprefix $(BUILD)/,$(TEST_TOOL_NAMES))
 
-TOOL_NAMES := $(sort $(patsubst tools/%/,%,$(dir $(wildcard tools/*/*.cpp))))
 
 ifeq ($(shell uname -s),Darwin)
   BENCHMARK_PREFIX := $(shell brew --prefix google-benchmark 2>/dev/null || echo /opt/homebrew/opt/google-benchmark)
@@ -100,20 +99,19 @@ $(shell printf '%s\n' $(call shell_quote,$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(BENCH_
 $(shell cmp -s $(BUILD)/compile.tmp $(BUILD)/compile.config || cp $(BUILD)/compile.tmp $(BUILD)/compile.config)
 $(shell printf '%s\n' $(call shell_quote,$(CXX) $(CXXFLAGS) $(LDFLAGS) $(LDLIBS) $(BENCH_LDFLAGS)) > $(BUILD)/link.tmp)
 $(shell cmp -s $(BUILD)/link.tmp $(BUILD)/link.config || cp $(BUILD)/link.tmp $(BUILD)/link.config)
-$(shell printf '%s\n' $(call shell_quote,$(LIB_SRCS) $(TEST_SRCS) $(EXAMPLE_SRCS) $(wildcard tools/*/*.cpp) $(TEST_TOOL_SRCS) $(wildcard src/*/*.cpp) $(LEGACY_SRCS) $(LEGACY_TEST_SRCS) $(LEGACY_TOOL_SRCS) $(LEGACY_BENCH_SRCS) $(shell find test/benchmark -name '*.cpp' | sort)) > $(BUILD)/sources.tmp)
+$(shell printf '%s\n' $(call shell_quote,$(LIB_SRCS) $(TEST_SRCS) $(EXAMPLE_SRCS) $(TEST_TOOL_SRCS) $(wildcard src/*/*.cpp) $(LEGACY_SRCS) $(LEGACY_TEST_SRCS) $(LEGACY_TOOL_SRCS) $(LEGACY_BENCH_SRCS) $(shell find test/benchmark -name '*.cpp' | sort)) > $(BUILD)/sources.tmp)
 $(shell cmp -s $(BUILD)/sources.tmp $(BUILD)/sources.config || cp $(BUILD)/sources.tmp $(BUILD)/sources.config)
 
 LIB_OBJS := $(call obj,$(LIB_SRCS))
 BOOK_OBJS := $(call obj,lib/src/order_book.cpp)
 TEST_BIN := $(BUILD)/run_tests
-TOOL_BINS := $(addprefix $(BUILD)/,$(TOOL_NAMES))
 EXAMPLE_BINS := $(patsubst legacy/examples/%.cpp,$(BUILD)/legacy/examples/%,$(EXAMPLE_SRCS))
 
-.PHONY: all lib test check tools test-tools examples bench bench-run clean itch-replay
+.PHONY: all lib test check apps test-tools examples bench bench-run clean itch-replay
 
-$(TEST_BIN) $(TEST_TOOL_BINS) $(TOOL_BINS) $(EXAMPLE_BINS): $(BUILD)/link.config $(BUILD)/sources.config
+$(TEST_BIN) $(TEST_TOOL_BINS) $(EXAMPLE_BINS): $(BUILD)/link.config $(BUILD)/sources.config
 
-all: $(DAEMON_BINS) $(BUILD)/exsim_api $(TEST_BIN) $(TEST_TOOL_BINS) $(TOOL_BINS)
+all: $(DAEMON_BINS) $(BUILD)/exsim_api $(TEST_BIN) $(TEST_TOOL_BINS)
 
 lib: $(LIB_OBJS)
 
@@ -140,13 +138,6 @@ $(BUILD)/exsim_research: | $(BUILD)/exsim_traderd
 $(BUILD)/exsim_api: $(BUILD)/exsim_apid $(BUILD)/exsim_exchanged $(BUILD)/exsim_traderd
 	cp $(BUILD)/exsim_apid $@
 
-define TOOL_RULE
-$(BUILD)/$(1): $(call obj,$(sort $(wildcard tools/$(1)/*.cpp))) $(LIB_OBJS)
-	@mkdir -p $$(dir $$@)
-	$$(CXX) $$(CXXFLAGS) $$(LDFLAGS) $$(filter %.o,$$^) -o $$@ $$(LDLIBS)
-endef
-$(foreach t,$(TOOL_NAMES),$(eval $(call TOOL_RULE,$(t))))
-
 define TEST_TOOL_RULE
 $(BUILD)/$(1): $(call obj,$(sort $(wildcard test/tools/$(1)/*.cpp))) $(LIB_OBJS)
 	@mkdir -p $$(dir $$@)
@@ -167,7 +158,7 @@ check:
 	$(MAKE) MODE=release test
 	$(MAKE) MODE=debug test
 
-tools: $(DAEMON_BINS) $(BUILD)/exsim_api $(TOOL_BINS)
+apps: $(DAEMON_BINS) $(BUILD)/exsim_api
 
 examples: $(EXAMPLE_BINS)
 
@@ -230,5 +221,5 @@ endif
 legacy-bench:
 	$(MAKE) MODE=bench $(LEGACY_BENCH_BIN)
 
-ALL_OBJS := $(LIB_OBJS) $(call obj,$(TEST_SRCS) $(EXAMPLE_SRCS) $(BENCH_SRCS) $(wildcard tools/*/*.cpp) $(TEST_TOOL_SRCS) $(wildcard src/*/*.cpp) $(LEGACY_SRCS) $(LEGACY_TEST_SRCS) $(LEGACY_TOOL_SRCS) $(LEGACY_BENCH_SRCS))
+ALL_OBJS := $(LIB_OBJS) $(call obj,$(TEST_SRCS) $(EXAMPLE_SRCS) $(BENCH_SRCS) $(TEST_TOOL_SRCS) $(wildcard src/*/*.cpp) $(LEGACY_SRCS) $(LEGACY_TEST_SRCS) $(LEGACY_TOOL_SRCS) $(LEGACY_BENCH_SRCS))
 -include $(ALL_OBJS:.o=.d)

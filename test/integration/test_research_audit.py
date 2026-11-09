@@ -5,7 +5,7 @@ from pathlib import Path
 import tempfile
 import unittest
 
-spec = importlib.util.spec_from_file_location('research_audit', Path(__file__).resolve().parents[2] / 'tools/audit/research_audit.py')
+spec = importlib.util.spec_from_file_location('research_audit', Path(__file__).resolve().parents[2] / 'test/tools/audit/research_audit.py')
 audit = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(audit)
 

@@ -1,7 +1,7 @@
 // exsim_md_client accepts retransmission-socket datagrams only from the
 // configured retransmission server (QA review F6).
 
-#include "tools/exsim_md_client/retransmission_source.hpp"
+#include "test/tools/exsim_md_client/retransmission_source.hpp"
 
 #include <test/framework/test.hpp>
 
