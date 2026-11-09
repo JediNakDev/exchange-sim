@@ -1,7 +1,7 @@
 #ifndef EXSIM_GATEWAY_FIX_FIX_GATEWAY_HPP
 #define EXSIM_GATEWAY_FIX_FIX_GATEWAY_HPP
 
-// FIX 4.4 order-entry gateway (docs/GATEWAYS.md 3, docs/SERVER.md 2).
+// FIX 4.4 order-entry gateway (gateway mapping 3, server contract 2).
 //   FixUserDirectory / FixUserState   day lifetime, one state per FIX user
 //   FixConnection                     one TCP connection, exchange side
 //   FixClient                         client side (tests, tools, benchmarks)

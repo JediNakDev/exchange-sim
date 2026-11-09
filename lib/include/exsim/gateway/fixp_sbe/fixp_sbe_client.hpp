@@ -1,8 +1,8 @@
 #ifndef EXSIM_GATEWAY_FIXP_SBE_FIXP_SBE_CLIENT_HPP
 #define EXSIM_GATEWAY_FIXP_SBE_FIXP_SBE_CLIENT_HPP
 
-// Client side of exsim binary order entry (docs/SERVER.md section 2.5,
-// docs/protocols/FIXP_SBE.md): FIXP 1.0 Negotiate and Establish, an idempotent
+// Client side of exsim binary order entry (server contract section 2.5,
+// historical design notes): FIXP 1.0 Negotiate and Establish, an idempotent
 // client flow with implicit sequence numbers, Sequence keepalives, gap
 // detection on the recoverable server flow with one RetransmitRequest in
 // flight at a time, and typed callbacks. A pure state machine over a byte

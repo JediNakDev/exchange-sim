@@ -1,7 +1,7 @@
 #ifndef EXSIM_RESEARCH_RUN_ARTIFACTS_HPP
 #define EXSIM_RESEARCH_RUN_ARTIFACTS_HPP
 
-// On-disk run artifacts (contract: docs/RESEARCH_RUNNER.md, artifact schema 1).
+// On-disk run artifacts (contract: research runner, artifact schema 1).
 //
 // A run directory holds:
 //   manifest.json     immutable run description, written before the first event

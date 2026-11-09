@@ -1,8 +1,8 @@
 #ifndef EXSIM_SERVER_EXCHANGE_CORE_HPP
 #define EXSIM_SERVER_EXCHANGE_CORE_HPP
 
-// Protocol-independent exchange core of the exsim server (docs/SERVER.md,
-// docs/EXCHANGE_CORE.md). It owns the matching engine, the startup-sized
+// Protocol-independent exchange core of the exsim server (server contract,
+// exchange core). It owns the matching engine, the startup-sized
 // EventBuffer, the configured users and their session bindings, the
 // optional canonical journal, the simulated-liquidity bots and the admin
 // and fault-injection state, and it is the gateway Context of SERVER.md 2.1.

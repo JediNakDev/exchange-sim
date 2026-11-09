@@ -1,7 +1,7 @@
 #ifndef EXSIM_GATEWAY_OUCH_OUCH_CLIENT_HPP
 #define EXSIM_GATEWAY_OUCH_OUCH_CLIENT_HPP
 
-// Client side of OUCH 4.2 over SoupBinTCP 3.0 (docs/SERVER.md 2.5): login
+// Client side of OUCH 4.2 over SoupBinTCP 3.0 (server contract 2.5): login
 // with a requested sequence number, implicit SoupBinTCP sequencing, client
 // heartbeats, server-silence detection, recovery on reconnect and typed
 // callbacks. Used by tests, client tools and latency measurement, so it does

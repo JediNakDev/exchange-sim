@@ -140,6 +140,6 @@ research-runner, latency, or accounting behavior.
 
 The integrated canonical contract supports partial cancellation reductions.
 `sim_bots_allocations.active_hot_paths_allocate_zero` in
-`tests/exsim/sim/bots/bots_allocation_tests.cpp` runs inside the shared test
+`test/exsim/sim/bots/bots_allocation_tests.cpp` runs inside the shared test
 binary and counts allocations with `testfw::AllocationScope`; it is skipped
 under ASan/TSan, where the counter is unavailable.

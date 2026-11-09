@@ -1,14 +1,14 @@
 #ifndef EXSIM_API_RESEARCH_SERVICE_HPP
 #define EXSIM_API_RESEARCH_SERVICE_HPP
 
-// The research HTTP API (docs/API.md, docs/api/openapi.yaml): routing,
+// The research HTTP API (HTTP API contract, config/api/openapi.yaml): routing,
 // experiments, idempotency, the run executor and comparisons.
 //
 // The CLI isolates each active run in its own process. The API supervises
 // control/status exchanges and remains the sole metadata writer. Each worker's
 // local executor advances scheduler slices independently of IPC. Library tests
 // may instead drive in-process runs explicitly. Controls acknowledge their
-// event-boundary effects synchronously. See docs/architecture/WORKERS.md.
+// event-boundary effects synchronously. See historical design notes.
 
 #include "exsim/api/http_message.hpp"
 #include "exsim/api/research_run.hpp"

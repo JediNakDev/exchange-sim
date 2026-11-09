@@ -3,7 +3,7 @@ import { defineConfig } from "@playwright/test";
 // Isolated UI failure tests. Each browser context gets its own in-process
 // service; nothing reaches the installed API or real research data.
 export default defineConfig({
-  testDir: "./browser-tests",
+  testDir: "./test/browser",
   testMatch: "**/*.browser.ts",
   workers: 1,
   timeout: 20_000,

@@ -3,7 +3,7 @@
 // either exits or on Ctrl+C.
 //
 // `bun run dev:mock` (or `bun run dev -- --mock`) starts the TypeScript mock
-// service in web/mock-server/ instead of the C++ service.
+// service in web/test/mock-server/ instead of the C++ service.
 
 import { join } from "node:path";
 
@@ -20,7 +20,7 @@ const sharedEnvironment = {
 function startResearchService(): ReturnType<typeof Bun.spawn> {
   if (useMockService) {
     console.log(`dev: starting the mock research service on port ${researchServicePort}`);
-    return Bun.spawn(["bun", "mock-server/start-mock-server.ts"], { env: sharedEnvironment, stdout: "inherit", stderr: "inherit" });
+    return Bun.spawn(["bun", "test/mock-server/start-mock-server.ts"], { env: sharedEnvironment, stdout: "inherit", stderr: "inherit" });
   }
   console.log("dev: building the C++ research service (make MODE=release build/release/exsim_api)");
   const build = Bun.spawnSync(["make", "-C", repositoryRoot, "MODE=release",

@@ -123,7 +123,7 @@ export interface paths {
         };
         /**
          * Run status, progress, state history and allowed control actions.
-         * @description Poll this while the run is queued or running (see docs/API.md for cadence).
+         * @description Poll this while the run is queued or running.
          */
         get: operations["getRun"];
         put?: never;
@@ -485,7 +485,7 @@ export interface components {
         ExactDecimal: string;
         Digest: {
             /**
-             * @description fnv1a_64 for canonical event/ledger digests (docs/SCENARIOS.md); sha256 for configuration and input data.
+             * @description fnv1a_64 for canonical event/ledger digests; sha256 for configuration and input data.
              * @enum {string}
              */
             algorithm: "fnv1a_64" | "sha256";
@@ -536,7 +536,7 @@ export interface components {
          */
         EventVisibility: "exchange_truth" | "strategy_visible";
         /**
-         * @description Distinct causal stages of the deterministic runner (docs/PRODUCT.md, deterministic research mode).
+         * @description Distinct causal stages of the deterministic runner.
          * @enum {string}
          */
         PipelineStage: "feed_delivery" | "strategy_processing" | "outbound_order" | "exchange_processing" | "report_delivery" | "runner_control";
@@ -549,7 +549,7 @@ export interface components {
         /** @enum {string} */
         TradingPhase: "closed" | "pre_open" | "continuous" | "halted" | "pre_close";
         /**
-         * @description Mirrors exsim::RejectReason (docs/SPEC.md). unknown_order on a cancel is how a lost cancel race appears.
+         * @description Mirrors exsim::RejectReason. unknown_order on a cancel is how a lost cancel race appears.
          * @enum {string}
          */
         RejectReason: "unknown_instrument" | "invalid_client_order_id" | "duplicate_client_order_id" | "invalid_quantity" | "invalid_price" | "invalid_field" | "market_closed" | "instrument_halted" | "not_allowed_in_phase" | "post_only_would_cross" | "capacity_exceeded" | "unknown_order";
@@ -1661,7 +1661,7 @@ export interface components {
         AuditExportResponse: components["schemas"]["AuditInventory"] | components["schemas"]["AuditArtifactChunk"];
     };
     responses: {
-        /** @description Any error. The HTTP status and `error.code` agree as listed in docs/API.md. */
+        /** @description Any error. The HTTP status and `error.code` agree. */
         ErrorResponse: {
             headers: {
                 "Exsim-Schema-Version": components["headers"]["ExsimSchemaVersion"];

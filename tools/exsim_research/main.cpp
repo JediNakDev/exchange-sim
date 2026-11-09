@@ -6,7 +6,7 @@
 //   exsim_research verify <run or sweep directory>
 //   exsim_research validate <experiment.conf>
 //
-// Exit codes (docs/RESEARCH_RUNNER.md):
+// Exit codes (research runner):
 //   0 success                     every run completed and its replay matched
 //                                 (verify: every run reproduced byte for byte)
 //   1 run not successful          a run failed or was cancelled (artifacts still written)

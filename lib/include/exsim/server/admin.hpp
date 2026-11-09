@@ -1,7 +1,7 @@
 #ifndef EXSIM_SERVER_ADMIN_HPP
 #define EXSIM_SERVER_ADMIN_HPP
 
-// Admin console command language (docs/SERVER.md §4). One command per line;
+// Admin console command language (server contract §4). One command per line;
 // parsing is off the hot path (operator commands), so std::string is fine.
 
 #include "exsim/sim/packet_faults.hpp"

@@ -4,7 +4,7 @@
 // Outbound events emitted by the matching engine. Gateways turn them into
 // execution reports for the owning sessions; the market-data publisher turns
 // them into ITCH. Event order within one command is normative: see
-// docs/SPEC.md section "Event ordering".
+// matching engine contract section "Event ordering".
 
 #include "types.hpp"
 #include <cstddef>

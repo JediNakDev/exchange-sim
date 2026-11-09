@@ -1,7 +1,7 @@
 #ifndef EXSIM_GATEWAY_FIXP_SBE_BYTE_SINK_HPP
 #define EXSIM_GATEWAY_FIXP_SBE_BYTE_SINK_HPP
 
-// Output byte sink used by the FIXP/SBE gateway and client (docs/SERVER.md
+// Output byte sink used by the FIXP/SBE gateway and client (server contract
 // section 2.4). The server adapts the net layer's send buffer to it; tests use
 // an in-memory buffer.
 //

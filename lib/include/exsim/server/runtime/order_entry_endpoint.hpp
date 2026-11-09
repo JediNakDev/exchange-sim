@@ -1,7 +1,7 @@
 #ifndef EXSIM_SERVER_RUNTIME_ORDER_ENTRY_ENDPOINT_HPP
 #define EXSIM_SERVER_RUNTIME_ORDER_ENTRY_ENDPOINT_HPP
 
-// One gateway's TCP listener and its connection slots (docs/SERVER.md 1-2).
+// One gateway's TCP listener and its connection slots (server contract 1-2).
 // Every slot's gateway connection object is built at startup; accepting a
 // connection only reinitialises it. The endpoint
 //   * feeds received bytes to the gateway, keeping an unconsumed tail

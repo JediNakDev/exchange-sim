@@ -15,9 +15,9 @@
 // of their storage up front. If it does not fit they throw std::bad_alloc or
 // std::length_error rather than returning, so size max_orders and price bands
 // for physical memory (per-order and per-tick costs of the production engine:
-// docs/engine-variants/C_INDEX_ARENA.md).
+// matching engine contract).
 //
-// Semantics are specified in docs/SPEC.md.
+// Semantics are specified in matching engine contract.
 
 #include "command.hpp"
 #include "event.hpp"

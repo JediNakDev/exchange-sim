@@ -1,7 +1,7 @@
 #ifndef EXSIM_GATEWAY_FIX_FIX_USER_STATE_HPP
 #define EXSIM_GATEWAY_FIX_FIX_USER_STATE_HPP
 
-// Day-lifetime state of one FIX user (docs/SERVER.md 2, docs/GATEWAYS.md 3):
+// Day-lifetime state of one FIX user (server contract 2, gateway mapping 3):
 // the ClOrdID token table, per-order records for OrderQty/AvgPx/OrdStatus
 // through replace chains, the ExecID counter, the session day state (MsgSeqNum
 // counters and resend store) and fault-injection counters.
@@ -106,7 +106,7 @@ struct FixMassCancelRequest {
     std::string_view symbol{};
 };
 
-// OrdRejReason(103) for an engine NewOrder rejection (docs/GATEWAYS.md 3).
+// OrdRejReason(103) for an engine NewOrder rejection (gateway mapping 3).
 [[nodiscard]] constexpr std::uint64_t order_reject_reason_code(RejectReason reason) noexcept {
     switch (reason) {
         case RejectReason::UnknownInstrument: return 1;
@@ -150,7 +150,7 @@ public:
         return token_id == 0 ? nullptr : &records_[token_id];
     }
 
-    // Fault injection (docs/SERVER.md 4).
+    // Fault injection (server contract 4).
     void inject_new_order_rejects(std::uint32_t count) noexcept { injected_new_order_rejects_ = count; }
     void drop_out_transmissions(std::uint32_t count) noexcept { day_.suppress_application_transmissions(count); }
 
@@ -756,7 +756,7 @@ private:
 
 // All FIX users of the server, built at setup. find() maps a SessionId to its
 // state in O(1); find_by_comp_id() serves Logon. on_events() is the
-// docs/SERVER.md 2.3 dispatch for FIX users: each distinct session of the
+// server contract 2.3 dispatch for FIX users: each distinct session of the
 // batch gets exactly one FixUserState::on_events call, in first-seen order.
 template <FixByteSink Sink>
 class FixUserDirectory {

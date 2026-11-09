@@ -1,7 +1,7 @@
 #ifndef EXSIM_GATEWAY_FIX_FIX_CLIENT_HPP
 #define EXSIM_GATEWAY_FIX_FIX_CLIENT_HPP
 
-// Client side of FIX 4.4 order entry (docs/SERVER.md 2.5): Logon, MsgSeqNum
+// Client side of FIX 4.4 order entry (server contract 2.5): Logon, MsgSeqNum
 // tracking and gap recovery, heartbeats and TestRequests, answering the
 // exchange's ResendRequests from its own store (orders go out again with
 // PossDupFlag=Y), and typed callbacks. Transport-agnostic: bytes go to a

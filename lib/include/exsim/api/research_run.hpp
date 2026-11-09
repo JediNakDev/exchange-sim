@@ -3,7 +3,7 @@
 
 // One API run: a deterministic research simulation for one master seed,
 // driven step by step through the runner library, with the API's state
-// machine, canonical event log and read views (docs/API.md).
+// machine, canonical event log and read views (HTTP API contract).
 //
 // Threading: every public method takes the run's mutex. The service's
 // executor thread advances running runs in bounded slices; HTTP handlers
@@ -29,7 +29,7 @@ namespace exsim::api {
 
 class PostgresStore;
 
-// An error response in the contract's envelope (docs/API.md, Errors).
+// An error response in the contract's envelope (HTTP API contract, Errors).
 class ApiFailure : public std::runtime_error {
 public:
     ApiFailure(int status_value, std::string error_code, const std::string& message)
@@ -307,7 +307,7 @@ private:
 };
 
 // Opaque list cursors: the next index plus a fingerprint of the filters, so a
-// cursor reused with changed filters is rejected (docs/API.md, Pagination).
+// cursor reused with changed filters is rejected (HTTP API contract, Pagination).
 [[nodiscard]] std::string encode_page_cursor(std::uint64_t next_index, std::string_view filter_fingerprint);
 [[nodiscard]] std::optional<std::uint64_t> decode_page_cursor(std::string_view cursor, std::string_view filter_fingerprint);
 

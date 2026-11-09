@@ -3,7 +3,7 @@
 
 // Shared vocabulary of the ITCH 5.0 / MoldUDP64 market-data feed: wire size
 // limits, the 10-byte MoldUDP64 session name and the ITCH day-timestamp rule
-// from docs/GATEWAYS.md section 4.
+// from gateway mapping section 4.
 
 #include <exsim/protocol/moldudp64.hpp>
 #include <exsim/types.hpp>

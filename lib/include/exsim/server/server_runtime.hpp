@@ -1,8 +1,8 @@
 #ifndef EXSIM_SERVER_SERVER_RUNTIME_HPP
 #define EXSIM_SERVER_SERVER_RUNTIME_HPP
 
-// The exsim server: one thread, one reactor loop (docs/SERVER.md 1,
-// docs/SERVER_RUNTIME.md). BasicServerRuntime<Gateways...> owns the poller,
+// The exsim server: one thread, one reactor loop (server contract 1,
+// server runtime). BasicServerRuntime<Gateways...> owns the poller,
 // the exchange core, the market-data runtime, one order-entry endpoint per
 // gateway and the admin console:
 //
@@ -303,7 +303,7 @@ private:
 };
 
 // The exsim server: OUCH 4.2, FIX 4.4 and SBE 1.0 over FIXP 1.0
-// (docs/SERVER_RUNTIME.md, "Adding a protocol").
+// (server runtime, "Adding a protocol").
 using ServerRuntime = BasicServerRuntime<runtime::OuchGateway, runtime::FixGateway, runtime::FixpSbeGateway>;
 
 }  // namespace exsim::server

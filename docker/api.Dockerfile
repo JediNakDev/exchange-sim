@@ -5,10 +5,8 @@ COPY Makefile ./
 COPY include/ include/
 COPY lib/ lib/
 COPY src/ src/
-# The scenario parser uses this shared header-only formatter.
-COPY tests/exsim/support/ tests/exsim/support/
 # The Makefile inventories these trees even when building just the API.
-RUN mkdir -p tests examples benchmark && make -j1 WITH_POSTGRES=1 EXTRA_CXXFLAGS=-Werror build/release/exsim_apid build/release/exsim_exchanged build/release/exsim_traderd
+RUN mkdir -p test/exsim test/framework test/lob test/benchmark examples && make -j1 WITH_POSTGRES=1 EXTRA_CXXFLAGS=-Werror build/release/exsim_apid build/release/exsim_exchanged build/release/exsim_traderd
 
 FROM debian:trixie-slim AS runtime
 RUN apt-get update && apt-get install -y --no-install-recommends libpq5 ca-certificates curl && rm -rf /var/lib/apt/lists/* \

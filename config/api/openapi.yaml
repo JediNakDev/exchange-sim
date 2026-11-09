@@ -1,0 +1,3512 @@
+openapi: 3.1.0
+info:
+  title: exsim research API
+  version: 1.0.0
+  summary: Local-only HTTP API for deterministic exsim research runs and real-time protocol status.
+  description: |
+    Contract between the C++ research service (source of truth for simulation,
+    matching, accounting and simulated time) and its clients: the Next.js
+    research UI, the CLI and research scripts. The browser never computes
+    matching or accounting results; every number shown in the UI comes from
+    this API.
+
+    Clients follow these conventions:
+
+    * Exact prices, cash amounts, quantities, identifiers, sequence numbers and
+      nanosecond timestamps are JSON strings holding decimal digits. Clients
+      must not convert them to IEEE-754 numbers for arithmetic or display.
+    * Currency amounts and prices carry exactly 4 fractional digits (the
+      engine's fixed-point scale of 1/10000). Mid prices and markouts carry
+      exactly 5 fractional digits because a mid can fall on a half price unit.
+    * Statistics derived after the ledger is recorded (means, standard
+      deviations, ratios) are decimal strings marked `derived_float`, rounded
+      half-to-even at the documented scale.
+    * Simulation timestamps are nanoseconds since the start of the run's
+      simulated session. Wall-clock timestamps are RFC 3339 strings and never
+      feed simulation results.
+    * Every mutating POST requires an `Idempotency-Key` header.
+    * Every response carries `Exsim-Schema-Version`. A client may send the same
+      header on a request to pin the schema family; a mismatch is rejected
+      with `unsupported_schema_version` before any work is done.
+    * List endpoints use opaque cursors.
+  license:
+    name: MIT
+    identifier: MIT
+servers:
+  - url: http://127.0.0.1:7600
+    description: Local research service (binds loopback only; no remote access control in v1).
+security: []
+tags:
+  - name: service
+    description: Service identity and capabilities.
+  - name: experiments
+    description: Reusable experiment configurations derived from a baseline.
+  - name: runs
+    description: One deterministic execution of an experiment for one master seed, and its run control.
+  - name: artifacts
+    description: Immutable run artifacts (manifest, summary, series, canonical events, lifecycle, fills, book replay).
+  - name: compare
+    description: Paired baseline versus candidate comparison across a seed set.
+  - name: connections
+    description: Read-only status of real-time protocol mode (sessions, feeds, faults).
+paths:
+  /v1/service:
+    get:
+      tags: [service]
+      operationId: getServiceInfo
+      summary: Service identity, versions and supported capabilities.
+      responses:
+        "200":
+          description: Service information.
+          headers:
+            Exsim-Schema-Version:
+              $ref: "#/components/headers/ExsimSchemaVersion"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServiceInfo"
+        default:
+          $ref: "#/components/responses/ErrorResponse"
+  /v1/baselines:
+    get:
+      tags: [experiments]
+      operationId: listBaselineConfigurations
+      summary: Built-in baseline configurations an experiment can be derived from.
+      responses:
+        "200":
+          description: All baseline configurations (small, unpaginated catalog).
+          headers:
+            Exsim-Schema-Version:
+              $ref: "#/components/headers/ExsimSchemaVersion"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BaselineConfigurationList"
+        default:
+          $ref: "#/components/responses/ErrorResponse"
+  /v1/experiment-previews:
+    post:
+      tags: [experiments]
+      operationId: previewExperiment
+      summary: Validate a configuration and summarise its assumptions and estimated work without saving it.
+      description: Pure function of the request body; does not create anything, so no Idempotency-Key is needed.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExperimentCreateRequest"
+      responses:
+        "200":
+          description: Validation result, assumption summary and work estimate.
+          headers:
+            Exsim-Schema-Version:
+              $ref: "#/components/headers/ExsimSchemaVersion"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExperimentPreview"
+        default:
+          $ref: "#/components/responses/ErrorResponse"
+  /v1/experiments:
+    get:
+      tags: [experiments]
+      operationId: listExperiments
+      summary: List saved experiments, newest first.
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - name: marketWorld
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/MarketWorld"
+      responses:
+        "200":
+          description: One page of experiments.
+          headers:
+            Exsim-Schema-Version:
+              $ref: "#/components/headers/ExsimSchemaVersion"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExperimentPage"
+        default:
+          $ref: "#/components/responses/ErrorResponse"
+    post:
+      tags: [experiments]
+      operationId: createExperiment
+      summary: Save a reusable experiment configuration derived from a baseline.
+      description: Creating an experiment does not start runs. Start one run per master seed with createRun.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExperimentCreateRequest"
+      responses:
+        "201":
+          description: Experiment created (or the original response replayed for a repeated Idempotency-Key).
+          headers:
+            Exsim-Schema-Version:
+              $ref: "#/components/headers/ExsimSchemaVersion"
+            Idempotent-Replayed:
+              $ref: "#/components/headers/IdempotentReplayed"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Experiment"
+        default:
+          $ref: "#/components/responses/ErrorResponse"
+  /v1/experiments/{experimentId}:
+    get:
+      tags: [experiments]
+      operationId: getExperiment
+      summary: Get one experiment with its configuration and run counts.
+      parameters:
+        - $ref: "#/components/parameters/ExperimentIdPath"
+      responses:
+        "200":
+          description: The experiment.
+          headers:
+            Exsim-Schema-Version:
+              $ref: "#/components/headers/ExsimSchemaVersion"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Experiment"
+        default:
+          $ref: "#/components/responses/ErrorResponse"
+  /v1/runs:
+    get:
+      tags: [runs]
+      operationId: listRuns
+      summary: List runs, newest first, with filters.
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - name: experimentId
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/ExperimentId"
+        - name: state
+          in: query
+          required: false
+          description: Comma-separated run states; a run matches if its state is any of them.
+          style: form
+          explode: false
+          schema:
+            type: array
+            items:
+              $ref: "#/components/schemas/RunState"
+        - name: masterSeed
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/UnsignedIntegerString"
+      responses:
+        "200":
+          description: One page of runs.
+          headers:
+            Exsim-Schema-Version:
+              $ref: "#/components/headers/ExsimSchemaVersion"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RunPage"
+        default:
+          $ref: "#/components/responses/ErrorResponse"
+    post:
+      tags: [runs]
+      operationId: createRun
+      summary: Queue one deterministic run of an experiment for one master seed.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RunCreateRequest"
+      responses:
+        "201":
+          description: Run queued (or the original response replayed for a repeated Idempotency-Key).
+          headers:
+            Exsim-Schema-Version:
+              $ref: "#/components/headers/ExsimSchemaVersion"
+            Idempotent-Replayed:
+              $ref: "#/components/headers/IdempotentReplayed"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Run"
+        default:
+          $ref: "#/components/responses/ErrorResponse"
+  /v1/runs/{runId}:
+    get:
+      tags: [runs]
+      operationId: getRun
+      summary: Run status, progress, state history and allowed control actions.
+      description: Poll this while the run is queued or running.
+      parameters:
+        - $ref: "#/components/parameters/RunIdPath"
+      responses:
+        "200":
+          description: The run.
+          headers:
+            Exsim-Schema-Version:
+              $ref: "#/components/headers/ExsimSchemaVersion"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Run"
+        default:
+          $ref: "#/components/responses/ErrorResponse"
+  /v1/runs/{runId}/cancel:
+    post:
+      tags: [runs]
+      operationId: cancelRun
+      summary: Cancel a queued, running or paused run. Residual positions and diagnostics are preserved.
+      parameters:
+        - $ref: "#/components/parameters/RunIdPath"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RunControlRequest"
+      responses:
+        "200":
+          description: The run after the transition.
+          headers:
+            Exsim-Schema-Version:
+              $ref: "#/components/headers/ExsimSchemaVersion"
+            Idempotent-Replayed:
+              $ref: "#/components/headers/IdempotentReplayed"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Run"
+        default:
+          $ref: "#/components/responses/ErrorResponse"
+  /v1/runs/{runId}/pause:
+    post:
+      tags: [runs]
+      operationId: pauseRun
+      summary: Pause a running deterministic run at the next scheduled event boundary.
+      parameters:
+        - $ref: "#/components/parameters/RunIdPath"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RunControlRequest"
+      responses:
+        "200":
+          description: The run after the transition.
+          headers:
+            Exsim-Schema-Version:
+              $ref: "#/components/headers/ExsimSchemaVersion"
+            Idempotent-Replayed:
+              $ref: "#/components/headers/IdempotentReplayed"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Run"
+        default:
+          $ref: "#/components/responses/ErrorResponse"
+  /v1/runs/{runId}/resume:
+    post:
+      tags: [runs]
+      operationId: resumeRun
+      summary: Resume a paused deterministic run.
+      parameters:
+        - $ref: "#/components/parameters/RunIdPath"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RunControlRequest"
+      responses:
+        "200":
+          description: The run after the transition.
+          headers:
+            Exsim-Schema-Version:
+              $ref: "#/components/headers/ExsimSchemaVersion"
+            Idempotent-Replayed:
+              $ref: "#/components/headers/IdempotentReplayed"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Run"
+        default:
+          $ref: "#/components/responses/ErrorResponse"
+  /v1/runs/{runId}/step:
+    post:
+      tags: [runs]
+      operationId: stepRun
+      summary: Advance a paused deterministic run by a number of canonical events; the run stays paused.
+      description: |
+        A step never skips part of a scheduled event: it advances whole runner
+        scheduler events until at least `canonicalEventCount` canonical events
+        were appended, so it can overshoot (see RunStepRequest). It runs
+        synchronously: the response already shows the new progress. If the
+        simulation bounds are reached during the step the run transitions to
+        completed.
+      parameters:
+        - $ref: "#/components/parameters/RunIdPath"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RunStepRequest"
+      responses:
+        "200":
+          description: The run after the step.
+          headers:
+            Exsim-Schema-Version:
+              $ref: "#/components/headers/ExsimSchemaVersion"
+            Idempotent-Replayed:
+              $ref: "#/components/headers/IdempotentReplayed"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Run"
+        default:
+          $ref: "#/components/responses/ErrorResponse"
+  /v1/runs/{runId}/manifest:
+    get:
+      tags: [artifacts]
+      operationId: getRunManifest
+      summary: Immutable run manifest. Available from the moment the run is queued.
+      parameters:
+        - $ref: "#/components/parameters/RunIdPath"
+      responses:
+        "200":
+          description: The manifest.
+          headers:
+            Exsim-Schema-Version:
+              $ref: "#/components/headers/ExsimSchemaVersion"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RunManifest"
+        default:
+          $ref: "#/components/responses/ErrorResponse"
+  /v1/runs/{runId}/summary:
+    get:
+      tags: [artifacts]
+      operationId: getRunSummary
+      summary: Summary metrics. Final for completed runs; partial (as of the current event position) otherwise.
+      parameters:
+        - $ref: "#/components/parameters/RunIdPath"
+      responses:
+        "200":
+          description: The summary.
+          headers:
+            Exsim-Schema-Version:
+              $ref: "#/components/headers/ExsimSchemaVersion"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RunSummary"
+        default:
+          $ref: "#/components/responses/ErrorResponse"
+  /v1/runs/{runId}/series:
+    get:
+      tags: [artifacts]
+      operationId: getRunSeries
+      summary: Downsampled time series (equity, inventory, exchange mid, quoted spread, drawdown).
+      parameters:
+        - $ref: "#/components/parameters/RunIdPath"
+        - name: seriesKinds
+          in: query
+          required: false
+          description: Comma-separated series kinds. Defaults to all kinds.
+          style: form
+          explode: false
+          schema:
+            type: array
+            items:
+              $ref: "#/components/schemas/SeriesKind"
+        - name: fromSimulationTimeNs
+          in: query
+          required: false
+          description: Inclusive lower time bound (ns). Defaults to the run start.
+          schema:
+            $ref: "#/components/schemas/NanosecondTimestamp"
+        - name: toSimulationTimeNs
+          in: query
+          required: false
+          description: Inclusive upper time bound (ns). Defaults to the latest simulated time.
+          schema:
+            $ref: "#/components/schemas/NanosecondTimestamp"
+        - name: maxPoints
+          in: query
+          required: false
+          description: Upper bound on points per series; the server picks a bucket width so the count does not exceed it.
+          schema:
+            type: integer
+            minimum: 2
+            maximum: 5000
+            default: 500
+      responses:
+        "200":
+          description: The requested series.
+          headers:
+            Exsim-Schema-Version:
+              $ref: "#/components/headers/ExsimSchemaVersion"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RunSeriesResponse"
+        default:
+          $ref: "#/components/responses/ErrorResponse"
+  /v1/runs/{runId}/events:
+    get:
+      tags: [artifacts]
+      operationId: listRunEvents
+      summary: Canonical event log, ordered by event position, with strategy-visible versus exchange-truth marking.
+      parameters:
+        - $ref: "#/components/parameters/RunIdPath"
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - name: fromEventPosition
+          in: query
+          required: false
+          description: Inclusive lower event position. Ignored when a cursor is given.
+          schema:
+            $ref: "#/components/schemas/UnsignedIntegerString"
+        - name: toEventPosition
+          in: query
+          required: false
+          description: Inclusive upper event position.
+          schema:
+            $ref: "#/components/schemas/UnsignedIntegerString"
+        - name: eventKinds
+          in: query
+          required: false
+          description: Comma-separated event kinds.
+          style: form
+          explode: false
+          schema:
+            type: array
+            items:
+              $ref: "#/components/schemas/CanonicalEventKind"
+        - name: visibility
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/EventVisibility"
+        - name: actor
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/Actor"
+        - name: orderId
+          in: query
+          required: false
+          description: Only events that reference this exchange order id.
+          schema:
+            $ref: "#/components/schemas/UnsignedIntegerString"
+      responses:
+        "200":
+          description: One page of canonical events.
+          headers:
+            Exsim-Schema-Version:
+              $ref: "#/components/headers/ExsimSchemaVersion"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CanonicalEventPage"
+        default:
+          $ref: "#/components/responses/ErrorResponse"
+  /v1/runs/{runId}/orders:
+    get:
+      tags: [artifacts]
+      operationId: listRunOrders
+      summary: The research strategy's own orders, ordered by submit event position.
+      parameters:
+        - $ref: "#/components/parameters/RunIdPath"
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - name: finalStatus
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/OrderFinalStatus"
+      responses:
+        "200":
+          description: One page of own-order summaries.
+          headers:
+            Exsim-Schema-Version:
+              $ref: "#/components/headers/ExsimSchemaVersion"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OwnOrderPage"
+        default:
+          $ref: "#/components/responses/ErrorResponse"
+  /v1/runs/{runId}/orders/{orderId}/lifecycle:
+    get:
+      tags: [artifacts]
+      operationId: getOrderLifecycle
+      summary: Full lifecycle of one own order with timing, FIFO-ahead evidence and latency breakdown.
+      parameters:
+        - $ref: "#/components/parameters/RunIdPath"
+        - name: orderId
+          in: path
+          required: true
+          description: Exchange order id (decimal string).
+          schema:
+            $ref: "#/components/schemas/UnsignedIntegerString"
+      responses:
+        "200":
+          description: The order lifecycle.
+          headers:
+            Exsim-Schema-Version:
+              $ref: "#/components/headers/ExsimSchemaVersion"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderLifecycle"
+        default:
+          $ref: "#/components/responses/ErrorResponse"
+  /v1/runs/{runId}/execution-trace:
+    get:
+      tags: [artifacts]
+      operationId: getExecutionTrace
+      summary: Bounded deterministic native execution decisions and delivered child reports.
+      parameters:
+        - $ref: "#/components/parameters/RunIdPath"
+        - {"$ref": "#/components/parameters/Cursor"}
+        - {"$ref": "#/components/parameters/Limit"}
+      responses:
+        "200":
+          description: Exact native evidence.
+          content:
+            application/json:
+              schema: {"$ref": "#/components/schemas/ExecutionTracePage"}
+        default:
+          $ref: "#/components/responses/ErrorResponse"
+  /v1/runs/{runId}/audit-export:
+    get:
+      tags: [artifacts]
+      operationId: getAuditExport
+      summary: Complete terminal native inventory or at most 64 KiB of one fixed-name artifact.
+      parameters:
+        - $ref: "#/components/parameters/RunIdPath"
+        - {"name": "artifactIndex", "in": "query", "required": false, "schema": {"$ref": "#/components/schemas/UnsignedIntegerString"}}
+        - {"name": "offset", "in": "query", "required": false, "schema": {"$ref": "#/components/schemas/UnsignedIntegerString"}}
+      responses:
+        "200":
+          description: Exact native evidence.
+          content:
+            application/json:
+              schema: {"$ref": "#/components/schemas/AuditExportResponse"}
+        default:
+          $ref: "#/components/responses/ErrorResponse"
+  /v1/runs/{runId}/fills:
+    get:
+      tags: [artifacts]
+      operationId: listRunFills
+      summary: The research strategy's fills with ledger effect, spread capture and markouts.
+      parameters:
+        - $ref: "#/components/parameters/RunIdPath"
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - name: orderId
+          in: query
+          required: false
+          description: Any exchange order id the own order has had. A replace assigns the order a new exchange order id, so the result holds every fill of that order and each fill reports the id it had when it filled.
+          schema:
+            $ref: "#/components/schemas/UnsignedIntegerString"
+      responses:
+        "200":
+          description: One page of fills, ordered by event position.
+          headers:
+            Exsim-Schema-Version:
+              $ref: "#/components/headers/ExsimSchemaVersion"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FillPage"
+        default:
+          $ref: "#/components/responses/ErrorResponse"
+  /v1/runs/{runId}/book:
+    get:
+      tags: [artifacts]
+      operationId: getBookAtEventPosition
+      summary: Book view immediately after an event position, as exchange truth or as the strategy had received it.
+      description: |
+        exchange_truth is rebuilt by replaying the run's exchange events from
+        the beginning to the requested position, with every level, order count
+        and own share count. strategy_visible is the last top of book the
+        strategy had received at that position (the runner's feed delivers top
+        of book only), so it has at most one level per side and null order and
+        own share counts. A position beyond the processed events of a live run
+        is 409 artifact_not_ready.
+      parameters:
+        - $ref: "#/components/parameters/RunIdPath"
+        - name: eventPosition
+          in: query
+          required: true
+          schema:
+            $ref: "#/components/schemas/UnsignedIntegerString"
+        - name: view
+          in: query
+          required: true
+          schema:
+            $ref: "#/components/schemas/EventVisibility"
+        - name: depth
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 5
+      responses:
+        "200":
+          description: Book levels after the event at that position.
+          headers:
+            Exsim-Schema-Version:
+              $ref: "#/components/headers/ExsimSchemaVersion"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BookView"
+        default:
+          $ref: "#/components/responses/ErrorResponse"
+  /v1/comparisons:
+    get:
+      tags: [compare]
+      operationId: compareExperiments
+      summary: Paired baseline versus candidate comparison over the master seeds both experiments completed.
+      description: |
+        Pairs completed runs by master seed. Differences are candidate minus
+        baseline, computed exactly per seed; dispersion statistics are derived
+        floats. Differing assumptions are listed so a comparison never hides a
+        scenario, seed, fee or model difference.
+
+        When the experiments share no completed seed, or differ in market world,
+        the response is still 200 with `comparable: false` and the reasons, so
+        clients can show what is missing. Comparing an experiment with itself is
+        rejected with 409 `comparison_not_paired`.
+      parameters:
+        - name: runSelection
+          in: query
+          required: false
+          description: Opaque r1_ token returned by a prior response, comma separated explicit run IDs, or none. Pins at most one eligible attempt per experiment/seed. Ineligible pinned evidence returns 409; never falls back to a retry.
+          schema:
+            type: string
+        - name: baselineExperimentId
+          in: query
+          required: true
+          schema:
+            $ref: "#/components/schemas/ExperimentId"
+        - name: candidateExperimentId
+          in: query
+          required: true
+          schema:
+            $ref: "#/components/schemas/ExperimentId"
+        - name: maxPoints
+          in: query
+          required: false
+          description: Upper bound on aligned series points.
+          schema:
+            type: integer
+            minimum: 2
+            maximum: 2000
+            default: 200
+      responses:
+        "200":
+          description: The comparison.
+          headers:
+            Exsim-Schema-Version:
+              $ref: "#/components/headers/ExsimSchemaVersion"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExperimentComparison"
+        default:
+          $ref: "#/components/responses/ErrorResponse"
+  /v1/connections:
+    get:
+      tags: [connections]
+      operationId: getConnectionsStatus
+      summary: Read-only real-time protocol mode status - sessions, market-data feeds and fault scenarios.
+      responses:
+        "200":
+          description: Current status snapshot.
+          headers:
+            Exsim-Schema-Version:
+              $ref: "#/components/headers/ExsimSchemaVersion"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConnectionsStatus"
+        default:
+          $ref: "#/components/responses/ErrorResponse"
+components:
+  headers:
+    ExsimSchemaVersion:
+      description: Version of the response body schema family, for example `exsim.api/1`. Bumped on incompatible artifact schema changes within /v1.
+      required: true
+      schema:
+        type: string
+        pattern: "^exsim\\.api/[1-9][0-9]*$"
+    IdempotentReplayed:
+      description: "`true` when this response is a replay of the original response for a repeated Idempotency-Key."
+      required: false
+      schema:
+        type: string
+        enum: ["true", "false"]
+  parameters:
+    Cursor:
+      name: cursor
+      in: query
+      required: false
+      description: Opaque cursor from a previous page's `page.nextCursor`. Other filters must be repeated unchanged.
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 512
+    Limit:
+      name: limit
+      in: query
+      required: false
+      description: Maximum items per page.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 1000
+        default: 100
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: |
+        Client-generated key (UUID recommended). A repeat with the same key and
+        identical body replays the original response; a repeat with a different
+        body fails with `idempotency_key_reused_with_different_request`. Keys are
+        retained for at least 24 hours.
+      schema:
+        type: string
+        minLength: 8
+        maxLength: 128
+        pattern: "^[A-Za-z0-9_-]+$"
+    ExperimentIdPath:
+      name: experimentId
+      in: path
+      required: true
+      schema:
+        $ref: "#/components/schemas/ExperimentId"
+    RunIdPath:
+      name: runId
+      in: path
+      required: true
+      schema:
+        $ref: "#/components/schemas/RunId"
+  responses:
+    ErrorResponse:
+      description: Any error. The HTTP status and `error.code` agree.
+      headers:
+        Exsim-Schema-Version:
+          $ref: "#/components/headers/ExsimSchemaVersion"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponseBody"
+  schemas:
+    # ---------- scalar conventions ----------
+    UnsignedIntegerString:
+      type: string
+      description: Non-negative integer as decimal digits (ids, quantities, counts, sequence numbers). No sign, no leading zeros.
+      pattern: "^(0|[1-9][0-9]*)$"
+      maxLength: 20
+      examples: ["0", "18446744073709551615"]
+    SignedIntegerString:
+      type: string
+      description: Signed integer as decimal digits (signed positions in shares).
+      pattern: "^(0|-?[1-9][0-9]*)$"
+      maxLength: 21
+      examples: ["-300", "0", "1200"]
+    NanosecondTimestamp:
+      type: string
+      description: Simulated time in nanoseconds since the start of the run's simulated session.
+      pattern: "^(0|[1-9][0-9]*)$"
+      maxLength: 20
+    NanosecondDuration:
+      type: string
+      description: Duration in nanoseconds.
+      pattern: "^(0|[1-9][0-9]*)$"
+      maxLength: 20
+    PriceDecimal:
+      type: string
+      description: Price in currency units per share, exactly 4 fractional digits (engine fixed point 1/10000). Strictly positive for order prices.
+      pattern: "^(0|[1-9][0-9]*)\\.[0-9]{4}$"
+      examples: ["100.0100"]
+    CurrencyAmount:
+      type: string
+      description: Signed currency amount, exactly 4 fractional digits (fixed point 1/10000 currency, checked int64 in C++).
+      pattern: "^-?(0|[1-9][0-9]*)\\.[0-9]{4}$"
+      examples: ["-12.5000", "1000000.0000"]
+    CurrencyPerShareAmount:
+      type: string
+      description: Signed currency per share, exactly 4 fractional digits (fee schedules; negative fee is a rebate).
+      pattern: "^-?(0|[1-9][0-9]*)\\.[0-9]{4}$"
+      examples: ["-0.0020", "0.0030"]
+    MidPriceDecimal:
+      type: string
+      description: Mid price (best bid + best ask) / 2, exactly 5 fractional digits so half price units are exact.
+      pattern: "^(0|[1-9][0-9]*)\\.[0-9]{5}$"
+      examples: ["100.00500"]
+    MarkoutAmount:
+      type: string
+      description: Signed markout or spread-capture amount, exactly 5 fractional digits (exact because mids are exact at 5 digits).
+      pattern: "^-?(0|[1-9][0-9]*)\\.[0-9]{5}$"
+    DerivedDecimal:
+      type: string
+      description: Statistic derived from exact values in float64 after the ledger is recorded, rounded half-to-even to 6 fractional digits. Display only; never re-enter accounting.
+      pattern: "^-?(0|[1-9][0-9]*)\\.[0-9]{6}$"
+    ExactDecimal:
+      type: string
+      description: Exact signed decimal whose scale is given by the accompanying unit (used where values of several units share one field).
+      pattern: "^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$"
+    Digest:
+      type: object
+      additionalProperties: false
+      required: [algorithm, hexDigest]
+      properties:
+        algorithm:
+          type: string
+          enum: [fnv1a_64, sha256]
+          description: fnv1a_64 for canonical event/ledger digests; sha256 for configuration and input data.
+        hexDigest:
+          type: string
+          pattern: "^[0-9a-f]{16}([0-9a-f]{48})?$"
+    WallClockTime:
+      type: string
+      format: date-time
+      description: RFC 3339 wall-clock time. Informational only; never an input to simulation.
+    ExperimentId:
+      type: string
+      pattern: "^exp_[0-9a-z]{8,32}$"
+    RunId:
+      type: string
+      pattern: "^run_[0-9a-z]{8,32}$"
+    BaselineId:
+      type: string
+      pattern: "^[a-z0-9][a-z0-9_.-]{1,63}$"
+    SchemaVersion:
+      type: string
+      description: Artifact schema identifier with a major version, for example `exsim.run-manifest/1`.
+      pattern: "^exsim\\.[a-z-]+/[1-9][0-9]*$"
+    PageInfo:
+      type: object
+      additionalProperties: false
+      required: [nextCursor, limit]
+      properties:
+        nextCursor:
+          type: [string, "null"]
+          description: Cursor for the next page, or null at the end of the list.
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 1000
+    # ---------- enums ----------
+    RunState:
+      type: string
+      enum: [queued, running, paused, completed, cancelled, failed]
+      description: |
+        queued -> running | cancelled; running -> paused | completed | cancelled | failed;
+        paused -> running | completed (step reached bounds) | cancelled | failed.
+        completed, cancelled and failed are terminal.
+    RunControlAction:
+      type: string
+      enum: [cancel, pause, resume, step]
+    RunMode:
+      type: string
+      enum: [deterministic_research, real_time_protocol]
+    MarketWorld:
+      type: string
+      enum: [interactive_synthetic, historical_reconstruction, historical_counterfactual_replay]
+      description: Must be shown on every run and comparison. Only interactive_synthetic runs are executable in v1.
+    StrategyKind:
+      type: string
+      enum: [fixed_spread_market_maker, inventory_aware_market_maker, twap_execution, immediate_sweep_execution]
+    BackgroundAgentKind:
+      type: string
+      enum: [market_maker, noise_taker]
+    Actor:
+      type: string
+      enum: [research_strategy, background_market_maker, background_noise_taker, exchange, runner]
+    Side:
+      type: string
+      enum: [buy, sell]
+    EventVisibility:
+      type: string
+      enum: [exchange_truth, strategy_visible]
+      description: exchange_truth is the engine's state at that instant; strategy_visible is information actually delivered to the strategy after declared latency.
+    PipelineStage:
+      type: string
+      enum: [feed_delivery, strategy_processing, outbound_order, exchange_processing, report_delivery, runner_control]
+      description: Distinct causal stages of the deterministic runner.
+    CanonicalEventKind:
+      type: string
+      enum:
+        - market_data_delivered
+        - strategy_order_submitted
+        - strategy_cancel_submitted
+        - strategy_replace_submitted
+        - order_arrived_at_exchange
+        - cancel_arrived_at_exchange
+        - replace_arrived_at_exchange
+        - order_accepted
+        - order_rejected
+        - order_rested
+        - order_filled
+        - order_canceled
+        - order_replaced
+        - execution_report_delivered
+        - risk_limit_blocked_order
+        - phase_changed
+        - simulation_bounds_reached
+    CommandKind:
+      type: string
+      enum: [new_order, cancel, replace, mass_cancel, set_phase]
+    OrderType:
+      type: string
+      enum: [limit, market]
+    TradingPhase:
+      type: string
+      enum: [closed, pre_open, continuous, halted, pre_close]
+    RejectReason:
+      type: string
+      enum:
+        - unknown_instrument
+        - invalid_client_order_id
+        - duplicate_client_order_id
+        - invalid_quantity
+        - invalid_price
+        - invalid_field
+        - market_closed
+        - instrument_halted
+        - not_allowed_in_phase
+        - post_only_would_cross
+        - capacity_exceeded
+        - unknown_order
+      description: Mirrors exsim::RejectReason. unknown_order on a cancel is how a lost cancel race appears.
+    CancelReason:
+      type: string
+      enum:
+        - user_requested
+        - immediate_or_cancel
+        - fill_or_kill
+        - self_trade_prevention
+        - mass_cancel
+        - cancel_on_disconnect
+        - end_of_day
+        - end_of_run
+      description: Mirrors exsim::CancelReason; end_of_run is the runner cancelling residual orders at the simulation bound.
+    ExecutionReportKind:
+      type: string
+      enum: [accepted, rested, rejected, filled, canceled, replaced, cancel_rejected]
+      description: >-
+        Execution report delivered to the strategy. `accepted` acknowledges a new order that
+        traded on arrival or was fully consumed; `rested` acknowledges a new order that rested
+        on the book (the runner reports the two separately).
+    LiquidityRole:
+      type: string
+      enum: [maker, taker, auction]
+      description: "`auction` marks a fill from an auction uncross (no maker or taker side). The interactive synthetic world has no auctions, so it never appears there today."
+    QueueEvidenceSource:
+      type: string
+      enum: [exact_simulated_truth, estimated_from_market_data]
+      description: Whether FIFO-ahead quantity is the engine's exact queue or an estimate from limited market data.
+    FifoEvidenceReason:
+      type: string
+      enum: [rested, replace_priority_kept, replace_priority_reset, queue_advanced_by_fill, queue_advanced_by_cancel, immediately_before_fill, immediately_before_cancel]
+    MarkoutStatus:
+      type: string
+      enum: [available, censored_past_run_end, unavailable_no_mark]
+      description: Horizons past the run end are censored, never reported as zero.
+    MarkConvention:
+      type: string
+      description: >-
+        Price used to mark open inventory and to measure markouts. `exchange_mid` is the
+        last two-sided exchange mid at or before the mark time; a one-sided book does not
+        clear the mark. The mark is null (and markouts are `unavailable_no_mark`) only when
+        no two-sided book has existed yet. The `exchange_mid` time series itself is raw and
+        reports null while the book is one-sided.
+      enum: [exchange_mid, strategy_visible_mid, last_trade_price]
+    MetricKey:
+      type: string
+      enum:
+        - net_pnl
+        - equity
+        - gross_realized_pnl
+        - unrealized_pnl
+        - net_fees
+        - ending_position
+        - max_long_position
+        - max_short_position
+        - max_drawdown
+        - fill_count
+        - filled_shares
+        - maker_fill_count
+        - taker_fill_count
+        - fill_rate
+        - submitted_order_count
+        - canceled_order_count
+        - cancel_race_lost_count
+        - spread_capture_total
+        - markout_total
+        - markout_per_share
+        - new_order_rejected_count
+        - cancel_request_count
+        - cancel_rejected_count
+        - replace_request_count
+        - replace_rejected_count
+        - markout_eligible_shares
+        - markout_eligible_fills
+        - markout_no_mark_fills
+        - markout_censored_fills
+        - quote_exposure_time
+        - completion_ratio
+        - residual_qty
+        - decision_slippage_total
+        - decision_slippage_per_share
+        - implementation_shortfall_total
+        - implementation_shortfall_per_share
+        - participation_rate
+    MetricUnit:
+      type: string
+      enum: [currency, currency_per_share, shares, count, ratio, nanoseconds]
+    MetricExactness:
+      type: string
+      enum: [exact_fixed_point, derived_float]
+    SeriesKind:
+      type: string
+      enum: [equity, inventory, exchange_mid, quoted_spread, drawdown]
+    SeriesAggregation:
+      type: string
+      enum: [last_value_in_bucket]
+    LatencyModelKind:
+      type: string
+      enum: [constant, uniform_jitter]
+    RiskLimitBreachAction:
+      type: string
+      enum: [block_orders_that_increase_exposure, cancel_all_and_stop_strategy]
+    OrderFinalStatus:
+      type: string
+      enum: [open_at_run_end, filled, canceled, partially_filled_then_canceled, rejected]
+    LifecycleStageKind:
+      type: string
+      enum:
+        - strategy_submitted
+        - arrived_at_exchange
+        - accepted
+        - rested
+        - acknowledgment_delivered
+        - partially_filled
+        - filled
+        - fill_report_delivered
+        - cancel_submitted
+        - cancel_arrived_at_exchange
+        - canceled
+        - cancel_report_delivered
+        - cancel_rejected_too_late
+        - rejected
+        - replace_submitted
+        - replace_arrived_at_exchange
+        - replaced
+        - replace_rejected
+        - replace_report_delivered
+        - rested_report_delivered
+        - reject_report_delivered
+      description: >-
+        Lifecycle of one strategy order. The runner's strategies requote by cancel/replace, so the
+        replace stages and the report deliveries for `rested` and `rejected` reports appear too.
+        A replace that loses time priority gives the order a new exchange order id; the lifecycle
+        still covers the whole client order.
+    AssumptionCategory:
+      type: string
+      enum: [market_world, scenario, instrument, strategy, seeds, latency, fees, risk, accounting, bounds, queue_model]
+    ErrorCode:
+      type: string
+      enum:
+        - invalid_request
+        - validation_failed
+        - not_found
+        - idempotency_key_required
+        - idempotency_key_reused_with_different_request
+        - invalid_state_transition
+        - action_not_supported_for_mode
+        - artifact_not_ready
+        - evidence_unavailable
+        - not_execution_strategy
+        - selected_run_ineligible
+        - run_not_terminal
+        - artifact_unsafe
+        - artifact_too_large
+        - artifact_changed
+        - unsupported_market_world
+        - unsupported_schema_version
+        - comparison_not_paired
+        - internal_error
+        - service_unavailable
+    # ---------- errors ----------
+    ErrorResponseBody:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          $ref: "#/components/schemas/ApiError"
+    ApiError:
+      type: object
+      additionalProperties: false
+      required: [code, message, requestId, retryable, fieldIssues]
+      properties:
+        code:
+          $ref: "#/components/schemas/ErrorCode"
+        message:
+          type: string
+          description: Human-readable explanation. Not stable; match on `code`.
+        requestId:
+          type: string
+          description: Correlates with service logs.
+        retryable:
+          type: boolean
+          description: True only when repeating the identical request (same Idempotency-Key) may succeed.
+        fieldIssues:
+          type: array
+          description: Per-field validation problems; empty unless code is validation_failed.
+          items:
+            $ref: "#/components/schemas/FieldIssue"
+        currentRunState:
+          description: Present for invalid_state_transition and artifact_not_ready.
+          $ref: "#/components/schemas/RunState"
+    FieldIssue:
+      type: object
+      additionalProperties: false
+      required: [fieldPath, issue]
+      properties:
+        fieldPath:
+          type: string
+          description: JSON pointer into the request body, for example `/config/latency/feedLatencyNs`.
+        issue:
+          type: string
+    # ---------- service ----------
+    ServiceInfo:
+      type: object
+      additionalProperties: false
+      required: [apiVersion, schemaVersion, serviceBuildId, engineBuildId, executableMarketWorlds, executableStrategyKinds, realTimeProtocolModeAvailable]
+      properties:
+        apiVersion:
+          type: string
+          enum: [v1]
+        schemaVersion:
+          type: string
+          pattern: "^exsim\\.api/[1-9][0-9]*$"
+        serviceBuildId:
+          type: string
+        engineBuildId:
+          type: string
+        executableMarketWorlds:
+          type: array
+          items:
+            $ref: "#/components/schemas/MarketWorld"
+        executableStrategyKinds:
+          type: array
+          items:
+            $ref: "#/components/schemas/StrategyKind"
+        realTimeProtocolModeAvailable:
+          type: boolean
+    # ---------- configuration ----------
+    InstrumentRules:
+      type: object
+      additionalProperties: false
+      required: [symbol, tickSize, lotSize, maxOrderQuantity, minPrice, maxPrice, referencePrice, contractMultiplier]
+      properties:
+        symbol:
+          type: string
+          pattern: "^[A-Z0-9.]{1,8}$"
+        tickSize:
+          $ref: "#/components/schemas/PriceDecimal"
+        lotSize:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        maxOrderQuantity:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        minPrice:
+          $ref: "#/components/schemas/PriceDecimal"
+        maxPrice:
+          $ref: "#/components/schemas/PriceDecimal"
+        referencePrice:
+          $ref: "#/components/schemas/PriceDecimal"
+        contractMultiplier:
+          type: string
+          enum: ["1"]
+          description: Cash-equity style; only a multiplier of 1 is supported in v1.
+    BackgroundAgentConfig:
+      type: object
+      additionalProperties: false
+      required: [agentKind, agentCount, parameters]
+      properties:
+        agentKind:
+          $ref: "#/components/schemas/BackgroundAgentKind"
+        agentCount:
+          type: integer
+          minimum: 0
+          maximum: 64
+        parameters:
+          type: array
+          description: Model parameters with explicit units. The model itself is identified by the scenario.
+          items:
+            $ref: "#/components/schemas/ModelParameter"
+    ModelParameter:
+      type: object
+      additionalProperties: false
+      required: [name, value, unit, description]
+      properties:
+        name:
+          type: string
+          pattern: "^[a-z][a-zA-Z0-9]*$"
+        value:
+          $ref: "#/components/schemas/ExactDecimal"
+        unit:
+          type: string
+          enum: [ticks, shares, nanoseconds, ratio, count, currency]
+        description:
+          type: string
+    MarketScenarioConfig:
+      type: object
+      additionalProperties: false
+      required: [scenarioId, description, backgroundAgents]
+      properties:
+        scenarioId:
+          type: string
+          pattern: "^[a-z0-9][a-z0-9_.-]{1,63}$"
+        description:
+          type: string
+        backgroundAgents:
+          type: array
+          items:
+            $ref: "#/components/schemas/BackgroundAgentConfig"
+    FixedSpreadMarketMakerConfig:
+      type: object
+      additionalProperties: false
+      description: >-
+        The research runner's fixed spread market maker (`[strategy] kind = fixed_spread_market_maker`).
+        Quotes one level each side of the strategy-visible mid and requotes by cancel/replace.
+      required: [strategyKind, halfSpreadTicks, quoteQuantity, requoteIntervalNs, requoteThresholdTicks, postOnly]
+      properties:
+        strategyKind:
+          type: string
+          const: fixed_spread_market_maker
+        halfSpreadTicks:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+          description: Ticks from the strategy-visible mid to each quote (runner `half_spread_ticks`).
+        quoteQuantity:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+          description: Shares per quote (runner `quote_size`).
+        requoteIntervalNs:
+          $ref: "#/components/schemas/NanosecondDuration"
+          description: Timer period at which the strategy re-evaluates its quotes (runner `requote_interval`).
+        requoteThresholdTicks:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+          description: Minimum move of the desired quote price, in ticks, before a resting quote is replaced.
+        postOnly:
+          type: boolean
+          description: Quotes never cross the visible opposite side.
+    InventoryAwareMarketMakerConfig:
+      type: object
+      additionalProperties: false
+      description: The fixed spread quoting rules plus an inventory skew (`[strategy] kind = inventory_aware_market_maker`).
+      required:
+        [strategyKind, halfSpreadTicks, quoteQuantity, requoteIntervalNs, requoteThresholdTicks, postOnly, inventorySkewTicksPerUnit, inventorySkewUnitShares, scaleSizeWithInventory]
+      properties:
+        strategyKind:
+          type: string
+          const: inventory_aware_market_maker
+        halfSpreadTicks:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        quoteQuantity:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        requoteIntervalNs:
+          $ref: "#/components/schemas/NanosecondDuration"
+        requoteThresholdTicks:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        postOnly:
+          type: boolean
+        inventorySkewTicksPerUnit:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+          description: Quote center shift in ticks per `inventorySkewUnitShares` of known inventory (long inventory shifts quotes down).
+        inventorySkewUnitShares:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        scaleSizeWithInventory:
+          type: boolean
+          description: Shrink the side that adds inventory as the position approaches its risk limit.
+    TwapExecutionConfig:
+      description: Uses max(1, floor(executionDurationNs / sliceIntervalNs)) cumulative targets at startTimeNs plus k times sliceIntervalNs. One IOC child per slice, skipped if in flight or no visible opposite quote; later slices catch up. Stops after the last scheduled slice. Market children are rejected with validation_failed.
+      type: object
+      additionalProperties: false
+      required: [strategyKind, parentSide, parentQuantity, sliceIntervalNs, sliceOrderType]
+      properties:
+        strategyKind:
+          type: string
+          const: twap_execution
+        parentSide:
+          $ref: "#/components/schemas/Side"
+        parentQuantity:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        sliceIntervalNs:
+          $ref: "#/components/schemas/NanosecondDuration"
+          description: Positive; executionDurationNs must cover 1 to 1000000 slices.
+        sliceOrderType:
+          $ref: "#/components/schemas/OrderType"
+          description: Only limit is executable. Retains the existing enum for compatibility; market returns validation_failed at this field. Limits use IOC and limitOffsetTicks price protection.
+        startTimeNs:
+          $ref: "#/components/schemas/NanosecondTimestamp"
+          default: "1000000000"
+          description: Parent declaration time; must precede the run bound. No parent metrics exist until declaration.
+        executionDurationNs:
+          $ref: "#/components/schemas/NanosecondDuration"
+          default: "30000000000"
+          description: At most 7 days. May extend past run end, which censors the observation window. Sweep retries through start plus duration; TWAP requires at least one slice interval.
+        limitOffsetTicks:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+          default: "5"
+          description: At most 100000 ticks through the delivered opposite best, clamped to the instrument band. Children are IOC limits, capped by risk.maxOrderQuantity and position headroom and rounded down to lots.
+    ImmediateSweepExecutionConfig:
+      type: object
+      additionalProperties: false
+      description: Declares the parent at startTimeNs and sends a price-protected IOC limit for the remaining quantity. After a child completes, retries on the next delivered market-data update through the execution window. No market-order substitution.
+      required: [strategyKind, parentSide, parentQuantity]
+      properties:
+        strategyKind:
+          type: string
+          const: immediate_sweep_execution
+        parentSide:
+          $ref: "#/components/schemas/Side"
+        parentQuantity:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+          description: Positive uint32 shares on the lot grid. May exceed child and position caps, leaving an explicit residual.
+        startTimeNs:
+          $ref: "#/components/schemas/NanosecondTimestamp"
+          default: "1000000000"
+          description: Parent declaration time; must precede the run bound. No parent metrics exist until declaration.
+        executionDurationNs:
+          $ref: "#/components/schemas/NanosecondDuration"
+          default: "30000000000"
+          description: At most 7 days. May extend past run end, which censors the observation window. Sweep retries through start plus duration; TWAP requires at least one slice interval.
+        limitOffsetTicks:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+          default: "5"
+          description: At most 100000 ticks through the delivered opposite best, clamped to the instrument band. Children are IOC limits, capped by risk.maxOrderQuantity and position headroom and rounded down to lots.
+    StrategyConfig:
+      oneOf:
+        - $ref: "#/components/schemas/FixedSpreadMarketMakerConfig"
+        - $ref: "#/components/schemas/InventoryAwareMarketMakerConfig"
+        - $ref: "#/components/schemas/TwapExecutionConfig"
+        - $ref: "#/components/schemas/ImmediateSweepExecutionConfig"
+      discriminator:
+        propertyName: strategyKind
+        mapping:
+          fixed_spread_market_maker: "#/components/schemas/FixedSpreadMarketMakerConfig"
+          inventory_aware_market_maker: "#/components/schemas/InventoryAwareMarketMakerConfig"
+          twap_execution: "#/components/schemas/TwapExecutionConfig"
+          immediate_sweep_execution: "#/components/schemas/ImmediateSweepExecutionConfig"
+    LatencyConfig:
+      type: object
+      additionalProperties: false
+      description: Each component is declared separately so paired runs can vary one at a time.
+      required: [latencyModel, feedLatencyNs, orderEntryLatencyNs, acknowledgmentLatencyNs, cancelLatencyNs, jitterNs]
+      properties:
+        latencyModel:
+          $ref: "#/components/schemas/LatencyModelKind"
+        feedLatencyNs:
+          $ref: "#/components/schemas/NanosecondDuration"
+          description: Exchange event to strategy market-data delivery.
+        orderEntryLatencyNs:
+          $ref: "#/components/schemas/NanosecondDuration"
+          description: Strategy new-order submit to exchange arrival.
+        acknowledgmentLatencyNs:
+          $ref: "#/components/schemas/NanosecondDuration"
+          description: Exchange processing to execution report delivery at the strategy.
+        cancelLatencyNs:
+          $ref: "#/components/schemas/NanosecondDuration"
+          description: Strategy cancel submit to exchange arrival.
+        jitterNs:
+          $ref: "#/components/schemas/NanosecondDuration"
+          description: >-
+            Extra uniform delay in [0, jitterNs] added to every message on every channel, drawn from
+            the `latency` seed stream; must be "0" for the constant model. Channels stay FIFO.
+        strategyComputeNs:
+          $ref: "#/components/schemas/NanosecondDuration"
+          description: Optional (default "0"). Strategy decision to departure, added before the order-entry or cancel latency.
+        orderChannelFifo:
+          type: boolean
+          description: >-
+            Optional (default true). True: new, cancel and replace requests share one FIFO order-entry
+            channel, so a cancel never overtakes an earlier order. False: each request arrives after its
+            own latency, so a faster cancel can race ahead of its order.
+    FeeSchedule:
+      type: object
+      additionalProperties: false
+      required: [feeScheduleId, makerFeePerShare, takerFeePerShare]
+      properties:
+        feeScheduleId:
+          type: string
+        makerFeePerShare:
+          $ref: "#/components/schemas/CurrencyPerShareAmount"
+          description: Positive is paid; negative is a rebate.
+        takerFeePerShare:
+          $ref: "#/components/schemas/CurrencyPerShareAmount"
+    RiskLimits:
+      type: object
+      additionalProperties: false
+      required: [maxAbsolutePositionShares, maxOpenOrders, maxOrderQuantity, onBreach]
+      properties:
+        maxAbsolutePositionShares:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        maxOpenOrders:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        maxOrderQuantity:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        onBreach:
+          $ref: "#/components/schemas/RiskLimitBreachAction"
+    SimulationBounds:
+      type: object
+      additionalProperties: false
+      required: [endSimulationTimeNs, maxCanonicalEventCount, wallClockTimeLimitSeconds]
+      properties:
+        endSimulationTimeNs:
+          $ref: "#/components/schemas/NanosecondTimestamp"
+          description: Reaching this simulated time is successful completion.
+        maxCanonicalEventCount:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+          description: Exceeding this is a failure (run_bounds_exceeded diagnostic), not completion.
+        wallClockTimeLimitSeconds:
+          type: integer
+          minimum: 1
+          maximum: 86400
+          description: Wall-clock budget; exceeding it fails the run. Never affects simulated results.
+    SeedSet:
+      type: object
+      additionalProperties: false
+      required: [masterSeeds]
+      properties:
+        masterSeeds:
+          type: array
+          minItems: 1
+          maxItems: 256
+          uniqueItems: true
+          items:
+            $ref: "#/components/schemas/UnsignedIntegerString"
+    ExperimentConfig:
+      type: object
+      additionalProperties: false
+      required: [marketWorld, instrument, scenario, strategy, seedSet, latency, fees, risk, initialCash, markConvention, markoutHorizonsNs, bounds]
+      properties:
+        marketWorld:
+          $ref: "#/components/schemas/MarketWorld"
+        instrument:
+          $ref: "#/components/schemas/InstrumentRules"
+        scenario:
+          $ref: "#/components/schemas/MarketScenarioConfig"
+        strategy:
+          $ref: "#/components/schemas/StrategyConfig"
+        seedSet:
+          $ref: "#/components/schemas/SeedSet"
+        latency:
+          $ref: "#/components/schemas/LatencyConfig"
+        fees:
+          $ref: "#/components/schemas/FeeSchedule"
+        risk:
+          $ref: "#/components/schemas/RiskLimits"
+        initialCash:
+          $ref: "#/components/schemas/CurrencyAmount"
+        markConvention:
+          $ref: "#/components/schemas/MarkConvention"
+        markoutHorizonsNs:
+          type: array
+          minItems: 1
+          maxItems: 8
+          items:
+            $ref: "#/components/schemas/NanosecondDuration"
+        bounds:
+          $ref: "#/components/schemas/SimulationBounds"
+    BaselineConfiguration:
+      type: object
+      additionalProperties: false
+      required: [baselineId, name, description, config]
+      properties:
+        baselineId:
+          $ref: "#/components/schemas/BaselineId"
+        name:
+          type: string
+        description:
+          type: string
+        config:
+          $ref: "#/components/schemas/ExperimentConfig"
+    BaselineConfigurationList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/BaselineConfiguration"
+    # ---------- experiments ----------
+    ExperimentCreateRequest:
+      type: object
+      additionalProperties: false
+      required: [name, derivedFromBaselineId, config]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        description:
+          type: string
+          maxLength: 2000
+        derivedFromBaselineId:
+          $ref: "#/components/schemas/BaselineId"
+        parentExperimentId:
+          description: Set when this experiment changes assumptions of an existing experiment.
+          $ref: "#/components/schemas/ExperimentId"
+        config:
+          $ref: "#/components/schemas/ExperimentConfig"
+    AssumptionLine:
+      type: object
+      additionalProperties: false
+      required: [category, fieldPath, label, value, unit, differsFromBaseline]
+      properties:
+        category:
+          $ref: "#/components/schemas/AssumptionCategory"
+        fieldPath:
+          type: string
+          description: JSON pointer into ExperimentConfig.
+        label:
+          type: string
+        value:
+          type: string
+          description: Display value exactly as configured (decimal strings unchanged).
+        unit:
+          type: [string, "null"]
+        differsFromBaseline:
+          type: boolean
+    WorkEstimate:
+      type: object
+      additionalProperties: false
+      required: [runCount, simulatedDurationPerRunNs, estimatedCanonicalEventsPerRun, estimatedWallClockSecondsTotal]
+      properties:
+        runCount:
+          type: integer
+          minimum: 0
+        simulatedDurationPerRunNs:
+          $ref: "#/components/schemas/NanosecondDuration"
+        estimatedCanonicalEventsPerRun:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        estimatedWallClockSecondsTotal:
+          $ref: "#/components/schemas/DerivedDecimal"
+    ExperimentPreview:
+      type: object
+      additionalProperties: false
+      required: [valid, fieldIssues, configDigest, assumptions, estimatedWork]
+      properties:
+        valid:
+          type: boolean
+        fieldIssues:
+          type: array
+          items:
+            $ref: "#/components/schemas/FieldIssue"
+        configDigest:
+          $ref: "#/components/schemas/Digest"
+        assumptions:
+          type: array
+          items:
+            $ref: "#/components/schemas/AssumptionLine"
+        estimatedWork:
+          $ref: "#/components/schemas/WorkEstimate"
+    RunStateCounts:
+      type: object
+      additionalProperties: false
+      required: [queued, running, paused, completed, cancelled, failed]
+      properties:
+        queued:
+          type: integer
+          minimum: 0
+        running:
+          type: integer
+          minimum: 0
+        paused:
+          type: integer
+          minimum: 0
+        completed:
+          type: integer
+          minimum: 0
+        cancelled:
+          type: integer
+          minimum: 0
+        failed:
+          type: integer
+          minimum: 0
+    Experiment:
+      type: object
+      additionalProperties: false
+      required: [experimentId, name, description, createdAt, derivedFromBaselineId, parentExperimentId, marketWorld, config, configDigest, runStateCounts]
+      properties:
+        experimentId:
+          $ref: "#/components/schemas/ExperimentId"
+        name:
+          type: string
+        description:
+          type: string
+        createdAt:
+          $ref: "#/components/schemas/WallClockTime"
+        derivedFromBaselineId:
+          $ref: "#/components/schemas/BaselineId"
+        parentExperimentId:
+          oneOf:
+            - $ref: "#/components/schemas/ExperimentId"
+            - type: "null"
+        marketWorld:
+          $ref: "#/components/schemas/MarketWorld"
+        config:
+          $ref: "#/components/schemas/ExperimentConfig"
+        configDigest:
+          $ref: "#/components/schemas/Digest"
+        runStateCounts:
+          $ref: "#/components/schemas/RunStateCounts"
+    ExperimentPage:
+      type: object
+      additionalProperties: false
+      required: [items, page]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Experiment"
+        page:
+          $ref: "#/components/schemas/PageInfo"
+    # ---------- runs ----------
+    RunCreateRequest:
+      type: object
+      additionalProperties: false
+      required: [experimentId, masterSeed]
+      properties:
+        experimentId:
+          $ref: "#/components/schemas/ExperimentId"
+        masterSeed:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+          description: Must be a member of the experiment's seed set.
+        startPaused:
+          type: boolean
+          default: false
+          description: Transition queued -> running -> paused before the first event, for step-by-step inspection.
+    RunControlRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        reason:
+          type: string
+          maxLength: 500
+          description: Recorded in the state history.
+    RunStepRequest:
+      type: object
+      additionalProperties: false
+      required: [canonicalEventCount]
+      properties:
+        canonicalEventCount:
+          type: integer
+          minimum: 1
+          maximum: 100000
+          description: >-
+            Minimum number of canonical events to append. The runner advances one scheduler event at a
+            time and one scheduler event can append several canonical events (for example an arrival,
+            its acceptance and its fills), so the step stops at the first scheduler-event boundary at
+            or after the requested count and may overshoot it. The response's progress shows the exact
+            count. The step also stops early when the run reaches a terminal state.
+    RunStateTransition:
+      type: object
+      additionalProperties: false
+      required: [fromState, toState, transitionedAt, atEventPosition, atSimulationTimeNs, reason]
+      properties:
+        fromState:
+          oneOf:
+            - $ref: "#/components/schemas/RunState"
+            - type: "null"
+          description: Null for the initial transition into queued.
+        toState:
+          $ref: "#/components/schemas/RunState"
+        transitionedAt:
+          $ref: "#/components/schemas/WallClockTime"
+        atEventPosition:
+          description: Number of canonical events processed when the transition happened.
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        atSimulationTimeNs:
+          $ref: "#/components/schemas/NanosecondTimestamp"
+        reason:
+          type: string
+    RunProgress:
+      type: object
+      additionalProperties: false
+      required: [processedCanonicalEventCount, simulationTimeNs, endSimulationTimeNs]
+      properties:
+        processedCanonicalEventCount:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+          description: Events 0 .. count-1 are in the canonical log and queryable.
+        simulationTimeNs:
+          $ref: "#/components/schemas/NanosecondTimestamp"
+        endSimulationTimeNs:
+          $ref: "#/components/schemas/NanosecondTimestamp"
+    TerminalDiagnostics:
+      type: object
+      additionalProperties: false
+      required: [outcomeCode, message, residualPositionShares, residualOpenOrderCount]
+      properties:
+        outcomeCode:
+          type: string
+          enum:
+            [
+              completed_at_simulation_bound,
+              cancelled_by_request,
+              failed_event_bound_exceeded,
+              failed_wall_clock_limit_exceeded,
+              failed_journal_backpressure,
+              failed_ledger_overflow,
+              failed_capacity_exceeded,
+              failed_replay_mismatch,
+              failed_internal_error,
+            ]
+          description: >-
+            Mapping from the runner's termination reason: end_time_reached and event_queue_exhausted give
+            completed_at_simulation_bound; cancel_requested gives cancelled_by_request (or the service
+            limit that requested it: failed_event_bound_exceeded, failed_wall_clock_limit_exceeded);
+            event_limit_reached gives failed_event_bound_exceeded; simulation_queue_full and
+            observation_queue_full give failed_capacity_exceeded; recorder_overflow gives failed_journal_backpressure;
+            ledger_rejected_fill gives failed_ledger_overflow; engine_output_capacity gives
+            failed_capacity_exceeded; order_table_corrupt gives failed_internal_error. A run whose
+            independent replay does not reproduce its event digest is failed_replay_mismatch.
+        message:
+          type: string
+        residualPositionShares:
+          $ref: "#/components/schemas/SignedIntegerString"
+        residualOpenOrderCount:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+    RunArtifactDigests:
+      type: object
+      additionalProperties: false
+      required: [manifestDigest, canonicalEventDigest, ledgerDigest]
+      properties:
+        manifestDigest:
+          $ref: "#/components/schemas/Digest"
+        canonicalEventDigest:
+          description: Null until the run reaches a terminal state.
+          oneOf:
+            - $ref: "#/components/schemas/Digest"
+            - type: "null"
+        ledgerDigest:
+          oneOf:
+            - $ref: "#/components/schemas/Digest"
+            - type: "null"
+    Run:
+      type: object
+      additionalProperties: false
+      required: [runId, experimentId, masterSeed, mode, marketWorld, state, allowedActions, progress, stateHistory, createdAt, terminalDiagnostics, digests, parentRunId]
+      properties:
+        runId:
+          $ref: "#/components/schemas/RunId"
+        experimentId:
+          $ref: "#/components/schemas/ExperimentId"
+        masterSeed:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        mode:
+          $ref: "#/components/schemas/RunMode"
+        marketWorld:
+          $ref: "#/components/schemas/MarketWorld"
+        state:
+          $ref: "#/components/schemas/RunState"
+        allowedActions:
+          type: array
+          description: Control actions valid in the current state, computed by the service so clients never duplicate transition rules.
+          items:
+            $ref: "#/components/schemas/RunControlAction"
+        progress:
+          $ref: "#/components/schemas/RunProgress"
+        stateHistory:
+          type: array
+          items:
+            $ref: "#/components/schemas/RunStateTransition"
+        createdAt:
+          $ref: "#/components/schemas/WallClockTime"
+        terminalDiagnostics:
+          oneOf:
+            - $ref: "#/components/schemas/TerminalDiagnostics"
+            - type: "null"
+        digests:
+          $ref: "#/components/schemas/RunArtifactDigests"
+        parentRunId:
+          oneOf:
+            - $ref: "#/components/schemas/RunId"
+            - type: "null"
+    RunPage:
+      type: object
+      additionalProperties: false
+      required: [items, page]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Run"
+        page:
+          $ref: "#/components/schemas/PageInfo"
+    # ---------- manifest ----------
+    DerivedSeed:
+      type: object
+      additionalProperties: false
+      required: [streamName, seed]
+      properties:
+        streamName:
+          type: string
+          minLength: 1
+          maxLength: 128
+          description: >-
+            The runner's stream label: `strategy`, `latency`, or `agent.<index>.<kind>.<name>` for each
+            background agent (for example `agent.0.market_maker.mm`). The label is the input to the
+            seed derivation function, so several agents of one kind get distinct streams.
+        seed:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+    SeedDerivation:
+      type: object
+      additionalProperties: false
+      required: [masterSeed, derivationFunction, derivedSeeds]
+      properties:
+        masterSeed:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        derivationFunction:
+          type: string
+          description: Exact rule, for example `splitmix64(masterSeed XOR streamIndex)`.
+        derivedSeeds:
+          type: array
+          items:
+            $ref: "#/components/schemas/DerivedSeed"
+    EventOrderPolicy:
+      type: object
+      additionalProperties: false
+      required: [primaryKey, tieBreaker, stageOrderForEqualTime]
+      properties:
+        primaryKey:
+          type: string
+          enum: [simulation_time_ns]
+        tieBreaker:
+          type: string
+          enum: [enqueue_sequence]
+        stageOrderForEqualTime:
+          type: array
+          items:
+            $ref: "#/components/schemas/PipelineStage"
+    AccountingConvention:
+      type: object
+      additionalProperties: false
+      required: [cashScale, costBasisMethod, feeSign, equityDefinition, netPnlDefinition, missingMarkPolicy]
+      properties:
+        cashScale:
+          type: string
+          enum: ["0.0001"]
+        costBasisMethod:
+          type: string
+          enum: [fifo]
+        feeSign:
+          type: string
+          enum: [positive_paid_negative_rebate]
+        equityDefinition:
+          type: string
+          enum: [cash_plus_position_times_mark]
+        netPnlDefinition:
+          type: string
+          enum: [equity_minus_initial_cash]
+        missingMarkPolicy:
+          type: string
+          enum: [report_unavailable]
+    ArtifactEncodings:
+      type: object
+      additionalProperties: false
+      required: [canonicalEventEncoding, lifecycleLogEncoding, ledgerEncoding, summaryEncoding, seriesEncoding]
+      properties:
+        canonicalEventEncoding:
+          $ref: "#/components/schemas/SchemaVersion"
+        lifecycleLogEncoding:
+          $ref: "#/components/schemas/SchemaVersion"
+        ledgerEncoding:
+          $ref: "#/components/schemas/SchemaVersion"
+        summaryEncoding:
+          $ref: "#/components/schemas/SchemaVersion"
+        seriesEncoding:
+          $ref: "#/components/schemas/SchemaVersion"
+    RunManifest:
+      type: object
+      additionalProperties: false
+      required:
+        - schemaVersion
+        - runId
+        - experimentId
+        - parentRunId
+        - mode
+        - marketWorld
+        - engineBuildId
+        - runnerBuildId
+        - strategyBuildId
+        - configDigest
+        - inputDataDigest
+        - instrument
+        - scenario
+        - strategy
+        - seeds
+        - latency
+        - queueModel
+        - fees
+        - risk
+        - initialCash
+        - initialPositionShares
+        - markConvention
+        - markoutHorizonsNs
+        - bounds
+        - eventOrderPolicy
+        - accounting
+        - artifactEncodings
+        - matchingRule
+      properties:
+        provenance: {"oneOf": [{"$ref": "#/components/schemas/BuildProvenance"}, {"type": "null"}]}
+        schemaVersion:
+          type: string
+          const: exsim.run-manifest/1
+        runId:
+          $ref: "#/components/schemas/RunId"
+        experimentId:
+          $ref: "#/components/schemas/ExperimentId"
+        parentRunId:
+          oneOf:
+            - $ref: "#/components/schemas/RunId"
+            - type: "null"
+        mode:
+          $ref: "#/components/schemas/RunMode"
+        marketWorld:
+          $ref: "#/components/schemas/MarketWorld"
+        engineBuildId:
+          type: string
+        runnerBuildId:
+          type: string
+        strategyBuildId:
+          type: string
+        configDigest:
+          $ref: "#/components/schemas/Digest"
+        inputDataDigest:
+          description: Digest of historical input data; null for interactive synthetic worlds.
+          oneOf:
+            - $ref: "#/components/schemas/Digest"
+            - type: "null"
+        instrument:
+          $ref: "#/components/schemas/InstrumentRules"
+        scenario:
+          $ref: "#/components/schemas/MarketScenarioConfig"
+        strategy:
+          $ref: "#/components/schemas/StrategyConfig"
+        seeds:
+          $ref: "#/components/schemas/SeedDerivation"
+        latency:
+          $ref: "#/components/schemas/LatencyConfig"
+        queueModel:
+          type: string
+          enum: [exact_simulated_fifo]
+          description: Interactive synthetic worlds know the exact FIFO queue.
+        fees:
+          $ref: "#/components/schemas/FeeSchedule"
+        risk:
+          $ref: "#/components/schemas/RiskLimits"
+        initialCash:
+          $ref: "#/components/schemas/CurrencyAmount"
+        initialPositionShares:
+          type: string
+          const: "0"
+          description: The v1 ledger starts flat.
+        markConvention:
+          $ref: "#/components/schemas/MarkConvention"
+        markoutHorizonsNs:
+          type: array
+          items:
+            $ref: "#/components/schemas/NanosecondDuration"
+        bounds:
+          $ref: "#/components/schemas/SimulationBounds"
+        eventOrderPolicy:
+          $ref: "#/components/schemas/EventOrderPolicy"
+        accounting:
+          $ref: "#/components/schemas/AccountingConvention"
+        artifactEncodings:
+          $ref: "#/components/schemas/ArtifactEncodings"
+        matchingRule:
+          type: string
+          enum: [price_time_fifo]
+    # ---------- summary ----------
+    MetricValue:
+      type: object
+      additionalProperties: false
+      required: [metricKey, horizonNs, value, unit, exactness, unavailableReason]
+      properties:
+        metricKey:
+          $ref: "#/components/schemas/MetricKey"
+        horizonNs:
+          description: Markout horizon for markout_total; null otherwise.
+          oneOf:
+            - $ref: "#/components/schemas/NanosecondDuration"
+            - type: "null"
+        value:
+          description: Exact for exact_fixed_point (scale implied by unit), rounded to 6 digits for derived_float; null when unavailable.
+          oneOf:
+            - $ref: "#/components/schemas/ExactDecimal"
+            - type: "null"
+        unit:
+          $ref: "#/components/schemas/MetricUnit"
+        exactness:
+          $ref: "#/components/schemas/MetricExactness"
+        unavailableReason:
+          type: [string, "null"]
+    RatioWithCounts:
+      type: object
+      additionalProperties: false
+      required: [numerator, denominator, ratio, definition]
+      properties:
+        numerator:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        denominator:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        ratio:
+          description: Null when the denominator is zero.
+          oneOf:
+            - $ref: "#/components/schemas/DerivedDecimal"
+            - type: "null"
+        definition:
+          type: string
+          description: Exact definition of numerator and denominator.
+    AccountingSummary:
+      type: object
+      additionalProperties: false
+      required: [initialCash, cash, positionShares, averageCostBasis, grossRealizedPnl, unrealizedPnl, netFees, markPrice, markConvention, equity, netPnl, markUnavailableReason]
+      properties:
+        initialCash:
+          $ref: "#/components/schemas/CurrencyAmount"
+        cash:
+          $ref: "#/components/schemas/CurrencyAmount"
+        positionShares:
+          $ref: "#/components/schemas/SignedIntegerString"
+        averageCostBasis:
+          description: Average FIFO cost of the open position; null when flat.
+          oneOf:
+            - $ref: "#/components/schemas/DerivedDecimal"
+            - type: "null"
+        grossRealizedPnl:
+          $ref: "#/components/schemas/CurrencyAmount"
+        unrealizedPnl:
+          description: Null when no mark is available.
+          oneOf:
+            - $ref: "#/components/schemas/MarkoutAmount"
+            - type: "null"
+        netFees:
+          $ref: "#/components/schemas/CurrencyAmount"
+          description: Positive is paid, negative is net rebate.
+        markPrice:
+          oneOf:
+            - $ref: "#/components/schemas/MidPriceDecimal"
+            - type: "null"
+        markConvention:
+          $ref: "#/components/schemas/MarkConvention"
+        equity:
+          description: cash + position * markPrice; null when no mark is available (never zero-filled).
+          oneOf:
+            - $ref: "#/components/schemas/MarkoutAmount"
+            - type: "null"
+        netPnl:
+          description: equity - initialCash = grossRealizedPnl + unrealizedPnl - netFees.
+          oneOf:
+            - $ref: "#/components/schemas/MarkoutAmount"
+            - type: "null"
+        markUnavailableReason:
+          type: [string, "null"]
+    OrderActivitySummary:
+      type: object
+      additionalProperties: false
+      required: [submittedOrderCount, acceptedOrderCount, rejectedOrderCount, canceledOrderCount, cancelRaceLostCount, fillCount, makerFillCount, takerFillCount, filledShares, submittedShares, fillRateByShares, quoteExposureTimeNs]
+      properties:
+        requestDiagnostics: {"type": "array", "items": {"$ref": "#/components/schemas/RequestDiagnostic"}}
+        submittedOrderCount:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        acceptedOrderCount:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        rejectedOrderCount:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        canceledOrderCount:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        cancelRaceLostCount:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+          description: Legacy count of exchange-rejected cancel requests, all reasons. Use requestDiagnostics and lifecycle fill evidence for causal classification.
+        fillCount:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        makerFillCount:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        takerFillCount:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        filledShares:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        submittedShares:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        fillRateByShares:
+          $ref: "#/components/schemas/RatioWithCounts"
+        quoteExposureTimeNs:
+          $ref: "#/components/schemas/NanosecondDuration"
+          description: Sum over own orders of time resting on the book (exchange truth).
+    RiskSummary:
+      type: object
+      additionalProperties: false
+      required: [maxLongPositionShares, maxShortPositionShares, blockedOrderCount, maxDrawdown, maxDrawdownPeakTimeNs, maxDrawdownTroughTimeNs]
+      properties:
+        maxLongPositionShares:
+          $ref: "#/components/schemas/SignedIntegerString"
+        maxShortPositionShares:
+          $ref: "#/components/schemas/SignedIntegerString"
+        blockedOrderCount:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+          description: Orders the risk policy blocked before submission.
+        maxDrawdown:
+          $ref: "#/components/schemas/MarkoutAmount"
+          description: Largest peak-to-trough decline of marked equity (non-negative).
+        maxDrawdownPeakTimeNs:
+          oneOf:
+            - $ref: "#/components/schemas/NanosecondTimestamp"
+            - type: "null"
+        maxDrawdownTroughTimeNs:
+          oneOf:
+            - $ref: "#/components/schemas/NanosecondTimestamp"
+            - type: "null"
+    MarkoutHorizonSummary:
+      type: object
+      additionalProperties: false
+      required: [horizonNs, availableFillCount, unavailableFillCount, censoredFillCount, totalMarkout, meanMarkoutPerShare]
+      properties:
+        availableShares: {"$ref": "#/components/schemas/UnsignedIntegerString"}
+        horizonNs:
+          $ref: "#/components/schemas/NanosecondDuration"
+        availableFillCount:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        unavailableFillCount:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+          description: Fills with no two-sided mark at the fill or at the horizon (`unavailable_no_mark`).
+        censoredFillCount:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+          description: Fills whose horizon falls past the run end. In a partial summary, horizons not yet reached are counted here too.
+        totalMarkout:
+          description: Null when no measured shares exist; measured zero remains a value.
+          oneOf:
+            - $ref: "#/components/schemas/MarkoutAmount"
+            - type: "null"
+        meanMarkoutPerShare:
+          oneOf:
+            - $ref: "#/components/schemas/DerivedDecimal"
+            - type: "null"
+    LatencyMeasurement:
+      type: object
+      additionalProperties: false
+      required: [component, configuredNs, sampleCount, observedMinNs, observedMaxNs]
+      properties:
+        component:
+          type: string
+          enum: [feed, order_entry, acknowledgment, cancel]
+        configuredNs:
+          $ref: "#/components/schemas/NanosecondDuration"
+        sampleCount:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        observedMinNs:
+          oneOf:
+            - $ref: "#/components/schemas/NanosecondDuration"
+            - type: "null"
+        observedMaxNs:
+          oneOf:
+            - $ref: "#/components/schemas/NanosecondDuration"
+            - type: "null"
+    ExecutionSummary:
+      type: object
+      additionalProperties: false
+      description: Parent fills use engine truth. The native arrival_mid benchmark is the reference exchange mid at parent decision/declaration, not at each child's exchange arrival. Shortfall and signed slippage cover filled quantity only (positive means worse, buy/sell signed); unexecuted opportunity cost is unavailable. Participation divides parent filled shares by all market traded shares after declaration through the last parent fill, including own trades. Flat metrics carry null reasons; ratios and per-share means are derived to six decimals; total costs are exact currency to five decimals.
+      required: [parentSide, parentQuantity, parentDeclared, observationStatus, benchmark, benchmarkMid, visibleMidAtDecision, decisionTimeNs, firstFillTimeNs, lastFillTimeNs, filledQuantity, fillNotional, netFees, participationMarketQuantity, unexecutedOpportunityCost]
+      properties:
+        parentSide:
+          $ref: "#/components/schemas/Side"
+        parentQuantity:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        parentDeclared:
+          type: boolean
+        observationStatus:
+          type: string
+          enum: [ongoing, window_observed, censored_run_end]
+          description: Whether simulated time has covered start plus duration. Terminal runs ending earlier are censored even when the parent filled completely; completion/residual metrics remain observed as of the summary time.
+        benchmark:
+          type: string
+          const: reference_exchange_mid_at_decision
+        benchmarkMid:
+          oneOf:
+            - $ref: "#/components/schemas/MidPriceDecimal"
+            - type: "null"
+        visibleMidAtDecision:
+          oneOf:
+            - $ref: "#/components/schemas/MidPriceDecimal"
+            - type: "null"
+        decisionTimeNs:
+          oneOf:
+            - $ref: "#/components/schemas/NanosecondTimestamp"
+            - type: "null"
+        firstFillTimeNs:
+          oneOf:
+            - $ref: "#/components/schemas/NanosecondTimestamp"
+            - type: "null"
+        lastFillTimeNs:
+          oneOf:
+            - $ref: "#/components/schemas/NanosecondTimestamp"
+            - type: "null"
+        filledQuantity:
+          oneOf:
+            - $ref: "#/components/schemas/UnsignedIntegerString"
+            - type: "null"
+        participationMarketQuantity:
+          oneOf:
+            - $ref: "#/components/schemas/UnsignedIntegerString"
+            - type: "null"
+        fillNotional:
+          oneOf:
+            - $ref: "#/components/schemas/CurrencyAmount"
+            - type: "null"
+        netFees:
+          oneOf:
+            - $ref: "#/components/schemas/CurrencyAmount"
+            - type: "null"
+        unexecutedOpportunityCost:
+          type: "null"
+          description: No counterfactual opportunity-cost model is defined by the runner.
+    RunSummary:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, runId, availability, asOfEventPosition, asOfSimulationTimeNs, accounting, orders, risk, spreadCaptureTotal, markouts, latency, metrics]
+      properties:
+        schemaVersion:
+          type: string
+          const: exsim.run-summary/1
+        runId:
+          $ref: "#/components/schemas/RunId"
+        availability:
+          type: string
+          enum: [final, partial]
+          description: partial while queued/running/paused; final once completed, cancelled or failed.
+        asOfEventPosition:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+          description: Number of canonical events included.
+        asOfSimulationTimeNs:
+          $ref: "#/components/schemas/NanosecondTimestamp"
+        accounting:
+          $ref: "#/components/schemas/AccountingSummary"
+        orders:
+          $ref: "#/components/schemas/OrderActivitySummary"
+        risk:
+          $ref: "#/components/schemas/RiskSummary"
+        spreadCaptureTotal:
+          $ref: "#/components/schemas/MarkoutAmount"
+          description: Sum over fills of signed (mid at fill - price) for buys and (price - mid at fill) for sells, times quantity, using the mark convention's mid.
+        markouts:
+          type: array
+          items:
+            $ref: "#/components/schemas/MarkoutHorizonSummary"
+        latency:
+          type: array
+          items:
+            $ref: "#/components/schemas/LatencyMeasurement"
+        execution:
+          description: Optional for compatibility with previously saved summaries; null for market makers.
+          oneOf:
+            - $ref: "#/components/schemas/ExecutionSummary"
+            - type: "null"
+        metrics:
+          type: array
+          description: Flat metric list used for comparison tables; same values as the structured sections.
+          items:
+            $ref: "#/components/schemas/MetricValue"
+    # ---------- series ----------
+    SeriesPoint:
+      type: object
+      additionalProperties: false
+      required: [bucketEndTimeNs, value]
+      properties:
+        bucketEndTimeNs:
+          $ref: "#/components/schemas/NanosecondTimestamp"
+        value:
+          description: Exact value at the end of the bucket (scale implied by unit); null when unavailable (for example no two-sided book for mid).
+          oneOf:
+            - $ref: "#/components/schemas/ExactDecimal"
+            - type: "null"
+    TimeSeries:
+      type: object
+      additionalProperties: false
+      required: [seriesKind, unit, aggregation, bucketWidthNs, fromSimulationTimeNs, toSimulationTimeNs, sourceSampleCount, points]
+      properties:
+        seriesKind:
+          $ref: "#/components/schemas/SeriesKind"
+        unit:
+          $ref: "#/components/schemas/MetricUnit"
+        aggregation:
+          $ref: "#/components/schemas/SeriesAggregation"
+        bucketWidthNs:
+          $ref: "#/components/schemas/NanosecondDuration"
+        fromSimulationTimeNs:
+          $ref: "#/components/schemas/NanosecondTimestamp"
+        toSimulationTimeNs:
+          $ref: "#/components/schemas/NanosecondTimestamp"
+        sourceSampleCount:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+          description: Number of full-resolution samples summarised; export the complete series from the artifact store.
+        points:
+          type: array
+          items:
+            $ref: "#/components/schemas/SeriesPoint"
+    RunSeriesResponse:
+      type: object
+      additionalProperties: false
+      required: [runId, availability, series]
+      properties:
+        runId:
+          $ref: "#/components/schemas/RunId"
+        availability:
+          type: string
+          enum: [final, partial]
+        series:
+          type: array
+          items:
+            $ref: "#/components/schemas/TimeSeries"
+    # ---------- canonical events ----------
+    CanonicalEvent:
+      type: object
+      additionalProperties: false
+      description: |
+        One record of the canonical event log. Common fields are always present;
+        kind-specific fields are present (non-null) only for the kinds listed in
+        their descriptions.
+      required: [eventPosition, simulationTimeNs, enqueueSequence, stage, eventKind, visibility, actor, isOwnOrder, orderId, clientOrderId, side, price, quantity, leavesQuantity, cumulativeQuantity, matchId, liquidityRole, rejectReason, rejectedCommand, cancelReason, reportKind, bestBidPrice, bestAskPrice, sourceEventPosition, newPhase, description]
+      properties:
+        eventPosition:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+          description: Zero-based index in the canonical log; strictly increasing.
+        simulationTimeNs:
+          $ref: "#/components/schemas/NanosecondTimestamp"
+        enqueueSequence:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+          description: Scheduler tie-breaker for equal simulation times.
+        stage:
+          $ref: "#/components/schemas/PipelineStage"
+        eventKind:
+          $ref: "#/components/schemas/CanonicalEventKind"
+        visibility:
+          $ref: "#/components/schemas/EventVisibility"
+        actor:
+          $ref: "#/components/schemas/Actor"
+        isOwnOrder:
+          type: boolean
+          description: True when the event concerns the research strategy's own order (for fills, either leg).
+        orderId:
+          description: Exchange order id; null before arrival (submit events) and for market data. For fills, the research strategy's leg when isOwnOrder, else the resting leg.
+          oneOf:
+            - $ref: "#/components/schemas/UnsignedIntegerString"
+            - type: "null"
+        clientOrderId:
+          oneOf:
+            - $ref: "#/components/schemas/UnsignedIntegerString"
+            - type: "null"
+        side:
+          oneOf:
+            - $ref: "#/components/schemas/Side"
+            - type: "null"
+        price:
+          oneOf:
+            - $ref: "#/components/schemas/PriceDecimal"
+            - type: "null"
+        quantity:
+          description: Order quantity for submits and accepts, executed quantity for fills, cancelled quantity for cancels.
+          oneOf:
+            - $ref: "#/components/schemas/UnsignedIntegerString"
+            - type: "null"
+        leavesQuantity:
+          oneOf:
+            - $ref: "#/components/schemas/UnsignedIntegerString"
+            - type: "null"
+        cumulativeQuantity:
+          oneOf:
+            - $ref: "#/components/schemas/UnsignedIntegerString"
+            - type: "null"
+        matchId:
+          description: order_filled only.
+          oneOf:
+            - $ref: "#/components/schemas/UnsignedIntegerString"
+            - type: "null"
+        liquidityRole:
+          description: order_filled with isOwnOrder only.
+          oneOf:
+            - $ref: "#/components/schemas/LiquidityRole"
+            - type: "null"
+        rejectReason:
+          oneOf:
+            - $ref: "#/components/schemas/RejectReason"
+            - type: "null"
+        rejectedCommand:
+          oneOf:
+            - $ref: "#/components/schemas/CommandKind"
+            - type: "null"
+        cancelReason:
+          oneOf:
+            - $ref: "#/components/schemas/CancelReason"
+            - type: "null"
+        reportKind:
+          description: execution_report_delivered only.
+          oneOf:
+            - $ref: "#/components/schemas/ExecutionReportKind"
+            - type: "null"
+        bestBidPrice:
+          description: market_data_delivered only. Best price of other participants' orders as delivered; the market-by-order feed lets the strategy exclude its own orders, so its reference mid is not moved by its own quotes.
+          oneOf:
+            - $ref: "#/components/schemas/PriceDecimal"
+            - type: "null"
+        bestAskPrice:
+          oneOf:
+            - $ref: "#/components/schemas/PriceDecimal"
+            - type: "null"
+        sourceEventPosition:
+          description: For delivered (strategy_visible) events, the exchange_truth event they report.
+          oneOf:
+            - $ref: "#/components/schemas/UnsignedIntegerString"
+            - type: "null"
+        newPhase:
+          oneOf:
+            - $ref: "#/components/schemas/TradingPhase"
+            - type: "null"
+        description:
+          type: string
+          description: Short human-readable rendering, for logs only.
+    CanonicalEventPage:
+      type: object
+      additionalProperties: false
+      required: [runId, totalEventCount, items, page]
+      properties:
+        runId:
+          $ref: "#/components/schemas/RunId"
+        totalEventCount:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+          description: Events in the log so far (before filters).
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/CanonicalEvent"
+        page:
+          $ref: "#/components/schemas/PageInfo"
+    # ---------- orders and lifecycle ----------
+    OwnOrderSummary:
+      type: object
+      additionalProperties: false
+      required: [orderId, clientOrderId, side, price, quantity, cumulativeQuantity, finalStatus, submitEventPosition, submitSimulationTimeNs, lastEventPosition, fillCount]
+      properties:
+        orderId:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        clientOrderId:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        side:
+          $ref: "#/components/schemas/Side"
+        price:
+          $ref: "#/components/schemas/PriceDecimal"
+        quantity:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        cumulativeQuantity:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        finalStatus:
+          $ref: "#/components/schemas/OrderFinalStatus"
+        submitEventPosition:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        submitSimulationTimeNs:
+          $ref: "#/components/schemas/NanosecondTimestamp"
+        lastEventPosition:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        fillCount:
+          type: integer
+          minimum: 0
+    OwnOrderPage:
+      type: object
+      additionalProperties: false
+      required: [runId, items, page]
+      properties:
+        runId:
+          $ref: "#/components/schemas/RunId"
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/OwnOrderSummary"
+        page:
+          $ref: "#/components/schemas/PageInfo"
+    LifecycleStage:
+      type: object
+      additionalProperties: false
+      required: [stageKind, eventPosition, simulationTimeNs, visibility, quantity, leavesQuantity, matchId, detail]
+      properties:
+        orderId: {"oneOf": [{"$ref": "#/components/schemas/UnsignedIntegerString"}, {"type": "null"}]}
+        replacedOldOrderId: {"oneOf": [{"$ref": "#/components/schemas/UnsignedIntegerString"}, {"type": "null"}]}
+        stageKind:
+          $ref: "#/components/schemas/LifecycleStageKind"
+        eventPosition:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        simulationTimeNs:
+          $ref: "#/components/schemas/NanosecondTimestamp"
+        visibility:
+          $ref: "#/components/schemas/EventVisibility"
+        quantity:
+          oneOf:
+            - $ref: "#/components/schemas/UnsignedIntegerString"
+            - type: "null"
+        leavesQuantity:
+          oneOf:
+            - $ref: "#/components/schemas/UnsignedIntegerString"
+            - type: "null"
+        matchId:
+          oneOf:
+            - $ref: "#/components/schemas/UnsignedIntegerString"
+            - type: "null"
+        detail:
+          type: string
+    FifoAheadEvidence:
+      type: object
+      additionalProperties: false
+      required: [eventPosition, simulationTimeNs, reason, source, price, sharesAhead, ordersAhead, levelTotalShares]
+      properties:
+        queuePositionAvailable: { type: boolean, description: "False at a priority-losing replacement before its matching/re-rest; queue quantities are then null." }
+        orderId: {"$ref": "#/components/schemas/UnsignedIntegerString"}
+        replacedOldOrderId: {"oneOf": [{"$ref": "#/components/schemas/UnsignedIntegerString"}, {"type": "null"}]}
+        priorityKept: {"oneOf": [{"type": "boolean"}, {"type": "null"}]}
+        eventPosition:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        simulationTimeNs:
+          $ref: "#/components/schemas/NanosecondTimestamp"
+        reason:
+          $ref: "#/components/schemas/FifoEvidenceReason"
+        source:
+          $ref: "#/components/schemas/QueueEvidenceSource"
+        price:
+          $ref: "#/components/schemas/PriceDecimal"
+        sharesAhead:
+          oneOf:
+            - $ref: "#/components/schemas/UnsignedIntegerString"
+            - type: "null"
+          description: Shares with strictly earlier priority at the same price level and side.
+        ordersAhead:
+          oneOf:
+            - $ref: "#/components/schemas/UnsignedIntegerString"
+            - type: "null"
+        levelTotalShares:
+          oneOf:
+            - $ref: "#/components/schemas/UnsignedIntegerString"
+            - type: "null"
+          description: All shares at the level, including this order.
+    OrderLatencyBreakdown:
+      type: object
+      additionalProperties: false
+      required: [orderEntryNs, acknowledgmentNs, cancelNs, submitToFirstFillNs]
+      properties:
+        orderEntryNs:
+          description: Exchange arrival minus strategy submit.
+          oneOf:
+            - $ref: "#/components/schemas/NanosecondDuration"
+            - type: "null"
+        acknowledgmentNs:
+          description: Acknowledgment delivery minus exchange acceptance.
+          oneOf:
+            - $ref: "#/components/schemas/NanosecondDuration"
+            - type: "null"
+        cancelNs:
+          description: Cancel arrival minus cancel submit; null when never cancelled.
+          oneOf:
+            - $ref: "#/components/schemas/NanosecondDuration"
+            - type: "null"
+        submitToFirstFillNs:
+          oneOf:
+            - $ref: "#/components/schemas/NanosecondDuration"
+            - type: "null"
+    OrderLifecycle:
+      type: object
+      additionalProperties: false
+      required: [runId, order, matchingRule, stages, fifoAheadEvidence, latency, fillMatchIds, relatedEventPositions]
+      properties:
+        fifoEvidenceTruncated: {"type": "boolean"}
+        replaceTransits: {"type": "array", "items": {"$ref": "#/components/schemas/ReplaceTransit"}}
+        runId:
+          $ref: "#/components/schemas/RunId"
+        order:
+          $ref: "#/components/schemas/OwnOrderSummary"
+        matchingRule:
+          type: string
+          enum: [price_time_fifo]
+        stages:
+          type: array
+          items:
+            $ref: "#/components/schemas/LifecycleStage"
+        fifoAheadEvidence:
+          type: array
+          items:
+            $ref: "#/components/schemas/FifoAheadEvidence"
+        latency:
+          $ref: "#/components/schemas/OrderLatencyBreakdown"
+        fillMatchIds:
+          type: array
+          items:
+            $ref: "#/components/schemas/UnsignedIntegerString"
+        relatedEventPositions:
+          type: array
+          description: Every canonical event position that references this order, ascending.
+          items:
+            $ref: "#/components/schemas/UnsignedIntegerString"
+    # ---------- fills ----------
+    FillRelatedEvents:
+      type: object
+      additionalProperties: false
+      required: [strategySubmitEventPosition, exchangeArrivalEventPosition, acceptedEventPosition, acknowledgmentDeliveredEventPosition, fillEventPosition, fillReportDeliveredEventPosition, aggressorArrivalEventPosition]
+      properties:
+        strategySubmitEventPosition:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        exchangeArrivalEventPosition:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        acceptedEventPosition:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        acknowledgmentDeliveredEventPosition:
+          oneOf:
+            - $ref: "#/components/schemas/UnsignedIntegerString"
+            - type: "null"
+        fillEventPosition:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        fillReportDeliveredEventPosition:
+          description: Null when the report would be delivered after the run end.
+          oneOf:
+            - $ref: "#/components/schemas/UnsignedIntegerString"
+            - type: "null"
+        aggressorArrivalEventPosition:
+          description: The counterparty's arrival event when the own order was the maker.
+          oneOf:
+            - $ref: "#/components/schemas/UnsignedIntegerString"
+            - type: "null"
+    FillLedgerEffect:
+      type: object
+      additionalProperties: false
+      required: [positionBeforeShares, positionAfterShares, cashBefore, cashAfter, fee, realizedPnlChange, cumulativeRealizedPnlAfter, cumulativeFeesAfter]
+      properties:
+        positionBeforeShares:
+          $ref: "#/components/schemas/SignedIntegerString"
+        positionAfterShares:
+          $ref: "#/components/schemas/SignedIntegerString"
+        cashBefore:
+          $ref: "#/components/schemas/CurrencyAmount"
+        cashAfter:
+          $ref: "#/components/schemas/CurrencyAmount"
+          description: cashBefore - signedQuantity * price - fee (buy signed positive).
+        fee:
+          $ref: "#/components/schemas/CurrencyAmount"
+        realizedPnlChange:
+          $ref: "#/components/schemas/CurrencyAmount"
+          description: Gross FIFO realized P&L from closing lots (fees excluded).
+        cumulativeRealizedPnlAfter:
+          $ref: "#/components/schemas/CurrencyAmount"
+        cumulativeFeesAfter:
+          $ref: "#/components/schemas/CurrencyAmount"
+    FillMarkout:
+      type: object
+      additionalProperties: false
+      required: [horizonNs, status, referenceMidPrice, markoutPerShare, markoutTotal]
+      properties:
+        horizonNs:
+          $ref: "#/components/schemas/NanosecondDuration"
+        status:
+          $ref: "#/components/schemas/MarkoutStatus"
+        referenceMidPrice:
+          oneOf:
+            - $ref: "#/components/schemas/MidPriceDecimal"
+            - type: "null"
+        markoutPerShare:
+          description: "For a buy, mid(fill time + horizon) minus price; for a sell, price minus mid(fill time + horizon). Positive is favourable. Null unless status is available."
+          oneOf:
+            - $ref: "#/components/schemas/MarkoutAmount"
+            - type: "null"
+        markoutTotal:
+          oneOf:
+            - $ref: "#/components/schemas/MarkoutAmount"
+            - type: "null"
+    Fill:
+      type: object
+      additionalProperties: false
+      required: [matchId, eventPosition, simulationTimeNs, orderId, clientOrderId, side, price, quantity, liquidityRole, counterpartyActor, feePerShare, midAtFill, spreadCapturePerShare, queueAheadAtRestShares, queueEvidenceSource, relatedEvents, ledgerEffect, markouts]
+      properties:
+        matchId:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+          description: Engine MatchId; unique per run and used as the fill id.
+        eventPosition:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        simulationTimeNs:
+          $ref: "#/components/schemas/NanosecondTimestamp"
+        orderId:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        clientOrderId:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        side:
+          $ref: "#/components/schemas/Side"
+        price:
+          $ref: "#/components/schemas/PriceDecimal"
+        quantity:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        liquidityRole:
+          $ref: "#/components/schemas/LiquidityRole"
+        counterpartyActor:
+          $ref: "#/components/schemas/Actor"
+        feePerShare:
+          $ref: "#/components/schemas/CurrencyPerShareAmount"
+        midAtFill:
+          description: Mid under the manifest mark convention immediately before the fill; null without a two-sided book.
+          oneOf:
+            - $ref: "#/components/schemas/MidPriceDecimal"
+            - type: "null"
+        spreadCapturePerShare:
+          oneOf:
+            - $ref: "#/components/schemas/MarkoutAmount"
+            - type: "null"
+        queueAheadAtRestShares:
+          description: FIFO shares ahead when the order rested; null for taker fills.
+          oneOf:
+            - $ref: "#/components/schemas/UnsignedIntegerString"
+            - type: "null"
+        queueEvidenceSource:
+          $ref: "#/components/schemas/QueueEvidenceSource"
+        relatedEvents:
+          $ref: "#/components/schemas/FillRelatedEvents"
+        ledgerEffect:
+          $ref: "#/components/schemas/FillLedgerEffect"
+        markouts:
+          type: array
+          items:
+            $ref: "#/components/schemas/FillMarkout"
+    FillPage:
+      type: object
+      additionalProperties: false
+      required: [runId, items, page]
+      properties:
+        runId:
+          $ref: "#/components/schemas/RunId"
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Fill"
+        page:
+          $ref: "#/components/schemas/PageInfo"
+    # ---------- book ----------
+    BookLevel:
+      type: object
+      additionalProperties: false
+      required: [price, totalShares, orderCount, ownShares]
+      properties:
+        price:
+          $ref: "#/components/schemas/PriceDecimal"
+        totalShares:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        orderCount:
+          description: Null in the strategy_visible view, whose top-of-book feed carries no order counts.
+          oneOf:
+            - $ref: "#/components/schemas/UnsignedIntegerString"
+            - type: "null"
+        ownShares:
+          description: Null in the strategy_visible view; the strategy tracks its own orders from execution reports, not from the feed.
+          oneOf:
+            - $ref: "#/components/schemas/UnsignedIntegerString"
+            - type: "null"
+    BookView:
+      type: object
+      additionalProperties: false
+      required: [runId, eventPosition, simulationTimeNs, view, source, bids, asks, lastDeliveredSourceEventPosition]
+      properties:
+        runId:
+          $ref: "#/components/schemas/RunId"
+        eventPosition:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        simulationTimeNs:
+          $ref: "#/components/schemas/NanosecondTimestamp"
+        view:
+          $ref: "#/components/schemas/EventVisibility"
+        source:
+          $ref: "#/components/schemas/QueueEvidenceSource"
+        bids:
+          type: array
+          description: Best first.
+          items:
+            $ref: "#/components/schemas/BookLevel"
+        asks:
+          type: array
+          description: Best first.
+          items:
+            $ref: "#/components/schemas/BookLevel"
+        lastDeliveredSourceEventPosition:
+          description: strategy_visible only - the newest exchange event the strategy had received; null for exchange_truth.
+          oneOf:
+            - $ref: "#/components/schemas/UnsignedIntegerString"
+            - type: "null"
+    # ---------- compare ----------
+    ExperimentReference:
+      type: object
+      additionalProperties: false
+      required: [experimentId, name, marketWorld, configDigest, completedSeeds]
+      properties:
+        experimentId:
+          $ref: "#/components/schemas/ExperimentId"
+        name:
+          type: string
+        marketWorld:
+          $ref: "#/components/schemas/MarketWorld"
+        configDigest:
+          $ref: "#/components/schemas/Digest"
+        completedSeeds:
+          type: array
+          items:
+            $ref: "#/components/schemas/UnsignedIntegerString"
+    SeedPairing:
+      type: object
+      additionalProperties: false
+      required: [pairedSeeds, baselineOnlySeeds, candidateOnlySeeds]
+      properties:
+        pairedSeeds:
+          type: array
+          items:
+            $ref: "#/components/schemas/UnsignedIntegerString"
+        baselineOnlySeeds:
+          type: array
+          items:
+            $ref: "#/components/schemas/UnsignedIntegerString"
+        candidateOnlySeeds:
+          type: array
+          items:
+            $ref: "#/components/schemas/UnsignedIntegerString"
+    AssumptionDifference:
+      type: object
+      additionalProperties: false
+      required: [category, fieldPath, label, baselineValue, candidateValue, unit]
+      properties:
+        category:
+          $ref: "#/components/schemas/AssumptionCategory"
+        fieldPath:
+          type: string
+        label:
+          type: string
+        baselineValue:
+          type: string
+        candidateValue:
+          type: string
+        unit:
+          type: [string, "null"]
+    PairedSeedMetric:
+      type: object
+      additionalProperties: false
+      required: [masterSeed, baselineRunId, candidateRunId, baselineValue, candidateValue, difference]
+      properties:
+        masterSeed:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        baselineRunId:
+          $ref: "#/components/schemas/RunId"
+        candidateRunId:
+          $ref: "#/components/schemas/RunId"
+        baselineValue:
+          oneOf:
+            - $ref: "#/components/schemas/ExactDecimal"
+            - type: "null"
+        candidateValue:
+          oneOf:
+            - $ref: "#/components/schemas/ExactDecimal"
+            - type: "null"
+        difference:
+          description: candidate - baseline; exact when both inputs are exact; null when either is unavailable.
+          oneOf:
+            - $ref: "#/components/schemas/ExactDecimal"
+            - type: "null"
+    DifferenceDispersion:
+      type: object
+      additionalProperties: false
+      required: [sampleCount, meanDifference, sampleStandardDeviation, standardErrorOfMean, minimumDifference, maximumDifference, candidateBetterCount, candidateWorseCount, tiedCount]
+      properties:
+        sampleCount:
+          type: integer
+          minimum: 0
+          description: Paired seeds where both values are available.
+        meanDifference:
+          oneOf:
+            - $ref: "#/components/schemas/DerivedDecimal"
+            - type: "null"
+        sampleStandardDeviation:
+          description: Bessel-corrected (n - 1); null when sampleCount < 2.
+          oneOf:
+            - $ref: "#/components/schemas/DerivedDecimal"
+            - type: "null"
+        standardErrorOfMean:
+          oneOf:
+            - $ref: "#/components/schemas/DerivedDecimal"
+            - type: "null"
+        minimumDifference:
+          oneOf:
+            - $ref: "#/components/schemas/ExactDecimal"
+            - type: "null"
+        maximumDifference:
+          oneOf:
+            - $ref: "#/components/schemas/ExactDecimal"
+            - type: "null"
+        candidateBetterCount:
+          type: integer
+          minimum: 0
+          description: Per betterDirection; zero is a not-applicable sentinel when direction is neither. It does not mean equality.
+        candidateWorseCount:
+          type: integer
+          minimum: 0
+        tiedCount:
+          description: Actual exact zero differences, including neutral metrics.
+          type: integer
+          minimum: 0
+    MetricComparison:
+      type: object
+      additionalProperties: false
+      required: [metricKey, horizonNs, unit, exactness, betterDirection, perSeed, dispersion]
+      properties:
+        metricKey:
+          $ref: "#/components/schemas/MetricKey"
+        horizonNs:
+          oneOf:
+            - $ref: "#/components/schemas/NanosecondDuration"
+            - type: "null"
+        unit:
+          $ref: "#/components/schemas/MetricUnit"
+        exactness:
+          $ref: "#/components/schemas/MetricExactness"
+        betterDirection:
+          type: string
+          enum: [higher, lower, neither]
+        perSeed:
+          type: array
+          items:
+            $ref: "#/components/schemas/PairedSeedMetric"
+        dispersion:
+          $ref: "#/components/schemas/DifferenceDispersion"
+    AlignedSeedSeries:
+      type: object
+      additionalProperties: false
+      required: [masterSeed, runId, values]
+      properties:
+        masterSeed:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        runId:
+          $ref: "#/components/schemas/RunId"
+        values:
+          type: array
+          description: One value per bucket in bucketEndTimesNs; null when unavailable.
+          items:
+            oneOf:
+              - $ref: "#/components/schemas/ExactDecimal"
+              - type: "null"
+    AlignedSeries:
+      type: object
+      additionalProperties: false
+      required: [seriesKind, unit, aggregation, bucketEndTimesNs, baselineBySeed, candidateBySeed, baselineMean, candidateMean]
+      properties:
+        seriesKind:
+          $ref: "#/components/schemas/SeriesKind"
+        unit:
+          $ref: "#/components/schemas/MetricUnit"
+        aggregation:
+          $ref: "#/components/schemas/SeriesAggregation"
+        bucketEndTimesNs:
+          type: array
+          items:
+            $ref: "#/components/schemas/NanosecondTimestamp"
+        baselineBySeed:
+          type: array
+          items:
+            $ref: "#/components/schemas/AlignedSeedSeries"
+        candidateBySeed:
+          type: array
+          items:
+            $ref: "#/components/schemas/AlignedSeedSeries"
+        baselineMean:
+          type: array
+          description: Cross-seed mean per bucket over paired seeds (derived float).
+          items:
+            oneOf:
+              - $ref: "#/components/schemas/DerivedDecimal"
+              - type: "null"
+        candidateMean:
+          type: array
+          items:
+            oneOf:
+              - $ref: "#/components/schemas/DerivedDecimal"
+              - type: "null"
+    ExperimentComparison:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, baseline, candidate, comparable, incomparabilityReasons, seedPairing, assumptionDifferences, metricComparisons, alignedSeries]
+      properties:
+        selectionPolicy: {"type": "string", "enum": ["most_recent_eligible_in_creation_order", "explicit_run_selection"]}
+        runSelection: {"type": "string"}
+        attemptLedger: {"type": "array", "items": {"$ref": "#/components/schemas/ComparisonSeedAttempts"}}
+        schemaVersion:
+          type: string
+          const: exsim.comparison/1
+        baseline:
+          $ref: "#/components/schemas/ExperimentReference"
+        candidate:
+          $ref: "#/components/schemas/ExperimentReference"
+        comparable:
+          type: boolean
+          description: False when the market worlds differ or no seed is paired; differences are then still listed but must not be presented as a paired result.
+        incomparabilityReasons:
+          type: array
+          items:
+            type: string
+        seedPairing:
+          $ref: "#/components/schemas/SeedPairing"
+        assumptionDifferences:
+          type: array
+          items:
+            $ref: "#/components/schemas/AssumptionDifference"
+        metricComparisons:
+          type: array
+          items:
+            $ref: "#/components/schemas/MetricComparison"
+        alignedSeries:
+          type: array
+          items:
+            $ref: "#/components/schemas/AlignedSeries"
+    # ---------- connections ----------
+    ProtocolSessionStatus:
+      type: object
+      additionalProperties: false
+      required: [sessionId, protocol, username, state, remoteAddress, connectedAt, lastInboundAt, inboundSequenceNumber, outboundSequenceNumber, heartbeatIntervalSeconds, missedHeartbeatCount, liveOrderCount, cancelOnDisconnect]
+      properties:
+        sessionId:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        protocol:
+          type: string
+          enum: [ouch_4_2_soupbintcp, fix_4_4]
+        username:
+          type: string
+        state:
+          type: string
+          enum: [disconnected, connecting, logged_in, logging_out, recovering, failed]
+        remoteAddress:
+          type: [string, "null"]
+        connectedAt:
+          oneOf:
+            - $ref: "#/components/schemas/WallClockTime"
+            - type: "null"
+        lastInboundAt:
+          oneOf:
+            - $ref: "#/components/schemas/WallClockTime"
+            - type: "null"
+        inboundSequenceNumber:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        outboundSequenceNumber:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        heartbeatIntervalSeconds:
+          type: integer
+          minimum: 0
+        missedHeartbeatCount:
+          type: integer
+          minimum: 0
+        liveOrderCount:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        cancelOnDisconnect:
+          type: boolean
+    FeedGap:
+      type: object
+      additionalProperties: false
+      required: [fromSequenceNumber, toSequenceNumber, detectedAt, recoveryState]
+      properties:
+        fromSequenceNumber:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        toSequenceNumber:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        detectedAt:
+          $ref: "#/components/schemas/WallClockTime"
+        recoveryState:
+          type: string
+          enum: [gap_detected, retransmission_requested, recovered, unrecoverable]
+    MarketDataFeedStatus:
+      type: object
+      additionalProperties: false
+      required: [feedId, protocol, multicastGroup, mold64Session, lastPublishedSequenceNumber, retransmissionRequestCount, recentGaps]
+      properties:
+        feedId:
+          type: string
+        protocol:
+          type: string
+          enum: [itch_5_0_moldudp64]
+        multicastGroup:
+          type: string
+        mold64Session:
+          type: string
+        lastPublishedSequenceNumber:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        retransmissionRequestCount:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        recentGaps:
+          type: array
+          items:
+            $ref: "#/components/schemas/FeedGap"
+    FaultScenarioStatus:
+      type: object
+      additionalProperties: false
+      required: [faultId, faultKind, state, target, description, reproducibilitySeed, activatedAt, clearedAt]
+      properties:
+        faultId:
+          type: string
+        faultKind:
+          type: string
+          enum: [drop_packets, reorder_packets, delay_packets, disconnect_session, stall_acknowledgments, halt_instrument]
+        state:
+          type: string
+          enum: [scheduled, active, cleared]
+        target:
+          type: string
+          description: Session id, feed id or instrument symbol the fault applies to.
+        description:
+          type: string
+        reproducibilitySeed:
+          oneOf:
+            - $ref: "#/components/schemas/UnsignedIntegerString"
+            - type: "null"
+        activatedAt:
+          oneOf:
+            - $ref: "#/components/schemas/WallClockTime"
+            - type: "null"
+        clearedAt:
+          oneOf:
+            - $ref: "#/components/schemas/WallClockTime"
+            - type: "null"
+    ConnectionsStatus:
+      type: object
+      additionalProperties: false
+      required: [mode, serviceState, observedAt, telemetryDroppedUpdateCount, sessions, feeds, faults]
+      properties:
+        mode:
+          type: string
+          const: real_time_protocol
+        serviceState:
+          type: string
+          enum: [not_running, starting, running, stopping]
+        observedAt:
+          $ref: "#/components/schemas/WallClockTime"
+        telemetryDroppedUpdateCount:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+          description: Optional UI updates coalesced or dropped by a full telemetry queue (authoritative journal data is never dropped).
+        sessions:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProtocolSessionStatus"
+        feeds:
+          type: array
+          items:
+            $ref: "#/components/schemas/MarketDataFeedStatus"
+        faults:
+          type: array
+          items:
+            $ref: "#/components/schemas/FaultScenarioStatus"
+
+    BuildProvenance:
+      type: "object"
+      additionalProperties: false
+      required: ["sourceRevision", "releaseId", "executableSha256"]
+      properties:
+        sourceRevision:
+          oneOf:
+            - {"type": "string"}
+            - {"type": "null"}
+        releaseId:
+          oneOf:
+            - {"type": "string"}
+            - {"type": "null"}
+        executableSha256:
+          oneOf:
+            - {"type": "string"}
+            - {"type": "null"}
+        exchangeExecutableSha256:
+          description: SHA-256 of the exchange daemon, null when unavailable.
+          oneOf:
+            - {"type": "string"}
+            - {"type": "null"}
+        traderExecutableSha256:
+          description: SHA-256 of the trader daemon, null when unavailable.
+          oneOf:
+            - {"type": "string"}
+            - {"type": "null"}
+    RequestDiagnostic:
+      type: "object"
+      additionalProperties: false
+      required: ["requestKind", "submittedCount", "exchangeRejectedCount", "rejectReasons"]
+      properties:
+        arrivalTransit:
+          type: object
+          additionalProperties: false
+          required: [sampleCount, minNs, maxNs, meanNs]
+          properties:
+            sampleCount: { $ref: "#/components/schemas/UnsignedIntegerString" }
+            minNs: { oneOf: [ { $ref: "#/components/schemas/NanosecondDuration" }, { type: "null" } ] }
+            maxNs: { oneOf: [ { $ref: "#/components/schemas/NanosecondDuration" }, { type: "null" } ] }
+            meanNs: { oneOf: [ { $ref: "#/components/schemas/DerivedDecimal" }, { type: "null" } ] }
+        requestKind:
+          $ref: "#/components/schemas/CommandKind"
+        submittedCount:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        exchangeRejectedCount:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        rejectReasons:
+          type: "array"
+          items:
+            type: "object"
+            additionalProperties: false
+            required: ["reason", "count"]
+            properties:
+              reason:
+                $ref: "#/components/schemas/RejectReason"
+              count:
+                $ref: "#/components/schemas/UnsignedIntegerString"
+    ReplaceTransit:
+      type: "object"
+      additionalProperties: false
+      required: ["submitEventPosition", "arrivalEventPosition", "transitNs", "fillBeforeArrivalEventPosition"]
+      properties:
+        submitEventPosition:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        arrivalEventPosition:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        transitNs:
+          $ref: "#/components/schemas/NanosecondDuration"
+        fillBeforeArrivalEventPosition:
+          oneOf:
+            - {"$ref": "#/components/schemas/UnsignedIntegerString"}
+            - {"type": "null"}
+    ComparisonAttempt:
+      type: "object"
+      additionalProperties: false
+      required: ["runId", "state", "selected", "eligible", "reason", "observationStatus", "windowEndTimeNs", "observedThroughTimeNs", "digests", "requestDiagnostics", "markouts"]
+      properties:
+        creationOrdinal: { oneOf: [ { $ref: "#/components/schemas/UnsignedIntegerString" }, { type: "null" } ] }
+        runId:
+          $ref: "#/components/schemas/RunId"
+        state:
+          $ref: "#/components/schemas/RunState"
+        selected:
+          type: "boolean"
+        eligible:
+          type: "boolean"
+        reason:
+          type: "string"
+        observationStatus:
+          type: "string"
+        windowEndTimeNs:
+          oneOf:
+            - {"$ref": "#/components/schemas/NanosecondTimestamp"}
+            - {"type": "null"}
+        observedThroughTimeNs:
+          oneOf:
+            - {"$ref": "#/components/schemas/NanosecondTimestamp"}
+            - {"type": "null"}
+        digests:
+          $ref: "#/components/schemas/RunArtifactDigests"
+        requestDiagnostics:
+          oneOf:
+            - {"type": "array", "items": {"$ref": "#/components/schemas/RequestDiagnostic"}}
+            - {"type": "null"}
+        markouts:
+          oneOf:
+            - {"type": "array", "items": {"$ref": "#/components/schemas/MarkoutHorizonSummary"}}
+            - {"type": "null"}
+    ComparisonSeedAttempts:
+      type: "object"
+      additionalProperties: false
+      required: ["experimentId", "masterSeed", "selectedRunId", "attempts"]
+      properties:
+        selectionReason: { type: string, enum: [selected, no_selected_eligible_attempt, unlaunched] }
+        experimentId:
+          $ref: "#/components/schemas/ExperimentId"
+        masterSeed:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        selectedRunId:
+          oneOf:
+            - {"$ref": "#/components/schemas/RunId"}
+            - {"type": "null"}
+        attempts:
+          type: "array"
+          items:
+            $ref: "#/components/schemas/ComparisonAttempt"
+    ExecutionTraceRow:
+      type: "object"
+      additionalProperties: false
+      required: ["index", "kind", "simulationTimeNs", "cumulativeTargetQuantity", "knownFilledQuantity", "parentResidualQuantity", "requestedQuantity", "outstandingQuantity", "positionHeadroom", "childCapQuantity", "submittedQuantity", "childClientOrderId", "deliveredSourceSequence", "deliveredSourceTimeNs", "deliveredTouch", "limitPrice", "reason", "report"]
+      properties:
+        index:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        kind:
+          type: "string"
+          enum: ["decision", "child_report"]
+        simulationTimeNs:
+          $ref: "#/components/schemas/NanosecondTimestamp"
+        cumulativeTargetQuantity:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        knownFilledQuantity:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        parentResidualQuantity:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        requestedQuantity:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        outstandingQuantity:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        positionHeadroom:
+          $ref: "#/components/schemas/SignedIntegerString"
+        childCapQuantity:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        submittedQuantity:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        childClientOrderId:
+          oneOf:
+            - {"$ref": "#/components/schemas/UnsignedIntegerString"}
+            - {"type": "null"}
+        deliveredSourceSequence:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        deliveredSourceTimeNs:
+          $ref: "#/components/schemas/NanosecondTimestamp"
+        deliveredTouch:
+          oneOf:
+            - {"$ref": "#/components/schemas/PriceDecimal"}
+            - {"type": "null"}
+        limitPrice:
+          oneOf:
+            - {"$ref": "#/components/schemas/PriceDecimal"}
+            - {"type": "null"}
+        reason:
+          type: "string"
+        report:
+          oneOf:
+            - {"type": "object", "additionalProperties": false, "required": ["kind", "exchangeTimeNs", "orderId", "matchId", "quantity", "leavesQuantity", "cumulativeQuantity", "rejectReason", "cancelReason"], "properties": {"kind": {"type": "string"}, "exchangeTimeNs": {"$ref": "#/components/schemas/NanosecondTimestamp"}, "orderId": {"$ref": "#/components/schemas/UnsignedIntegerString"}, "matchId": {"$ref": "#/components/schemas/UnsignedIntegerString"}, "quantity": {"$ref": "#/components/schemas/UnsignedIntegerString"}, "leavesQuantity": {"$ref": "#/components/schemas/UnsignedIntegerString"}, "cumulativeQuantity": {"$ref": "#/components/schemas/UnsignedIntegerString"}, "rejectReason": {"type": "string"}, "cancelReason": {"type": "string"}}}
+            - {"type": "null"}
+    ExecutionTracePage:
+      type: "object"
+      additionalProperties: false
+      required: ["runId", "windowEndTimeNs", "startTimeNs", "parentQuantity", "finalTargetTimeNs", "finalTargetQuantity", "observationStatus", "totalCount", "items", "page"]
+      properties:
+        verification: { type: string, enum: [native_reproduction_and_replay_verified, recorded_terminal_partial] }
+        runId:
+          $ref: "#/components/schemas/RunId"
+        windowEndTimeNs:
+          $ref: "#/components/schemas/NanosecondTimestamp"
+        startTimeNs:
+          $ref: "#/components/schemas/NanosecondTimestamp"
+        parentQuantity:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        finalTargetTimeNs:
+          $ref: "#/components/schemas/NanosecondTimestamp"
+        finalTargetQuantity:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        observationStatus:
+          type: "string"
+        totalCount:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        items:
+          type: "array"
+          items:
+            $ref: "#/components/schemas/ExecutionTraceRow"
+        page:
+          $ref: "#/components/schemas/PageInfo"
+    AuditInventoryItem:
+      type: "object"
+      additionalProperties: false
+      required: ["artifactIndex", "name", "present", "sizeBytes", "sha256"]
+      properties:
+        artifactIndex:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        name:
+          type: "string"
+        present:
+          type: "boolean"
+        sizeBytes:
+          oneOf:
+            - {"$ref": "#/components/schemas/UnsignedIntegerString"}
+            - {"type": "null"}
+        sha256:
+          oneOf:
+            - {"type": "string"}
+            - {"type": "null"}
+    AuditInventory:
+      type: "object"
+      additionalProperties: false
+      required: ["runId", "schemaVersion", "state", "reproductionSupported", "verificationCommand", "reproductionCommand", "items"]
+      properties:
+        runId:
+          $ref: "#/components/schemas/RunId"
+        schemaVersion:
+          type: "string"
+          const: "exsim.audit-export/1"
+        state:
+          $ref: "#/components/schemas/RunState"
+        reproductionSupported:
+          type: "boolean"
+        verificationCommand:
+          type: "string"
+        reproductionCommand:
+          oneOf:
+            - {"type": "string"}
+            - {"type": "null"}
+        items:
+          type: "array"
+          items:
+            $ref: "#/components/schemas/AuditInventoryItem"
+    AuditArtifactChunk:
+      type: "object"
+      additionalProperties: false
+      required: ["runId", "artifactIndex", "offset", "contentHex", "nextOffset"]
+      properties:
+        runId:
+          $ref: "#/components/schemas/RunId"
+        artifactIndex:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        offset:
+          $ref: "#/components/schemas/UnsignedIntegerString"
+        contentHex:
+          type: "string"
+          maxLength: 131072
+          pattern: "^[0-9a-f]*$"
+        nextOffset:
+          oneOf:
+            - {"$ref": "#/components/schemas/UnsignedIntegerString"}
+            - {"type": "null"}
+
+    AuditExportResponse:
+      oneOf:
+        - $ref: "#/components/schemas/AuditInventory"
+        - $ref: "#/components/schemas/AuditArtifactChunk"

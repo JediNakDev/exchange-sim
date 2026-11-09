@@ -4,7 +4,7 @@
 // Core vocabulary of the exchange simulator. Every protocol gateway
 // translates its wire format into these types, and every subsystem
 // (engine, market data, journal, tests) speaks only these types.
-// See docs/SPEC.md for the normative semantics.
+// See matching engine contract for the normative semantics.
 
 #include <lob/types.hpp>
 #include <cstdint>

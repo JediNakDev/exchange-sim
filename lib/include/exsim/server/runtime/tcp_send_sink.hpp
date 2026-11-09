@@ -1,7 +1,7 @@
 #ifndef EXSIM_SERVER_RUNTIME_TCP_SEND_SINK_HPP
 #define EXSIM_SERVER_RUNTIME_TCP_SEND_SINK_HPP
 
-// Byte sink of the order-entry gateways (docs/SERVER.md 2.4) over one
+// Byte sink of the order-entry gateways (server contract 2.4) over one
 // connection's net::TcpServer send buffer. prepare() returning nullptr means
 // the send buffer cannot take the message: the gateway then drops the
 // connection (live output) or pauses (OUCH replay). A refused prepare leaves

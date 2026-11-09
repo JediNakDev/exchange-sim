@@ -18,7 +18,7 @@
 // lives here too: FIX sequence continuity spans reconnects for the whole day.
 //
 // A resend that does not fit in the sink pauses and continue_resend()
-// resumes it once the transport has drained (docs/SERVER.md 2.4). While a
+// resumes it once the transport has drained (server contract 2.4). While a
 // resend is in progress, newly sequenced messages are withheld: the resend
 // extends over them when the requested range is done. Unsent session payloads
 // are retained in a bounded queue, so the peer receives every
@@ -93,7 +93,7 @@ public:
     }
     [[nodiscard]] bool has_sink() const noexcept { return sink_ != nullptr; }
     [[nodiscard]] bool is_bound_to(const Sink& sink) const noexcept { return sink_ == &sink; }
-    // prepare() returned nullptr: the connection must be dropped (docs/SERVER.md 2.4).
+    // prepare() returned nullptr: the connection must be dropped (server contract 2.4).
     [[nodiscard]] bool output_overflowed() const noexcept { return output_overflowed_; }
     [[nodiscard]] bool store_exhausted() const noexcept { return store_exhausted_; }
     [[nodiscard]] Timestamp last_transmit_ns() const noexcept { return last_transmit_ns_; }
@@ -218,7 +218,7 @@ private:
     }
 
     // A live frame that does not fit overflows the output: the connection
-    // must be dropped (docs/SERVER.md 2.4).
+    // must be dropped (server contract 2.4).
     void transmit_live(std::span<const char> frame, Timestamp now_ns) noexcept {
         if (sink_ != nullptr && !output_overflowed_ && !write_if_room(frame, now_ns)) {
             output_overflowed_ = true;

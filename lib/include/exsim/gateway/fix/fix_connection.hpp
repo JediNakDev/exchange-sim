@@ -1,7 +1,7 @@
 #ifndef EXSIM_GATEWAY_FIX_FIX_CONNECTION_HPP
 #define EXSIM_GATEWAY_FIX_FIX_CONNECTION_HPP
 
-// Exchange side of one FIX 4.4 TCP connection (docs/SERVER.md 2). The server
+// Exchange side of one FIX 4.4 TCP connection (server contract 2). The server
 // owns the transport and calls:
 //   start(sink, connection_id, ctx)  on accept (the object is reusable)
 //   on_data(bytes, ctx)              returns bytes consumed

@@ -3,8 +3,8 @@
 
 // Server side of exsim binary order entry: SBE 1.0 application messages over a
 // FIXP 1.0 point-to-point session, framed with SOFH 1.0
-// (docs/protocols/FIXP_SBE.md, docs/protocols/exsim_order_entry_sbe.xml,
-// docs/SERVER.md section 2). Pure state machines over byte buffers:
+// (historical design notes, config/protocols/exsim_order_entry_sbe.xml,
+// server contract section 2). Pure state machines over byte buffers:
 //
 //   FixpSbeUserState<Sink>   one per configured user for the whole trading day:
 //                            token table, sequenced store (the recoverable
@@ -113,7 +113,7 @@ struct FixpSbeUserStateSettings {
     std::uint32_t max_tokens = 1u << 20;              // day-used ClOrdIds of every request type
     std::size_t store_messages = 1u << 20;            // server flow messages kept for the day
     std::size_t store_bytes = std::size_t{64} << 20;  // their framed bytes
-    // Store admission (docs/protocols/FIXP_SBE.md, "Outbound store"). The
+    // Store admission (historical design notes, "Outbound store"). The
     // store always keeps room for one terminal report per live order plus one
     // mass cancel outcome. On top of that, new orders and replaces need this
     // many further free messages, else they get an OutboundStoreFull reject.
@@ -295,7 +295,7 @@ public:
                     if (event.rejected.session == session_id_) report_rejected(event, context, now);
                     break;
                 case EventType::Fill:
-                    // Buy leg before sell leg (docs/FOUNDATION_REPAIRS.md, deterministic output).
+                    // Buy leg before sell leg (gateway mapping, deterministic output).
                     if (event.fill.buy.session == session_id_) report_fill_leg(event, event.fill.buy, Side::BUY, context, now);
                     if (event.fill.sell.session == session_id_) report_fill_leg(event, event.fill.sell, Side::SELL, context, now);
                     break;
@@ -524,7 +524,7 @@ private:
         emit_application_message(reject, context, now);
     }
 
-    // Day-token history (docs/FOUNDATION_REPAIRS.md): every well-framed request
+    // Day-token history (gateway mapping): every well-framed request
     // with a nonzero ClOrdId reserves it for the day, even when it is rejected.
     template <class RejectFunction>
     [[nodiscard]] bool reserve_request_token(std::uint64_t wire_cl_ord_id, ClOrdId& cl_ord_id,

@@ -1,4 +1,4 @@
-// exsim_api: the local research HTTP API (docs/API.md, docs/api/openapi.yaml).
+// exsim_api: the local research HTTP API (HTTP API contract, config/api/openapi.yaml).
 //
 //   exsim_api [--port N] [--bind ADDRESS] [--data-dir DIR] [--max-live-runs N]
 //

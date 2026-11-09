@@ -1,3 +1,0 @@
-actual FIFO rows 7 truncated False reasons ['immediately_before_fill', 'queue_advanced_by_fill', 'replace_priority_reset', 'rested']
-nonzero reset rest []
-sweep rows 1987

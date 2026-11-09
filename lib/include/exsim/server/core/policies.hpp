@@ -2,7 +2,7 @@
 #define EXSIM_SERVER_CORE_POLICIES_HPP
 
 // Compile-time contracts between ExchangeCore and the parts the server
-// integrator plugs into it (docs/EXCHANGE_CORE.md section 2). Templates and
+// integrator plugs into it (exchange core section 2). Templates and
 // concepts only: no virtual dispatch on the hot path.
 //
 // Required:

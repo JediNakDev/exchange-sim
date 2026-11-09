@@ -2,8 +2,8 @@
 #define EXSIM_MD_PUBLISHER_HPP
 
 // MarketDataPublisher: engine event batches -> ITCH 5.0 messages ->
-// MoldUDP64 packets, following the normative mapping in docs/GATEWAYS.md
-// section 4 and the runtime contract in docs/SERVER.md section 3.
+// MoldUDP64 packets, following the normative mapping in gateway mapping
+// section 4 and the runtime contract in server contract section 3.
 //
 //   MarketDataPublisher<Sink> publisher(config, sink);
 //   publisher.add_instruments_from(engine);       // setup: locate = InstrumentId

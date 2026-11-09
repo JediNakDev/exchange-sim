@@ -31,7 +31,7 @@
 // Prices are decimal dollars ("150.25"), stored with 4 implied decimals.
 // Trading-day times are "HH:MM[:SS[.fraction]]" local time; the end may be
 // "24:00". See config/exsim.conf for a complete example and
-// docs/EXCHANGE_CORE.md for the bot and journal semantics.
+// exchange core for the bot and journal semantics.
 
 #include "exsim/instrument.hpp"
 #include "exsim/matching_engine.hpp"
@@ -48,7 +48,7 @@
 namespace exsim::server {
 
 // Order-entry protocol of a configured user: OUCH 4.2 over SoupBinTCP, FIX
-// 4.4, or SBE over FIXP (docs/protocols/FIXP_SBE.md).
+// 4.4, or SBE over FIXP (historical design notes).
 enum class Protocol : std::uint8_t { Ouch42 = 0, Fix44 = 1, FixpSbe = 2 };
 
 constexpr std::string_view to_string(Protocol protocol) noexcept {
@@ -108,7 +108,7 @@ struct EngineSection {
     std::size_t store_bytes_per_session = std::size_t{64} << 20;
 };
 
-// What the exchange core does when a journal write fails (docs/EXCHANGE_CORE.md).
+// What the exchange core does when a journal write fails (exchange core).
 enum class JournalFailurePolicy : std::uint8_t {
     Shutdown = 0,  // end the trading day: the replay guarantee is gone
     Continue = 1,  // keep trading unjournaled; status reports the failure

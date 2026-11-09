@@ -1,7 +1,7 @@
 #ifndef EXSIM_SERVER_RUNTIME_MARKET_DATA_RUNTIME_HPP
 #define EXSIM_SERVER_RUNTIME_MARKET_DATA_RUNTIME_HPP
 
-// The server's MarketData policy (docs/SERVER.md 3, exsim/server/core/
+// The server's MarketData policy (server contract 3, exsim/server/core/
 // policies.hpp): MarketDataPublisher -> sim::PacketFaultInjector -> UDP
 // sender, plus the MoldUDP64 retransmission server on its own UDP socket.
 //

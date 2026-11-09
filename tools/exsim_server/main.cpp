@@ -1,4 +1,4 @@
-// exsim_server: the exchange simulator server (docs/SERVER_RUNTIME.md).
+// exsim_server: the exchange simulator server (server runtime).
 //
 //   exsim_server [--config PATH] [--busy-poll] [--cpu N] [--journal PATH]
 //                [--day-time HH:MM[:SS]] [--md-heartbeat-ms N] [--no-bots]

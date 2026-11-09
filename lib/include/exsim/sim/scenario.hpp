@@ -2,7 +2,7 @@
 #define EXSIM_SIM_SCENARIO_HPP
 #include <exsim/sim/journal.hpp>
 #include <exsim/sim/price_text.hpp>
-#include <tests/exsim/support/format.hpp>
+#include <exsim/sim/format.hpp>
 #include <sstream>
 #include <map>
 #include <memory>
@@ -165,9 +165,9 @@ template<class Engine> void run_scenario(std::istream& input) {
                     if(event_index>=out->size()) throw std::runtime_error("missing event");
                     const auto& e=(*out)[event_index++];
                     std::string type(event_type_name(e.type));for(char& c:what) if(c>='A'&&c<='Z') c=static_cast<char>(c-'A'+'a');
-                    if(what!=type) throw std::runtime_error("event type: "+testsupport::format_event(e));
+                    if(what!=type) throw std::runtime_error("event type: "+format_event(e));
                     visit_fields(e,[&](const Field& f){auto it=fields.find(std::string(f.name));if(it!=fields.end()) {
-                        if(f.raw!=names.value(it->second,f.kind)) { throw std::runtime_error("event field "+std::string(f.name)+": "+testsupport::format_event(e)); }fields.erase(it);}});
+                        if(f.raw!=names.value(it->second,f.kind)) { throw std::runtime_error("event field "+std::string(f.name)+": "+format_event(e)); }fields.erase(it);}});
                 }
                 if(!fields.empty()) { throw std::runtime_error("unknown assertion field"); }continue;
             }

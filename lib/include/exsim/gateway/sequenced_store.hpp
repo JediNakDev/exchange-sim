@@ -2,7 +2,7 @@
 #define EXSIM_GATEWAY_SEQUENCED_STORE_HPP
 
 // Append-only, pre-allocated store of a session's outbound application
-// messages for the trading day (docs/GATEWAYS.md §1). Message `seq` (1-based)
+// messages for the trading day (gateway mapping §1). Message `seq` (1-based)
 // is retrievable in O(1) so a reconnecting client can be replayed from any
 // sequence number (SoupBinTCP login, FIX ResendRequest).
 //

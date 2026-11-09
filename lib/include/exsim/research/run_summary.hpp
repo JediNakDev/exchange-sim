@@ -4,7 +4,7 @@
 // summary.json: end-of-run accounting, order/fill statistics, markouts,
 // execution quality and latency, computed from the core's exact integer
 // accumulators. Floating-point values are derived here, after the run.
-// Every field is documented in docs/RESEARCH_RUNNER.md.
+// Every field is documented in research runner.
 
 #include "exsim/research/simulation_core.hpp"
 

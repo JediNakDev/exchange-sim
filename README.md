@@ -50,6 +50,27 @@ sh docker/create-secrets.sh
 docker compose up -d --build --wait
 ```
 
+## Project Layout
+
+- `lib/` and `include/`: reusable C++ code.
+- `src/`: API, trader and exchange daemons.
+- `tools/`: protocol clients, research CLI, audit and deployment helpers.
+- `test/`: native tests, benchmark, fuzz, scenarios and validation tools.
+- `web/`: frontend app, with frontend tests in `web/test/`.
+- `config/`: runtime configs, OpenAPI contract and SBE schema.
+
+## Testing
+
+```sh
+make -j4 test
+make -j4 test-tools
+cd web
+bun run test
+```
+
+`make bench` builds the Google Benchmark suite. It needs google-benchmark installed.
+Python helpers handle audit files, packaging and integration checks. Simulation stays in C++.
+
 ## Key Design Decisions
 
 ### Efficiency is not compromised.

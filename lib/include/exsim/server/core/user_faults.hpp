@@ -2,7 +2,7 @@
 #define EXSIM_SERVER_CORE_USER_FAULTS_HPP
 
 // Per-user fault-injection state set by the admin `fault user ...`
-// commands (docs/SERVER.md section 4) and consumed by the gateways and the
+// commands (server contract section 4) and consumed by the gateways and the
 // server loop through ExchangeCore's query/consume API.
 
 #include <cstdint>

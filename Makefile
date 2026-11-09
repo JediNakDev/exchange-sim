@@ -12,10 +12,10 @@
 # Sources are discovered automatically:
 #   lib/src/**/*.cpp        reusable library implementation
 #   src/<daemon>/*.cpp      daemon entry points, linked separately
-#   tests/**/*.cpp          one test binary: build/<mode>/run_tests
+#   test/{exsim,framework,lob}/**/*.cpp and test/main.cpp: run_tests
 #   tools/<name>/*.cpp      one binary per directory: build/<mode>/<name>
 #   examples/<name>.cpp     one binary per file: build/<mode>/examples/<name>
-#   benchmark/**/*.cpp      build/bench/benchmark
+#   test/benchmark/**/*.cpp build/bench/benchmark
 
 .DEFAULT_GOAL := all
 MODE ?= release
@@ -62,10 +62,14 @@ BUILD := build/$(MODE)
 obj = $(patsubst %.cpp,$(BUILD)/obj/%.o,$(1))
 
 LIB_SRCS := $(shell find lib/src -name '*.cpp' | sort)
-TEST_SRCS := $(shell find tests -name '*.cpp' | sort)
+TEST_SRCS := test/main.cpp $(shell find test/exsim test/framework test/lob -name '*.cpp' | sort)
 EXAMPLE_SRCS := $(sort $(wildcard examples/*.cpp))
 DAEMON_NAMES := exsim_apid exsim_traderd exsim_exchanged
 DAEMON_BINS := $(addprefix $(BUILD)/,$(DAEMON_NAMES))
+
+TEST_TOOL_NAMES := $(sort $(patsubst test/tools/%/,%,$(dir $(wildcard test/tools/*/*.cpp))))
+TEST_TOOL_SRCS := $(wildcard test/tools/*/*.cpp)
+TEST_TOOL_BINS := $(addprefix $(BUILD)/,$(TEST_TOOL_NAMES))
 
 TOOL_NAMES := $(sort $(patsubst tools/%/,%,$(dir $(wildcard tools/*/*.cpp))))
 
@@ -84,7 +88,7 @@ $(shell printf '%s\n' $(call shell_quote,$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(BENCH_
 $(shell cmp -s $(BUILD)/compile.tmp $(BUILD)/compile.config || cp $(BUILD)/compile.tmp $(BUILD)/compile.config)
 $(shell printf '%s\n' $(call shell_quote,$(CXX) $(CXXFLAGS) $(LDFLAGS) $(LDLIBS) $(BENCH_LDFLAGS)) > $(BUILD)/link.tmp)
 $(shell cmp -s $(BUILD)/link.tmp $(BUILD)/link.config || cp $(BUILD)/link.tmp $(BUILD)/link.config)
-$(shell printf '%s\n' $(call shell_quote,$(LIB_SRCS) $(TEST_SRCS) $(EXAMPLE_SRCS) $(wildcard tools/*/*.cpp) $(wildcard src/*/*.cpp) $(shell find benchmark -name '*.cpp' | sort)) > $(BUILD)/sources.tmp)
+$(shell printf '%s\n' $(call shell_quote,$(LIB_SRCS) $(TEST_SRCS) $(EXAMPLE_SRCS) $(wildcard tools/*/*.cpp) $(TEST_TOOL_SRCS) $(wildcard src/*/*.cpp) $(shell find test/benchmark -name '*.cpp' | sort)) > $(BUILD)/sources.tmp)
 $(shell cmp -s $(BUILD)/sources.tmp $(BUILD)/sources.config || cp $(BUILD)/sources.tmp $(BUILD)/sources.config)
 
 LIB_OBJS := $(call obj,$(LIB_SRCS))
@@ -92,11 +96,11 @@ TEST_BIN := $(BUILD)/run_tests
 TOOL_BINS := $(addprefix $(BUILD)/,$(TOOL_NAMES))
 EXAMPLE_BINS := $(patsubst examples/%.cpp,$(BUILD)/examples/%,$(EXAMPLE_SRCS))
 
-.PHONY: all lib test check tools examples bench bench-run clean itch-replay
+.PHONY: all lib test check tools test-tools examples bench bench-run clean itch-replay
 
-$(TEST_BIN) $(TOOL_BINS) $(EXAMPLE_BINS): $(BUILD)/link.config $(BUILD)/sources.config
+$(TEST_BIN) $(TEST_TOOL_BINS) $(TOOL_BINS) $(EXAMPLE_BINS): $(BUILD)/link.config $(BUILD)/sources.config
 
-all: $(DAEMON_BINS) $(BUILD)/exsim_api $(TEST_BIN) $(TOOL_BINS) $(EXAMPLE_BINS)
+all: $(DAEMON_BINS) $(BUILD)/exsim_api $(TEST_BIN) $(TEST_TOOL_BINS) $(TOOL_BINS) $(EXAMPLE_BINS)
 
 lib: $(LIB_OBJS)
 
@@ -130,6 +134,15 @@ $(BUILD)/$(1): $(call obj,$(sort $(wildcard tools/$(1)/*.cpp))) $(LIB_OBJS)
 endef
 $(foreach t,$(TOOL_NAMES),$(eval $(call TOOL_RULE,$(t))))
 
+define TEST_TOOL_RULE
+$(BUILD)/$(1): $(call obj,$(sort $(wildcard test/tools/$(1)/*.cpp))) $(LIB_OBJS)
+	@mkdir -p $$(dir $$@)
+	$$(CXX) $$(CXXFLAGS) $$(LDFLAGS) $$(filter %.o,$$^) -o $$@ $$(LDLIBS)
+endef
+$(foreach t,$(TEST_TOOL_NAMES),$(eval $(call TEST_TOOL_RULE,$(t))))
+
+test-tools: $(TEST_TOOL_BINS)
+
 $(BUILD)/examples/%: $(BUILD)/obj/examples/%.o $(LIB_OBJS)
 	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(filter %.o,$^) -o $@ $(LDLIBS)
@@ -152,17 +165,17 @@ itch-replay:
 # ---------------------------------------------------------------------------
 # Google Benchmark suite (Homebrew on macOS, system install on Linux).
 # ---------------------------------------------------------------------------
-BENCH_SRCS := $(shell find benchmark -name '*.cpp' | sort)
+BENCH_SRCS := $(shell find test/benchmark -name '*.cpp' | sort)
 BENCH_BIN := build/bench/benchmark
 
 ifeq ($(MODE),bench)
 $(BENCH_BIN): $(BUILD)/link.config $(BUILD)/sources.config
-$(BENCH_BIN): CPPFLAGS += -I benchmark $(BENCH_CPPFLAGS)
+$(BENCH_BIN): CPPFLAGS += -I test/benchmark $(BENCH_CPPFLAGS)
 $(BENCH_BIN): $(call obj,$(BENCH_SRCS)) $(LIB_OBJS)
 	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(filter %.o,$^) -o $@ $(BENCH_LDFLAGS) -lbenchmark $(LDLIBS)
 
-$(BUILD)/obj/benchmark/%.o: CPPFLAGS += -I benchmark $(BENCH_CPPFLAGS)
+$(BUILD)/obj/test/benchmark/%.o: CPPFLAGS += -I test/benchmark $(BENCH_CPPFLAGS)
 endif
 
 bench:
@@ -174,5 +187,5 @@ bench-run: bench
 clean:
 	rm -rf build
 
-ALL_OBJS := $(LIB_OBJS) $(call obj,$(TEST_SRCS) $(EXAMPLE_SRCS) $(BENCH_SRCS) $(wildcard tools/*/*.cpp) $(wildcard src/*/*.cpp))
+ALL_OBJS := $(LIB_OBJS) $(call obj,$(TEST_SRCS) $(EXAMPLE_SRCS) $(BENCH_SRCS) $(wildcard tools/*/*.cpp) $(TEST_TOOL_SRCS) $(wildcard src/*/*.cpp))
 -include $(ALL_OBJS:.o=.d)

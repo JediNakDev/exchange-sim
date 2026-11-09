@@ -1,6 +1,6 @@
 // exsim::MatchingEngine, variant C: index-addressed order arena with a
-// hot/cold field split. Semantics: docs/SPEC.md. Hot-path rules:
-// docs/ARCHITECTURE.md (no allocation, exceptions, virtuals or strings after
+// hot/cold field split. Semantics: matching engine contract. Hot-path rules:
+// architecture (no allocation, exceptions, virtuals or strings after
 // construction).
 //
 // Layout summary

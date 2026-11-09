@@ -1,7 +1,7 @@
 #ifndef EXSIM_API_CANONICAL_EVENT_LOG_HPP
 #define EXSIM_API_CANONICAL_EVENT_LOG_HPP
 
-// The API's canonical event log (docs/API.md, `GET /v1/runs/{runId}/events`),
+// The API's canonical event log (HTTP API contract, `GET /v1/runs/{runId}/events`),
 // built from what the deterministic runner records.
 //
 // The runner records every engine command it executes (CommandRecord) and
@@ -172,7 +172,7 @@ static_assert(std::is_trivially_copyable_v<CanonicalEventRecord>);
 // The event's human-readable `description`.
 [[nodiscard]] std::string describe_canonical_event(const CanonicalEventRecord& record);
 
-// Writes one CanonicalEvent object (docs/api/openapi.yaml).
+// Writes one CanonicalEvent object (config/api/openapi.yaml).
 void write_canonical_event_json(ApiJsonWriter& json, const CanonicalEventRecord& record, std::uint64_t event_position);
 
 // Builds the canonical log step by step while the run executes.

@@ -2,7 +2,7 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-/* Design system: docs/UI_DESIGN.md. Tokens and base rules only; components use Tailwind utilities. */
+/* Design system: UI design. Tokens and base rules only; components use Tailwind utilities. */
 
 @custom-variant dark (&:is(.dark *));
 

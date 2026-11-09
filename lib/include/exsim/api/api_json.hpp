@@ -1,7 +1,7 @@
 #ifndef EXSIM_API_API_JSON_HPP
 #define EXSIM_API_API_JSON_HPP
 
-// JSON output and exact decimal encoding for the research API (docs/API.md,
+// JSON output and exact decimal encoding for the research API (HTTP API contract,
 // "Units and number encoding").
 //
 // Exact values are integers in engine fixed point (price units of 1/10000

@@ -3,7 +3,7 @@
 
 // Shared building blocks of the FIX 4.4 order-entry gateway, used by both the
 // exchange side (FixConnection) and the client side (FixClient):
-//   * FixByteSink: the prepare/commit output contract of docs/SERVER.md 2.4
+//   * FixByteSink: the prepare/commit output contract of server contract 2.4
 //   * FixTime: the injected clock reading every call carries
 //   * FixSessionSettings: session bounds and timer policy
 //   * FixFieldReader: typed inbound field access that remembers the first

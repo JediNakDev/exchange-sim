@@ -1,8 +1,8 @@
 #ifndef EXSIM_API_EXPERIMENT_CONFIG_TRANSLATION_HPP
 #define EXSIM_API_EXPERIMENT_CONFIG_TRANSLATION_HPP
 
-// Translation between the API's ExperimentConfig (docs/api/openapi.yaml) and
-// the deterministic runner's experiment file (docs/RESEARCH_RUNNER.md).
+// Translation between the API's ExperimentConfig (config/api/openapi.yaml) and
+// the deterministic runner's experiment file (research runner).
 //
 // The API document is validated field by field (shape, types, patterns), then
 // rendered to runner INI text while remembering which JSON pointer produced

@@ -3,7 +3,7 @@
 
 // Per-session interning of client order tokens (OUCH 14-byte tokens, FIX
 // ClOrdID strings) into dense engine ClOrdId values 1, 2, 3, ... in
-// first-seen order (docs/GATEWAYS.md §1).
+// first-seen order (gateway mapping §1).
 //
 // * token -> ClOrdId: open-addressing table of (hash tag, id) words, linear
 //   probing; a probe touches the entry bytes only on a 32-bit tag match.

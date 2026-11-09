@@ -1,7 +1,0 @@
-PASS downloaded finding reopens exact native selection
-PASS comparison evidence section survives refresh
-PASS run diagnostics section survives refresh
-PASS study run section survives refresh
-PASS run search retains complete typed query
-PASS run search results constrained to seed101
-PASS no page errors

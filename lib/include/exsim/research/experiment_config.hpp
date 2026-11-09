@@ -6,7 +6,7 @@
 // Parsed once at setup time (ordinary allocating code, exceptions allowed).
 // Format: INI sections, `key = value`, `#` or `;` comments. Durations take a
 // unit suffix (ns, us, ms, s); prices and money are decimal currency with at
-// most four decimals. See docs/RESEARCH_RUNNER.md for every key and
+// most four decimals. See research runner for every key and
 // config/research/*.conf for complete examples.
 //
 // The canonical rendering (canonical_config_entries) lists every resolved
@@ -214,7 +214,7 @@ using ConfigEntries = std::vector<std::pair<std::string, std::string>>;
 
 // The most records one scheduler step can push into the recorder, derived
 // from the configured limits. The run checks free space only between steps,
-// so the flush margin must cover a whole step (docs/RESEARCH_RUNNER.md,
+// so the flush margin must cover a whole step (research runner,
 // "Recorder flush margin"). `commands`: engine commands of one step (a
 // background agent timer can submit several). `records`: lifecycle rows or
 // ledger fills of one step.

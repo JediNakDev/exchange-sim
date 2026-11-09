@@ -3,7 +3,7 @@
 
 // Text rendering for admin replies (operator path: allocates freely).
 // Every reply is one or more '\n'-terminated lines ending with "OK" or
-// "ERR <message>" (docs/SERVER.md section 4).
+// "ERR <message>" (server contract section 4).
 
 #include "exsim/matching_engine.hpp"
 #include "exsim/server/core/user_faults.hpp"

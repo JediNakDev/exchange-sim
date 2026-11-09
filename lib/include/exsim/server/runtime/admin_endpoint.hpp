@@ -1,7 +1,7 @@
 #ifndef EXSIM_SERVER_RUNTIME_ADMIN_ENDPOINT_HPP
 #define EXSIM_SERVER_RUNTIME_ADMIN_ENDPOINT_HPP
 
-// Admin console (docs/SERVER.md 4): a line protocol over TCP, loopback by
+// Admin console (server contract 4): a line protocol over TCP, loopback by
 // default. Each received line goes to core.execute_line; the reply lines
 // (ending with OK or ERR) are queued on the same connection. This is the
 // operator path: it may allocate, and it runs on the server thread between

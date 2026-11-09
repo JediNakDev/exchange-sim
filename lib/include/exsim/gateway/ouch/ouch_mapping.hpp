@@ -1,7 +1,7 @@
 #ifndef EXSIM_GATEWAY_OUCH_OUCH_MAPPING_HPP
 #define EXSIM_GATEWAY_OUCH_OUCH_MAPPING_HPP
 
-// OUCH 4.2 <-> engine vocabulary, exactly as docs/GATEWAYS.md section 2 and
+// OUCH 4.2 <-> engine vocabulary, exactly as gateway mapping section 2 and
 // its "Supported simulator profile" specify. Pure constexpr functions; the
 // session code in ouch_server.hpp applies them.
 //

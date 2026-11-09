@@ -1,7 +1,7 @@
 #ifndef EXSIM_GATEWAY_OUCH_BYTE_SINK_HPP
 #define EXSIM_GATEWAY_OUCH_BYTE_SINK_HPP
 
-// Output byte sink used by the OUCH gateway (docs/SERVER.md section 2.4) and by
+// Output byte sink used by the OUCH gateway (server contract section 2.4) and by
 // the OUCH client transport. The server adapts the net layer's send buffer to
 // it; tests use an in-memory buffer.
 //

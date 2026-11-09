@@ -2,9 +2,9 @@
 #define EXSIM_GATEWAY_FIXP_SBE_FIXP_SBE_MAPPING_HPP
 
 // Pure value mappings between the SBE order entry schema
-// (docs/protocols/exsim_order_entry_sbe.xml) and the protocol-neutral engine
+// (config/protocols/exsim_order_entry_sbe.xml) and the protocol-neutral engine
 // types (include/exsim/types.hpp). Field semantics follow the FIX 4.4 rows of
-// docs/GATEWAYS.md section 3; differences are listed in docs/protocols/FIXP_SBE.md.
+// gateway mapping section 3; differences are listed in historical design notes.
 
 #include "exsim/protocol/sbe_order_entry.hpp"
 #include "exsim/types.hpp"
@@ -72,7 +72,7 @@ using TokenBytes = std::array<char, 8>;
     return sbe::TimeInForceCode::Day;
 }
 
-// NUL selects the user's configured default (docs/GATEWAYS.md section 1).
+// NUL selects the user's configured default (gateway mapping section 1).
 [[nodiscard]] constexpr bool exsim_stp_mode_from_wire(sbe::SelfTradePreventionCode wire_stp, StpMode user_default,
                                                       StpMode& stp_mode) noexcept {
     switch (wire_stp) {

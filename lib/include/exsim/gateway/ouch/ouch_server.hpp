@@ -1,8 +1,8 @@
 #ifndef EXSIM_GATEWAY_OUCH_OUCH_SERVER_HPP
 #define EXSIM_GATEWAY_OUCH_OUCH_SERVER_HPP
 
-// Server side of OUCH 4.2 over SoupBinTCP 3.0 (docs/GATEWAYS.md section 2,
-// docs/SERVER.md section 2). Pure state machines over byte buffers:
+// Server side of OUCH 4.2 over SoupBinTCP 3.0 (gateway mapping section 2,
+// server contract section 2). Pure state machines over byte buffers:
 //
 //   OuchUserState<Sink>           one per configured OUCH user for the whole
 //                                 trading day: token table, per-order

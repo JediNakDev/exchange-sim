@@ -1,7 +1,7 @@
 #ifndef EXSIM_SIM_BOTS_BOT_CONTEXT_HPP
 #define EXSIM_SIM_BOTS_BOT_CONTEXT_HPP
 
-// What a bot needs from the server (docs/SERVER.md §5). The server's exchange
+// What a bot needs from the server (server contract §5). The server's exchange
 // context implements it and tests use a fake. Bots are templates over it, so
 // there is no virtual dispatch.
 //
