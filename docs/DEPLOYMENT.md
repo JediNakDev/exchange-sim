@@ -2,6 +2,15 @@
 
 The research deployment consists of the C++ HTTP service and a production Next.js frontend. It does not start the separate real-time exchange protocol listeners.
 
+For a containerized frontend, API/workers and PostgreSQL stack, use
+[Docker Compose deployment](architecture/DOCKER.md). The existing Docker
+development image remains separate from these runtime images.
+
+For the opt-in PostgreSQL metadata deployment, use
+[the PostgreSQL guide](architecture/POSTGRES.md). Its database and local artifacts
+must be backed up together. The file-only backup/restore procedure below applies
+only to legacy file-backed data and rejects PostgreSQL directories.
+
 ## Build and package
 
 Build on the intended host OS/architecture with the Node version that will run the frontend. These commands are for a planned release, not a service restart:

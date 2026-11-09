@@ -189,11 +189,12 @@ The service advertises `twap_execution` and `immediate_sweep_execution` alongsid
 
 ## Alignment with the deterministic research runner
 
-The service links the runner library directly. One executor thread advances independent
-`Simulation<Strategy>` instances in round-robin slices, with a mutex per run and at
-most eight live simulations by default (including paused runs). This keeps event-boundary
-controls synchronous without subprocess command/control IPC. HTTP work uses separate
-bounded connection threads. Simulation and accounting remain entirely in C++.
+`exsim_apid` supervises an `exsim_exchanged` process per active run; each
+exchange worker runs matching and owns a separate `exsim_traderd` strategy
+process. Delivered observations and strategy actions cross a private UDS
+transport. The existing scheduler, accounting and event-boundary control
+semantics remain in C++. HTTP uses separate bounded connection threads.
+See [worker lifecycle and research wire contract](architecture/WORKERS.md).
 
 `docs/RESEARCH_RUNNER.md` describes the CLI disk formats, `exsim.research.*/1`.
 Those files are not HTTP response bodies. The API adapter performs these mappings:
@@ -251,5 +252,16 @@ API tests when those fixes are integrated; do not copy disk JSON into HTTP bodie
 
 
 ### Persistence and uncertain mutation outcomes
+
+An opt-in PostgreSQL backend now stores experiment/run metadata and idempotency
+records. Event and result artifacts remain local files. PostgreSQL creation and
+successful replay responses commit atomically; queued runs survive restarts
+only under matching build/release provenance. Audit `run.json` comes from the
+database. The API now supervises isolated simulation workers and cold replay
+workers. Strategy observations/actions also cross the private trader/exchange
+UDS boundary. See
+[worker ownership and failure semantics](architecture/WORKERS.md) and
+[the PostgreSQL guide](architecture/POSTGRES.md) for configuration, import and
+backup limits. The following file layout applies to the legacy backend.
 
 New idempotency records use `idempotency/<sha256(key)>.json`; legacy JSONL remains readable. A durable reservation precedes execution. An unexpected execution or response-persistence failure retains its key and returns a retryable 503; the same fingerprint cannot execute again, and a different fingerprint conflicts. The outcome may require operator inspection. Known 4xx validation/state failures release their reservation. There is no automatic uncertain-key reconciliation endpoint or safe writable downgrade to the old JSONL-only implementation. Corrupt metadata and incomplete terminal evidence fail startup. See [durability report](reviews/API_DURABILITY_2026-11-07.md) and [deployment precautions](DEPLOYMENT.md).

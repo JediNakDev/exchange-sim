@@ -27,6 +27,53 @@ jobs:
         if: matrix.mode == 'release'
         run: make -j4 tools examples MODE=release CXX=${{ matrix.cxx }} EXTRA_CXXFLAGS=-Werror
 
+  research-postgres:
+    name: PostgreSQL metadata, isolated workers and recovery
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    services:
+      postgres:
+        # Match Ubuntu 24.04's dump/restore client major version.
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: exsim-ci-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: exsim-ci-only
+    steps:
+      - uses: actions/checkout@v4
+      - name: PostgreSQL client and C library
+        run: sudo apt-get update && sudo apt-get install -y libpq-dev postgresql-client-16
+      - name: native API with PostgreSQL
+        run: make -j2 WITH_POSTGRES=1 build/release/exsim_api EXTRA_CXXFLAGS=-Werror
+      - name: real database lifecycle and failure tests
+        run: python3 tests/integration/postgres_api_test.py
+
+  research-compose:
+    name: container deployment and persistent research results
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: disposable local credentials and Compose validation
+        run: |
+          sh docker/create-secrets.sh
+          docker compose config --quiet
+          python3 tests/integration/compose_secrets_test.py
+      - name: build runtime images
+        run: docker compose build
+      - name: deploy, execute a real run and recreate the stack
+        run: python3 tests/integration/compose_deployment_test.py
+
   research-web:
     name: research UI, HTTP contract and delivery invariants
     runs-on: ubuntu-24.04
@@ -56,8 +103,8 @@ jobs:
       - name: production frontend
         working-directory: web
         run: bun run build
-      - name: real C++ API contract binary
-        run: make -j2 build/release/exsim_api CXX=clang++ EXTRA_CXXFLAGS=-Werror
+      - name: native API and artifact verifier for browser contracts
+        run: make -j2 build/release/exsim_api build/release/exsim_research CXX=clang++ EXTRA_CXXFLAGS=-Werror
       - name: browser failure and recovery invariants
         working-directory: web
         run: |

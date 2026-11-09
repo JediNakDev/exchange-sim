@@ -2,12 +2,12 @@
 
 This document defines the observable behaviour of `exsim::MatchingEngine`.
 It is precise enough that two independent implementations — the production
-engine (`src/exsim/matching_engine.cpp`) and the reference model used for
+engine (`lib/src/exsim/matching_engine.cpp`) and the reference model used for
 differential testing (`tests/exsim/reference/reference_engine.hpp`) — produce
 **identical event streams** for any command stream. Anything not specified
 here is a bug in this document.
 
-Types referenced below live in `include/exsim/{types,command,event}.hpp`.
+Types referenced below live in `lib/include/exsim/{types,command,event}.hpp`.
 
 ---
 

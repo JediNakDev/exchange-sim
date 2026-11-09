@@ -34,6 +34,7 @@ mock.module("react", () => ({
   },
 }));
 mock.module("next/navigation", () => ({
+  usePathname: () => "/research",
   useRouter: () => ({ push: () => {}, replace: () => {} }),
   useSearchParams: () => new URLSearchParams(query),
   useParams: () => ({ runId }),

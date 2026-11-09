@@ -123,7 +123,7 @@ TEST_CASE(api_durability, response_write_failure_after_creation_blocks_duplicate
         limit.rlim_cur = static_cast<rlim_t>(resource_size + 64);
         if (::setrlimit(RLIMIT_FSIZE, &limit) != 0) ::_exit(4);
         const int status = send(service, "POST", "/v1/experiments", experiment_body()).status;
-        (void)::write(pipe_fds[1], &status, sizeof(status));
+        if (::write(pipe_fds[1], &status, sizeof(status)) != static_cast<ssize_t>(sizeof(status))) ::_exit(5);
         ::_exit(0);  // abrupt process loss, no service destructor
     }
     ::close(pipe_fds[1]);

@@ -10,7 +10,8 @@
 #   make clean
 #
 # Sources are discovered automatically:
-#   src/**/*.cpp            linked into every binary
+#   lib/src/**/*.cpp        reusable library implementation
+#   src/<daemon>/*.cpp      daemon entry points, linked separately
 #   tests/**/*.cpp          one test binary: build/<mode>/run_tests
 #   tools/<name>/*.cpp      one binary per directory: build/<mode>/<name>
 #   examples/<name>.cpp     one binary per file: build/<mode>/examples/<name>
@@ -22,11 +23,19 @@ MODE ?= release
 CXX ?= c++
 STD := -std=c++20
 WARNINGS := -Wall -Wextra -Wpedantic -Wshadow
-CPPFLAGS := -I include -I . -MMD -MP
+CPPFLAGS := -I lib/include -I include -I . -MMD -MP
 # The production MatchingEngine is linked into run_tests, so the differential,
 # scenario, preflight and allocation tests also run against it by default.
 CPPFLAGS += -DEXSIM_TEST_PRODUCTION
 LDLIBS := -lpthread
+
+# PostgreSQL is a control-plane dependency, optional for standalone simulator builds.
+WITH_POSTGRES ?= 0
+PG_CONFIG ?= pg_config
+ifeq ($(WITH_POSTGRES),1)
+  CPPFLAGS += -DEXSIM_WITH_POSTGRES -I$(shell $(PG_CONFIG) --includedir)
+  LDLIBS += -L$(shell $(PG_CONFIG) --libdir) -lpq
+endif
 
 ifeq ($(MODE),release)
   OPT := -O2 -g
@@ -52,9 +61,12 @@ LDFLAGS := $(LDOPT) $(EXTRA_LDFLAGS)
 BUILD := build/$(MODE)
 obj = $(patsubst %.cpp,$(BUILD)/obj/%.o,$(1))
 
-LIB_SRCS := $(shell find src -name '*.cpp' | sort)
+LIB_SRCS := $(shell find lib/src -name '*.cpp' | sort)
 TEST_SRCS := $(shell find tests -name '*.cpp' | sort)
 EXAMPLE_SRCS := $(sort $(wildcard examples/*.cpp))
+DAEMON_NAMES := exsim_apid exsim_traderd exsim_exchanged
+DAEMON_BINS := $(addprefix $(BUILD)/,$(DAEMON_NAMES))
+
 TOOL_NAMES := $(sort $(patsubst tools/%/,%,$(dir $(wildcard tools/*/*.cpp))))
 
 ifeq ($(shell uname -s),Darwin)
@@ -72,7 +84,7 @@ $(shell printf '%s\n' $(call shell_quote,$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(BENCH_
 $(shell cmp -s $(BUILD)/compile.tmp $(BUILD)/compile.config || cp $(BUILD)/compile.tmp $(BUILD)/compile.config)
 $(shell printf '%s\n' $(call shell_quote,$(CXX) $(CXXFLAGS) $(LDFLAGS) $(LDLIBS) $(BENCH_LDFLAGS)) > $(BUILD)/link.tmp)
 $(shell cmp -s $(BUILD)/link.tmp $(BUILD)/link.config || cp $(BUILD)/link.tmp $(BUILD)/link.config)
-$(shell printf '%s\n' $(call shell_quote,$(LIB_SRCS) $(TEST_SRCS) $(EXAMPLE_SRCS) $(wildcard tools/*/*.cpp) $(shell find benchmark -name '*.cpp' | sort)) > $(BUILD)/sources.tmp)
+$(shell printf '%s\n' $(call shell_quote,$(LIB_SRCS) $(TEST_SRCS) $(EXAMPLE_SRCS) $(wildcard tools/*/*.cpp) $(wildcard src/*/*.cpp) $(shell find benchmark -name '*.cpp' | sort)) > $(BUILD)/sources.tmp)
 $(shell cmp -s $(BUILD)/sources.tmp $(BUILD)/sources.config || cp $(BUILD)/sources.tmp $(BUILD)/sources.config)
 
 LIB_OBJS := $(call obj,$(LIB_SRCS))
@@ -84,7 +96,7 @@ EXAMPLE_BINS := $(patsubst examples/%.cpp,$(BUILD)/examples/%,$(EXAMPLE_SRCS))
 
 $(TEST_BIN) $(TOOL_BINS) $(EXAMPLE_BINS): $(BUILD)/link.config $(BUILD)/sources.config
 
-all: $(TEST_BIN) $(TOOL_BINS) $(EXAMPLE_BINS)
+all: $(DAEMON_BINS) $(BUILD)/exsim_api $(TEST_BIN) $(TOOL_BINS) $(EXAMPLE_BINS)
 
 lib: $(LIB_OBJS)
 
@@ -92,9 +104,24 @@ $(BUILD)/obj/%.o: %.cpp $(BUILD)/compile.config
 	@mkdir -p $(dir $@)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
 
+$(TEST_BIN): | $(BUILD)/exsim_traderd $(BUILD)/exsim_exchanged
+
 $(TEST_BIN): $(call obj,$(TEST_SRCS)) $(LIB_OBJS)
 	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(filter %.o,$^) -o $@ $(LDLIBS)
+
+define DAEMON_RULE
+$(BUILD)/$(1): $(call obj,$(sort $(wildcard src/$(1)/*.cpp))) $(LIB_OBJS) $(BUILD)/link.config $(BUILD)/sources.config
+	@mkdir -p $$(dir $$@)
+	$$(CXX) $$(CXXFLAGS) $$(LDFLAGS) $$(filter %.o,$$^) -o $$@ $$(LDLIBS)
+endef
+$(foreach d,$(DAEMON_NAMES),$(eval $(call DAEMON_RULE,$(d))))
+
+$(BUILD)/exsim_apid: | $(BUILD)/exsim_exchanged $(BUILD)/exsim_traderd
+$(BUILD)/exsim_research: | $(BUILD)/exsim_traderd
+
+$(BUILD)/exsim_api: $(BUILD)/exsim_apid $(BUILD)/exsim_exchanged $(BUILD)/exsim_traderd
+	cp $(BUILD)/exsim_apid $@
 
 define TOOL_RULE
 $(BUILD)/$(1): $(call obj,$(sort $(wildcard tools/$(1)/*.cpp))) $(LIB_OBJS)
@@ -114,7 +141,7 @@ check:
 	$(MAKE) MODE=release test
 	$(MAKE) MODE=debug test
 
-tools: $(TOOL_BINS)
+tools: $(DAEMON_BINS) $(BUILD)/exsim_api $(TOOL_BINS)
 
 examples: $(EXAMPLE_BINS)
 
@@ -147,5 +174,5 @@ bench-run: bench
 clean:
 	rm -rf build
 
-ALL_OBJS := $(LIB_OBJS) $(call obj,$(TEST_SRCS) $(EXAMPLE_SRCS) $(BENCH_SRCS) $(wildcard tools/*/*.cpp))
+ALL_OBJS := $(LIB_OBJS) $(call obj,$(TEST_SRCS) $(EXAMPLE_SRCS) $(BENCH_SRCS) $(wildcard tools/*/*.cpp) $(wildcard src/*/*.cpp))
 -include $(ALL_OBJS:.o=.d)

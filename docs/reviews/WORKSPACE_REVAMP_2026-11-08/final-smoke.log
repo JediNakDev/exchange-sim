@@ -1,0 +1,4 @@
+PASS pinning retains selected section
+PASS pinning identical cohort retains its draft
+PASS invalid receipt gives actionable error without page crash
+PASS no page errors

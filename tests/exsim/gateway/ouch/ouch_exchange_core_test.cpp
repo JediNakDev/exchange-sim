@@ -303,7 +303,14 @@ TEST_CASE(gateway_ouch_core, stale_connection_release_keeps_the_newer_binding) {
     order.side = Side::BUY;
     order.price = kHundredFiftyDollars;
     order.qty = 10;
+    const auto next_sequence = exchange.user_states.find(1)->store().next_seq();
     REQUIRE(exchange.core.submit(Command{order}) == server::SubmitResult::Applied);
+    // This core-originated order has no interned OUCH token. Its wire field
+    // remains space-padded without copying from an empty view's null pointer.
+    const auto stored = exchange.user_states.find(1)->store().get(next_sequence);
+    REQUIRE(!stored.bytes.empty());
+    const auto accepted = decode_ouch<ouch42::OrderAccepted>(std::string(stored.bytes.begin(), stored.bytes.end()));
+    CHECK_EQ(std::string(accepted.token.begin(), accepted.token.end()), std::string(accepted.token.size(), ' '));
     REQUIRE_EQ(exchange.core.engine().live_order_count(), 1u);
 
     alice.disconnect();  // the old connection's handler runs late

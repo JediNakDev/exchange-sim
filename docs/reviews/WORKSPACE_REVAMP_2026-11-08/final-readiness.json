@@ -1,0 +1,8 @@
+{
+  "frontend": "http://127.0.0.1:46172/research",
+  "nativeApi": "http://127.0.0.1:46173",
+  "configurationCount": 5,
+  "expectedStudyCount": 3,
+  "productionChanged": false,
+  "humanUsabilityScore": "NOT MEASURED"
+}

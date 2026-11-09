@@ -26,14 +26,15 @@ replayed deterministically, and fault-injected for testing.
 
 | Layer | Path | Notes |
 |---|---|---|
-| Book core (legacy, market-data side) | `include/lob/`, `src/order_book.cpp` | price-time book used to rebuild books from ITCH |
-| Domain types | `include/exsim/{types,command,event,instrument}.hpp` | protocol-neutral vocabulary |
-| Matching engine | `include/exsim/matching_engine.hpp`, `src/exsim/` | pure function of the command stream; spec in `docs/SPEC.md` |
-| Protocol codecs | `include/exsim/protocol/` | zero-copy, zero-alloc encode/decode of wire formats |
-| Gateways | `include/exsim/gateway/` | per-session protocol state machines ↔ commands/events |
-| Networking | `include/exsim/net/` | non-blocking TCP/UDP, kqueue/epoll reactor |
-| Simulation & test infra | `include/exsim/sim/`, `tests/exsim/` | journal, replay, scenarios, reference model, fault injection |
-| Binaries | `tools/<name>/` | `exsim` server, clients, replay, bench |
+| Book core (legacy, market-data side) | `include/lob/`, `lib/src/order_book.cpp` | price-time book used to rebuild books from ITCH |
+| Domain types | `lib/include/exsim/{types,command,event,instrument}.hpp` | protocol-neutral vocabulary |
+| Matching engine | `lib/include/exsim/matching_engine.hpp`, `lib/src/exsim/` | pure function of the command stream; spec in `docs/SPEC.md` |
+| Protocol codecs | `lib/include/exsim/protocol/` | zero-copy, zero-alloc encode/decode of wire formats |
+| Gateways | `lib/include/exsim/gateway/` | per-session protocol state machines ↔ commands/events |
+| Networking | `lib/include/exsim/net/` | non-blocking TCP/UDP, kqueue/epoll reactor |
+| Simulation & test infra | `lib/include/exsim/sim/`, `tests/exsim/` | journal, replay, scenarios, reference model, fault injection |
+| Research daemons | `src/exsim_{apid,traderd,exchanged}/` | API orchestration and independent trader/exchange workers; [lifecycle and transport](architecture/WORKERS.md) |
+| Tools | `tools/<name>/` | real-time server, clients, replay, bench |
 
 ## Hot-path coding standard
 

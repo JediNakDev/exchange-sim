@@ -1,8 +1,183 @@
 # Working state and implementation plan
 
-Updated 2026-11-08. This is a recovery checkpoint, not live delegate status. Keep it concise; put detailed evidence in the relevant report or log.
+Updated 2026-11-09. This is a recovery checkpoint, not live delegate status. Keep it concise; put detailed evidence in the relevant report or log.
 
 ## Current continuation queue
+
+**Publication and main merge, 2026-11-09:** user authorized pushing and merging.
+Source065494f is pushed on `exchange-simulator`; PR
+https://github.com/JediNakDev/exsim/pull/3 targets main and remains watched.
+GitHub reports the repository moved from `lob` to `exsim`; existing origin
+redirects successfully. Personal/local files and separate demo media are
+preserved outside the commit. No deployment or migration.
+
+CI GCC release/debug jobs129014144973/129014144762 failed on an ignored pipe
+write result under `-Werror=unused-result`. Parent now checks the complete
+write in that durability probe and two equivalent runtime readiness probes;
+child failure gets a distinct exit status. No assertions or production code
+changed. Linux GCC14 fortified release/debug compilation of both files passes;
+focused durability17/17 and runtime-review7/7 pass. Logs:
+`output/process-architecture-2026-11-09/logs/exsim-pr3-gcc-*`.
+Next: push this repair, follow existing CI notifications, and merge PR3 once
+checks pass. No delegate or replacement watch is needed.
+
+**PR3 PostgreSQL CI fixture repair, 2026-11-09:** job129014131122 on15434f5
+passed26/27 tests; its API-suspension probe required600 simulated seconds to
+complete within15 wall seconds. Confirmed actual worker independence: original
+probe passes normally, and the workload completes with the API suspended under
+0.25CPU when the diagnostic wait permits it (whole test46.956s). Production
+code is unchanged. The committed fixture now uses60 simulated seconds with the
+same15-second deadline, plus exact end-time/nonzero-event assertions and proof
+that PostgreSQL stays running-state until the suspended API resumes.
+
+Repaired focused test passes under0.25CPU (whole test5.894s). Full real
+PostgreSQL18 suite passes27/27 in69.973s in a disposable init-enabled container;
+all test containers/volumes removed. Initial combined test harness without an
+init process mishandled adopted orphan processes; the init-enabled rerun is
+the valid full-suite evidence. Logs retained under
+`output/process-architecture-2026-11-09/logs/exsim-pr3-postgres-*`.
+Next: push this fixture repair, follow the existing PR3 watch and merge once CI
+passes. Earlier GCC repair144b34c is already pushed. No new watch or delegate.
+
+**PR3 web CI repair, 2026-11-09:** PostgreSQL failure on144b34c is the same
+old600s fixture already repaired by a151e24. Web job129015250568 passed29/32
+browser cases. Parent repairs the three failures: CI now builds the independent
+`exsim_research` verifier as well as the API; browser preparation fails early if
+either binary is missing. The audit test retains actual unpack/reproduce and
+zero-exit checks and adds an explicit verifier-launch assertion. Route-reset
+coverage follows the loaded study name after summary navigation settles, then
+opens Runs and recovery, preserving same-document and late-response assertions.
+Connections coverage follows the documented unavailable-telemetry state and
+built-in setup continuation. Remaining custom-strategy Coming soon copy was
+removed from Connections, setup help and sidebar; no backend semantics changed.
+
+Fresh production build and three scoped browser cases pass3/3 in9.3s; ordinary
+frontend123/123 in4.19s, typecheck and scoped lint pass. UI_DESIGN records the
+navigation/copy decisions. Test-tier guidance used scoped cases; full browser
+coverage remains for CI. Logs:
+`output/process-architecture-2026-11-09/logs/exsim-pr3-web-*`.
+Next: push this web repair, follow the existing PR3 watch, fix any remaining
+checks and merge once green. Do not create a replacement watch or delegate.
+
+**PR3 journal-readiness CI repair, 2026-11-09:** GCC release job129015250526
+on144b34c passed1033/1034 cases; only journal backpressure failed. Its child
+signaled readiness before server construction, charging cold startup against
+the300ms reactor deadline. Parent moves readiness after startup/pipe filling
+(or after the supported nonregular-journal rejection), validates an actual R
+byte, and contains unexpected child exceptions. The existing5s startup wait,
+300ms reactor wait and exit-status assertions remain. A deliberate350ms startup
+pause proves startup is excluded; an isolated old-readiness negative control
+fails with that pause, while the repaired case passes. Production is unchanged.
+
+Focused runtime-review7/7 passes in release and ASan/UBSan. Linux GCC14 fortified
+release/debug compilation passes. Logs and negative-control source/binaries:
+`output/process-architecture-2026-11-09/`, with
+`logs/exsim-pr3-journal-ready-*` and `logs/exsim-pr3-gcc-release-144b34c.log`.
+Next: push this repair, follow the existing PR3 watch and merge after CI passes.
+Earlier fixes144b34c/a151e24/317ff66 are already pushed. No new watch/delegate.
+
+**PR3 OUCH empty-token sanitizer repair, 2026-11-09:** debug job129015266198
+on144b34c reports undefined behavior in OuchUserState::copy_token: an unknown
+internal client ID yields an empty string_view with null data, passed to
+memcpy even with length zero. Parent guards the copy on nonempty tokens,
+retaining the existing all-space destination and bounded hot-path behavior.
+The stale-binding regression now checks the actual accepted wire token is
+space-padded; its binding/expiry assertions remain intact.
+
+Linux GCC14 ASan/UBSan reproduces the exact null-pointer report using an
+isolated old header, then passes all OUCH/core7/7 with the fix. Native release
+OUCH/core7/7 also passes, including its allocation guard. No sanitizer is
+disabled and no timeout is changed. Logs and reproduction script/header are
+retained under `output/process-architecture-2026-11-09/`, primarily
+`logs/exsim-pr3-ouch-null-*` and `logs/exsim-pr3-gcc-debug-144b34c.log`.
+Next: push the fix, cancel this task's superseded CI runs, follow the existing
+PR3 watch and merge after current checks pass. No replacement watch/delegate.
+
+**Trader/exchange architecture, completed 2026-11-09:**
+User requested `exsim_apid`, `exsim_traderd`, `exsim_exchanged`, reusable
+libraries, custom-strategy removal and Docker correction. Implemented by parent
+in this shared checkout, without delegates. Shared sources/headers moved to
+`lib/src` and `lib/include`, preserving pre-existing Pg/worker/UI work and
+untracked data. Trader/exchange observations and actions now cross real UDS
+IPC while retaining the four strategy classes and existing run timing. Daemon
+entry points and worker runtimes live under their respective `src/` folders.
+Research IPC uses explicit research framing, not OUCH/ITCH; standard codecs
+remain reusable libraries. Custom setup and Coming soon entries removed; no
+backend custom loader existed. API/exchange/trader executable provenance,
+release packaging, Docker images, runbooks and generated API types updated.
+
+Final: warning-free release all-target build; process7/7 (all four strategies,
+two seeds, byte-identical artifacts), wire3/3, API99/99, research68/68,
+allocation26/26; focused ASan/UBSan10/10 (allocation counting disabled there).
+Real HTTP integration proves three PIDs, pause/step/resume, cold inspection
+and trader-crash failure with API availability. HTTP contract9/9/all23 ops,
+Bun129pass/5existing skips, types/scoped lint, delivery42/42, credentials4/4.
+Both Docker images build; real disposable Compose/PostgreSQL check passes all
+three daemon names, controls, artifacts and exact persistence after recreation.
+A60s TWAP seed42 independently reproduces. Fixed a missing review-test mock
+export without altering its assertions. Receipt and precise limits:
+[PROCESS_ARCHITECTURE_2026-11-09.md](quality/PROCESS_ARCHITECTURE_2026-11-09.md).
+Logs/artifacts/image IDs: `output/process-architecture-2026-11-09/`.
+No commit, push, deployment promotion or data migration. Disposable test stacks
+cleaned; existing installed/dev services and data preserved. No required work
+remains for this scoped process split. Next: review/commit or explicitly roll
+out the updated build when requested.
+
+**Docker Compose, completed 2026-11-09:** user requested Docker deployment.
+Added production API/web Dockerfiles (existing development Dockerfile retained),
+`compose.yaml` with PostgreSQL18, private API/DB, non-root apps, a non-superuser
+DB role, named database/artifact volumes and local worker processes inside the
+API container. Atomic credential helper and build-context exclusions added.
+Both images build; real disposable Compose check passes frontend HTML/assets,
+proxy, native worker/controls/results and exact persistence/replay after full
+container recreation. Credential helper4/4 and config validation pass. GPT/high
+read-only QA `/root/compose_review` complete, no blockers; parent fixed its
+helper-generation robustness note. Receipt/logs/image IDs:
+[DOCKER_COMPOSE_2026-11-09.md](quality/DOCKER_COMPOSE_2026-11-09.md).
+Test projects/volumes removed; images and ignored local credentials retained.
+Host PostgreSQL/installed services/data and concurrent UI work preserved. No
+commit, image push or deployment promotion. Startup:
+`sh docker/create-secrets.sh` then `docker compose up -d --build --wait`, frontend
+http://localhost:3761. Runbook [DOCKER.md](architecture/DOCKER.md). Next: user can
+start the stack; explicit migration/rollout remains separate from these checks.
+
+**Worker separation, 2026-11-08:** user requested worker isolation with no IPC on
+the hot path. Implemented on top of the uncommitted PostgreSQL milestone in this
+parent checkout: default CLI process-per-run execution, local control/snapshot
+RPC only, sole API metadata writer, cold query workers, durable launch
+reservation, inherited root ownership fence, crash/timeout recovery and partial
+cache preservation. No matching/gateway event-path IPC was added. The API can be
+suspended while a worker completes. Receipt:
+[WORKER_SEPARATION_2026-11-08.md](quality/WORKER_SEPARATION_2026-11-08.md).
+Read-only GPT/high QA task `/root/worker_review` completed; parent fixed its
+file-mode persistence, child provenance and late-reply findings and added
+regressions. Final macOS real-Pg27/27 release +27/27 ASan/UBSan, nativeAPI99/99,
+allocation25/25, HTTP contract9/9/all23 operations, delivery41/41. Linux GCC
+`-Werror` API99/99/allocation25/25 and actual worker/query process smoke pass.
+Exact logs in receipt. No deployment, migration, commit or push. Task-owned
+validation APIs/containers stopped, temporary DBs cleaned, concurrent UI work
+preserved. API death still fails active workers; independent supervisors,
+distributed leases, retries and multi-user operations remain future scope.
+Next: review/commit local changes and plan an explicit verified rollout when
+requested. The older PostgreSQL-only handoff below is historical.
+
+**PostgreSQL architecture milestone, 2026-11-08:** user accepted the production
+direction and selected local artifacts for now. First milestone implemented,
+uncommitted in this parent checkout: PostgreSQL experiment/run/idempotency
+metadata, atomic creation/replay response, queued restart recovery, explicit
+non-destructive file import, authoritative audit export, exclusive DB/artifact
+ownership, and development/CI wiring. `exsim_local` initialized against
+`output/postgres-local`; bootstrap stopped. Existing installed services and data
+remain untouched. Receipt: [POSTGRES_METADATA_2026-11-08.md](quality/POSTGRES_METADATA_2026-11-08.md).
+Read-only GPT/high QA `/root/postgres_review`, shared checkout, completed; parent
+fixed its provenance/audit/marker findings. Release and ASan/UBSan integration
+15/15 each, existing release API96/96, delivery41/41, frontend types/scoped lint,
+PostgreSQL release/debug and file-only builds pass. Exact logs in receipt.
+No commits, push or deployment in this milestone. Next: isolate C++ run workers
+with durable control acknowledgments, leases/attempt ownership and crash
+recovery while preserving pause/step/inspection. Authentication, workspaces,
+quotas and operations follow before remote multi-user use. No claim of complete
+production architecture or worker integration.
 
 **Current user handoff, 2026-11-08:** trader workflow overhaul and all reported persona findings are implemented and independently closed within the recorded scopes. Final product pair: frontend75cf28f/native360ad69, Next`efg6fmC6FKFd5gxu0E1Hb`, Node24.22.1. Durable exact release `output/releases/human-review-75cf28f`. Fresh empty participant app http://127.0.0.1:46072/experiments, data/logs `output/human-participant-01-75cf28f`, supervisor30473, owning tool session74383. Native API46073. Only the actual human evaluation remains; results NOT RUN. See [human packet](reviews/HUMAN_FIRST_USE_TEST_2026-11-08.md), separate [facilitator key](reviews/HUMAN_FACILITATOR_KEY_2026-11-08.md), and [repair ledger](reviews/PERSONA_REPAIR_LEDGER_2026-11-08.md). No running delegates. Expert/reference processes stopped with all data retained; installed production remains unchanged. Historical deployed pair below is not this local human-test release.
 
@@ -513,3 +688,59 @@ Target `origin/main` is the historical `404feb5` LOB release, so this is a cumul
 User clarified: merge `ui-green-design-system` into `exchange-simulator` locally and open `exchange-simulator` -> `main`. Local exchange-simulator was an ancestor of the complete UI/native branch (0 divergent,15 incoming commits), so `git merge --ff-only ui-green-design-system` integrated it at `ea0d7c3` with no conflicts or source edits. Earlier local exchange branch also carried29 unpublished commits, now included as requested. Existing validated source is unchanged by this branch integration; only this receipt is added. Preserved all untracked files.
 
 The earlier UI-head PR was created just before the correction arrived: https://github.com/JediNakDev/lob/pull/1. Closed and unlinked it as a duplicate; no merge/deployment happened. Publish `exchange-simulator`, open the replacement main-target PR, and link it to this thread. Frontend/native validation remains the receipts above; no redundant test rerun for a fast-forward plus documentation.
+
+### Trader workspace structural revamp implemented for live review
+
+User clarified that the earlier work improved the old hierarchy and requested implementation of the new trader proposal, a running development server and iterative UX checks. Read frontend-design, project vercel-react-best-practices, current UI_DESIGN and installed Next docs. Parent owns frontend/design additions only; concurrent uncommitted PostgreSQL/worker files, .gitignore, development runner, other source and production data remain untouched. No delegates or new checkouts in this implementation. No commit/push/deployment performed.
+
+Implemented Research/Strategies/Scenarios/Runs/Compare primary navigation; Connections utility; lineage-grouped study landing/family/results; capability-backed libraries and preset editor entry; cross-study run queue; execution completion/cost/progress and MM equity-change/inventory/drawdown/markout hierarchy; separate diagnostics/export; comparison trade-off/pair/evidence sections; pinned finding export/reopen; URL analysis context and optimistic run search. UI_DESIGN explicitly amended; green tokens/shared primitives preserved. Native contracts unchanged. Current-contract limitations are explicit in reviews/WORKSPACE_REVAMP_IMPLEMENTATION_2026-11-08.md, not represented by fake controls. Earlier three-menu human-test readiness does not certify this new structure.
+
+Three parent browser loops15/23/7 checks plus final4-check smoke closed observed duplicate actions, chart displacement, null-root Compare selection, URL/seed/tab/pin state and lost search characters. Native data proves actual studies/controls, receipt identity, 390px light/dark and keyboard paths; no human80% or independent redesign clearance claimed. Type/lint/build pass; ordinary127pass/5pre-existing skips,13330 assertions3.92s; nativebrowser4/4 in10.8s; targeted recovery/accessibility9/9 in6.0s. Exact logs `/tmp/revamp-{types,lint,tests,build,native-browser,workflow-browser}.log`, durable review receipts/screens/probes in reviews/WORKSPACE_REVAMP_2026-11-08/.
+
+LIVE review UI http://127.0.0.1:46172/research, nativeAPI46173. Supervisor PID14570 via scripts/run_workspace_dev.py, receipt output/revamp-review/dev-session.json. Detached owned supervisor retains data output/revamp-dev-data and logs output/revamp-review/{supervisor,api-dev,next-dev}.log. Uses reviewed native360ad69 binary from output/releases/human-review-75cf28f, avoiding concurrent native rebuild/store changes. Five real configurations form three example studies including one intentional failure; existing installed services unchanged. Stop verified supervisor with SIGTERM, or restart after stopping via python3 scripts/run_workspace_dev.py. User next: inspect the running revamp, report task friction; retain source/data for iteration. Human first-use, durable editable finding metadata, independent scenario CRUD, multi-candidate and parameter sweeps are not silently claimed implemented.
+
+### Subtitled trader workspace demo, 2026-11-09
+
+User requested ONE demo video covering the new design, flow and trader use cases, with subtitles. Captured in actual T3 shared preview (now functional),1440x900, real dev UI46172/nativeAPI46173. Created through rendered controls new execution baseline exp_c7571b67808fcb6d and sweep variant exp_3ae9d94a5c1e979c, three completed seeds101/102/103 each. TWAP500/483/483 shares versus sweep500/500/500; signed costs/reproduction-backed paired comparison retained in docs/demo/workspace-revamp-evidence/native-evidence.json. Existing MM quote-width study explicitly described as existing. No mock interception, production changes or engine rebuilds. Actual finding-export completion observed; transient browser download was cleaned when its tab closed, so no separate byte-integrity claim is made for that captured download.
+
+Final ONE video docs/demo/workspace-revamp-demo.mp4,138.205s (2m18s),1440x1000 H.26430fps,4,613,284bytes. Application900px + separate100px subtitle band.21 English burned-in captions, editable SRT/VTT and embedded chapters. Initial subtitle scale was too large; fixed via explicit ASS PlayRes1440x1000, then inspected final frames. Trimmed one repeated static hold in fill inspection. Full final decode PASS, cue/clip continuity PASS, final sampled frames1/7/11/15/18/21 visually inspected. SHA256b0ae79a6b04ed6f88c8d21d8bf31f8fe97aff1de7b229fa2f38945f4c3e6793d. Poster and updated docs/demo/README.md included. Capture/render metadata, native/source-hash evidence and verification stored in docs/demo/workspace-revamp-evidence/. Raw clips/intermediates remain ignored under output/workspace-demo-2026-11-09; ffmpeg-static installed only in /tmp/exsim-demo-tools, no repository dependency changes. Shared preview tab closed, dev supervisor/server retained. No new human usability or live-market performance claim. No commit/push/deployment for this media task.
+
+
+## Configuration UX continuation, 2026-11-09
+
+User confirmed both built-in models and their own external strategy clients.
+Parent implemented clickable breadcrumb ancestors with pinned run context,
+first-section built-in model selection and parameter focus link, visible
+external-client entry, protocol/session/ITCH/custom-parameter editor and local
+handoff export. Added explicit native server/client steps and corrected absent
+telemetry interpretation. Existing backend sources and interrupted work retained.
+No delegation, commit, push or deployment. All work is in the shared parent tree.
+
+Checks: types/scoped lint pass; Bun16/16,100 assertions; browser23/23 on native
+API-backed dev46172/46173, including actual export bytes, focus and390px
+containment. Shared preview snapshots timed out twice; isolated fallback browsers
+closed. Evidence/logs/reproducer: output/setup-flow-review. Receipt:
+[CONFIGURATION_SETUP_2026-11-09.md](reviews/CONFIGURATION_SETUP_2026-11-09.md).
+Flow: [CONFIGURATION_FLOW_2026-11-09.html](reviews/CONFIGURATION_FLOW_2026-11-09.html).
+Dev supervisor14570 remains available. The JSON is an adapter handoff, not an
+importable native config. Browser gateway launch/control/live telemetry and
+external-session research-result ingestion remain unimplemented. Next runtime
+work requires those native integrations; no external end-to-end or human
+first-use success is claimed for this amendment.
+
+
+## Custom strategy UI deferred, 2026-11-09
+
+Latest user decision supersedes the external-client editor above: revert custom
+trading strategy setup and mark it to implement. Removed the protocol/session/
+ITCH/strategy JSON form, handoff export helper and their three tests. Research,
+New study and Connections retain a non-actionable Custom trading strategy
+button with a Coming soon tooltip on hover and keyboard focus. Connections is
+again a read-only utility. Built-in strategy selectors, parameter links and
+clickable breadcrumb ancestors are preserved. PRODUCT and UI_DESIGN record the
+planned status; the prior setup report is marked historical for custom setup.
+The flow artifact likewise labels that branch Coming soon. Native protocol tools
+and concurrent backend/deployment files are untouched. No commit or deployment.
+Parent checks:13 focused tests pass,79 assertions; typecheck/scoped lint checked.
+Dev review stays at http://127.0.0.1:46172/research. Next custom-strategy work must
+implement the actual native client/runtime integration before enabling the UI.

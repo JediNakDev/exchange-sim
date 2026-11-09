@@ -3255,6 +3255,16 @@ components:
           oneOf:
             - {"type": "string"}
             - {"type": "null"}
+        exchangeExecutableSha256:
+          description: SHA-256 of the exchange daemon, null when unavailable.
+          oneOf:
+            - {"type": "string"}
+            - {"type": "null"}
+        traderExecutableSha256:
+          description: SHA-256 of the trader daemon, null when unavailable.
+          oneOf:
+            - {"type": "string"}
+            - {"type": "null"}
     RequestDiagnostic:
       type: "object"
       additionalProperties: false

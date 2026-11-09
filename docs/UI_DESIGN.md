@@ -101,22 +101,22 @@ Weights: 400 body, 500 titles and emphasis, 600 the page title only. Sentence ca
 +----------------+---------------------------------------------------------------+
 | exsim          | [=]  Research / Run analysis                        [theme]  |  48 px header
 |                +---------------------------------------------------------------+
-| Experiments  < |  Seed 101  (o completed)                    [Pause] [Inspect]|  PageHeading
-| Compare        |  run_x / exp_y, deterministic research                         |
-| Connections    |                                                               |
+| Research     < |  Seed 101  (o completed)                    [Pause] [Inspect]|  PageHeading
+| Strategies     |  run_x / exp_y, deterministic research                         |
+| Scenarios      |                                                               |
 |                |  Net P&L     Realized     Ending pos.   Max drawdown           |  KeyFigureList
 |                |  +78.80000   +71.0000     -100          15.80000               |
 |                |  -----------------------------------------------------------  |
 |                |  Section title                                    [action]    |  ResearchSection
 | ...            |  Section description                                          |
-| New experiment |  [ table / chart / form ]                                     |
+| New study      |  [ table / chart / form ]                                     |
 | Synthetic,     |                                                               |
 | single venue   |                                                               |
 +----------------+---------------------------------------------------------------+
 ```
 
 - **Shell.** shadcn `Sidebar` (`collapsible="icon"`, becomes a sheet on mobile) plus `SidebarInset`. The header holds `SidebarTrigger`, a `Breadcrumb` for the current location and the theme menu. No footer.
-- **Sidebar.** Brand mark, the three primary destinations, then "New experiment" as the one action, and a short note about the market model in `SidebarFooter`.
+- **Sidebar.** Brand mark; Research, Strategies, Scenarios, Runs and Compare as primary destinations; New study as the creation action. Connections is a read-only utility in SidebarFooter alongside the research-mode note. Research groups persisted variant lineage into studies; exact experiment/run identities remain unchanged. Existing experiment URLs remain deep links. This navigation amendment implements the user-requested workflow revamp; all visual tokens and primitive rules above remain authoritative.
 - **Content.** Left aligned, `max-w-screen-2xl`, never centred text except inside an empty state.
 - **Page.** `PageHeading`, optional `KeyFigureList`, then a stack of `ResearchSection`s. Two-column grids (`xl:grid-cols-2`) only for genuinely parallel content (exchange truth versus strategy view, ledger versus orders).
 - **Cards** are for self-contained objects that make sense alone: a chart, the launch panel, a fill explanation. A section that is just a heading and a table is not a card.
@@ -182,3 +182,49 @@ These live in `web/src/components/research/` and are the only custom presentatio
 4. Numbers in mono and tabular, signed values through `SignedFigure`.
 5. Works at 390 px and in dark mode.
 6. `bun run typecheck`, `bun run lint`, `bun test` and the browser tests pass.
+
+## 11. Research workspace hierarchy, 2026-11-08
+
+Research is the landing destination. It groups baseline configurations and variants by persisted parent lineage, exposes the question/description and attention states, and links to controlled comparisons. Strategy and scenario libraries use actual service capabilities and presets. Runs is the cross-study attempt queue; completed counts are not eligibility counts. Configuration pages have Results, Runs and recovery, and Assumptions sections. Native comparison remains the authority for cohorts, reproduction and censoring.
+
+Run analysis leads with strategy-specific outcomes. Execution Overview shows completion/cost and a bounded decision-based progress plot with explicit coverage and delivered-knowledge semantics; exact trace and child evidence live in Explain execution. MM Overview uses time-aligned equity/inventory/drawdown samples and coverage-aware per-horizon markout bars. Diagnostics, state history and provenance/export remain secondary sections. Equity includes initial capital and is never relabeled net P&L. Comparison leads with paired trade-offs, then contextual assumptions/eligibility and paths. Research findings export to local evidence-bound files with explicit persistence wording. No metadata save is fabricated.
+
+Performance: fetch independent resources concurrently, load heavy optional chart panels on demand, keep exact decimals in strings and derive approximate plot positions only through chart-derived-floats. Do not read full event streams for library rows. This implementation does not introduce native parameter sweeps, uploaded strategies or a second metadata store.
+
+
+## Configuration and navigation amendment, 2026-11-09
+
+Follow both `frontend-design` and `vercel-react-best-practices` within the token,
+typography and primitive rules above. The active configuration workflow uses the four built-in research strategies.
+
+- Built-in research: task, explicit strategy selector, strategy parameters,
+  market assumptions and run plan, review, launch, paired comparison, inspection.
+  The strategy selector belongs immediately below the task choice. A direct
+  parameter anchor focuses the relevant group. Research executes the strategy and exchange in separate workers; the UI
+  does not select a research transport protocol.
+- Custom strategy setup, protocol selection, handoff export and Coming soon
+  entries are removed. Connections remains read-only telemetry. Missing research
+  API telemetry does not establish whether an independently started native
+  server is running.
+- Breadcrumb ancestors are actual Next links; only the current page is a
+  noninteractive `BreadcrumbPage`. Inspection includes Runs and its Run analysis
+  ancestor, preserving baseline, candidate and pinned run selection. Variants
+  link to their source study. Breadcrumbs stay on one locally scrolling line
+  on narrow screens so the fixed header and document do not overflow.
+
+Configuration flow artifact:
+[CONFIGURATION_FLOW_2026-11-09.html](reviews/CONFIGURATION_FLOW_2026-11-09.html).
+
+### Browser contract alignment, 2026-11-09
+
+Run analysis identifies its parent study by its loaded human-readable name in
+the Research context region. Navigation tests must follow that real Next link
+without relying on the transient raw-ID fallback. Wait for run-summary navigation
+to finish before selecting its study link; individual attempts live under the
+study Runs and recovery tab. The navigation checks must still prove
+selection/cursor reset and rejection of late responses across run routes.
+
+Connections labels an absent report as No live gateway telemetry reported.
+It explains that this cannot establish whether a separately launched server is
+running. The continuation opens built-in strategy setup. Custom-strategy setup
+and Coming soon copy are absent from Connections, study setup and the sidebar.

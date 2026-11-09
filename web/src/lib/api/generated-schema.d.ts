@@ -1541,6 +1541,10 @@ export interface components {
             sourceRevision: string | null;
             releaseId: string | null;
             executableSha256: string | null;
+            /** @description SHA-256 of the exchange daemon, null when unavailable. */
+            exchangeExecutableSha256?: string | null;
+            /** @description SHA-256 of the trader daemon, null when unavailable. */
+            traderExecutableSha256?: string | null;
         };
         RequestDiagnostic: {
             arrivalTransit?: {

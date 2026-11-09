@@ -46,6 +46,17 @@ The HTTP/control adapter must not execute request parsing, JSON encoding, or dis
 
 Each run owns independent engine, RNG, strategy, and accounting state. Process-per-run isolation is a straightforward initial boundary; do not introduce shared multi-run engine state.
 
+Production direction accepted 2026-11-08: PostgreSQL for metadata and durable
+coordination, a separate C++ worker tier, and identity/operations infrastructure.
+Keep artifacts local for now (explicit user choice). The first PostgreSQL
+milestone and its implementation limits are recorded in
+[architecture/POSTGRES.md](architecture/POSTGRES.md). Local process-per-run worker
+separation now uses independent `exsim_exchanged` and `exsim_traderd`
+processes per research run, with actual strategy messages crossing a private
+Unix-domain socket. The API retains orchestration and metadata. See
+[architecture/WORKERS.md](architecture/WORKERS.md).
+Multi-user hosting and distributed worker coordination remain subsequent work.
+
 ### Frontend stack and API fit
 
 Follow the user's global conventions: **Bun, Next.js, TypeScript, Tailwind CSS, shadcn/ui**. Reuse components before inventing new ones. Additional state/chart/testing libraries need a concrete requirement, not a default scaffold dependency.
@@ -116,3 +127,11 @@ Acceptance: identical manifests and deterministic inputs give identical canonica
 - [tRPC introduction](https://trpc.io/docs) and [OpenAPI TypeScript goals](https://openapi-ts.dev/about): TypeScript inference is useful across TS-owned boundaries; schema-generated types fit our C++ boundary and other clients.
 
 These sources support design constraints, not claims that the proposed platform already implements them.
+
+
+## Built-in strategy scope, 2026-11-09
+
+Research runs execute the four built-in C++ strategy classes in the trader
+daemon against the exchange daemon. Strategies and adapters are library code.
+There is no custom-strategy setup, handoff export, loader, protocol selector or
+Coming soon entry. Generic protocol clients remain connectivity/testing tools.

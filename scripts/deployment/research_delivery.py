@@ -113,6 +113,11 @@ def verify(root, kind=None):
     if metadata["kind"] == "release":
         require((root / "api/exsim_api").is_file() and os.access(root / "api/exsim_api", os.X_OK),
                 "API binary is missing or not executable")
+        if metadata.get("worker_binaries") is not None:
+            require(metadata["worker_binaries"] == ["exsim_exchanged", "exsim_traderd"], "unsupported worker binary set")
+            for name in metadata["worker_binaries"]:
+                require((root / "api" / name).is_file() and os.access(root / "api" / name, os.X_OK),
+                        "worker binary is missing or not executable")
         require((root / "frontend/server.js").is_file(), "missing standalone server.js")
         require((root / "frontend/.next/BUILD_ID").read_text().strip() == metadata["web_build_id"],
                 "frontend build ID mismatch")
@@ -137,6 +142,13 @@ def package(args):
         before[str(source)] = inventory(source, allow_links=True)
         require(not any(part in {".git", ".npmrc", ".yarnrc.yml"} or part.startswith(".env") for name in before[str(source)]
                         for part in Path(name).parts), "release inputs contain environment or credential files")
+    workers = [args.api.parent / name for name in ("exsim_exchanged", "exsim_traderd")]
+    worker_digests = {}
+    for worker in workers:
+        require_separate(worker, args.output)
+        require(worker.is_file() and not worker.is_symlink() and os.access(worker, os.X_OK),
+                "worker must be an executable regular file: " + worker.name)
+        worker_digests[worker.name] = file_digest(worker)
     api_digest = file_digest(args.api)
     require((args.standalone / "server.js").is_file(), "missing standalone server.js")
     build_id = (args.standalone / ".next/BUILD_ID").read_text().strip()
@@ -144,6 +156,11 @@ def package(args):
     with new_directory(args.output) as staging:
         (staging / "api").mkdir()
         shutil.copy2(args.api, staging / "api/exsim_api")
+        for worker in workers:
+            destination = staging / "api" / worker.name
+            shutil.copy2(worker, destination)
+            require(file_digest(worker) == worker_digests[worker.name] == file_digest(destination),
+                    "worker changed during packaging")
         shutil.copytree(args.standalone, staging / "frontend", symlinks=True)
         require(inventory(staging / "frontend", allow_links=True) == before[str(args.standalone)],
                 "standalone copy differs from input")
@@ -160,12 +177,15 @@ def package(args):
                         "asset copy differs from input")
         require(file_digest(args.api) == api_digest == file_digest(staging / "api/exsim_api"),
                 "API changed during packaging")
+        for worker in workers:
+            require(file_digest(worker) == worker_digests[worker.name], "worker changed during packaging")
         for source in sources[1:]:
             require(inventory(source, allow_links=True) == before[str(source)],
                     "frontend input changed during packaging")
         write_manifest(staging, "release", {
             "api_revision": args.api_revision, "web_revision": args.web_revision,
             "web_build_id": build_id, "target": args.target, "node_version": args.node_version,
+            "worker_binaries": [worker.name for worker in workers],
             "schema_version": "exsim.api/1", "service_build_id": "exsim_api/1",
         })
         verify(staging, "release")
@@ -173,6 +193,8 @@ def package(args):
 
 def backup(args):
     require(args.writers_stopped, "backup requires --writers-stopped; disable ALL writers and restart jobs first")
+    require(not (args.data / ".postgres-metadata").exists(),
+            "PostgreSQL data requires a coordinated database dump plus artifact backup; file-only backup is incomplete")
     require_separate(args.data, args.output)
     require((args.data / "experiments").is_dir() and (args.data / "runs").is_dir(),
             "expected API data root with experiments/ and runs/")
@@ -188,6 +210,8 @@ def backup(args):
 def restore(args):
     require_separate(args.backup, args.output)
     original = verify(args.backup, "backup")
+    require(not (args.backup / "data/.postgres-metadata").exists(),
+            "PostgreSQL restore requires its database dump and artifact binding; refusing file-only restore")
     with new_directory(args.output) as staging:
         shutil.copytree(args.backup / "data", staging, dirs_exist_ok=True)
         data_entries = {name.removeprefix("data/"): entry for name, entry in original["entries"].items()

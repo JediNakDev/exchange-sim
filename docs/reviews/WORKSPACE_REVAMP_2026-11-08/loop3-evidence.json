@@ -1,0 +1,12 @@
+{
+  "checks": [
+    "downloaded finding reopens exact native selection",
+    "comparison evidence section survives refresh",
+    "run diagnostics section survives refresh",
+    "study run section survives refresh",
+    "run search retains complete typed query",
+    "run search results constrained to seed101",
+    "no page errors"
+  ],
+  "errors": []
+}

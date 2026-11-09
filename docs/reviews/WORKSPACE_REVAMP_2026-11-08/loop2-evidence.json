@@ -1,0 +1,28 @@
+{
+  "checks": [
+    "inventory-aware library opens the actual chosen model",
+    "preset change retains question",
+    "main MM plot visible without passing a formula wall",
+    "audit export retains explicit entry point",
+    "note draft survives changing comparison sections",
+    "keyboard read explanation reaches panel",
+    "keyboard return restores exact row",
+    "paged return focuses truthful fallback",
+    "light narrow /research",
+    "light narrow /strategies",
+    "light narrow /scenarios",
+    "light narrow /runs",
+    "light narrow /experiments/exp_a633b4c4dfe588d4",
+    "light narrow /runs/run_48f50e00b47427e5",
+    "light narrow /compare?baseline=exp_a633b4c4dfe588d4&candidate=exp_6d7ae18814f50378",
+    "dark narrow /research",
+    "dark narrow /strategies",
+    "dark narrow /scenarios",
+    "dark narrow /runs",
+    "dark narrow /experiments/exp_a633b4c4dfe588d4",
+    "dark narrow /runs/run_48f50e00b47427e5",
+    "dark narrow /compare?baseline=exp_a633b4c4dfe588d4&candidate=exp_6d7ae18814f50378",
+    "no page errors"
+  ],
+  "errors": []
+}

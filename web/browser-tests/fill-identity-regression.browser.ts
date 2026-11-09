@@ -128,7 +128,10 @@ test("run route change resets selection and cursor and rejects a late colliding 
   // Follow real Next links, keeping the document alive and the old read pending.
   const documentId = await page.evaluate(() => performance.timeOrigin);
   await page.getByRole("link", { name: "Run summary", exact: true }).click();
-  await page.getByRole("link", { name: "exp_fixedspreadw2", exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`/runs/${runId}$`));
+  await expect(page.getByRole("heading", { name: "Seed 303 completed", exact: true })).toBeVisible();
+  await page.getByRole("region", { name: "Research context" }).getByRole("link", { name: "Fixed spread 2 ticks (baseline)", exact: true }).click();
+  await page.getByRole("tab", { name: "Runs and recovery", exact: true }).click();
   await page.getByRole("row").filter({ has: page.getByRole("link", { name: otherRunId, exact: true }) }).getByRole("link", { name: "events", exact: true }).click();
   expect(await page.evaluate(() => performance.timeOrigin)).toBe(documentId);
   await expect(page.getByText(otherRunId, { exact: true })).toBeVisible();

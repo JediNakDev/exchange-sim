@@ -70,7 +70,7 @@ test("markout shares and eligibility explain per-share weighting without inventi
   summary.markouts[0].availableShares = "135665";
   let html = renderToStaticMarkup(<TraderRunOutcomes summary={summary} />);
   expect(html).toContain("135665 eligible shares");
-  expect(html).toContain("/ available shares");
+  expect(html).toContain("Means weight eligible shares");
   expect(html).toContain("no-mark and censored fills are excluded");
   delete summary.markouts[0].availableShares;
   html = renderToStaticMarkup(<TraderRunOutcomes summary={summary} />);

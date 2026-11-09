@@ -1,0 +1,19 @@
+$ bun scripts/prepare-browser-assets.ts && playwright test browser-tests/research-workflow.browser.ts --grep "partially launched|lost step responses|offline activity|stationary lifecycle|library tasks|experiment overview|time-series charts|field-specific|keyboard fill selection"
+[WebServer] (node:14024) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 9 tests using 1 worker
+
+(node:14026) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 browser-tests/research-workflow.browser.ts:30:1 › a partially launched batch remains saved and starts only its missing seed (1.6s)
+  ✓  2 browser-tests/research-workflow.browser.ts:76:1 › lost step responses retry the same key and keyboard submits respect the API bound (293ms)
+  ✓  3 browser-tests/research-workflow.browser.ts:139:1 › offline activity counts are unavailable and recover through Try again (203ms)
+  ✓  4 browser-tests/research-workflow.browser.ts:235:1 › stationary lifecycle and series failures recover in place (584ms)
+  ✓  5 browser-tests/research-workflow.browser.ts:280:1 › library tasks and baseline-candidate selection lead to paired evidence (398ms)
+  ✓  6 browser-tests/research-workflow.browser.ts:295:1 › experiment overview exposes analysis and interrupted-work distinctions (934ms)
+  ✓  7 browser-tests/research-workflow.browser.ts:357:1 › keyboard fill selection announces and reaches its explanation without losing the row (314ms)
+  ✓  8 browser-tests/research-workflow.browser.ts:375:1 › time-series charts have distinct names and a keyboard-readable sampled alternative (331ms)
+  ✓  9 browser-tests/research-workflow.browser.ts:403:1 › a field-specific service error opens its section and focuses the invalid input (237ms)
+
+  9 passed (6.0s)

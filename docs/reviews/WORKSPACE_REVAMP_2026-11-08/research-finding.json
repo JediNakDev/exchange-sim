@@ -1,0 +1,2835 @@
+{
+  "format": "exsim.research-finding/1",
+  "finding": "Compare completion with signed cost before selecting a schedule. Next test: child cap sensitivity.",
+  "writtenAt": "2026-11-08T15:33:14.005Z",
+  "query": {
+    "baseline": "exp_a633b4c4dfe588d4",
+    "candidate": "exp_6d7ae18814f50378",
+    "runSelection": "r1_hyUMVe9NLlxf6SM95A818Xyl5wdQIl7mmpMnlyhNGWSUSjQBPOxk0VhdfMGq_nsD"
+  },
+  "baseline": {
+    "experimentId": "exp_a633b4c4dfe588d4",
+    "name": "Execution cost without unfinished shares",
+    "marketWorld": "interactive_synthetic",
+    "configDigest": {
+      "algorithm": "sha256",
+      "hexDigest": "bd6a8d7af8d16528d802cdbff9387305ac316b0cdc88367afb23b5625a10ea03"
+    },
+    "completedSeeds": [
+      "101",
+      "102",
+      "103"
+    ]
+  },
+  "candidate": {
+    "experimentId": "exp_6d7ae18814f50378",
+    "name": "Immediate sweep, same market",
+    "marketWorld": "interactive_synthetic",
+    "configDigest": {
+      "algorithm": "sha256",
+      "hexDigest": "25a275ba953cdc6d0129613a71d8e3f34e0cf115a7b924f43999607bdac144ec"
+    },
+    "completedSeeds": [
+      "101",
+      "102",
+      "103"
+    ]
+  },
+  "selectionPolicy": "explicit_run_selection",
+  "runSelection": "r1_hyUMVe9NLlxf6SM95A818Xyl5wdQIl7mmpMnlyhNGWSUSjQBPOxk0VhdfMGq_nsD",
+  "assumptionDifferences": [
+    {
+      "category": "strategy",
+      "fieldPath": "/strategy/strategyKind",
+      "label": "strategy.strategyKind",
+      "baselineValue": "twap_execution",
+      "candidateValue": "immediate_sweep_execution",
+      "unit": null
+    },
+    {
+      "category": "strategy",
+      "fieldPath": "/strategy/sliceIntervalNs",
+      "label": "strategy.sliceIntervalNs",
+      "baselineValue": "1000000000",
+      "candidateValue": "(absent)",
+      "unit": "ns"
+    },
+    {
+      "category": "strategy",
+      "fieldPath": "/strategy/sliceOrderType",
+      "label": "strategy.sliceOrderType",
+      "baselineValue": "limit",
+      "candidateValue": "(absent)",
+      "unit": null
+    }
+  ],
+  "seedPairing": {
+    "pairedSeeds": [
+      "101",
+      "102",
+      "103"
+    ],
+    "baselineOnlySeeds": [],
+    "candidateOnlySeeds": []
+  },
+  "attemptLedger": [
+    {
+      "experimentId": "exp_a633b4c4dfe588d4",
+      "masterSeed": "101",
+      "selectionReason": "selected",
+      "selectedRunId": "run_87250c55ef4d2e5c",
+      "attempts": [
+        {
+          "runId": "run_87250c55ef4d2e5c",
+          "state": "completed",
+          "creationOrdinal": "1",
+          "selected": true,
+          "eligible": true,
+          "reason": "selected",
+          "observationStatus": "window_observed",
+          "windowEndTimeNs": "31000000000",
+          "observedThroughTimeNs": "60000000000",
+          "digests": {
+            "manifestDigest": {
+              "algorithm": "sha256",
+              "hexDigest": "730ed06de4038f9afeff03a918aa609d5726bddafdc73876b8411d13c5f7e297"
+            },
+            "canonicalEventDigest": {
+              "algorithm": "fnv1a_64",
+              "hexDigest": "7cbb9aea4f742fa9"
+            },
+            "ledgerDigest": {
+              "algorithm": "fnv1a_64",
+              "hexDigest": "1e86abeac24f9cfd"
+            }
+          },
+          "requestDiagnostics": [
+            {
+              "requestKind": "new_order",
+              "submittedCount": "24",
+              "exchangeRejectedCount": "0",
+              "arrivalTransit": {
+                "sampleCount": "24",
+                "minNs": "105099",
+                "maxNs": "123984",
+                "meanNs": "115970.791667"
+              },
+              "rejectReasons": []
+            },
+            {
+              "requestKind": "cancel",
+              "submittedCount": "0",
+              "exchangeRejectedCount": "0",
+              "arrivalTransit": {
+                "sampleCount": "0",
+                "minNs": null,
+                "maxNs": null,
+                "meanNs": null
+              },
+              "rejectReasons": []
+            },
+            {
+              "requestKind": "replace",
+              "submittedCount": "0",
+              "exchangeRejectedCount": "0",
+              "arrivalTransit": {
+                "sampleCount": "0",
+                "minNs": null,
+                "maxNs": null,
+                "meanNs": null
+              },
+              "rejectReasons": []
+            }
+          ],
+          "markouts": [
+            {
+              "horizonNs": "100000000",
+              "availableFillCount": "24",
+              "availableShares": "500",
+              "censoredFillCount": "0",
+              "unavailableFillCount": "0",
+              "totalMarkout": "-5.00000",
+              "meanMarkoutPerShare": "-0.010000"
+            },
+            {
+              "horizonNs": "1000000000",
+              "availableFillCount": "24",
+              "availableShares": "500",
+              "censoredFillCount": "0",
+              "unavailableFillCount": "0",
+              "totalMarkout": "-5.94000",
+              "meanMarkoutPerShare": "-0.011880"
+            },
+            {
+              "horizonNs": "5000000000",
+              "availableFillCount": "24",
+              "availableShares": "500",
+              "censoredFillCount": "0",
+              "unavailableFillCount": "0",
+              "totalMarkout": "-8.06000",
+              "meanMarkoutPerShare": "-0.016120"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "experimentId": "exp_a633b4c4dfe588d4",
+      "masterSeed": "102",
+      "selectionReason": "selected",
+      "selectedRunId": "run_5fe9233de40f35f1",
+      "attempts": [
+        {
+          "runId": "run_5fe9233de40f35f1",
+          "state": "completed",
+          "creationOrdinal": "2",
+          "selected": true,
+          "eligible": true,
+          "reason": "selected",
+          "observationStatus": "window_observed",
+          "windowEndTimeNs": "31000000000",
+          "observedThroughTimeNs": "60000000000",
+          "digests": {
+            "manifestDigest": {
+              "algorithm": "sha256",
+              "hexDigest": "a32816551b91eacdd69d85f89e2d6d8c9a125e4c491bdf7a89111ab3e258747b"
+            },
+            "canonicalEventDigest": {
+              "algorithm": "fnv1a_64",
+              "hexDigest": "2e76f84f6ebb5f51"
+            },
+            "ledgerDigest": {
+              "algorithm": "fnv1a_64",
+              "hexDigest": "4c59b5c2c59d3743"
+            }
+          },
+          "requestDiagnostics": [
+            {
+              "requestKind": "new_order",
+              "submittedCount": "21",
+              "exchangeRejectedCount": "0",
+              "arrivalTransit": {
+                "sampleCount": "21",
+                "minNs": "105132",
+                "maxNs": "124730",
+                "meanNs": "118020.476190"
+              },
+              "rejectReasons": []
+            },
+            {
+              "requestKind": "cancel",
+              "submittedCount": "0",
+              "exchangeRejectedCount": "0",
+              "arrivalTransit": {
+                "sampleCount": "0",
+                "minNs": null,
+                "maxNs": null,
+                "meanNs": null
+              },
+              "rejectReasons": []
+            },
+            {
+              "requestKind": "replace",
+              "submittedCount": "0",
+              "exchangeRejectedCount": "0",
+              "arrivalTransit": {
+                "sampleCount": "0",
+                "minNs": null,
+                "maxNs": null,
+                "meanNs": null
+              },
+              "rejectReasons": []
+            }
+          ],
+          "markouts": [
+            {
+              "horizonNs": "100000000",
+              "availableFillCount": "21",
+              "availableShares": "483",
+              "censoredFillCount": "0",
+              "unavailableFillCount": "0",
+              "totalMarkout": "-4.66000",
+              "meanMarkoutPerShare": "-0.009648"
+            },
+            {
+              "horizonNs": "1000000000",
+              "availableFillCount": "21",
+              "availableShares": "483",
+              "censoredFillCount": "0",
+              "unavailableFillCount": "0",
+              "totalMarkout": "-6.34000",
+              "meanMarkoutPerShare": "-0.013126"
+            },
+            {
+              "horizonNs": "5000000000",
+              "availableFillCount": "21",
+              "availableShares": "483",
+              "censoredFillCount": "0",
+              "unavailableFillCount": "0",
+              "totalMarkout": "-8.98000",
+              "meanMarkoutPerShare": "-0.018592"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "experimentId": "exp_a633b4c4dfe588d4",
+      "masterSeed": "103",
+      "selectionReason": "selected",
+      "selectedRunId": "run_7ca5e70750225ee6",
+      "attempts": [
+        {
+          "runId": "run_7ca5e70750225ee6",
+          "state": "completed",
+          "creationOrdinal": "3",
+          "selected": true,
+          "eligible": true,
+          "reason": "selected",
+          "observationStatus": "window_observed",
+          "windowEndTimeNs": "31000000000",
+          "observedThroughTimeNs": "60000000000",
+          "digests": {
+            "manifestDigest": {
+              "algorithm": "sha256",
+              "hexDigest": "e6b972efa7df042cc0e6177aa2217989a5a97f0ca5b1c055e6a7d948045a02a2"
+            },
+            "canonicalEventDigest": {
+              "algorithm": "fnv1a_64",
+              "hexDigest": "ddc2200c58662a8d"
+            },
+            "ledgerDigest": {
+              "algorithm": "fnv1a_64",
+              "hexDigest": "507542796c184f31"
+            }
+          },
+          "requestDiagnostics": [
+            {
+              "requestKind": "new_order",
+              "submittedCount": "19",
+              "exchangeRejectedCount": "0",
+              "arrivalTransit": {
+                "sampleCount": "19",
+                "minNs": "106896",
+                "maxNs": "124560",
+                "meanNs": "116245.578947"
+              },
+              "rejectReasons": []
+            },
+            {
+              "requestKind": "cancel",
+              "submittedCount": "0",
+              "exchangeRejectedCount": "0",
+              "arrivalTransit": {
+                "sampleCount": "0",
+                "minNs": null,
+                "maxNs": null,
+                "meanNs": null
+              },
+              "rejectReasons": []
+            },
+            {
+              "requestKind": "replace",
+              "submittedCount": "0",
+              "exchangeRejectedCount": "0",
+              "arrivalTransit": {
+                "sampleCount": "0",
+                "minNs": null,
+                "maxNs": null,
+                "meanNs": null
+              },
+              "rejectReasons": []
+            }
+          ],
+          "markouts": [
+            {
+              "horizonNs": "100000000",
+              "availableFillCount": "19",
+              "availableShares": "483",
+              "censoredFillCount": "0",
+              "unavailableFillCount": "0",
+              "totalMarkout": "-4.41500",
+              "meanMarkoutPerShare": "-0.009141"
+            },
+            {
+              "horizonNs": "1000000000",
+              "availableFillCount": "19",
+              "availableShares": "483",
+              "censoredFillCount": "0",
+              "unavailableFillCount": "0",
+              "totalMarkout": "-2.92000",
+              "meanMarkoutPerShare": "-0.006046"
+            },
+            {
+              "horizonNs": "5000000000",
+              "availableFillCount": "19",
+              "availableShares": "483",
+              "censoredFillCount": "0",
+              "unavailableFillCount": "0",
+              "totalMarkout": "-1.58000",
+              "meanMarkoutPerShare": "-0.003271"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "experimentId": "exp_6d7ae18814f50378",
+      "masterSeed": "101",
+      "selectionReason": "selected",
+      "selectedRunId": "run_9a932797284d1964",
+      "attempts": [
+        {
+          "runId": "run_9a932797284d1964",
+          "state": "completed",
+          "creationOrdinal": "4",
+          "selected": true,
+          "eligible": true,
+          "reason": "selected",
+          "observationStatus": "window_observed",
+          "windowEndTimeNs": "31000000000",
+          "observedThroughTimeNs": "60000000000",
+          "digests": {
+            "manifestDigest": {
+              "algorithm": "sha256",
+              "hexDigest": "db3557e4de727a19dd0bf8018e20a641a97d87bc7e2fe551e6b35d8a67fa5c76"
+            },
+            "canonicalEventDigest": {
+              "algorithm": "fnv1a_64",
+              "hexDigest": "0032c89d0beabcfd"
+            },
+            "ledgerDigest": {
+              "algorithm": "fnv1a_64",
+              "hexDigest": "2b10f79c393c4387"
+            }
+          },
+          "requestDiagnostics": [
+            {
+              "requestKind": "new_order",
+              "submittedCount": "4",
+              "exchangeRejectedCount": "0",
+              "arrivalTransit": {
+                "sampleCount": "4",
+                "minNs": "105472",
+                "maxNs": "114591",
+                "meanNs": "110295.500000"
+              },
+              "rejectReasons": []
+            },
+            {
+              "requestKind": "cancel",
+              "submittedCount": "0",
+              "exchangeRejectedCount": "0",
+              "arrivalTransit": {
+                "sampleCount": "0",
+                "minNs": null,
+                "maxNs": null,
+                "meanNs": null
+              },
+              "rejectReasons": []
+            },
+            {
+              "requestKind": "replace",
+              "submittedCount": "0",
+              "exchangeRejectedCount": "0",
+              "arrivalTransit": {
+                "sampleCount": "0",
+                "minNs": null,
+                "maxNs": null,
+                "meanNs": null
+              },
+              "rejectReasons": []
+            }
+          ],
+          "markouts": [
+            {
+              "horizonNs": "100000000",
+              "availableFillCount": "6",
+              "availableShares": "500",
+              "censoredFillCount": "0",
+              "unavailableFillCount": "0",
+              "totalMarkout": "-14.36000",
+              "meanMarkoutPerShare": "-0.028720"
+            },
+            {
+              "horizonNs": "1000000000",
+              "availableFillCount": "6",
+              "availableShares": "500",
+              "censoredFillCount": "0",
+              "unavailableFillCount": "0",
+              "totalMarkout": "-23.40000",
+              "meanMarkoutPerShare": "-0.046800"
+            },
+            {
+              "horizonNs": "5000000000",
+              "availableFillCount": "6",
+              "availableShares": "500",
+              "censoredFillCount": "0",
+              "unavailableFillCount": "0",
+              "totalMarkout": "-24.84000",
+              "meanMarkoutPerShare": "-0.049680"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "experimentId": "exp_6d7ae18814f50378",
+      "masterSeed": "102",
+      "selectionReason": "selected",
+      "selectedRunId": "run_944a34013cec64d1",
+      "attempts": [
+        {
+          "runId": "run_944a34013cec64d1",
+          "state": "completed",
+          "creationOrdinal": "5",
+          "selected": true,
+          "eligible": true,
+          "reason": "selected",
+          "observationStatus": "window_observed",
+          "windowEndTimeNs": "31000000000",
+          "observedThroughTimeNs": "60000000000",
+          "digests": {
+            "manifestDigest": {
+              "algorithm": "sha256",
+              "hexDigest": "7bab84bed9b613f653a92c97b1e610037887e421955317f77b7dfa8068bdaa1d"
+            },
+            "canonicalEventDigest": {
+              "algorithm": "fnv1a_64",
+              "hexDigest": "f8fd5ff2bcd7099d"
+            },
+            "ledgerDigest": {
+              "algorithm": "fnv1a_64",
+              "hexDigest": "0a341e2a01d4c054"
+            }
+          },
+          "requestDiagnostics": [
+            {
+              "requestKind": "new_order",
+              "submittedCount": "3",
+              "exchangeRejectedCount": "0",
+              "arrivalTransit": {
+                "sampleCount": "3",
+                "minNs": "109548",
+                "maxNs": "123569",
+                "meanNs": "116302.000000"
+              },
+              "rejectReasons": []
+            },
+            {
+              "requestKind": "cancel",
+              "submittedCount": "0",
+              "exchangeRejectedCount": "0",
+              "arrivalTransit": {
+                "sampleCount": "0",
+                "minNs": null,
+                "maxNs": null,
+                "meanNs": null
+              },
+              "rejectReasons": []
+            },
+            {
+              "requestKind": "replace",
+              "submittedCount": "0",
+              "exchangeRejectedCount": "0",
+              "arrivalTransit": {
+                "sampleCount": "0",
+                "minNs": null,
+                "maxNs": null,
+                "meanNs": null
+              },
+              "rejectReasons": []
+            }
+          ],
+          "markouts": [
+            {
+              "horizonNs": "100000000",
+              "availableFillCount": "5",
+              "availableShares": "500",
+              "censoredFillCount": "0",
+              "unavailableFillCount": "0",
+              "totalMarkout": "-8.00000",
+              "meanMarkoutPerShare": "-0.016000"
+            },
+            {
+              "horizonNs": "1000000000",
+              "availableFillCount": "5",
+              "availableShares": "500",
+              "censoredFillCount": "0",
+              "unavailableFillCount": "0",
+              "totalMarkout": "-19.50000",
+              "meanMarkoutPerShare": "-0.039000"
+            },
+            {
+              "horizonNs": "5000000000",
+              "availableFillCount": "5",
+              "availableShares": "500",
+              "censoredFillCount": "0",
+              "unavailableFillCount": "0",
+              "totalMarkout": "-19.00000",
+              "meanMarkoutPerShare": "-0.038000"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "experimentId": "exp_6d7ae18814f50378",
+      "masterSeed": "103",
+      "selectionReason": "selected",
+      "selectedRunId": "run_585d7cc1aafe7b03",
+      "attempts": [
+        {
+          "runId": "run_585d7cc1aafe7b03",
+          "state": "completed",
+          "creationOrdinal": "6",
+          "selected": true,
+          "eligible": true,
+          "reason": "selected",
+          "observationStatus": "window_observed",
+          "windowEndTimeNs": "31000000000",
+          "observedThroughTimeNs": "60000000000",
+          "digests": {
+            "manifestDigest": {
+              "algorithm": "sha256",
+              "hexDigest": "9815d7d9a79fab4a877d45b499fa8f1d4a3b3aae8eca173b0e57c09c62bceb1f"
+            },
+            "canonicalEventDigest": {
+              "algorithm": "fnv1a_64",
+              "hexDigest": "1ed5a6b8c2405943"
+            },
+            "ledgerDigest": {
+              "algorithm": "fnv1a_64",
+              "hexDigest": "948752b9e04b7449"
+            }
+          },
+          "requestDiagnostics": [
+            {
+              "requestKind": "new_order",
+              "submittedCount": "5",
+              "exchangeRejectedCount": "0",
+              "arrivalTransit": {
+                "sampleCount": "5",
+                "minNs": "105011",
+                "maxNs": "120710",
+                "meanNs": "114172.200000"
+              },
+              "rejectReasons": []
+            },
+            {
+              "requestKind": "cancel",
+              "submittedCount": "0",
+              "exchangeRejectedCount": "0",
+              "arrivalTransit": {
+                "sampleCount": "0",
+                "minNs": null,
+                "maxNs": null,
+                "meanNs": null
+              },
+              "rejectReasons": []
+            },
+            {
+              "requestKind": "replace",
+              "submittedCount": "0",
+              "exchangeRejectedCount": "0",
+              "arrivalTransit": {
+                "sampleCount": "0",
+                "minNs": null,
+                "maxNs": null,
+                "meanNs": null
+              },
+              "rejectReasons": []
+            }
+          ],
+          "markouts": [
+            {
+              "horizonNs": "100000000",
+              "availableFillCount": "7",
+              "availableShares": "500",
+              "censoredFillCount": "0",
+              "unavailableFillCount": "0",
+              "totalMarkout": "-7.80500",
+              "meanMarkoutPerShare": "-0.015610"
+            },
+            {
+              "horizonNs": "1000000000",
+              "availableFillCount": "7",
+              "availableShares": "500",
+              "censoredFillCount": "0",
+              "unavailableFillCount": "0",
+              "totalMarkout": "1.90000",
+              "meanMarkoutPerShare": "0.003800"
+            },
+            {
+              "horizonNs": "5000000000",
+              "availableFillCount": "7",
+              "availableShares": "500",
+              "censoredFillCount": "0",
+              "unavailableFillCount": "0",
+              "totalMarkout": "11.88000",
+              "meanMarkoutPerShare": "0.023760"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "metrics": [
+    {
+      "metricKey": "net_pnl",
+      "horizonNs": null,
+      "unit": "currency",
+      "exactness": "exact_fixed_point",
+      "betterDirection": "higher",
+      "perSeed": [
+        {
+          "masterSeed": "101",
+          "baselineRunId": "run_87250c55ef4d2e5c",
+          "candidateRunId": "run_9a932797284d1964",
+          "baselineValue": "-24.16000",
+          "candidateValue": "-55.38000",
+          "difference": "-31.22000"
+        },
+        {
+          "masterSeed": "102",
+          "baselineRunId": "run_5fe9233de40f35f1",
+          "candidateRunId": "run_944a34013cec64d1",
+          "baselineValue": "24.57100",
+          "candidateValue": "-0.50000",
+          "difference": "-25.07100"
+        },
+        {
+          "masterSeed": "103",
+          "baselineRunId": "run_7ca5e70750225ee6",
+          "candidateRunId": "run_585d7cc1aafe7b03",
+          "baselineValue": "7.35100",
+          "candidateValue": "30.40000",
+          "difference": "23.04900"
+        }
+      ],
+      "dispersion": {
+        "sampleCount": 3,
+        "meanDifference": "-11.080667",
+        "sampleStandardDeviation": "29.716631",
+        "standardErrorOfMean": "17.156905",
+        "minimumDifference": "-31.22000",
+        "maximumDifference": "23.04900",
+        "candidateBetterCount": 1,
+        "candidateWorseCount": 2,
+        "tiedCount": 0
+      }
+    },
+    {
+      "metricKey": "equity",
+      "horizonNs": null,
+      "unit": "currency",
+      "exactness": "exact_fixed_point",
+      "betterDirection": "higher",
+      "perSeed": [
+        {
+          "masterSeed": "101",
+          "baselineRunId": "run_87250c55ef4d2e5c",
+          "candidateRunId": "run_9a932797284d1964",
+          "baselineValue": "999975.84000",
+          "candidateValue": "999944.62000",
+          "difference": "-31.22000"
+        },
+        {
+          "masterSeed": "102",
+          "baselineRunId": "run_5fe9233de40f35f1",
+          "candidateRunId": "run_944a34013cec64d1",
+          "baselineValue": "1000024.57100",
+          "candidateValue": "999999.50000",
+          "difference": "-25.07100"
+        },
+        {
+          "masterSeed": "103",
+          "baselineRunId": "run_7ca5e70750225ee6",
+          "candidateRunId": "run_585d7cc1aafe7b03",
+          "baselineValue": "1000007.35100",
+          "candidateValue": "1000030.40000",
+          "difference": "23.04900"
+        }
+      ],
+      "dispersion": {
+        "sampleCount": 3,
+        "meanDifference": "-11.080667",
+        "sampleStandardDeviation": "29.716631",
+        "standardErrorOfMean": "17.156905",
+        "minimumDifference": "-31.22000",
+        "maximumDifference": "23.04900",
+        "candidateBetterCount": 1,
+        "candidateWorseCount": 2,
+        "tiedCount": 0
+      }
+    },
+    {
+      "metricKey": "gross_realized_pnl",
+      "horizonNs": null,
+      "unit": "currency",
+      "exactness": "exact_fixed_point",
+      "betterDirection": "higher",
+      "perSeed": [
+        {
+          "masterSeed": "101",
+          "baselineRunId": "run_87250c55ef4d2e5c",
+          "candidateRunId": "run_9a932797284d1964",
+          "baselineValue": "0.0000",
+          "candidateValue": "0.0000",
+          "difference": "0.0000"
+        },
+        {
+          "masterSeed": "102",
+          "baselineRunId": "run_5fe9233de40f35f1",
+          "candidateRunId": "run_944a34013cec64d1",
+          "baselineValue": "0.0000",
+          "candidateValue": "0.0000",
+          "difference": "0.0000"
+        },
+        {
+          "masterSeed": "103",
+          "baselineRunId": "run_7ca5e70750225ee6",
+          "candidateRunId": "run_585d7cc1aafe7b03",
+          "baselineValue": "0.0000",
+          "candidateValue": "0.0000",
+          "difference": "0.0000"
+        }
+      ],
+      "dispersion": {
+        "sampleCount": 3,
+        "meanDifference": "0.000000",
+        "sampleStandardDeviation": "0.000000",
+        "standardErrorOfMean": "0.000000",
+        "minimumDifference": "0.0000",
+        "maximumDifference": "0.0000",
+        "candidateBetterCount": 0,
+        "candidateWorseCount": 0,
+        "tiedCount": 3
+      }
+    },
+    {
+      "metricKey": "unrealized_pnl",
+      "horizonNs": null,
+      "unit": "currency",
+      "exactness": "exact_fixed_point",
+      "betterDirection": "higher",
+      "perSeed": [
+        {
+          "masterSeed": "101",
+          "baselineRunId": "run_87250c55ef4d2e5c",
+          "candidateRunId": "run_9a932797284d1964",
+          "baselineValue": "-22.66000",
+          "candidateValue": "-53.88000",
+          "difference": "-31.22000"
+        },
+        {
+          "masterSeed": "102",
+          "baselineRunId": "run_5fe9233de40f35f1",
+          "candidateRunId": "run_944a34013cec64d1",
+          "baselineValue": "26.02000",
+          "candidateValue": "1.00000",
+          "difference": "-25.02000"
+        },
+        {
+          "masterSeed": "103",
+          "baselineRunId": "run_7ca5e70750225ee6",
+          "candidateRunId": "run_585d7cc1aafe7b03",
+          "baselineValue": "8.80000",
+          "candidateValue": "31.90000",
+          "difference": "23.10000"
+        }
+      ],
+      "dispersion": {
+        "sampleCount": 3,
+        "meanDifference": "-11.046667",
+        "sampleStandardDeviation": "29.733922",
+        "standardErrorOfMean": "17.166888",
+        "minimumDifference": "-31.22000",
+        "maximumDifference": "23.10000",
+        "candidateBetterCount": 1,
+        "candidateWorseCount": 2,
+        "tiedCount": 0
+      }
+    },
+    {
+      "metricKey": "net_fees",
+      "horizonNs": null,
+      "unit": "currency",
+      "exactness": "exact_fixed_point",
+      "betterDirection": "lower",
+      "perSeed": [
+        {
+          "masterSeed": "101",
+          "baselineRunId": "run_87250c55ef4d2e5c",
+          "candidateRunId": "run_9a932797284d1964",
+          "baselineValue": "1.5000",
+          "candidateValue": "1.5000",
+          "difference": "0.0000"
+        },
+        {
+          "masterSeed": "102",
+          "baselineRunId": "run_5fe9233de40f35f1",
+          "candidateRunId": "run_944a34013cec64d1",
+          "baselineValue": "1.4490",
+          "candidateValue": "1.5000",
+          "difference": "0.0510"
+        },
+        {
+          "masterSeed": "103",
+          "baselineRunId": "run_7ca5e70750225ee6",
+          "candidateRunId": "run_585d7cc1aafe7b03",
+          "baselineValue": "1.4490",
+          "candidateValue": "1.5000",
+          "difference": "0.0510"
+        }
+      ],
+      "dispersion": {
+        "sampleCount": 3,
+        "meanDifference": "0.034000",
+        "sampleStandardDeviation": "0.029445",
+        "standardErrorOfMean": "0.017000",
+        "minimumDifference": "0.0000",
+        "maximumDifference": "0.0510",
+        "candidateBetterCount": 0,
+        "candidateWorseCount": 2,
+        "tiedCount": 1
+      }
+    },
+    {
+      "metricKey": "ending_position",
+      "horizonNs": null,
+      "unit": "shares",
+      "exactness": "exact_fixed_point",
+      "betterDirection": "neither",
+      "perSeed": [
+        {
+          "masterSeed": "101",
+          "baselineRunId": "run_87250c55ef4d2e5c",
+          "candidateRunId": "run_9a932797284d1964",
+          "baselineValue": "500",
+          "candidateValue": "500",
+          "difference": "0"
+        },
+        {
+          "masterSeed": "102",
+          "baselineRunId": "run_5fe9233de40f35f1",
+          "candidateRunId": "run_944a34013cec64d1",
+          "baselineValue": "483",
+          "candidateValue": "500",
+          "difference": "17"
+        },
+        {
+          "masterSeed": "103",
+          "baselineRunId": "run_7ca5e70750225ee6",
+          "candidateRunId": "run_585d7cc1aafe7b03",
+          "baselineValue": "483",
+          "candidateValue": "500",
+          "difference": "17"
+        }
+      ],
+      "dispersion": {
+        "sampleCount": 3,
+        "meanDifference": "11.333333",
+        "sampleStandardDeviation": "9.814955",
+        "standardErrorOfMean": "5.666667",
+        "minimumDifference": "0",
+        "maximumDifference": "17",
+        "candidateBetterCount": 0,
+        "candidateWorseCount": 0,
+        "tiedCount": 1
+      }
+    },
+    {
+      "metricKey": "max_long_position",
+      "horizonNs": null,
+      "unit": "shares",
+      "exactness": "exact_fixed_point",
+      "betterDirection": "neither",
+      "perSeed": [
+        {
+          "masterSeed": "101",
+          "baselineRunId": "run_87250c55ef4d2e5c",
+          "candidateRunId": "run_9a932797284d1964",
+          "baselineValue": "500",
+          "candidateValue": "500",
+          "difference": "0"
+        },
+        {
+          "masterSeed": "102",
+          "baselineRunId": "run_5fe9233de40f35f1",
+          "candidateRunId": "run_944a34013cec64d1",
+          "baselineValue": "483",
+          "candidateValue": "500",
+          "difference": "17"
+        },
+        {
+          "masterSeed": "103",
+          "baselineRunId": "run_7ca5e70750225ee6",
+          "candidateRunId": "run_585d7cc1aafe7b03",
+          "baselineValue": "483",
+          "candidateValue": "500",
+          "difference": "17"
+        }
+      ],
+      "dispersion": {
+        "sampleCount": 3,
+        "meanDifference": "11.333333",
+        "sampleStandardDeviation": "9.814955",
+        "standardErrorOfMean": "5.666667",
+        "minimumDifference": "0",
+        "maximumDifference": "17",
+        "candidateBetterCount": 0,
+        "candidateWorseCount": 0,
+        "tiedCount": 1
+      }
+    },
+    {
+      "metricKey": "max_short_position",
+      "horizonNs": null,
+      "unit": "shares",
+      "exactness": "exact_fixed_point",
+      "betterDirection": "neither",
+      "perSeed": [
+        {
+          "masterSeed": "101",
+          "baselineRunId": "run_87250c55ef4d2e5c",
+          "candidateRunId": "run_9a932797284d1964",
+          "baselineValue": "0",
+          "candidateValue": "0",
+          "difference": "0"
+        },
+        {
+          "masterSeed": "102",
+          "baselineRunId": "run_5fe9233de40f35f1",
+          "candidateRunId": "run_944a34013cec64d1",
+          "baselineValue": "0",
+          "candidateValue": "0",
+          "difference": "0"
+        },
+        {
+          "masterSeed": "103",
+          "baselineRunId": "run_7ca5e70750225ee6",
+          "candidateRunId": "run_585d7cc1aafe7b03",
+          "baselineValue": "0",
+          "candidateValue": "0",
+          "difference": "0"
+        }
+      ],
+      "dispersion": {
+        "sampleCount": 3,
+        "meanDifference": "0.000000",
+        "sampleStandardDeviation": "0.000000",
+        "standardErrorOfMean": "0.000000",
+        "minimumDifference": "0",
+        "maximumDifference": "0",
+        "candidateBetterCount": 0,
+        "candidateWorseCount": 0,
+        "tiedCount": 3
+      }
+    },
+    {
+      "metricKey": "max_drawdown",
+      "horizonNs": null,
+      "unit": "currency",
+      "exactness": "exact_fixed_point",
+      "betterDirection": "lower",
+      "perSeed": [
+        {
+          "masterSeed": "101",
+          "baselineRunId": "run_87250c55ef4d2e5c",
+          "candidateRunId": "run_9a932797284d1964",
+          "baselineValue": "46.04200",
+          "candidateValue": "75.38000",
+          "difference": "29.33800"
+        },
+        {
+          "masterSeed": "102",
+          "baselineRunId": "run_5fe9233de40f35f1",
+          "candidateRunId": "run_944a34013cec64d1",
+          "baselineValue": "28.11900",
+          "candidateValue": "60.50000",
+          "difference": "32.38100"
+        },
+        {
+          "masterSeed": "103",
+          "baselineRunId": "run_7ca5e70750225ee6",
+          "candidateRunId": "run_585d7cc1aafe7b03",
+          "baselineValue": "57.61100",
+          "candidateValue": "65.00000",
+          "difference": "7.38900"
+        }
+      ],
+      "dispersion": {
+        "sampleCount": 3,
+        "meanDifference": "23.036000",
+        "sampleStandardDeviation": "13.635851",
+        "standardErrorOfMean": "7.872662",
+        "minimumDifference": "7.38900",
+        "maximumDifference": "32.38100",
+        "candidateBetterCount": 0,
+        "candidateWorseCount": 3,
+        "tiedCount": 0
+      }
+    },
+    {
+      "metricKey": "fill_count",
+      "horizonNs": null,
+      "unit": "count",
+      "exactness": "exact_fixed_point",
+      "betterDirection": "neither",
+      "perSeed": [
+        {
+          "masterSeed": "101",
+          "baselineRunId": "run_87250c55ef4d2e5c",
+          "candidateRunId": "run_9a932797284d1964",
+          "baselineValue": "24",
+          "candidateValue": "6",
+          "difference": "-18"
+        },
+        {
+          "masterSeed": "102",
+          "baselineRunId": "run_5fe9233de40f35f1",
+          "candidateRunId": "run_944a34013cec64d1",
+          "baselineValue": "21",
+          "candidateValue": "5",
+          "difference": "-16"
+        },
+        {
+          "masterSeed": "103",
+          "baselineRunId": "run_7ca5e70750225ee6",
+          "candidateRunId": "run_585d7cc1aafe7b03",
+          "baselineValue": "19",
+          "candidateValue": "7",
+          "difference": "-12"
+        }
+      ],
+      "dispersion": {
+        "sampleCount": 3,
+        "meanDifference": "-15.333333",
+        "sampleStandardDeviation": "3.055050",
+        "standardErrorOfMean": "1.763834",
+        "minimumDifference": "-18",
+        "maximumDifference": "-12",
+        "candidateBetterCount": 0,
+        "candidateWorseCount": 0,
+        "tiedCount": 0
+      }
+    },
+    {
+      "metricKey": "filled_shares",
+      "horizonNs": null,
+      "unit": "shares",
+      "exactness": "exact_fixed_point",
+      "betterDirection": "neither",
+      "perSeed": [
+        {
+          "masterSeed": "101",
+          "baselineRunId": "run_87250c55ef4d2e5c",
+          "candidateRunId": "run_9a932797284d1964",
+          "baselineValue": "500",
+          "candidateValue": "500",
+          "difference": "0"
+        },
+        {
+          "masterSeed": "102",
+          "baselineRunId": "run_5fe9233de40f35f1",
+          "candidateRunId": "run_944a34013cec64d1",
+          "baselineValue": "483",
+          "candidateValue": "500",
+          "difference": "17"
+        },
+        {
+          "masterSeed": "103",
+          "baselineRunId": "run_7ca5e70750225ee6",
+          "candidateRunId": "run_585d7cc1aafe7b03",
+          "baselineValue": "483",
+          "candidateValue": "500",
+          "difference": "17"
+        }
+      ],
+      "dispersion": {
+        "sampleCount": 3,
+        "meanDifference": "11.333333",
+        "sampleStandardDeviation": "9.814955",
+        "standardErrorOfMean": "5.666667",
+        "minimumDifference": "0",
+        "maximumDifference": "17",
+        "candidateBetterCount": 0,
+        "candidateWorseCount": 0,
+        "tiedCount": 1
+      }
+    },
+    {
+      "metricKey": "maker_fill_count",
+      "horizonNs": null,
+      "unit": "count",
+      "exactness": "exact_fixed_point",
+      "betterDirection": "neither",
+      "perSeed": [
+        {
+          "masterSeed": "101",
+          "baselineRunId": "run_87250c55ef4d2e5c",
+          "candidateRunId": "run_9a932797284d1964",
+          "baselineValue": "0",
+          "candidateValue": "0",
+          "difference": "0"
+        },
+        {
+          "masterSeed": "102",
+          "baselineRunId": "run_5fe9233de40f35f1",
+          "candidateRunId": "run_944a34013cec64d1",
+          "baselineValue": "0",
+          "candidateValue": "0",
+          "difference": "0"
+        },
+        {
+          "masterSeed": "103",
+          "baselineRunId": "run_7ca5e70750225ee6",
+          "candidateRunId": "run_585d7cc1aafe7b03",
+          "baselineValue": "0",
+          "candidateValue": "0",
+          "difference": "0"
+        }
+      ],
+      "dispersion": {
+        "sampleCount": 3,
+        "meanDifference": "0.000000",
+        "sampleStandardDeviation": "0.000000",
+        "standardErrorOfMean": "0.000000",
+        "minimumDifference": "0",
+        "maximumDifference": "0",
+        "candidateBetterCount": 0,
+        "candidateWorseCount": 0,
+        "tiedCount": 3
+      }
+    },
+    {
+      "metricKey": "taker_fill_count",
+      "horizonNs": null,
+      "unit": "count",
+      "exactness": "exact_fixed_point",
+      "betterDirection": "neither",
+      "perSeed": [
+        {
+          "masterSeed": "101",
+          "baselineRunId": "run_87250c55ef4d2e5c",
+          "candidateRunId": "run_9a932797284d1964",
+          "baselineValue": "24",
+          "candidateValue": "6",
+          "difference": "-18"
+        },
+        {
+          "masterSeed": "102",
+          "baselineRunId": "run_5fe9233de40f35f1",
+          "candidateRunId": "run_944a34013cec64d1",
+          "baselineValue": "21",
+          "candidateValue": "5",
+          "difference": "-16"
+        },
+        {
+          "masterSeed": "103",
+          "baselineRunId": "run_7ca5e70750225ee6",
+          "candidateRunId": "run_585d7cc1aafe7b03",
+          "baselineValue": "19",
+          "candidateValue": "7",
+          "difference": "-12"
+        }
+      ],
+      "dispersion": {
+        "sampleCount": 3,
+        "meanDifference": "-15.333333",
+        "sampleStandardDeviation": "3.055050",
+        "standardErrorOfMean": "1.763834",
+        "minimumDifference": "-18",
+        "maximumDifference": "-12",
+        "candidateBetterCount": 0,
+        "candidateWorseCount": 0,
+        "tiedCount": 0
+      }
+    },
+    {
+      "metricKey": "fill_rate",
+      "horizonNs": null,
+      "unit": "ratio",
+      "exactness": "derived_float",
+      "betterDirection": "neither",
+      "perSeed": [
+        {
+          "masterSeed": "101",
+          "baselineRunId": "run_87250c55ef4d2e5c",
+          "candidateRunId": "run_9a932797284d1964",
+          "baselineValue": "1.000000",
+          "candidateValue": "0.992063",
+          "difference": "-0.007937"
+        },
+        {
+          "masterSeed": "102",
+          "baselineRunId": "run_5fe9233de40f35f1",
+          "candidateRunId": "run_944a34013cec64d1",
+          "baselineValue": "1.000000",
+          "candidateValue": "0.833333",
+          "difference": "-0.166667"
+        },
+        {
+          "masterSeed": "103",
+          "baselineRunId": "run_7ca5e70750225ee6",
+          "candidateRunId": "run_585d7cc1aafe7b03",
+          "baselineValue": "1.000000",
+          "candidateValue": "0.674764",
+          "difference": "-0.325236"
+        }
+      ],
+      "dispersion": {
+        "sampleCount": 3,
+        "meanDifference": "-0.166613",
+        "sampleStandardDeviation": "0.158650",
+        "standardErrorOfMean": "0.091596",
+        "minimumDifference": "-0.325236",
+        "maximumDifference": "-0.007937",
+        "candidateBetterCount": 0,
+        "candidateWorseCount": 0,
+        "tiedCount": 0
+      }
+    },
+    {
+      "metricKey": "submitted_order_count",
+      "horizonNs": null,
+      "unit": "count",
+      "exactness": "exact_fixed_point",
+      "betterDirection": "neither",
+      "perSeed": [
+        {
+          "masterSeed": "101",
+          "baselineRunId": "run_87250c55ef4d2e5c",
+          "candidateRunId": "run_9a932797284d1964",
+          "baselineValue": "24",
+          "candidateValue": "4",
+          "difference": "-20"
+        },
+        {
+          "masterSeed": "102",
+          "baselineRunId": "run_5fe9233de40f35f1",
+          "candidateRunId": "run_944a34013cec64d1",
+          "baselineValue": "21",
+          "candidateValue": "3",
+          "difference": "-18"
+        },
+        {
+          "masterSeed": "103",
+          "baselineRunId": "run_7ca5e70750225ee6",
+          "candidateRunId": "run_585d7cc1aafe7b03",
+          "baselineValue": "19",
+          "candidateValue": "5",
+          "difference": "-14"
+        }
+      ],
+      "dispersion": {
+        "sampleCount": 3,
+        "meanDifference": "-17.333333",
+        "sampleStandardDeviation": "3.055050",
+        "standardErrorOfMean": "1.763834",
+        "minimumDifference": "-20",
+        "maximumDifference": "-14",
+        "candidateBetterCount": 0,
+        "candidateWorseCount": 0,
+        "tiedCount": 0
+      }
+    },
+    {
+      "metricKey": "new_order_rejected_count",
+      "horizonNs": null,
+      "unit": "count",
+      "exactness": "exact_fixed_point",
+      "betterDirection": "neither",
+      "perSeed": [
+        {
+          "masterSeed": "101",
+          "baselineRunId": "run_87250c55ef4d2e5c",
+          "candidateRunId": "run_9a932797284d1964",
+          "baselineValue": "0",
+          "candidateValue": "0",
+          "difference": "0"
+        },
+        {
+          "masterSeed": "102",
+          "baselineRunId": "run_5fe9233de40f35f1",
+          "candidateRunId": "run_944a34013cec64d1",
+          "baselineValue": "0",
+          "candidateValue": "0",
+          "difference": "0"
+        },
+        {
+          "masterSeed": "103",
+          "baselineRunId": "run_7ca5e70750225ee6",
+          "candidateRunId": "run_585d7cc1aafe7b03",
+          "baselineValue": "0",
+          "candidateValue": "0",
+          "difference": "0"
+        }
+      ],
+      "dispersion": {
+        "sampleCount": 3,
+        "meanDifference": "0.000000",
+        "sampleStandardDeviation": "0.000000",
+        "standardErrorOfMean": "0.000000",
+        "minimumDifference": "0",
+        "maximumDifference": "0",
+        "candidateBetterCount": 0,
+        "candidateWorseCount": 0,
+        "tiedCount": 3
+      }
+    },
+    {
+      "metricKey": "cancel_request_count",
+      "horizonNs": null,
+      "unit": "count",
+      "exactness": "exact_fixed_point",
+      "betterDirection": "neither",
+      "perSeed": [
+        {
+          "masterSeed": "101",
+          "baselineRunId": "run_87250c55ef4d2e5c",
+          "candidateRunId": "run_9a932797284d1964",
+          "baselineValue": "0",
+          "candidateValue": "0",
+          "difference": "0"
+        },
+        {
+          "masterSeed": "102",
+          "baselineRunId": "run_5fe9233de40f35f1",
+          "candidateRunId": "run_944a34013cec64d1",
+          "baselineValue": "0",
+          "candidateValue": "0",
+          "difference": "0"
+        },
+        {
+          "masterSeed": "103",
+          "baselineRunId": "run_7ca5e70750225ee6",
+          "candidateRunId": "run_585d7cc1aafe7b03",
+          "baselineValue": "0",
+          "candidateValue": "0",
+          "difference": "0"
+        }
+      ],
+      "dispersion": {
+        "sampleCount": 3,
+        "meanDifference": "0.000000",
+        "sampleStandardDeviation": "0.000000",
+        "standardErrorOfMean": "0.000000",
+        "minimumDifference": "0",
+        "maximumDifference": "0",
+        "candidateBetterCount": 0,
+        "candidateWorseCount": 0,
+        "tiedCount": 3
+      }
+    },
+    {
+      "metricKey": "cancel_rejected_count",
+      "horizonNs": null,
+      "unit": "count",
+      "exactness": "exact_fixed_point",
+      "betterDirection": "neither",
+      "perSeed": [
+        {
+          "masterSeed": "101",
+          "baselineRunId": "run_87250c55ef4d2e5c",
+          "candidateRunId": "run_9a932797284d1964",
+          "baselineValue": "0",
+          "candidateValue": "0",
+          "difference": "0"
+        },
+        {
+          "masterSeed": "102",
+          "baselineRunId": "run_5fe9233de40f35f1",
+          "candidateRunId": "run_944a34013cec64d1",
+          "baselineValue": "0",
+          "candidateValue": "0",
+          "difference": "0"
+        },
+        {
+          "masterSeed": "103",
+          "baselineRunId": "run_7ca5e70750225ee6",
+          "candidateRunId": "run_585d7cc1aafe7b03",
+          "baselineValue": "0",
+          "candidateValue": "0",
+          "difference": "0"
+        }
+      ],
+      "dispersion": {
+        "sampleCount": 3,
+        "meanDifference": "0.000000",
+        "sampleStandardDeviation": "0.000000",
+        "standardErrorOfMean": "0.000000",
+        "minimumDifference": "0",
+        "maximumDifference": "0",
+        "candidateBetterCount": 0,
+        "candidateWorseCount": 0,
+        "tiedCount": 3
+      }
+    },
+    {
+      "metricKey": "replace_request_count",
+      "horizonNs": null,
+      "unit": "count",
+      "exactness": "exact_fixed_point",
+      "betterDirection": "neither",
+      "perSeed": [
+        {
+          "masterSeed": "101",
+          "baselineRunId": "run_87250c55ef4d2e5c",
+          "candidateRunId": "run_9a932797284d1964",
+          "baselineValue": "0",
+          "candidateValue": "0",
+          "difference": "0"
+        },
+        {
+          "masterSeed": "102",
+          "baselineRunId": "run_5fe9233de40f35f1",
+          "candidateRunId": "run_944a34013cec64d1",
+          "baselineValue": "0",
+          "candidateValue": "0",
+          "difference": "0"
+        },
+        {
+          "masterSeed": "103",
+          "baselineRunId": "run_7ca5e70750225ee6",
+          "candidateRunId": "run_585d7cc1aafe7b03",
+          "baselineValue": "0",
+          "candidateValue": "0",
+          "difference": "0"
+        }
+      ],
+      "dispersion": {
+        "sampleCount": 3,
+        "meanDifference": "0.000000",
+        "sampleStandardDeviation": "0.000000",
+        "standardErrorOfMean": "0.000000",
+        "minimumDifference": "0",
+        "maximumDifference": "0",
+        "candidateBetterCount": 0,
+        "candidateWorseCount": 0,
+        "tiedCount": 3
+      }
+    },
+    {
+      "metricKey": "replace_rejected_count",
+      "horizonNs": null,
+      "unit": "count",
+      "exactness": "exact_fixed_point",
+      "betterDirection": "neither",
+      "perSeed": [
+        {
+          "masterSeed": "101",
+          "baselineRunId": "run_87250c55ef4d2e5c",
+          "candidateRunId": "run_9a932797284d1964",
+          "baselineValue": "0",
+          "candidateValue": "0",
+          "difference": "0"
+        },
+        {
+          "masterSeed": "102",
+          "baselineRunId": "run_5fe9233de40f35f1",
+          "candidateRunId": "run_944a34013cec64d1",
+          "baselineValue": "0",
+          "candidateValue": "0",
+          "difference": "0"
+        },
+        {
+          "masterSeed": "103",
+          "baselineRunId": "run_7ca5e70750225ee6",
+          "candidateRunId": "run_585d7cc1aafe7b03",
+          "baselineValue": "0",
+          "candidateValue": "0",
+          "difference": "0"
+        }
+      ],
+      "dispersion": {
+        "sampleCount": 3,
+        "meanDifference": "0.000000",
+        "sampleStandardDeviation": "0.000000",
+        "standardErrorOfMean": "0.000000",
+        "minimumDifference": "0",
+        "maximumDifference": "0",
+        "candidateBetterCount": 0,
+        "candidateWorseCount": 0,
+        "tiedCount": 3
+      }
+    },
+    {
+      "metricKey": "canceled_order_count",
+      "horizonNs": null,
+      "unit": "count",
+      "exactness": "exact_fixed_point",
+      "betterDirection": "neither",
+      "perSeed": [
+        {
+          "masterSeed": "101",
+          "baselineRunId": "run_87250c55ef4d2e5c",
+          "candidateRunId": "run_9a932797284d1964",
+          "baselineValue": "0",
+          "candidateValue": "0",
+          "difference": "0"
+        },
+        {
+          "masterSeed": "102",
+          "baselineRunId": "run_5fe9233de40f35f1",
+          "candidateRunId": "run_944a34013cec64d1",
+          "baselineValue": "0",
+          "candidateValue": "0",
+          "difference": "0"
+        },
+        {
+          "masterSeed": "103",
+          "baselineRunId": "run_7ca5e70750225ee6",
+          "candidateRunId": "run_585d7cc1aafe7b03",
+          "baselineValue": "0",
+          "candidateValue": "0",
+          "difference": "0"
+        }
+      ],
+      "dispersion": {
+        "sampleCount": 3,
+        "meanDifference": "0.000000",
+        "sampleStandardDeviation": "0.000000",
+        "standardErrorOfMean": "0.000000",
+        "minimumDifference": "0",
+        "maximumDifference": "0",
+        "candidateBetterCount": 0,
+        "candidateWorseCount": 0,
+        "tiedCount": 3
+      }
+    },
+    {
+      "metricKey": "cancel_race_lost_count",
+      "horizonNs": null,
+      "unit": "count",
+      "exactness": "exact_fixed_point",
+      "betterDirection": "lower",
+      "perSeed": [
+        {
+          "masterSeed": "101",
+          "baselineRunId": "run_87250c55ef4d2e5c",
+          "candidateRunId": "run_9a932797284d1964",
+          "baselineValue": "0",
+          "candidateValue": "0",
+          "difference": "0"
+        },
+        {
+          "masterSeed": "102",
+          "baselineRunId": "run_5fe9233de40f35f1",
+          "candidateRunId": "run_944a34013cec64d1",
+          "baselineValue": "0",
+          "candidateValue": "0",
+          "difference": "0"
+        },
+        {
+          "masterSeed": "103",
+          "baselineRunId": "run_7ca5e70750225ee6",
+          "candidateRunId": "run_585d7cc1aafe7b03",
+          "baselineValue": "0",
+          "candidateValue": "0",
+          "difference": "0"
+        }
+      ],
+      "dispersion": {
+        "sampleCount": 3,
+        "meanDifference": "0.000000",
+        "sampleStandardDeviation": "0.000000",
+        "standardErrorOfMean": "0.000000",
+        "minimumDifference": "0",
+        "maximumDifference": "0",
+        "candidateBetterCount": 0,
+        "candidateWorseCount": 0,
+        "tiedCount": 3
+      }
+    },
+    {
+      "metricKey": "spread_capture_total",
+      "horizonNs": null,
+      "unit": "currency",
+      "exactness": "exact_fixed_point",
+      "betterDirection": "higher",
+      "perSeed": [
+        {
+          "masterSeed": "101",
+          "baselineRunId": "run_87250c55ef4d2e5c",
+          "candidateRunId": "run_9a932797284d1964",
+          "baselineValue": "-5.00000",
+          "candidateValue": "-10.40000",
+          "difference": "-5.40000"
+        },
+        {
+          "masterSeed": "102",
+          "baselineRunId": "run_5fe9233de40f35f1",
+          "candidateRunId": "run_944a34013cec64d1",
+          "baselineValue": "-4.74500",
+          "candidateValue": "-8.00000",
+          "difference": "-3.25500"
+        },
+        {
+          "masterSeed": "103",
+          "baselineRunId": "run_7ca5e70750225ee6",
+          "candidateRunId": "run_585d7cc1aafe7b03",
+          "baselineValue": "-4.58500",
+          "candidateValue": "-6.53000",
+          "difference": "-1.94500"
+        }
+      ],
+      "dispersion": {
+        "sampleCount": 3,
+        "meanDifference": "-3.533333",
+        "sampleStandardDeviation": "1.744236",
+        "standardErrorOfMean": "1.007035",
+        "minimumDifference": "-5.40000",
+        "maximumDifference": "-1.94500",
+        "candidateBetterCount": 0,
+        "candidateWorseCount": 3,
+        "tiedCount": 0
+      }
+    },
+    {
+      "metricKey": "markout_total",
+      "horizonNs": "100000000",
+      "unit": "currency",
+      "exactness": "exact_fixed_point",
+      "betterDirection": "higher",
+      "perSeed": [
+        {
+          "masterSeed": "101",
+          "baselineRunId": "run_87250c55ef4d2e5c",
+          "candidateRunId": "run_9a932797284d1964",
+          "baselineValue": "-5.00000",
+          "candidateValue": "-14.36000",
+          "difference": "-9.36000"
+        },
+        {
+          "masterSeed": "102",
+          "baselineRunId": "run_5fe9233de40f35f1",
+          "candidateRunId": "run_944a34013cec64d1",
+          "baselineValue": "-4.66000",
+          "candidateValue": "-8.00000",
+          "difference": "-3.34000"
+        },
+        {
+          "masterSeed": "103",
+          "baselineRunId": "run_7ca5e70750225ee6",
+          "candidateRunId": "run_585d7cc1aafe7b03",
+          "baselineValue": "-4.41500",
+          "candidateValue": "-7.80500",
+          "difference": "-3.39000"
+        }
+      ],
+      "dispersion": {
+        "sampleCount": 3,
+        "meanDifference": "-5.363333",
+        "sampleStandardDeviation": "3.461305",
+        "standardErrorOfMean": "1.998385",
+        "minimumDifference": "-9.36000",
+        "maximumDifference": "-3.34000",
+        "candidateBetterCount": 0,
+        "candidateWorseCount": 3,
+        "tiedCount": 0
+      }
+    },
+    {
+      "metricKey": "markout_per_share",
+      "horizonNs": "100000000",
+      "unit": "currency_per_share",
+      "exactness": "derived_float",
+      "betterDirection": "higher",
+      "perSeed": [
+        {
+          "masterSeed": "101",
+          "baselineRunId": "run_87250c55ef4d2e5c",
+          "candidateRunId": "run_9a932797284d1964",
+          "baselineValue": "-0.010000",
+          "candidateValue": "-0.028720",
+          "difference": "-0.018720"
+        },
+        {
+          "masterSeed": "102",
+          "baselineRunId": "run_5fe9233de40f35f1",
+          "candidateRunId": "run_944a34013cec64d1",
+          "baselineValue": "-0.009648",
+          "candidateValue": "-0.016000",
+          "difference": "-0.006352"
+        },
+        {
+          "masterSeed": "103",
+          "baselineRunId": "run_7ca5e70750225ee6",
+          "candidateRunId": "run_585d7cc1aafe7b03",
+          "baselineValue": "-0.009141",
+          "candidateValue": "-0.015610",
+          "difference": "-0.006469"
+        }
+      ],
+      "dispersion": {
+        "sampleCount": 3,
+        "meanDifference": "-0.010514",
+        "sampleStandardDeviation": "0.007107",
+        "standardErrorOfMean": "0.004103",
+        "minimumDifference": "-0.018720",
+        "maximumDifference": "-0.006352",
+        "candidateBetterCount": 0,
+        "candidateWorseCount": 3,
+        "tiedCount": 0
+      }
+    },
+    {
+      "metricKey": "markout_eligible_shares",
+      "horizonNs": "100000000",
+      "unit": "shares",
+      "exactness": "exact_fixed_point",
+      "betterDirection": "neither",
+      "perSeed": [
+        {
+          "masterSeed": "101",
+          "baselineRunId": "run_87250c55ef4d2e5c",
+          "candidateRunId": "run_9a932797284d1964",
+          "baselineValue": "500",
+          "candidateValue": "500",
+          "difference": "0"
+        },
+        {
+          "masterSeed": "102",
+          "baselineRunId": "run_5fe9233de40f35f1",
+          "candidateRunId": "run_944a34013cec64d1",
+          "baselineValue": "483",
+          "candidateValue": "500",
+          "difference": "17"
+        },
+        {
+          "masterSeed": "103",
+          "baselineRunId": "run_7ca5e70750225ee6",
+          "candidateRunId": "run_585d7cc1aafe7b03",
+          "baselineValue": "483",
+          "candidateValue": "500",
+          "difference": "17"
+        }
+      ],
+      "dispersion": {
+        "sampleCount": 3,
+        "meanDifference": "11.333333",
+        "sampleStandardDeviation": "9.814955",
+        "standardErrorOfMean": "5.666667",
+        "minimumDifference": "0",
+        "maximumDifference": "17",
+        "candidateBetterCount": 0,
+        "candidateWorseCount": 0,
+        "tiedCount": 1
+      }
+    },
+    {
+      "metricKey": "markout_eligible_fills",
+      "horizonNs": "100000000",
+      "unit": "count",
+      "exactness": "exact_fixed_point",
+      "betterDirection": "neither",
+      "perSeed": [
+        {
+          "masterSeed": "101",
+          "baselineRunId": "run_87250c55ef4d2e5c",
+          "candidateRunId": "run_9a932797284d1964",
+          "baselineValue": "24",
+          "candidateValue": "6",
+          "difference": "-18"
+        },
+        {
+          "masterSeed": "102",
+          "baselineRunId": "run_5fe9233de40f35f1",
+          "candidateRunId": "run_944a34013cec64d1",
+          "baselineValue": "21",
+          "candidateValue": "5",
+          "difference": "-16"
+        },
+        {
+          "masterSeed": "103",
+          "baselineRunId": "run_7ca5e70750225ee6",
+          "candidateRunId": "run_585d7cc1aafe7b03",
+          "baselineValue": "19",
+          "candidateValue": "7",
+          "difference": "-12"
+        }
+      ],
+      "dispersion": {
+        "sampleCount": 3,
+        "meanDifference": "-15.333333",
+        "sampleStandardDeviation": "3.055050",
+        "standardErrorOfMean": "1.763834",
+        "minimumDifference": "-18",
+        "maximumDifference": "-12",
+        "candidateBetterCount": 0,
+        "candidateWorseCount": 0,
+        "tiedCount": 0
+      }
+    },
+    {
+      "metricKey": "markout_no_mark_fills",
+      "horizonNs": "100000000",
+      "unit": "count",
+      "exactness": "exact_fixed_point",
+      "betterDirection": "neither",
+      "perSeed": [
+        {
+          "masterSeed": "101",
+          "baselineRunId": "run_87250c55ef4d2e5c",
+          "candidateRunId": "run_9a932797284d1964",
+          "baselineValue": "0",
+          "candidateValue": "0",
+          "difference": "0"
+        },
+        {
+          "masterSeed": "102",
+          "baselineRunId": "run_5fe9233de40f35f1",
+          "candidateRunId": "run_944a34013cec64d1",
+          "baselineValue": "0",
+          "candidateValue": "0",
+          "difference": "0"
+        },
+        {
+          "masterSeed": "103",
+          "baselineRunId": "run_7ca5e70750225ee6",
+          "candidateRunId": "run_585d7cc1aafe7b03",
+          "baselineValue": "0",
+          "candidateValue": "0",
+          "difference": "0"
+        }
+      ],
+      "dispersion": {
+        "sampleCount": 3,
+        "meanDifference": "0.000000",
+        "sampleStandardDeviation": "0.000000",
+        "standardErrorOfMean": "0.000000",
+        "minimumDifference": "0",
+        "maximumDifference": "0",
+        "candidateBetterCount": 0,
+        "candidateWorseCount": 0,
+        "tiedCount": 3
+      }
+    },
+    {
+      "metricKey": "markout_censored_fills",
+      "horizonNs": "100000000",
+      "unit": "count",
+      "exactness": "exact_fixed_point",
+      "betterDirection": "neither",
+      "perSeed": [
+        {
+          "masterSeed": "101",
+          "baselineRunId": "run_87250c55ef4d2e5c",
+          "candidateRunId": "run_9a932797284d1964",
+          "baselineValue": "0",
+          "candidateValue": "0",
+          "difference": "0"
+        },
+        {
+          "masterSeed": "102",
+          "baselineRunId": "run_5fe9233de40f35f1",
+          "candidateRunId": "run_944a34013cec64d1",
+          "baselineValue": "0",
+          "candidateValue": "0",
+          "difference": "0"
+        },
+        {
+          "masterSeed": "103",
+          "baselineRunId": "run_7ca5e70750225ee6",
+          "candidateRunId": "run_585d7cc1aafe7b03",
+          "baselineValue": "0",
+          "candidateValue": "0",
+          "difference": "0"
+        }
+      ],
+      "dispersion": {
+        "sampleCount": 3,
+        "meanDifference": "0.000000",
+        "sampleStandardDeviation": "0.000000",
+        "standardErrorOfMean": "0.000000",
+        "minimumDifference": "0",
+        "maximumDifference": "0",
+        "candidateBetterCount": 0,
+        "candidateWorseCount": 0,
+        "tiedCount": 3
+      }
+    },
+    {
+      "metricKey": "markout_total",
+      "horizonNs": "1000000000",
+      "unit": "currency",
+      "exactness": "exact_fixed_point",
+      "betterDirection": "higher",
+      "perSeed": [
+        {
+          "masterSeed": "101",
+          "baselineRunId": "run_87250c55ef4d2e5c",
+          "candidateRunId": "run_9a932797284d1964",
+          "baselineValue": "-5.94000",
+          "candidateValue": "-23.40000",
+          "difference": "-17.46000"
+        },
+        {
+          "masterSeed": "102",
+          "baselineRunId": "run_5fe9233de40f35f1",
+          "candidateRunId": "run_944a34013cec64d1",
+          "baselineValue": "-6.34000",
+          "candidateValue": "-19.50000",
+          "difference": "-13.16000"
+        },
+        {
+          "masterSeed": "103",
+          "baselineRunId": "run_7ca5e70750225ee6",
+          "candidateRunId": "run_585d7cc1aafe7b03",
+          "baselineValue": "-2.92000",
+          "candidateValue": "1.90000",
+          "difference": "4.82000"
+        }
+      ],
+      "dispersion": {
+        "sampleCount": 3,
+        "meanDifference": "-8.600000",
+        "sampleStandardDeviation": "11.819255",
+        "standardErrorOfMean": "6.823850",
+        "minimumDifference": "-17.46000",
+        "maximumDifference": "4.82000",
+        "candidateBetterCount": 1,
+        "candidateWorseCount": 2,
+        "tiedCount": 0
+      }
+    },
+    {
+      "metricKey": "markout_per_share",
+      "horizonNs": "1000000000",
+      "unit": "currency_per_share",
+      "exactness": "derived_float",
+      "betterDirection": "higher",
+      "perSeed": [
+        {
+          "masterSeed": "101",
+          "baselineRunId": "run_87250c55ef4d2e5c",
+          "candidateRunId": "run_9a932797284d1964",
+          "baselineValue": "-0.011880",
+          "candidateValue": "-0.046800",
+          "difference": "-0.034920"
+        },
+        {
+          "masterSeed": "102",
+          "baselineRunId": "run_5fe9233de40f35f1",
+          "candidateRunId": "run_944a34013cec64d1",
+          "baselineValue": "-0.013126",
+          "candidateValue": "-0.039000",
+          "difference": "-0.025874"
+        },
+        {
+          "masterSeed": "103",
+          "baselineRunId": "run_7ca5e70750225ee6",
+          "candidateRunId": "run_585d7cc1aafe7b03",
+          "baselineValue": "-0.006046",
+          "candidateValue": "0.003800",
+          "difference": "0.009846"
+        }
+      ],
+      "dispersion": {
+        "sampleCount": 3,
+        "meanDifference": "-0.016983",
+        "sampleStandardDeviation": "0.023670",
+        "standardErrorOfMean": "0.013666",
+        "minimumDifference": "-0.034920",
+        "maximumDifference": "0.009846",
+        "candidateBetterCount": 1,
+        "candidateWorseCount": 2,
+        "tiedCount": 0
+      }
+    },
+    {
+      "metricKey": "markout_eligible_shares",
+      "horizonNs": "1000000000",
+      "unit": "shares",
+      "exactness": "exact_fixed_point",
+      "betterDirection": "neither",
+      "perSeed": [
+        {
+          "masterSeed": "101",
+          "baselineRunId": "run_87250c55ef4d2e5c",
+          "candidateRunId": "run_9a932797284d1964",
+          "baselineValue": "500",
+          "candidateValue": "500",
+          "difference": "0"
+        },
+        {
+          "masterSeed": "102",
+          "baselineRunId": "run_5fe9233de40f35f1",
+          "candidateRunId": "run_944a34013cec64d1",
+          "baselineValue": "483",
+          "candidateValue": "500",
+          "difference": "17"
+        },
+        {
+          "masterSeed": "103",
+          "baselineRunId": "run_7ca5e70750225ee6",
+          "candidateRunId": "run_585d7cc1aafe7b03",
+          "baselineValue": "483",
+          "candidateValue": "500",
+          "difference": "17"
+        }
+      ],
+      "dispersion": {
+        "sampleCount": 3,
+        "meanDifference": "11.333333",
+        "sampleStandardDeviation": "9.814955",
+        "standardErrorOfMean": "5.666667",
+        "minimumDifference": "0",
+        "maximumDifference": "17",
+        "candidateBetterCount": 0,
+        "candidateWorseCount": 0,
+        "tiedCount": 1
+      }
+    },
+    {
+      "metricKey": "markout_eligible_fills",
+      "horizonNs": "1000000000",
+      "unit": "count",
+      "exactness": "exact_fixed_point",
+      "betterDirection": "neither",
+      "perSeed": [
+        {
+          "masterSeed": "101",
+          "baselineRunId": "run_87250c55ef4d2e5c",
+          "candidateRunId": "run_9a932797284d1964",
+          "baselineValue": "24",
+          "candidateValue": "6",
+          "difference": "-18"
+        },
+        {
+          "masterSeed": "102",
+          "baselineRunId": "run_5fe9233de40f35f1",
+          "candidateRunId": "run_944a34013cec64d1",
+          "baselineValue": "21",
+          "candidateValue": "5",
+          "difference": "-16"
+        },
+        {
+          "masterSeed": "103",
+          "baselineRunId": "run_7ca5e70750225ee6",
+          "candidateRunId": "run_585d7cc1aafe7b03",
+          "baselineValue": "19",
+          "candidateValue": "7",
+          "difference": "-12"
+        }
+      ],
+      "dispersion": {
+        "sampleCount": 3,
+        "meanDifference": "-15.333333",
+        "sampleStandardDeviation": "3.055050",
+        "standardErrorOfMean": "1.763834",
+        "minimumDifference": "-18",
+        "maximumDifference": "-12",
+        "candidateBetterCount": 0,
+        "candidateWorseCount": 0,
+        "tiedCount": 0
+      }
+    },
+    {
+      "metricKey": "markout_no_mark_fills",
+      "horizonNs": "1000000000",
+      "unit": "count",
+      "exactness": "exact_fixed_point",
+      "betterDirection": "neither",
+      "perSeed": [
+        {
+          "masterSeed": "101",
+          "baselineRunId": "run_87250c55ef4d2e5c",
+          "candidateRunId": "run_9a932797284d1964",
+          "baselineValue": "0",
+          "candidateValue": "0",
+          "difference": "0"
+        },
+        {
+          "masterSeed": "102",
+          "baselineRunId": "run_5fe9233de40f35f1",
+          "candidateRunId": "run_944a34013cec64d1",
+          "baselineValue": "0",
+          "candidateValue": "0",
+          "difference": "0"
+        },
+        {
+          "masterSeed": "103",
+          "baselineRunId": "run_7ca5e70750225ee6",
+          "candidateRunId": "run_585d7cc1aafe7b03",
+          "baselineValue": "0",
+          "candidateValue": "0",
+          "difference": "0"
+        }
+      ],
+      "dispersion": {
+        "sampleCount": 3,
+        "meanDifference": "0.000000",
+        "sampleStandardDeviation": "0.000000",
+        "standardErrorOfMean": "0.000000",
+        "minimumDifference": "0",
+        "maximumDifference": "0",
+        "candidateBetterCount": 0,
+        "candidateWorseCount": 0,
+        "tiedCount": 3
+      }
+    },
+    {
+      "metricKey": "markout_censored_fills",
+      "horizonNs": "1000000000",
+      "unit": "count",
+      "exactness": "exact_fixed_point",
+      "betterDirection": "neither",
+      "perSeed": [
+        {
+          "masterSeed": "101",
+          "baselineRunId": "run_87250c55ef4d2e5c",
+          "candidateRunId": "run_9a932797284d1964",
+          "baselineValue": "0",
+          "candidateValue": "0",
+          "difference": "0"
+        },
+        {
+          "masterSeed": "102",
+          "baselineRunId": "run_5fe9233de40f35f1",
+          "candidateRunId": "run_944a34013cec64d1",
+          "baselineValue": "0",
+          "candidateValue": "0",
+          "difference": "0"
+        },
+        {
+          "masterSeed": "103",
+          "baselineRunId": "run_7ca5e70750225ee6",
+          "candidateRunId": "run_585d7cc1aafe7b03",
+          "baselineValue": "0",
+          "candidateValue": "0",
+          "difference": "0"
+        }
+      ],
+      "dispersion": {
+        "sampleCount": 3,
+        "meanDifference": "0.000000",
+        "sampleStandardDeviation": "0.000000",
+        "standardErrorOfMean": "0.000000",
+        "minimumDifference": "0",
+        "maximumDifference": "0",
+        "candidateBetterCount": 0,
+        "candidateWorseCount": 0,
+        "tiedCount": 3
+      }
+    },
+    {
+      "metricKey": "markout_total",
+      "horizonNs": "5000000000",
+      "unit": "currency",
+      "exactness": "exact_fixed_point",
+      "betterDirection": "higher",
+      "perSeed": [
+        {
+          "masterSeed": "101",
+          "baselineRunId": "run_87250c55ef4d2e5c",
+          "candidateRunId": "run_9a932797284d1964",
+          "baselineValue": "-8.06000",
+          "candidateValue": "-24.84000",
+          "difference": "-16.78000"
+        },
+        {
+          "masterSeed": "102",
+          "baselineRunId": "run_5fe9233de40f35f1",
+          "candidateRunId": "run_944a34013cec64d1",
+          "baselineValue": "-8.98000",
+          "candidateValue": "-19.00000",
+          "difference": "-10.02000"
+        },
+        {
+          "masterSeed": "103",
+          "baselineRunId": "run_7ca5e70750225ee6",
+          "candidateRunId": "run_585d7cc1aafe7b03",
+          "baselineValue": "-1.58000",
+          "candidateValue": "11.88000",
+          "difference": "13.46000"
+        }
+      ],
+      "dispersion": {
+        "sampleCount": 3,
+        "meanDifference": "-4.446667",
+        "sampleStandardDeviation": "15.871702",
+        "standardErrorOfMean": "9.163532",
+        "minimumDifference": "-16.78000",
+        "maximumDifference": "13.46000",
+        "candidateBetterCount": 1,
+        "candidateWorseCount": 2,
+        "tiedCount": 0
+      }
+    },
+    {
+      "metricKey": "markout_per_share",
+      "horizonNs": "5000000000",
+      "unit": "currency_per_share",
+      "exactness": "derived_float",
+      "betterDirection": "higher",
+      "perSeed": [
+        {
+          "masterSeed": "101",
+          "baselineRunId": "run_87250c55ef4d2e5c",
+          "candidateRunId": "run_9a932797284d1964",
+          "baselineValue": "-0.016120",
+          "candidateValue": "-0.049680",
+          "difference": "-0.033560"
+        },
+        {
+          "masterSeed": "102",
+          "baselineRunId": "run_5fe9233de40f35f1",
+          "candidateRunId": "run_944a34013cec64d1",
+          "baselineValue": "-0.018592",
+          "candidateValue": "-0.038000",
+          "difference": "-0.019408"
+        },
+        {
+          "masterSeed": "103",
+          "baselineRunId": "run_7ca5e70750225ee6",
+          "candidateRunId": "run_585d7cc1aafe7b03",
+          "baselineValue": "-0.003271",
+          "candidateValue": "0.023760",
+          "difference": "0.027031"
+        }
+      ],
+      "dispersion": {
+        "sampleCount": 3,
+        "meanDifference": "-0.008646",
+        "sampleStandardDeviation": "0.031697",
+        "standardErrorOfMean": "0.018300",
+        "minimumDifference": "-0.033560",
+        "maximumDifference": "0.027031",
+        "candidateBetterCount": 1,
+        "candidateWorseCount": 2,
+        "tiedCount": 0
+      }
+    },
+    {
+      "metricKey": "markout_eligible_shares",
+      "horizonNs": "5000000000",
+      "unit": "shares",
+      "exactness": "exact_fixed_point",
+      "betterDirection": "neither",
+      "perSeed": [
+        {
+          "masterSeed": "101",
+          "baselineRunId": "run_87250c55ef4d2e5c",
+          "candidateRunId": "run_9a932797284d1964",
+          "baselineValue": "500",
+          "candidateValue": "500",
+          "difference": "0"
+        },
+        {
+          "masterSeed": "102",
+          "baselineRunId": "run_5fe9233de40f35f1",
+          "candidateRunId": "run_944a34013cec64d1",
+          "baselineValue": "483",
+          "candidateValue": "500",
+          "difference": "17"
+        },
+        {
+          "masterSeed": "103",
+          "baselineRunId": "run_7ca5e70750225ee6",
+          "candidateRunId": "run_585d7cc1aafe7b03",
+          "baselineValue": "483",
+          "candidateValue": "500",
+          "difference": "17"
+        }
+      ],
+      "dispersion": {
+        "sampleCount": 3,
+        "meanDifference": "11.333333",
+        "sampleStandardDeviation": "9.814955",
+        "standardErrorOfMean": "5.666667",
+        "minimumDifference": "0",
+        "maximumDifference": "17",
+        "candidateBetterCount": 0,
+        "candidateWorseCount": 0,
+        "tiedCount": 1
+      }
+    },
+    {
+      "metricKey": "markout_eligible_fills",
+      "horizonNs": "5000000000",
+      "unit": "count",
+      "exactness": "exact_fixed_point",
+      "betterDirection": "neither",
+      "perSeed": [
+        {
+          "masterSeed": "101",
+          "baselineRunId": "run_87250c55ef4d2e5c",
+          "candidateRunId": "run_9a932797284d1964",
+          "baselineValue": "24",
+          "candidateValue": "6",
+          "difference": "-18"
+        },
+        {
+          "masterSeed": "102",
+          "baselineRunId": "run_5fe9233de40f35f1",
+          "candidateRunId": "run_944a34013cec64d1",
+          "baselineValue": "21",
+          "candidateValue": "5",
+          "difference": "-16"
+        },
+        {
+          "masterSeed": "103",
+          "baselineRunId": "run_7ca5e70750225ee6",
+          "candidateRunId": "run_585d7cc1aafe7b03",
+          "baselineValue": "19",
+          "candidateValue": "7",
+          "difference": "-12"
+        }
+      ],
+      "dispersion": {
+        "sampleCount": 3,
+        "meanDifference": "-15.333333",
+        "sampleStandardDeviation": "3.055050",
+        "standardErrorOfMean": "1.763834",
+        "minimumDifference": "-18",
+        "maximumDifference": "-12",
+        "candidateBetterCount": 0,
+        "candidateWorseCount": 0,
+        "tiedCount": 0
+      }
+    },
+    {
+      "metricKey": "markout_no_mark_fills",
+      "horizonNs": "5000000000",
+      "unit": "count",
+      "exactness": "exact_fixed_point",
+      "betterDirection": "neither",
+      "perSeed": [
+        {
+          "masterSeed": "101",
+          "baselineRunId": "run_87250c55ef4d2e5c",
+          "candidateRunId": "run_9a932797284d1964",
+          "baselineValue": "0",
+          "candidateValue": "0",
+          "difference": "0"
+        },
+        {
+          "masterSeed": "102",
+          "baselineRunId": "run_5fe9233de40f35f1",
+          "candidateRunId": "run_944a34013cec64d1",
+          "baselineValue": "0",
+          "candidateValue": "0",
+          "difference": "0"
+        },
+        {
+          "masterSeed": "103",
+          "baselineRunId": "run_7ca5e70750225ee6",
+          "candidateRunId": "run_585d7cc1aafe7b03",
+          "baselineValue": "0",
+          "candidateValue": "0",
+          "difference": "0"
+        }
+      ],
+      "dispersion": {
+        "sampleCount": 3,
+        "meanDifference": "0.000000",
+        "sampleStandardDeviation": "0.000000",
+        "standardErrorOfMean": "0.000000",
+        "minimumDifference": "0",
+        "maximumDifference": "0",
+        "candidateBetterCount": 0,
+        "candidateWorseCount": 0,
+        "tiedCount": 3
+      }
+    },
+    {
+      "metricKey": "markout_censored_fills",
+      "horizonNs": "5000000000",
+      "unit": "count",
+      "exactness": "exact_fixed_point",
+      "betterDirection": "neither",
+      "perSeed": [
+        {
+          "masterSeed": "101",
+          "baselineRunId": "run_87250c55ef4d2e5c",
+          "candidateRunId": "run_9a932797284d1964",
+          "baselineValue": "0",
+          "candidateValue": "0",
+          "difference": "0"
+        },
+        {
+          "masterSeed": "102",
+          "baselineRunId": "run_5fe9233de40f35f1",
+          "candidateRunId": "run_944a34013cec64d1",
+          "baselineValue": "0",
+          "candidateValue": "0",
+          "difference": "0"
+        },
+        {
+          "masterSeed": "103",
+          "baselineRunId": "run_7ca5e70750225ee6",
+          "candidateRunId": "run_585d7cc1aafe7b03",
+          "baselineValue": "0",
+          "candidateValue": "0",
+          "difference": "0"
+        }
+      ],
+      "dispersion": {
+        "sampleCount": 3,
+        "meanDifference": "0.000000",
+        "sampleStandardDeviation": "0.000000",
+        "standardErrorOfMean": "0.000000",
+        "minimumDifference": "0",
+        "maximumDifference": "0",
+        "candidateBetterCount": 0,
+        "candidateWorseCount": 0,
+        "tiedCount": 3
+      }
+    },
+    {
+      "metricKey": "quote_exposure_time",
+      "horizonNs": null,
+      "unit": "nanoseconds",
+      "exactness": "exact_fixed_point",
+      "betterDirection": "neither",
+      "perSeed": [
+        {
+          "masterSeed": "101",
+          "baselineRunId": "run_87250c55ef4d2e5c",
+          "candidateRunId": "run_9a932797284d1964",
+          "baselineValue": "0",
+          "candidateValue": "0",
+          "difference": "0"
+        },
+        {
+          "masterSeed": "102",
+          "baselineRunId": "run_5fe9233de40f35f1",
+          "candidateRunId": "run_944a34013cec64d1",
+          "baselineValue": "0",
+          "candidateValue": "0",
+          "difference": "0"
+        },
+        {
+          "masterSeed": "103",
+          "baselineRunId": "run_7ca5e70750225ee6",
+          "candidateRunId": "run_585d7cc1aafe7b03",
+          "baselineValue": "0",
+          "candidateValue": "0",
+          "difference": "0"
+        }
+      ],
+      "dispersion": {
+        "sampleCount": 3,
+        "meanDifference": "0.000000",
+        "sampleStandardDeviation": "0.000000",
+        "standardErrorOfMean": "0.000000",
+        "minimumDifference": "0",
+        "maximumDifference": "0",
+        "candidateBetterCount": 0,
+        "candidateWorseCount": 0,
+        "tiedCount": 3
+      }
+    },
+    {
+      "metricKey": "completion_ratio",
+      "horizonNs": null,
+      "unit": "ratio",
+      "exactness": "derived_float",
+      "betterDirection": "higher",
+      "perSeed": [
+        {
+          "masterSeed": "101",
+          "baselineRunId": "run_87250c55ef4d2e5c",
+          "candidateRunId": "run_9a932797284d1964",
+          "baselineValue": "1.000000",
+          "candidateValue": "1.000000",
+          "difference": "0.000000"
+        },
+        {
+          "masterSeed": "102",
+          "baselineRunId": "run_5fe9233de40f35f1",
+          "candidateRunId": "run_944a34013cec64d1",
+          "baselineValue": "0.966000",
+          "candidateValue": "1.000000",
+          "difference": "0.034000"
+        },
+        {
+          "masterSeed": "103",
+          "baselineRunId": "run_7ca5e70750225ee6",
+          "candidateRunId": "run_585d7cc1aafe7b03",
+          "baselineValue": "0.966000",
+          "candidateValue": "1.000000",
+          "difference": "0.034000"
+        }
+      ],
+      "dispersion": {
+        "sampleCount": 3,
+        "meanDifference": "0.022667",
+        "sampleStandardDeviation": "0.019630",
+        "standardErrorOfMean": "0.011333",
+        "minimumDifference": "0.000000",
+        "maximumDifference": "0.034000",
+        "candidateBetterCount": 2,
+        "candidateWorseCount": 0,
+        "tiedCount": 1
+      }
+    },
+    {
+      "metricKey": "residual_qty",
+      "horizonNs": null,
+      "unit": "shares",
+      "exactness": "exact_fixed_point",
+      "betterDirection": "lower",
+      "perSeed": [
+        {
+          "masterSeed": "101",
+          "baselineRunId": "run_87250c55ef4d2e5c",
+          "candidateRunId": "run_9a932797284d1964",
+          "baselineValue": "0",
+          "candidateValue": "0",
+          "difference": "0"
+        },
+        {
+          "masterSeed": "102",
+          "baselineRunId": "run_5fe9233de40f35f1",
+          "candidateRunId": "run_944a34013cec64d1",
+          "baselineValue": "17",
+          "candidateValue": "0",
+          "difference": "-17"
+        },
+        {
+          "masterSeed": "103",
+          "baselineRunId": "run_7ca5e70750225ee6",
+          "candidateRunId": "run_585d7cc1aafe7b03",
+          "baselineValue": "17",
+          "candidateValue": "0",
+          "difference": "-17"
+        }
+      ],
+      "dispersion": {
+        "sampleCount": 3,
+        "meanDifference": "-11.333333",
+        "sampleStandardDeviation": "9.814955",
+        "standardErrorOfMean": "5.666667",
+        "minimumDifference": "-17",
+        "maximumDifference": "0",
+        "candidateBetterCount": 2,
+        "candidateWorseCount": 0,
+        "tiedCount": 1
+      }
+    },
+    {
+      "metricKey": "decision_slippage_total",
+      "horizonNs": null,
+      "unit": "currency",
+      "exactness": "exact_fixed_point",
+      "betterDirection": "lower",
+      "perSeed": [
+        {
+          "masterSeed": "101",
+          "baselineRunId": "run_87250c55ef4d2e5c",
+          "candidateRunId": "run_9a932797284d1964",
+          "baselineValue": "-22.34000",
+          "candidateValue": "8.88000",
+          "difference": "31.22000"
+        },
+        {
+          "masterSeed": "102",
+          "baselineRunId": "run_5fe9233de40f35f1",
+          "candidateRunId": "run_944a34013cec64d1",
+          "baselineValue": "-11.53000",
+          "candidateValue": "14.00000",
+          "difference": "25.53000"
+        },
+        {
+          "masterSeed": "103",
+          "baselineRunId": "run_7ca5e70750225ee6",
+          "candidateRunId": "run_585d7cc1aafe7b03",
+          "baselineValue": "25.01000",
+          "candidateValue": "3.10000",
+          "difference": "-21.91000"
+        }
+      ],
+      "dispersion": {
+        "sampleCount": 3,
+        "meanDifference": "11.613333",
+        "sampleStandardDeviation": "29.171123",
+        "standardErrorOfMean": "16.841956",
+        "minimumDifference": "-21.91000",
+        "maximumDifference": "31.22000",
+        "candidateBetterCount": 1,
+        "candidateWorseCount": 2,
+        "tiedCount": 0
+      }
+    },
+    {
+      "metricKey": "decision_slippage_per_share",
+      "horizonNs": null,
+      "unit": "currency_per_share",
+      "exactness": "derived_float",
+      "betterDirection": "lower",
+      "perSeed": [
+        {
+          "masterSeed": "101",
+          "baselineRunId": "run_87250c55ef4d2e5c",
+          "candidateRunId": "run_9a932797284d1964",
+          "baselineValue": "-0.044680",
+          "candidateValue": "0.017760",
+          "difference": "0.062440"
+        },
+        {
+          "masterSeed": "102",
+          "baselineRunId": "run_5fe9233de40f35f1",
+          "candidateRunId": "run_944a34013cec64d1",
+          "baselineValue": "-0.023872",
+          "candidateValue": "0.028000",
+          "difference": "0.051872"
+        },
+        {
+          "masterSeed": "103",
+          "baselineRunId": "run_7ca5e70750225ee6",
+          "candidateRunId": "run_585d7cc1aafe7b03",
+          "baselineValue": "0.051781",
+          "candidateValue": "0.006200",
+          "difference": "-0.045581"
+        }
+      ],
+      "dispersion": {
+        "sampleCount": 3,
+        "meanDifference": "0.022910",
+        "sampleStandardDeviation": "0.059550",
+        "standardErrorOfMean": "0.034381",
+        "minimumDifference": "-0.045581",
+        "maximumDifference": "0.062440",
+        "candidateBetterCount": 1,
+        "candidateWorseCount": 2,
+        "tiedCount": 0
+      }
+    },
+    {
+      "metricKey": "implementation_shortfall_total",
+      "horizonNs": null,
+      "unit": "currency",
+      "exactness": "exact_fixed_point",
+      "betterDirection": "lower",
+      "perSeed": [
+        {
+          "masterSeed": "101",
+          "baselineRunId": "run_87250c55ef4d2e5c",
+          "candidateRunId": "run_9a932797284d1964",
+          "baselineValue": "-20.84000",
+          "candidateValue": "10.38000",
+          "difference": "31.22000"
+        },
+        {
+          "masterSeed": "102",
+          "baselineRunId": "run_5fe9233de40f35f1",
+          "candidateRunId": "run_944a34013cec64d1",
+          "baselineValue": "-10.08100",
+          "candidateValue": "15.50000",
+          "difference": "25.58100"
+        },
+        {
+          "masterSeed": "103",
+          "baselineRunId": "run_7ca5e70750225ee6",
+          "candidateRunId": "run_585d7cc1aafe7b03",
+          "baselineValue": "26.45900",
+          "candidateValue": "4.60000",
+          "difference": "-21.85900"
+        }
+      ],
+      "dispersion": {
+        "sampleCount": 3,
+        "meanDifference": "11.647333",
+        "sampleStandardDeviation": "29.153994",
+        "standardErrorOfMean": "16.832066",
+        "minimumDifference": "-21.85900",
+        "maximumDifference": "31.22000",
+        "candidateBetterCount": 1,
+        "candidateWorseCount": 2,
+        "tiedCount": 0
+      }
+    },
+    {
+      "metricKey": "implementation_shortfall_per_share",
+      "horizonNs": null,
+      "unit": "currency_per_share",
+      "exactness": "derived_float",
+      "betterDirection": "lower",
+      "perSeed": [
+        {
+          "masterSeed": "101",
+          "baselineRunId": "run_87250c55ef4d2e5c",
+          "candidateRunId": "run_9a932797284d1964",
+          "baselineValue": "-0.041680",
+          "candidateValue": "0.020760",
+          "difference": "0.062440"
+        },
+        {
+          "masterSeed": "102",
+          "baselineRunId": "run_5fe9233de40f35f1",
+          "candidateRunId": "run_944a34013cec64d1",
+          "baselineValue": "-0.020872",
+          "candidateValue": "0.031000",
+          "difference": "0.051872"
+        },
+        {
+          "masterSeed": "103",
+          "baselineRunId": "run_7ca5e70750225ee6",
+          "candidateRunId": "run_585d7cc1aafe7b03",
+          "baselineValue": "0.054781",
+          "candidateValue": "0.009200",
+          "difference": "-0.045581"
+        }
+      ],
+      "dispersion": {
+        "sampleCount": 3,
+        "meanDifference": "0.022910",
+        "sampleStandardDeviation": "0.059550",
+        "standardErrorOfMean": "0.034381",
+        "minimumDifference": "-0.045581",
+        "maximumDifference": "0.062440",
+        "candidateBetterCount": 1,
+        "candidateWorseCount": 2,
+        "tiedCount": 0
+      }
+    },
+    {
+      "metricKey": "participation_rate",
+      "horizonNs": null,
+      "unit": "ratio",
+      "exactness": "derived_float",
+      "betterDirection": "neither",
+      "perSeed": [
+        {
+          "masterSeed": "101",
+          "baselineRunId": "run_87250c55ef4d2e5c",
+          "candidateRunId": "run_9a932797284d1964",
+          "baselineValue": "0.004995",
+          "candidateValue": "0.625000",
+          "difference": "0.620005"
+        },
+        {
+          "masterSeed": "102",
+          "baselineRunId": "run_5fe9233de40f35f1",
+          "candidateRunId": "run_944a34013cec64d1",
+          "baselineValue": "0.004737",
+          "candidateValue": "0.625000",
+          "difference": "0.620263"
+        },
+        {
+          "masterSeed": "103",
+          "baselineRunId": "run_7ca5e70750225ee6",
+          "candidateRunId": "run_585d7cc1aafe7b03",
+          "baselineValue": "0.004857",
+          "candidateValue": "0.529101",
+          "difference": "0.524244"
+        }
+      ],
+      "dispersion": {
+        "sampleCount": 3,
+        "meanDifference": "0.588171",
+        "sampleStandardDeviation": "0.055362",
+        "standardErrorOfMean": "0.031963",
+        "minimumDifference": "0.524244",
+        "maximumDifference": "0.620263",
+        "candidateBetterCount": 0,
+        "candidateWorseCount": 0,
+        "tiedCount": 0
+      }
+    }
+  ]
+}

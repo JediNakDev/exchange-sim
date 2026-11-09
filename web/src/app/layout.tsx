@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Suspense, type ReactNode } from "react";
 import Link from "next/link";
 import { Geist_Mono, Inter } from "next/font/google";
-import { AppNavigation, NewExperimentNavigationLink, PrimaryNavigationLinks, WorkspaceBreadcrumb, WorkspaceContext } from "@/components/research/app-navigation";
+import { AppNavigation, UtilityNavigation, NewExperimentNavigationLink, PrimaryNavigationLinks, WorkspaceBreadcrumb, WorkspaceContext } from "@/components/research/app-navigation";
 import { ThemeMenu } from "@/components/research/theme-menu";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Separator } from "@/components/ui/separator";
@@ -45,7 +45,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             <SidebarProvider>
               <Sidebar collapsible="icon" role="complementary" aria-label="Research workspace">
                 <SidebarHeader className="h-12 justify-center border-b border-sidebar-border">
-                  <Link href="/experiments" aria-label="exsim research" className="flex items-center gap-2 px-1.5 text-base font-semibold tracking-tight">
+                  <Link href="/research" aria-label="exsim research" className="flex items-center gap-2 px-1.5 text-base font-semibold tracking-tight">
                     <OrderBookMark className="size-5 shrink-0" />
                     <span className="group-data-[collapsible=icon]:hidden">exsim</span>
                   </Link>
@@ -62,9 +62,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                     </Suspense>
                   </SidebarGroup>
                 </SidebarContent>
-                <SidebarFooter className="border-t border-sidebar-border group-data-[collapsible=icon]:hidden">
-                  <p className="px-2 py-1 text-xs/relaxed text-muted-foreground">
-                    Interactive synthetic market, single venue, simulated time. Controlled experiments, not live trading predictions.
+                <SidebarFooter className="border-t border-sidebar-border">
+                  <UtilityNavigation />
+                  <p className="px-2 py-1 text-xs/relaxed text-muted-foreground group-data-[collapsible=icon]:hidden">
+                    Research runs use built-in models and simulated time.
                   </p>
                 </SidebarFooter>
                 <SidebarRail />
