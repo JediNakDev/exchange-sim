@@ -41,7 +41,7 @@
 namespace exsim::server {
 
 // Order-entry protocol of a configured user: OUCH 4.2 over SoupBinTCP, FIX
-// 4.4, or SBE over FIXP (historical design notes).
+// 4.4, or Exsim SBE over FIXP (not CME iLink).
 enum class Protocol : std::uint8_t { Ouch42 = 0, Fix44 = 1, FixpSbe = 2 };
 
 constexpr std::string_view to_string(Protocol protocol) noexcept {

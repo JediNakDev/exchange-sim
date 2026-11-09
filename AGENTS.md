@@ -14,7 +14,7 @@
 - Language: C++23 for production builds, tests, and editor tooling.
 - Management: an OpenAPI-described C++ HTTP API. Trading engines connect directly to each exchange's protocol endpoints.
 - Active verification: unit and integration tests on macOS and local OrbStack Ubuntu. Fuzz and end-to-end suites are deferred.
-- Leave README.md to the user; do not rewrite it.
+- Do not edit `README.md`.
 - Simulation, matching, exchange protocols, accounting, and simulated time belong in C++.
 - Use GPT/ChatGPT with high reasoning for resumed and new delegates (latest user decision 2026-11-05, "continue and turn all subagent to chatgpt"; this replaces the earlier Claude-only rule). Do not use local Ollama while the user is working on this machine.
 - Never include a co-author attribution in commits. Avoid em dashes in responses, comments, and new prose.
