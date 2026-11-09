@@ -13,7 +13,7 @@
 
 #include "fuzz_support.hpp"
 
-#include <exsim/protocol/moldudp64.hpp>
+#include <protocol/moldudp64.hpp>
 #include <optional>
 #include <vector>
 

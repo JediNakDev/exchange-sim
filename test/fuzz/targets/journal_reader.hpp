@@ -18,7 +18,7 @@
 
 #include "fuzz_support.hpp"
 
-#include <exsim/sim/journal.hpp>
+#include <sim/journal.hpp>
 #include <filesystem>
 #include <fstream>
 #include <optional>

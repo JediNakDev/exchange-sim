@@ -14,8 +14,8 @@
 
 #include "fuzz_support.hpp"
 
-#include <exsim/matching_engine.hpp>
-#include <exsim/sim/scenario.hpp>
+#include <matching_engine.hpp>
+#include <sim/scenario.hpp>
 #include <sstream>
 #include <string>
 

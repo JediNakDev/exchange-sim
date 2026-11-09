@@ -4,7 +4,7 @@
 #include <unistd.h>
 
 #include <charconv>
-#include <exsim/net/socket.hpp>
+#include <net/socket.hpp>
 #include <utility>
 
 namespace exsim::net {

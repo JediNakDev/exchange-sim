@@ -1,8 +1,8 @@
 // HTTP/1.1 parsing limits and the socket server's handling of malformed,
 // oversized, pipelined and over-capacity connections.
 
-#include "exsim/api/http_message.hpp"
-#include "exsim/api/http_server.hpp"
+#include "api/http_message.hpp"
+#include "api/http_server.hpp"
 #include "test/framework/alloc_counter.hpp"
 #include "test/framework/test.hpp"
 

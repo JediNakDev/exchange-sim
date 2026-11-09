@@ -1,8 +1,8 @@
 // MarketDataPublisher: configuration rules, the session state machine,
 // packing into max_payload, per-batch flushing, timers and the ring.
 
-#include <exsim/matching_engine.hpp>
-#include <exsim/md/publisher.hpp>
+#include <matching_engine.hpp>
+#include <md/publisher.hpp>
 #include <test/exsim/md/md_test_support.hpp>
 #include <test/framework/test.hpp>
 

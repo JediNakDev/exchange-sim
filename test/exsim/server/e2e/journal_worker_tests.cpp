@@ -1,4 +1,4 @@
-#include "exsim/server/runtime/journal_worker.hpp"
+#include "server/runtime/journal_worker.hpp"
 #include "test/exsim/server/e2e/e2e_support.hpp"
 #include "test/exsim/server/core/core_test_support.hpp"
 

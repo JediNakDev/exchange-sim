@@ -1,6 +1,6 @@
 #include <arpa/inet.h>
 
-#include <exsim/net/udp.hpp>
+#include <net/udp.hpp>
 #include <utility>
 namespace exsim::net {
 namespace {

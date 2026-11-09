@@ -1,12 +1,12 @@
-#include "exsim/api/research_run.hpp"
-#include "exsim/api/postgres_store.hpp"
+#include "api/research_run.hpp"
+#include "api/postgres_store.hpp"
 
-#include "exsim/api/api_json.hpp"
-#include "exsim/api/sha256.hpp"
-#include "exsim/research/json.hpp"
-#include "exsim/research/run_artifacts.hpp"
-#include "exsim/research/seed_derivation.hpp"
-#include "exsim/research/process_simulation.hpp"
+#include "api/api_json.hpp"
+#include "api/sha256.hpp"
+#include "research/json.hpp"
+#include "research/run_artifacts.hpp"
+#include "research/seed_derivation.hpp"
+#include "research/process_simulation.hpp"
 #include "simulation_driver.hpp"
 
 #include <algorithm>

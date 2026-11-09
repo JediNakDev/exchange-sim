@@ -1,10 +1,10 @@
-#include "exsim/research/exchange_session.hpp"
-#include "exsim/ipc/session_packets.hpp"
-#include "exsim/server/runtime/order_entry_gateways.hpp"
-#include "exsim/md/publisher.hpp"
-#include "exsim/md/retransmission_server.hpp"
+#include "research/exchange_session.hpp"
+#include "ipc/session_packets.hpp"
+#include "server/runtime/order_entry_gateways.hpp"
+#include "md/publisher.hpp"
+#include "md/retransmission_server.hpp"
 #include <variant>
-#include <lob/flat_hash_map.hpp>
+#include <exchange/flat_hash_map.hpp>
 
 namespace exsim::research {
 namespace {

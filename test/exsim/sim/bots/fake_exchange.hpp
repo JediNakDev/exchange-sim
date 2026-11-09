@@ -1,6 +1,6 @@
 #ifndef TESTS_EXSIM_SIM_BOTS_FAKE_EXCHANGE_HPP
 #define TESTS_EXSIM_SIM_BOTS_FAKE_EXCHANGE_HPP
-#include "exsim/sim/bots/bot_set.hpp"
+#include "sim/bots/bot_set.hpp"
 #include <array>
 #include <vector>
 #include <cassert>

@@ -1,7 +1,7 @@
 // lob::engine::SPSCQueue: capacity, wraparound and cross-thread FIFO order.
 
 #include "../framework/test.hpp"
-#include <lob/engine/spsc_queue.hpp>
+#include <exchange/spsc_queue.hpp>
 
 #include <cstdint>
 #include <thread>

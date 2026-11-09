@@ -1,5 +1,5 @@
-#include "exsim/sim/packet_faults.hpp"
-#include "exsim/sim/random.hpp"
+#include "sim/packet_faults.hpp"
+#include "sim/random.hpp"
 #include "../../framework/test.hpp"
 
 #include <cstring>

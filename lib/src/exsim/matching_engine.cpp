@@ -4,14 +4,14 @@
 // Preallocated arrays retain exchange/session metadata and ordered query
 // lists. The engine retains matching rules and bounded hot-path storage.
 
-#include <exsim/matching_engine.hpp>
+#include <matching_engine.hpp>
 
 #include "engine/fixed_array.hpp"
 #include "engine/order_metadata.hpp"
 #include "engine/price_ladder.hpp"
 
-#include <lob/compiler.hpp>
-#include <lob/flat_hash_map.hpp>
+#include <exchange/compiler.hpp>
+#include <exchange/flat_hash_map.hpp>
 
 #include <algorithm>
 #include <cassert>

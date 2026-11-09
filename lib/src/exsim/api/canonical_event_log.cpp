@@ -1,6 +1,6 @@
-#include "exsim/api/canonical_event_log.hpp"
+#include "api/canonical_event_log.hpp"
 
-#include "exsim/api/api_json.hpp"
+#include "api/api_json.hpp"
 
 #include <algorithm>
 #include <stdexcept>

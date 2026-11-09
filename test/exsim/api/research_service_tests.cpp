@@ -4,13 +4,13 @@
 //
 // The executor thread is off; tests advance runs with run_executor_pass().
 
-#include "exsim/api/api_json.hpp"
-#include "exsim/api/experiment_config_translation.hpp"
-#include "exsim/api/http_message.hpp"
-#include "exsim/api/research_service.hpp"
-#include "exsim/research/json.hpp"
-#include "exsim/research/run_artifacts.hpp"
-#include "exsim/research/run_verification.hpp"
+#include "api/api_json.hpp"
+#include "api/experiment_config_translation.hpp"
+#include "api/http_message.hpp"
+#include "api/research_service.hpp"
+#include "research/json.hpp"
+#include "research/run_artifacts.hpp"
+#include "research/run_verification.hpp"
 #include "test/framework/test.hpp"
 
 #include <unistd.h>

@@ -14,12 +14,12 @@
 // then stale). Exit status 0 after End of Session, --count messages or
 // --timeout-ms of silence; 1 on bad arguments or socket errors.
 
-#include <exsim/md/book_builder.hpp>
-#include <exsim/md/itch_dispatch.hpp>
-#include <exsim/md/receiver.hpp>
-#include <exsim/net/clocks.hpp>
-#include <exsim/net/poller.hpp>
-#include <exsim/net/udp.hpp>
+#include <md/book_builder.hpp>
+#include <md/itch_dispatch.hpp>
+#include <md/receiver.hpp>
+#include <net/clocks.hpp>
+#include <net/poller.hpp>
+#include <net/udp.hpp>
 
 #include "retransmission_source.hpp"
 

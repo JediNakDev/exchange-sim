@@ -1,11 +1,11 @@
-#include "exsim/research/run_artifacts.hpp"
+#include "research/run_artifacts.hpp"
 
-#include "exsim/research/json.hpp"
-#include "exsim/research/seed_derivation.hpp"
-#include "exsim/sim/canonical.hpp"
-#include "exsim/sim/fields.hpp"
-#include "exsim/sim/journal.hpp"
-#include "exsim/sim/price_text.hpp"
+#include "research/json.hpp"
+#include "research/seed_derivation.hpp"
+#include "sim/canonical.hpp"
+#include "sim/fields.hpp"
+#include "sim/journal.hpp"
+#include "sim/price_text.hpp"
 
 #include <bit>
 #include <ctime>

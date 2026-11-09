@@ -6,7 +6,7 @@
 
 #include <test/framework/test.hpp>
 
-#include <exsim/matching_engine.hpp>
+#include <matching_engine.hpp>
 
 #include <cstdint>
 #include <vector>

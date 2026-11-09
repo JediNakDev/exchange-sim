@@ -1,4 +1,4 @@
-#include "exsim/gateway/sequenced_store.hpp"
+#include "gateway/sequenced_store.hpp"
 #include "../../framework/test.hpp"
 
 #include <string>

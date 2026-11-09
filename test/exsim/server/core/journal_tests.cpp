@@ -3,7 +3,7 @@
 // `[journal] on_failure`.
 
 #include "test/exsim/server/core/core_test_support.hpp"
-#include "exsim/sim/journal.hpp"
+#include "sim/journal.hpp"
 
 #include <csignal>
 #include <cstdio>

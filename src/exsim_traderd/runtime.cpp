@@ -1,11 +1,11 @@
 #include "runtime.hpp"
-#include "exsim/ipc/strategy_wire.hpp"
-#include "exsim/research/trader_session.hpp"
-#include "exsim/research/seed_derivation.hpp"
-#include "exsim/research/strategies/fixed_spread_market_maker.hpp"
-#include "exsim/research/strategies/inventory_aware_market_maker.hpp"
-#include "exsim/research/strategies/twap_executor.hpp"
-#include "exsim/research/strategies/immediate_sweep_executor.hpp"
+#include "ipc/strategy_wire.hpp"
+#include "research/trader_session.hpp"
+#include "research/seed_derivation.hpp"
+#include "research/strategies/fixed_spread_market_maker.hpp"
+#include "research/strategies/inventory_aware_market_maker.hpp"
+#include "research/strategies/twap_executor.hpp"
+#include "research/strategies/immediate_sweep_executor.hpp"
 #include <iostream>
 
 namespace exsim::trader {

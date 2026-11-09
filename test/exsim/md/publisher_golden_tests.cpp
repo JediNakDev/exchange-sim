@@ -2,8 +2,8 @@
 // gateway mapping section 4, driven through a real exsim::MatchingEngine.
 // Expected bytes are literal hex, independent of the codec encoders.
 
-#include <exsim/matching_engine.hpp>
-#include <exsim/md/publisher.hpp>
+#include <matching_engine.hpp>
+#include <md/publisher.hpp>
 #include <test/exsim/md/md_test_support.hpp>
 #include <test/framework/test.hpp>
 

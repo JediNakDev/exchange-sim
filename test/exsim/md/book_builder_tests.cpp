@@ -2,7 +2,7 @@
 // crossed books, rejections that leave the book unchanged, capacity limits
 // and instrument metadata.
 
-#include <exsim/md/book_builder.hpp>
+#include <md/book_builder.hpp>
 #include <test/exsim/md/md_test_support.hpp>
 #include <test/framework/test.hpp>
 

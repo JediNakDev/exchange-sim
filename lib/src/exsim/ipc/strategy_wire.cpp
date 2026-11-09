@@ -1,4 +1,4 @@
-#include "exsim/ipc/strategy_wire.hpp"
+#include "ipc/strategy_wire.hpp"
 #include <algorithm>
 #include <cerrno>
 #include <chrono>

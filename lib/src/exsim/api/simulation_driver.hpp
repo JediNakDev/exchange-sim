@@ -5,8 +5,8 @@
 // runner's own artifact writer (the runner's run directory, command journal
 // and independent replay check).
 
-#include "exsim/research/run_artifacts.hpp"
-#include "exsim/research/simulation_core.hpp"
+#include "research/run_artifacts.hpp"
+#include "research/simulation_core.hpp"
 
 #include <memory>
 #include <string>

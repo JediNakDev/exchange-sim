@@ -8,7 +8,7 @@
 
 #include "fixed_layout_codec.hpp"
 
-#include <exsim/protocol/ouch42.hpp>
+#include <protocol/ouch42.hpp>
 
 namespace exsim::fuzz {
 

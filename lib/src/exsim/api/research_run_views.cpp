@@ -1,12 +1,12 @@
 // Read views of a ResearchRun: run, manifest, summary, series, events,
 // orders, lifecycle, fills, book and comparison inputs.
 
-#include "exsim/api/api_json.hpp"
-#include "exsim/api/research_run.hpp"
-#include "exsim/research/json.hpp"
+#include "api/api_json.hpp"
+#include "api/research_run.hpp"
+#include "research/json.hpp"
 #include "simulation_driver.hpp"
-#include "exsim/api/request_diagnostics.hpp"
-#include "exsim/api/markout_values.hpp"
+#include "api/request_diagnostics.hpp"
+#include "api/markout_values.hpp"
 
 #include <algorithm>
 #include <cstdlib>

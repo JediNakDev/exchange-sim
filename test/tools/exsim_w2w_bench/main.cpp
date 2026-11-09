@@ -21,9 +21,9 @@
 // Exit status 0 after a complete run, 1 on bad arguments or setup failure,
 // 2 when the run timed out.
 
-#include "exsim/client/exchange_client_sessions.hpp"
-#include "exsim/server/runtime/thread_affinity.hpp"
-#include "exsim/server/server_runtime.hpp"
+#include "client/exchange_client_sessions.hpp"
+#include "server/runtime/thread_affinity.hpp"
+#include "server/server_runtime.hpp"
 
 #include <algorithm>
 #include <atomic>

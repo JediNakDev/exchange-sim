@@ -1,4 +1,4 @@
-#include "exsim/research/process_simulation.hpp"
+#include "research/process_simulation.hpp"
 #include <bit>
 
 namespace exsim::research {

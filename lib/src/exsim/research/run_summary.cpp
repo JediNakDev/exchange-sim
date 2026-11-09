@@ -1,6 +1,6 @@
-#include "exsim/research/run_summary.hpp"
+#include "research/run_summary.hpp"
 
-#include "exsim/research/json.hpp"
+#include "research/json.hpp"
 
 #include <cmath>
 #include <optional>

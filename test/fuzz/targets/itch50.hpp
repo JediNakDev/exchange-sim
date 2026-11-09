@@ -6,7 +6,7 @@
 
 #include "fixed_layout_codec.hpp"
 
-#include <exsim/protocol/itch50.hpp>
+#include <protocol/itch50.hpp>
 
 namespace exsim::fuzz {
 

@@ -1,8 +1,8 @@
 #include <benchmark/benchmark.h>
-#include <exsim/protocol/fix44.hpp>
-#include <exsim/protocol/itch50.hpp>
-#include <exsim/protocol/moldudp64.hpp>
-#include <exsim/protocol/ouch42.hpp>
+#include <protocol/fix44.hpp>
+#include <protocol/itch50.hpp>
+#include <protocol/moldudp64.hpp>
+#include <protocol/ouch42.hpp>
 namespace {
 namespace ouch = exsim::protocol::ouch42;
 namespace itch = exsim::protocol::itch50;

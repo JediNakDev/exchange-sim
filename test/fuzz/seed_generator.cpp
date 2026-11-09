@@ -8,13 +8,13 @@
 // are these seeds merged with what campaigns found (see historical design notes).
 // Same source, same bytes: no clock, no randomness.
 
-#include <exsim/protocol/fix44.hpp>
-#include <exsim/protocol/itch50.hpp>
-#include <exsim/protocol/moldudp64.hpp>
-#include <exsim/protocol/ouch42.hpp>
-#include <exsim/protocol/sbe_order_entry.hpp>
-#include <exsim/protocol/soupbintcp.hpp>
-#include <exsim/sim/journal.hpp>
+#include <protocol/fix44.hpp>
+#include <protocol/itch50.hpp>
+#include <protocol/moldudp64.hpp>
+#include <protocol/ouch42.hpp>
+#include <protocol/sbe_order_entry.hpp>
+#include <protocol/soupbintcp.hpp>
+#include <sim/journal.hpp>
 
 #include <algorithm>
 #include <array>

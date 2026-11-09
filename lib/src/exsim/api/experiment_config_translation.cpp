@@ -1,7 +1,7 @@
-#include "exsim/api/experiment_config_translation.hpp"
+#include "api/experiment_config_translation.hpp"
 
-#include "exsim/api/api_json.hpp"
-#include "exsim/api/sha256.hpp"
+#include "api/api_json.hpp"
+#include "api/sha256.hpp"
 
 #include <algorithm>
 #include <cmath>

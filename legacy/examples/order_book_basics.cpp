@@ -1,7 +1,7 @@
 // Minimal use of the lob::OrderBook core: rest two asks, sweep them with an
 // aggressive bid, and print the resulting fills and top of book.
 
-#include <lob/order_book.hpp>
+#include <exchange/order_book.hpp>
 
 #include <cstdio>
 

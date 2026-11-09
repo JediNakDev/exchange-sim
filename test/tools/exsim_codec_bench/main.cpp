@@ -18,11 +18,11 @@
 //
 // Usage: exsim_codec_bench [--iterations N] [--rounds R]
 
-#include <exsim/protocol/fix44.hpp>
-#include <exsim/protocol/itch50.hpp>
-#include <exsim/protocol/ouch42.hpp>
-#include <exsim/protocol/sbe_order_entry.hpp>
-#include <exsim/protocol/soupbintcp.hpp>
+#include <protocol/fix44.hpp>
+#include <protocol/itch50.hpp>
+#include <protocol/ouch42.hpp>
+#include <protocol/sbe_order_entry.hpp>
+#include <protocol/soupbintcp.hpp>
 
 #include <algorithm>
 #include <array>

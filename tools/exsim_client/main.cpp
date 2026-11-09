@@ -20,10 +20,10 @@
 // Exit status 0 when every command was answered, 1 on bad arguments or a
 // failed login, 2 when a command went unanswered or the connection dropped.
 
-#include "exsim/client/exchange_client_sessions.hpp"
-#include "exsim/gateway/ouch/ouch_client.hpp"
-#include "exsim/net/socket.hpp"
-#include "exsim/server/config.hpp"
+#include "client/exchange_client_sessions.hpp"
+#include "gateway/ouch/ouch_client.hpp"
+#include "net/socket.hpp"
+#include "server/config.hpp"
 
 #include <cinttypes>
 #include <cstdio>

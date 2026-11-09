@@ -19,8 +19,8 @@
 
 #include "fuzz_support.hpp"
 
-#include <exsim/net/socket.hpp>
-#include <exsim/net/stream_buffers.hpp>
+#include <net/socket.hpp>
+#include <net/stream_buffers.hpp>
 #include <string>
 #include <sys/socket.h>
 #include <unistd.h>

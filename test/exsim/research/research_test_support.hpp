@@ -4,9 +4,9 @@
 // Shared fixtures for the research runner tests: deterministic market
 // configurations, a hook-driven test strategy, and record collection.
 
-#include "exsim/research/experiment_config.hpp"
-#include "exsim/research/run_records.hpp"
-#include "exsim/research/simulation.hpp"
+#include "research/experiment_config.hpp"
+#include "research/run_records.hpp"
+#include "research/simulation.hpp"
 
 #include <cstdint>
 #include <filesystem>

@@ -6,7 +6,7 @@
 // server may supply them: anything else that reaches the client's ephemeral
 // port (and knows the session name) would otherwise be injected into the book.
 
-#include "exsim/net/socket.hpp"
+#include "net/socket.hpp"
 
 #include <optional>
 

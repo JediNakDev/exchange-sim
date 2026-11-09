@@ -1,7 +1,7 @@
 #ifndef EXSIM_FUZZ_TARGETS_SBE_ORDER_ENTRY_HPP
 #define EXSIM_FUZZ_TARGETS_SBE_ORDER_ENTRY_HPP
 
-// SBE 1.0 order entry over SOFH framing (include/exsim/protocol/sbe_order_entry.hpp,
+// SBE 1.0 order entry over SOFH framing (lib/include/protocol/sbe_order_entry.hpp,
 // schema config/protocols/exsim_order_entry_sbe.xml).
 //
 // 1. Frame header: decode_frame on the input matches an independent model of
@@ -19,7 +19,7 @@
 
 #include "fuzz_support.hpp"
 
-#include <exsim/protocol/sbe_order_entry.hpp>
+#include <protocol/sbe_order_entry.hpp>
 #include <array>
 #include <tuple>
 

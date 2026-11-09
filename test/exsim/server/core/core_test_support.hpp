@@ -5,9 +5,9 @@
 // and MarketData (allocate freely, for behaviour tests) and counting ones
 // (allocation-free, for the steady-state allocation test).
 
-#include "exsim/server/config.hpp"
-#include "exsim/server/exchange_core.hpp"
-#include "exsim/sim/canonical.hpp"
+#include "server/config.hpp"
+#include "server/exchange_core.hpp"
+#include "sim/canonical.hpp"
 #include "test/framework/test.hpp"
 
 #include <array>

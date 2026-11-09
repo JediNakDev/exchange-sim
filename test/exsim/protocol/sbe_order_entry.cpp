@@ -1,5 +1,5 @@
 #include <test/framework/test.hpp>
-#include "exsim/protocol/sbe_order_entry.hpp"
+#include "protocol/sbe_order_entry.hpp"
 #include <array>
 #include <cstring>
 namespace sbe = exsim::protocol::sbe_order_entry;

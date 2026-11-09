@@ -1,5 +1,5 @@
 #include "../../framework/test.hpp"
-#include <exsim/protocol/itch50.hpp>
+#include <protocol/itch50.hpp>
 #include <random>
 using namespace exsim::protocol::itch50;
 TEST_CASE(proto_itch50_golden, SystemEvent) {

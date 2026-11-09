@@ -1,5 +1,5 @@
 #include "../../framework/test.hpp"
-#include <exsim/protocol/fix44.hpp>
+#include <protocol/fix44.hpp>
 #include <random>
 using namespace exsim::protocol::fix44;
 TEST_CASE(proto_fix, builder_rejects_zero_tag) {

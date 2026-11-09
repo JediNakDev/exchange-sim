@@ -6,10 +6,10 @@
 // in the test thread. Every wait is bounded (wait_until) and polls with a
 // 1 ms idle step.
 
-#include "exsim/client/exchange_client_sessions.hpp"
-#include "exsim/md/book_builder.hpp"
-#include "exsim/server/config.hpp"
-#include "exsim/server/server_runtime.hpp"
+#include "client/exchange_client_sessions.hpp"
+#include "md/book_builder.hpp"
+#include "server/config.hpp"
+#include "server/server_runtime.hpp"
 #include "test/framework/alloc_counter.hpp"
 #include "test/framework/test.hpp"
 

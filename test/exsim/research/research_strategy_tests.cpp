@@ -1,9 +1,9 @@
 // Compiled baseline strategies: quote placement from the visible mid, the
 // inventory skew, and parent-order execution metrics.
 
-#include "exsim/research/strategies/fixed_spread_market_maker.hpp"
-#include "exsim/research/strategies/inventory_aware_market_maker.hpp"
-#include "exsim/research/strategies/twap_executor.hpp"
+#include "research/strategies/fixed_spread_market_maker.hpp"
+#include "research/strategies/inventory_aware_market_maker.hpp"
+#include "research/strategies/twap_executor.hpp"
 #include "test/exsim/research/research_test_support.hpp"
 #include "test/framework/test.hpp"
 

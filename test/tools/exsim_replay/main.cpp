@@ -1,4 +1,4 @@
-#include <exsim/sim/journal.hpp>
+#include <sim/journal.hpp>
 #include <test/exsim/reference/reference_engine.hpp>
 #include <iostream>
 #ifdef EXSIM_REFERENCE_ONLY

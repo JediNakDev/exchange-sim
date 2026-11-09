@@ -1,9 +1,9 @@
 // Real temporary-directory restarts and filesystem failures through public APIs.
-#include "exsim/api/api_json.hpp"
-#include "exsim/api/experiment_config_translation.hpp"
-#include "exsim/api/research_service.hpp"
-#include "exsim/api/sha256.hpp"
-#include "exsim/research/run_artifacts.hpp"
+#include "api/api_json.hpp"
+#include "api/experiment_config_translation.hpp"
+#include "api/research_service.hpp"
+#include "api/sha256.hpp"
+#include "research/run_artifacts.hpp"
 #include "test/framework/test.hpp"
 
 #include <sys/resource.h>

@@ -1,7 +1,7 @@
-#include "exsim/research/experiment_config.hpp"
+#include "research/experiment_config.hpp"
 
-#include "exsim/research/seed_derivation.hpp"
-#include "exsim/sim/price_text.hpp"
+#include "research/seed_derivation.hpp"
+#include "sim/price_text.hpp"
 
 #include <algorithm>
 #include <charconv>

@@ -14,13 +14,13 @@
 // it, so the feed is checked after all packets of each batch even while
 // recovery lags behind the engine.
 
-#include <exsim/matching_engine.hpp>
-#include <exsim/md/book_builder.hpp>
-#include <exsim/md/publisher.hpp>
-#include <exsim/md/receiver.hpp>
-#include <exsim/md/retransmission_server.hpp>
-#include <exsim/sim/journal.hpp>
-#include <exsim/sim/packet_faults.hpp>
+#include <matching_engine.hpp>
+#include <md/book_builder.hpp>
+#include <md/publisher.hpp>
+#include <md/receiver.hpp>
+#include <md/retransmission_server.hpp>
+#include <sim/journal.hpp>
+#include <sim/packet_faults.hpp>
 #include <test/exsim/md/md_test_support.hpp>
 #include <test/framework/test.hpp>
 

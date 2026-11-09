@@ -1,6 +1,6 @@
 #include "../../framework/test.hpp"
-#include <exsim/protocol/itch50.hpp>
-#include <exsim/protocol/ouch42.hpp>
+#include <protocol/itch50.hpp>
+#include <protocol/ouch42.hpp>
 #include <lob/protocol/itch.hpp>
 using exsim::protocol::Status;
 TEST_CASE(proto_itch, legacy_interoperability) {

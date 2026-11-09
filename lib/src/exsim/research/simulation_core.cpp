@@ -1,8 +1,8 @@
-#include "exsim/research/simulation_core.hpp"
+#include "research/simulation_core.hpp"
 #include <bit>
 
-#include "exsim/research/seed_derivation.hpp"
-#include "exsim/sim/canonical.hpp"
+#include "research/seed_derivation.hpp"
+#include "sim/canonical.hpp"
 
 #include <algorithm>
 #include <span>

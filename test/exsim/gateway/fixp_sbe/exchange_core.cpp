@@ -7,8 +7,8 @@
 #include "fixp_sbe_test_support.hpp"
 #include <test/framework/alloc_counter.hpp>
 
-#include "exsim/server/config.hpp"
-#include "exsim/server/exchange_core.hpp"
+#include "server/config.hpp"
+#include "server/exchange_core.hpp"
 
 using namespace fixp_sbe_test;
 

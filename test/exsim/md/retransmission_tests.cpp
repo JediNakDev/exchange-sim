@@ -1,7 +1,7 @@
 // RetransmissionRing and RetransmissionServer: exact resent bytes, request
 // validation, ring edges, count and payload caps.
 
-#include <exsim/md/retransmission_server.hpp>
+#include <md/retransmission_server.hpp>
 #include <test/exsim/md/md_test_support.hpp>
 #include <test/framework/test.hpp>
 

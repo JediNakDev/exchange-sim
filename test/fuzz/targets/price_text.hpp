@@ -16,9 +16,9 @@
 
 #include "fuzz_support.hpp"
 
-#include <exsim/protocol/fix44.hpp>
-#include <exsim/server/config.hpp>
-#include <exsim/sim/price_text.hpp>
+#include <protocol/fix44.hpp>
+#include <server/config.hpp>
+#include <sim/price_text.hpp>
 #include <optional>
 
 namespace exsim::fuzz {

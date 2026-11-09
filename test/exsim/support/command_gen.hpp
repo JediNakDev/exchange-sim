@@ -1,6 +1,6 @@
 #ifndef EXSIM_TESTS_COMMAND_GEN_HPP
 #define EXSIM_TESTS_COMMAND_GEN_HPP
-#include <exsim/sim/journal.hpp>
+#include <sim/journal.hpp>
 #include <random>
 namespace exsim::testsupport {
 struct CommandWeights { unsigned add=55,cancel=15,replace=18,mass=4,phase=8; };

@@ -2,8 +2,8 @@
 // requests, retries, loss declaration, session handling, End of Session,
 // plus typed ITCH dispatch.
 
-#include <exsim/md/itch_dispatch.hpp>
-#include <exsim/md/receiver.hpp>
+#include <md/itch_dispatch.hpp>
+#include <md/receiver.hpp>
 #include <test/exsim/md/md_test_support.hpp>
 #include <test/framework/test.hpp>
 

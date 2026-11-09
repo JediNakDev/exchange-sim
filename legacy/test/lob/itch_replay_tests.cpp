@@ -18,7 +18,7 @@
 #include "legacy/test/tools/itch_replay/reference_book.hpp"
 #include "legacy/test/tools/itch_replay/synthetic.hpp"
 
-#include <lob/order_book.hpp>
+#include <exchange/order_book.hpp>
 #include <lob/protocol/itch.hpp>
 
 #include <iostream>

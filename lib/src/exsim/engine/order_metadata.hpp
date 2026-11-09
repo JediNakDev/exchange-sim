@@ -6,7 +6,7 @@
 // These preallocated arrays retain session/STP attributes, cumulative fills,
 // and engine/session/instrument query lists. Index 0 means no metadata slot.
 
-#include <exsim/types.hpp>
+#include <types.hpp>
 
 #include <cstdint>
 

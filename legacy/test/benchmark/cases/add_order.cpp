@@ -1,6 +1,6 @@
 #include "../utils/runner.hpp"
 #include "../utils/workload.hpp"
-#include <lob/order_book.hpp>
+#include <exchange/order_book.hpp>
 #include <memory>
 
 using namespace bench;

@@ -1,6 +1,6 @@
-#include "exsim/server/config.hpp"
+#include "server/config.hpp"
 
-#include "exsim/md/feed_common.hpp"
+#include "md/feed_common.hpp"
 
 #include <algorithm>
 #include <charconv>

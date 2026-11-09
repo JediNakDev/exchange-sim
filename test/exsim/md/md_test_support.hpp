@@ -4,10 +4,10 @@
 // Shared helpers for the market-data suites: golden hex bytes, packet
 // capture, MoldUDP64 message extraction, and engine/builder book comparison.
 
-#include <exsim/matching_engine.hpp>
-#include <exsim/md/book_builder.hpp>
-#include <exsim/md/publisher.hpp>
-#include <exsim/protocol/moldudp64.hpp>
+#include <matching_engine.hpp>
+#include <md/book_builder.hpp>
+#include <md/publisher.hpp>
+#include <protocol/moldudp64.hpp>
 
 #include <algorithm>
 #include <array>

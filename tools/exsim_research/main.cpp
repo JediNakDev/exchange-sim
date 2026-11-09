@@ -17,12 +17,12 @@
 //                                 (verify: a run's artifacts differ from its re-execution)
 //   6 nothing to compare          no completed run is paired by master seed
 
-#include "exsim/research/experiment_config.hpp"
-#include "exsim/research/experiment_runner.hpp"
-#include "exsim/research/json.hpp"
-#include "exsim/research/run_artifacts.hpp"
-#include "exsim/research/run_compare.hpp"
-#include "exsim/research/run_verification.hpp"
+#include "research/experiment_config.hpp"
+#include "research/experiment_runner.hpp"
+#include "research/json.hpp"
+#include "research/run_artifacts.hpp"
+#include "research/run_compare.hpp"
+#include "research/run_verification.hpp"
 
 #include <atomic>
 #include <csignal>

@@ -8,9 +8,9 @@
 // or the configured trading_day_end. Exit status 0 after a clean end of day,
 // 1 on bad arguments, configuration or startup errors.
 
-#include "exsim/server/config.hpp"
-#include "exsim/server/runtime/thread_affinity.hpp"
-#include "exsim/server/server_runtime.hpp"
+#include "server/config.hpp"
+#include "server/runtime/thread_affinity.hpp"
+#include "server/server_runtime.hpp"
 
 #include <atomic>
 #include <csignal>

@@ -4,14 +4,14 @@
 // Instrument configuration and read-only ladder views over lob::OrderBook.
 // The legacy book owns price levels, occupancy words and FIFO links.
 
-#include <exsim/instrument.hpp>
-#include <exsim/types.hpp>
+#include <instrument.hpp>
+#include <types.hpp>
 
 #include <cstddef>
 #include <cstdint>
 #include <limits>
 
-#include <lob/order_book.hpp>
+#include <exchange/order_book.hpp>
 #include <memory>
 #include <cassert>
 

@@ -1,5 +1,5 @@
 #include "../framework/test.hpp"
-#include <lob/order_book.hpp>
+#include <exchange/order_book.hpp>
 #include <test/framework/alloc_counter.hpp>
 
 #include <limits>

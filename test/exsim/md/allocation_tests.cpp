@@ -4,11 +4,11 @@
 // the retransmission path runs too. Skipped where allocation counting is
 // unavailable (sanitizer builds).
 
-#include <exsim/md/book_builder.hpp>
-#include <exsim/md/publisher.hpp>
-#include <exsim/md/receiver.hpp>
-#include <exsim/md/retransmission_server.hpp>
-#include <exsim/sim/packet_faults.hpp>
+#include <md/book_builder.hpp>
+#include <md/publisher.hpp>
+#include <md/receiver.hpp>
+#include <md/retransmission_server.hpp>
+#include <sim/packet_faults.hpp>
 #include <test/exsim/md/md_test_support.hpp>
 #include <test/exsim/support/command_gen.hpp>
 #include <test/framework/alloc_counter.hpp>

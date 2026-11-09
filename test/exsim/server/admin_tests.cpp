@@ -1,4 +1,4 @@
-#include "exsim/server/admin.hpp"
+#include "server/admin.hpp"
 #include "../../framework/test.hpp"
 
 using namespace exsim;

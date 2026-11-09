@@ -3,7 +3,7 @@
 #include "../utils/stats.hpp"
 #include "../utils/warmup.hpp"
 #include "../utils/workload.hpp"
-#include <lob/order_book.hpp>
+#include <exchange/order_book.hpp>
 
 using namespace bench;
 

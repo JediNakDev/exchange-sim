@@ -1,8 +1,8 @@
 // FIX 4.4 order entry, end of day (every protocol) and journal replay
 // through a running server over loopback sockets.
 
-#include "exsim/sim/canonical.hpp"
-#include "exsim/sim/journal.hpp"
+#include "sim/canonical.hpp"
+#include "sim/journal.hpp"
 #include "test/exsim/server/e2e/e2e_support.hpp"
 
 using namespace exsim;

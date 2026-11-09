@@ -1,11 +1,11 @@
 // JSON writer, exact decimal formatting and parsing, SHA-256, cursors and the
 // experiment configuration translation.
 
-#include "exsim/api/api_json.hpp"
-#include "exsim/api/experiment_config_translation.hpp"
-#include "exsim/api/research_run.hpp"
-#include "exsim/api/sha256.hpp"
-#include "exsim/research/json.hpp"
+#include "api/api_json.hpp"
+#include "api/experiment_config_translation.hpp"
+#include "api/research_run.hpp"
+#include "api/sha256.hpp"
+#include "research/json.hpp"
 #include "test/framework/test.hpp"
 
 #include <string>

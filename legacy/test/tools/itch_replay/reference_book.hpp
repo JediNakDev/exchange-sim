@@ -7,7 +7,7 @@
 // ITCH 5.0 feed: both books are driven by the same event stream and their
 // snapshots compared after every message.
 
-#include <lob/types.hpp>
+#include <exchange/types.hpp>
 #include <cstdint>
 #include <list>
 #include <map>

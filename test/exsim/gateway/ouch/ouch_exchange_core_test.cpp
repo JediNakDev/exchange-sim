@@ -6,8 +6,8 @@
 
 #include "ouch_test_harness.hpp"
 #include "../../../framework/alloc_counter.hpp"
-#include "exsim/server/config.hpp"
-#include "exsim/server/exchange_core.hpp"
+#include "server/config.hpp"
+#include "server/exchange_core.hpp"
 
 using namespace exsim;
 using namespace exsim::gateway::ouch;

@@ -1,9 +1,9 @@
 // Discrete-event scheduler: (time, enqueue sequence) ordering, capacity,
 // the declared equal-time policy, and resumable pause/step/bounded runs.
 
-#include "exsim/research/strategies/fixed_spread_market_maker.hpp"
-#include "exsim/research/timed_event_queue.hpp"
-#include "exsim/sim/random.hpp"
+#include "research/strategies/fixed_spread_market_maker.hpp"
+#include "research/timed_event_queue.hpp"
+#include "sim/random.hpp"
 #include "test/exsim/research/research_test_support.hpp"
 #include "test/framework/test.hpp"
 

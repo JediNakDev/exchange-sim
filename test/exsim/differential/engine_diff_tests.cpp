@@ -1,7 +1,7 @@
 #ifdef EXSIM_TEST_PRODUCTION
 #include <test/framework/test.hpp>
 #include <test/exsim/support/differential.hpp>
-#include <exsim/sim/scenario.hpp>
+#include <sim/scenario.hpp>
 #include <filesystem>
 TEST_CASE(ProductionEngine, differential) {
     for(std::uint64_t seed=1;seed<=40;++seed) {

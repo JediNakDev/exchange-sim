@@ -2,11 +2,11 @@
 // the reviewer's reproducers (research_review_tests.cpp) do not pin, and the
 // plausible findings P1-P3 that the fix confirmed.
 
-#include "exsim/research/experiment_runner.hpp"
-#include "exsim/research/json.hpp"
-#include "exsim/research/run_artifacts.hpp"
-#include "exsim/research/run_compare.hpp"
-#include "exsim/research/run_verification.hpp"
+#include "research/experiment_runner.hpp"
+#include "research/json.hpp"
+#include "research/run_artifacts.hpp"
+#include "research/run_compare.hpp"
+#include "research/run_verification.hpp"
 #include "test/exsim/research/research_test_support.hpp"
 #include "test/framework/test.hpp"
 

@@ -4,7 +4,7 @@
 
 #include "test/exsim/server/core/core_test_support.hpp"
 
-#include "exsim/md/publisher.hpp"
+#include "md/publisher.hpp"
 
 #include <span>
 #include <string>

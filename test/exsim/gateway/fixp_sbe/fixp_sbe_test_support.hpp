@@ -8,14 +8,14 @@
 
 #include <test/framework/test.hpp>
 
-#include "exsim/command.hpp"
-#include "exsim/event.hpp"
-#include "exsim/gateway/fixp_sbe/fixp_sbe_client.hpp"
-#include "exsim/gateway/fixp_sbe/fixp_sbe_server.hpp"
-#include "exsim/instrument.hpp"
-#include "exsim/matching_engine.hpp"
-#include "exsim/protocol/sbe_order_entry.hpp"
-#include "exsim/server/config.hpp"
+#include "command.hpp"
+#include "event.hpp"
+#include "gateway/fixp_sbe/fixp_sbe_client.hpp"
+#include "gateway/fixp_sbe/fixp_sbe_server.hpp"
+#include "instrument.hpp"
+#include "matching_engine.hpp"
+#include "protocol/sbe_order_entry.hpp"
+#include "server/config.hpp"
 
 #include <array>
 #include <cstddef>

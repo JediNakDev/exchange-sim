@@ -1,4 +1,4 @@
-#include "exsim/ipc/strategy_wire.hpp"
+#include "ipc/strategy_wire.hpp"
 #include "test/framework/test.hpp"
 
 TEST_CASE(strategy_wire, uses_explicit_big_endian_fields_without_struct_padding) {

@@ -2,10 +2,10 @@
 // Counting uses the shared per-thread counter in test/framework/alloc_counter.cpp,
 // which reports nothing under ASan/TSan, so the test is skipped there.
 #include <cerrno>
-#include <exsim/net/clocks.hpp>
-#include <exsim/net/tcp_client.hpp>
-#include <exsim/net/tcp_server.hpp>
-#include <exsim/net/udp.hpp>
+#include <net/clocks.hpp>
+#include <net/tcp_client.hpp>
+#include <net/tcp_server.hpp>
+#include <net/udp.hpp>
 #include <span>
 
 #include "test/framework/alloc_counter.hpp"

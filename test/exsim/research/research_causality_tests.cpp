@@ -1,7 +1,7 @@
 // Causal pipeline: each latency component delays exactly the stage it names,
 // and a strategy never observes exchange state before it is delivered.
 
-#include "exsim/research/strategies/fixed_spread_market_maker.hpp"
+#include "research/strategies/fixed_spread_market_maker.hpp"
 #include "test/exsim/research/research_test_support.hpp"
 #include "test/framework/test.hpp"
 

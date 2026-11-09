@@ -17,7 +17,7 @@
 //
 // Usage: exsim_bench [--ops N] [--seed S] [--workload NAME] [--csv FILE]
 
-#include <exsim/matching_engine.hpp>
+#include <matching_engine.hpp>
 
 #include <algorithm>
 #include <array>

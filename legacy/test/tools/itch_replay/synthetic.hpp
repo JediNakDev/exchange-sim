@@ -9,7 +9,7 @@
 // (buys below current best ask, sells above current best bid).
 
 #include <lob/protocol/itch.hpp>
-#include <lob/types.hpp>
+#include <exchange/types.hpp>
 #include <cstdint>
 #include <cstring>
 #include <random>

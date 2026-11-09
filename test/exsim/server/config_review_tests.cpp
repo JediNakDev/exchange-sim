@@ -1,8 +1,8 @@
 // Independent QA review reproducer (review of e2cdd11). Expected to FAIL until
 // fixed. See /tmp/exsim-review-proto/REPORT.md, finding F3.
 
-#include "exsim/md/publisher.hpp"
-#include "exsim/server/config.hpp"
+#include "md/publisher.hpp"
+#include "server/config.hpp"
 #include "../../framework/test.hpp"
 
 #include <string>

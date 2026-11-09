@@ -5,10 +5,10 @@
 // the stated contract of the function under test. See the review report for
 // severity, scenario and suggested fix.
 
-#include "exsim/research/experiment_runner.hpp"
-#include "exsim/research/json.hpp"
-#include "exsim/research/run_artifacts.hpp"
-#include "exsim/research/run_compare.hpp"
+#include "research/experiment_runner.hpp"
+#include "research/json.hpp"
+#include "research/run_artifacts.hpp"
+#include "research/run_compare.hpp"
 #include "test/exsim/research/research_test_support.hpp"
 #include "test/framework/test.hpp"
 

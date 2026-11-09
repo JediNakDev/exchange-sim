@@ -1,6 +1,6 @@
 #include <test/framework/test.hpp>
 #include <test/exsim/support/differential.hpp>
-#include <exsim/sim/scenario.hpp>
+#include <sim/scenario.hpp>
 #include <filesystem>
 #include <cstring>
 #include <unistd.h>

@@ -1,4 +1,4 @@
-#include <exsim/sim/journal.hpp>
+#include <sim/journal.hpp>
 #include <cerrno>
 #include <fcntl.h>
 #include <unistd.h>

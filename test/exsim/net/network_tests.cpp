@@ -4,10 +4,10 @@
 #include <array>
 #include <cstdio>
 #include <cstring>
-#include <exsim/net/clocks.hpp>
-#include <exsim/net/tcp_client.hpp>
-#include <exsim/net/tcp_server.hpp>
-#include <exsim/net/udp.hpp>
+#include <net/clocks.hpp>
+#include <net/tcp_client.hpp>
+#include <net/tcp_server.hpp>
+#include <net/udp.hpp>
 #include <vector>
 
 #include "test/framework/test.hpp"

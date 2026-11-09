@@ -1,4 +1,4 @@
-#include <exsim/sim/scenario.hpp>
+#include <sim/scenario.hpp>
 #include <test/exsim/reference/reference_engine.hpp>
 #include <fstream>
 #include <iostream>

@@ -1,7 +1,7 @@
 // lob::ObjectPool: exact reservation, bounded exhaustion and slot reuse.
 
 #include "../framework/test.hpp"
-#include <lob/object_pool.hpp>
+#include <exchange/object_pool.hpp>
 #include <test/framework/alloc_counter.hpp>
 
 #include <cstdint>

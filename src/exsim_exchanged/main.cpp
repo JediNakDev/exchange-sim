@@ -1,6 +1,6 @@
 #include "runtime.hpp"
-#include "exsim/api/worker_process.hpp"
-#include "exsim/ipc/strategy_wire.hpp"
+#include "api/worker_process.hpp"
+#include "ipc/strategy_wire.hpp"
 #include <iostream>
 #include <string_view>
 

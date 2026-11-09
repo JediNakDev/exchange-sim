@@ -1,4 +1,4 @@
-#include "exsim/gateway/token_table.hpp"
+#include "gateway/token_table.hpp"
 #include "../../framework/test.hpp"
 
 #include <random>

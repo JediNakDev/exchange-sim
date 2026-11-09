@@ -1,14 +1,14 @@
 #ifndef EXSIM_FUZZ_TARGETS_WIRE_TEXT_FIELDS_HPP
 #define EXSIM_FUZZ_TARGETS_WIRE_TEXT_FIELDS_HPP
 
-// include/exsim/protocol/wire.hpp helpers: space-padded numeric and alpha
+// lib/include/protocol/wire.hpp helpers: space-padded numeric and alpha
 // fields (SoupBinTCP login sequence numbers, OUCH tokens, ITCH symbols) and
 // big-endian loads/stores.
 
 #include "soupbintcp.hpp"
 
 #include <array>
-#include <exsim/protocol/wire.hpp>
+#include <protocol/wire.hpp>
 
 namespace exsim::fuzz {
 

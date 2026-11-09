@@ -7,8 +7,8 @@
 // development script and the end-to-end test read. SIGINT or SIGTERM stops
 // the service; runs that were still live are recorded as failed.
 
-#include "exsim/api/http_server.hpp"
-#include "exsim/api/research_service.hpp"
+#include "api/http_server.hpp"
+#include "api/research_service.hpp"
 
 #include <csignal>
 #include <cstdint>

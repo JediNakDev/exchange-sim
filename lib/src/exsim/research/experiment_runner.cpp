@@ -1,7 +1,7 @@
-#include "exsim/research/experiment_runner.hpp"
+#include "research/experiment_runner.hpp"
 
-#include "exsim/research/json.hpp"
-#include "exsim/research/process_simulation.hpp"
+#include "research/json.hpp"
+#include "research/process_simulation.hpp"
 
 #include <algorithm>
 #include <charconv>

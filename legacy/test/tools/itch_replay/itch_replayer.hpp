@@ -12,7 +12,7 @@
 // refs.
 
 #include "reference_book.hpp"
-#include <lob/order_book.hpp>
+#include <exchange/order_book.hpp>
 #include <lob/protocol/itch.hpp>
 #include <cstdint>
 #include <unordered_map>

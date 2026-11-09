@@ -8,10 +8,10 @@
 #include "fuzz_support.hpp"
 
 #include <array>
-#include <exsim/protocol/wire.hpp>
+#include <protocol/wire.hpp>
 #include <initializer_list>
 #include <string_view>
-#include <exsim/types.hpp>
+#include <types.hpp>
 
 namespace exsim::fuzz {
 

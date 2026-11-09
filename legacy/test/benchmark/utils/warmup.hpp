@@ -3,7 +3,7 @@
 #include "constants.hpp"
 #include "workload.hpp"
 #include <benchmark/benchmark.h>
-#include <lob/order_book.hpp>
+#include <exchange/order_book.hpp>
 
 #include <atomic>
 

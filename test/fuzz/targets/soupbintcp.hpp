@@ -14,7 +14,7 @@
 
 #include "fuzz_support.hpp"
 
-#include <exsim/protocol/soupbintcp.hpp>
+#include <protocol/soupbintcp.hpp>
 #include <optional>
 #include <vector>
 

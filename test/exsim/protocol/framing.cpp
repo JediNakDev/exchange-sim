@@ -1,6 +1,6 @@
 #include "../../framework/test.hpp"
-#include <exsim/protocol/moldudp64.hpp>
-#include <exsim/protocol/soupbintcp.hpp>
+#include <protocol/moldudp64.hpp>
+#include <protocol/soupbintcp.hpp>
 #include <random>
 using exsim::protocol::Status;
 namespace soup = exsim::protocol::soupbintcp;

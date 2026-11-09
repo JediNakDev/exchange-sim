@@ -17,7 +17,7 @@
 
 #include "fuzz_support.hpp"
 
-#include <exsim/protocol/fix44.hpp>
+#include <protocol/fix44.hpp>
 #include <optional>
 #include <set>
 #include <vector>

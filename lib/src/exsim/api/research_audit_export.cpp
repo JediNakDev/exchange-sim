@@ -1,9 +1,9 @@
 // Complete, fixed-name, bounded-memory native audit transfer. No user paths.
-#include "exsim/api/research_run.hpp"
-#include "exsim/api/postgres_store.hpp"
-#include "exsim/api/api_json.hpp"
-#include "exsim/api/sha256.hpp"
-#include "exsim/research/run_artifacts.hpp"
+#include "api/research_run.hpp"
+#include "api/postgres_store.hpp"
+#include "api/api_json.hpp"
+#include "api/sha256.hpp"
+#include "research/run_artifacts.hpp"
 #include <fstream>
 
 namespace exsim::api {

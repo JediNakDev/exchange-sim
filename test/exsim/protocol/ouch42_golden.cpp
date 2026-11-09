@@ -1,5 +1,5 @@
 #include "../../framework/test.hpp"
-#include <exsim/protocol/ouch42.hpp>
+#include <protocol/ouch42.hpp>
 #include <random>
 using namespace exsim::protocol::ouch42;
 TEST_CASE(proto_ouch42_golden, EnterOrder) {

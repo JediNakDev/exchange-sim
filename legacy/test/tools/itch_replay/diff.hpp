@@ -6,7 +6,7 @@
 // quantity, and order count at every level.
 
 #include "reference_book.hpp"
-#include <lob/order_book.hpp>
+#include <exchange/order_book.hpp>
 #include <sstream>
 #include <string>
 

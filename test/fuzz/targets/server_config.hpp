@@ -13,9 +13,9 @@
 
 #include "fuzz_support.hpp"
 
-#include <exsim/matching_engine.hpp>
-#include <exsim/md/feed_common.hpp>
-#include <exsim/server/config.hpp>
+#include <matching_engine.hpp>
+#include <md/feed_common.hpp>
+#include <server/config.hpp>
 #include <limits>
 #include <set>
 #include <string>

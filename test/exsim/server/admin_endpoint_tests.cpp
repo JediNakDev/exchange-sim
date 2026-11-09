@@ -2,9 +2,9 @@
 // command is contained at the operator boundary (ERR, that connection
 // closes) and never reaches the reactor's noexcept event path.
 
-#include "exsim/net/clocks.hpp"
-#include "exsim/net/tcp_client.hpp"
-#include "exsim/server/runtime/admin_endpoint.hpp"
+#include "net/clocks.hpp"
+#include "net/tcp_client.hpp"
+#include "server/runtime/admin_endpoint.hpp"
 #include "test/framework/test.hpp"
 
 #include <cerrno>

@@ -1,5 +1,5 @@
-#include "exsim/md/publisher.hpp"
-#include "exsim/server/config.hpp"
+#include "md/publisher.hpp"
+#include "server/config.hpp"
 #include "../../framework/test.hpp"
 
 #include <algorithm>

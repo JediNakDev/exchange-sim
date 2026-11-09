@@ -15,8 +15,8 @@
 
 #include "fuzz_support.hpp"
 
-#include <exsim/sim/bots/market_maker.hpp>
-#include <exsim/sim/bots/noise_taker.hpp>
+#include <sim/bots/market_maker.hpp>
+#include <sim/bots/noise_taker.hpp>
 #include <string>
 #include <utility>
 #include <vector>

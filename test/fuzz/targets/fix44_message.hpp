@@ -23,7 +23,7 @@
 #include "fuzz_support.hpp"
 
 #include <charconv>
-#include <exsim/protocol/fix44.hpp>
+#include <protocol/fix44.hpp>
 #include <string>
 #include <vector>
 

@@ -1,9 +1,9 @@
 // Config parsing of the shipped examples and the config identity, and the
 // compare tool over real sweep directories and hand-built run sets.
 
-#include "exsim/research/experiment_runner.hpp"
-#include "exsim/research/run_artifacts.hpp"
-#include "exsim/research/run_compare.hpp"
+#include "research/experiment_runner.hpp"
+#include "research/run_artifacts.hpp"
+#include "research/run_compare.hpp"
 #include "test/exsim/research/research_test_support.hpp"
 #include "test/framework/test.hpp"
 

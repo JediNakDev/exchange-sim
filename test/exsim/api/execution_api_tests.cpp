@@ -1,16 +1,16 @@
 // Parent execution through the real HTTP router, scheduler, artifact writer and verifier.
 // Executor threads are disabled; each test owns an isolated temporary data directory.
-#include "exsim/api/api_json.hpp"
-#include "exsim/api/sha256.hpp"
-#include "exsim/api/comparison_selection.hpp"
-#include "exsim/api/markout_values.hpp"
-#include "exsim/api/request_diagnostics.hpp"
-#include "exsim/api/experiment_config_translation.hpp"
-#include "exsim/api/http_message.hpp"
-#include "exsim/api/research_service.hpp"
-#include "exsim/research/json.hpp"
-#include "exsim/research/run_artifacts.hpp"
-#include "exsim/research/run_verification.hpp"
+#include "api/api_json.hpp"
+#include "api/sha256.hpp"
+#include "api/comparison_selection.hpp"
+#include "api/markout_values.hpp"
+#include "api/request_diagnostics.hpp"
+#include "api/experiment_config_translation.hpp"
+#include "api/http_message.hpp"
+#include "api/research_service.hpp"
+#include "research/json.hpp"
+#include "research/run_artifacts.hpp"
+#include "research/run_verification.hpp"
 #include "test/framework/test.hpp"
 
 #include <algorithm>

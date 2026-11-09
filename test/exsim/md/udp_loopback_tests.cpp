@@ -3,14 +3,14 @@
 // before the send so the receiver must recover through a RetransmissionServer
 // that answers requests on its own UDP socket.
 
-#include <exsim/md/book_builder.hpp>
-#include <exsim/md/publisher.hpp>
-#include <exsim/md/receiver.hpp>
-#include <exsim/md/retransmission_server.hpp>
-#include <exsim/net/clocks.hpp>
-#include <exsim/net/poller.hpp>
-#include <exsim/net/udp.hpp>
-#include <exsim/sim/packet_faults.hpp>
+#include <md/book_builder.hpp>
+#include <md/publisher.hpp>
+#include <md/receiver.hpp>
+#include <md/retransmission_server.hpp>
+#include <net/clocks.hpp>
+#include <net/poller.hpp>
+#include <net/udp.hpp>
+#include <sim/packet_faults.hpp>
 #include <test/exsim/md/md_test_support.hpp>
 #include <test/exsim/support/command_gen.hpp>
 #include <test/framework/test.hpp>

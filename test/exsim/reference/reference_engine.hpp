@@ -18,11 +18,11 @@
 // small, realistic bugs (wrong FIFO order, off-by-one tie-break, ...). With
 // the default (all false) the engine implements SPEC.md exactly.
 
-#include <exsim/command.hpp>
-#include <exsim/event.hpp>
-#include <exsim/instrument.hpp>
-#include <exsim/matching_engine.hpp>
-#include <exsim/types.hpp>
+#include <command.hpp>
+#include <event.hpp>
+#include <instrument.hpp>
+#include <matching_engine.hpp>
+#include <types.hpp>
 
 #include <algorithm>
 #include <cstdint>

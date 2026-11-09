@@ -12,9 +12,9 @@
 // Hot-path members (submit, dispatch, sinks) do not allocate after setup, so
 // steady-state allocation tests can wrap them.
 
-#include "exsim/gateway/ouch/ouch_client.hpp"
-#include "exsim/gateway/ouch/ouch_server.hpp"
-#include "exsim/matching_engine.hpp"
+#include "gateway/ouch/ouch_client.hpp"
+#include "gateway/ouch/ouch_server.hpp"
+#include "matching_engine.hpp"
 #include "../../../framework/test.hpp"
 
 #include <cstring>
