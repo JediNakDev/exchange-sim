@@ -1,134 +1,76 @@
 # exsim
 
-A C++20 exchange simulator with a browser workbench for strategy research. Configure an experiment, run it on simulated time, compare common seeds, and trace a fill back to its orders, queue position and ledger changes.
+A simple exchange simulator for testing trading strategies with various trading protocal supported.
 
-The first workflow is execution and market-making research. The browser demo uses fixed-spread quoting against seeded market makers and noise takers. All matching, simulated time, strategies, accounting and protocol behavior run in C++.
+## Architecture
 
-[![Watch the exsim research walkthrough](docs/demo/paired-comparison.png)](docs/demo/exsim-product-walkthrough.mp4)
+Our architecture is composed by Next.js frontend app, C++ backend server, trader and exchange worker for testing trading strategies jobs, Postgres database, and local file (should be replaced by s3 or equivalent in production).
 
-**[Watch the product walkthrough](docs/demo/exsim-product-walkthrough.mp4)** · [Screens and recording notes](docs/demo/README.md) · [Production setup](docs/DEPLOYMENT.md)
+```mermaid
+flowchart TD
+    FE[Frontend] <-->|HTTP| BE[Backend]
+    BE --> DB[Database]
 
-**[TWAP versus immediate sweep](docs/demo/execution-walkthrough.mp4)** shows parent
-completion, residual shares, fill evidence and executed costs on the same seed.
+    subgraph SIM[Simulation]
+        direction LR
+        T[Trader Process]
+        E[Exchange Process]
 
-The recording shows the production Next.js frontend using real C++ runs, including experiment creation, pause/step/resume, accounting, fill inspection and a three-seed comparison. The data is synthetic; the results are not evidence of profitability in a live market.
+        T <-->|UNIX Socket| E
+    end
 
-## Research workflow
+    BE <-->|UNIX Socket| SIM
+```
 
-1. **Configure.** Start from a quoting or parent-order execution baseline, or copy a saved experiment as a variant. Choose fixed-spread or inventory-aware quoting, TWAP or immediate sweep. Set market agents, common seeds, feed/order/acknowledgment/cancel delays, fees, risk limits and a simulation bound. Execution forms include side, parent quantity, observation window, price protection and child cap. Review the assumptions before starting.
-2. **Run.** Let simulated time advance to completion, or start paused and step scheduler events. Each run owns its engine, RNG streams and accounting state. A partially started batch stays saved; its experiment page starts only missing seeds.
-3. **Compare.** See changed assumptions, aligned equity/inventory/drawdown charts, per-seed differences, sample standard deviation and standard error. Only completed runs whose native evidence reproduces under the expected configuration and seed enter the paired result. Comparison values come from that fresh execution.
-4. **Explain.** Inspect the event timeline, exchange truth versus the delivered strategy view, FIFO quantity ahead, order lifecycles, fill roles, fees and markouts. A completed run can retain inventory and resting orders; the summary reports both.
+## Getting Started
 
-## What is implemented
-
-| Surface | Capabilities |
-| --- | --- |
-| Browser workbench | Experiment templates, seed runs, pause/step/resume/cancel, assumptions and manifests, accounting and risk summaries, paired comparisons, event/book/order/fill inspection |
-| C++ research runner | Fixed-spread and inventory-aware market makers, TWAP and immediate-sweep execution baselines, latency models, FIFO accounting, bounded recording, manifests, seed sweeps and independent replay |
-| Real-time exchange | OUCH 4.2/SoupBinTCP, FIX 4.4, and SBE over FIXP order entry; ITCH 5.0/MoldUDP64 publishing and retransmission; simulated liquidity, admin controls, faults, session recovery and cancel-on-disconnect |
-| Matching engine | Price-time priority, continuous trading and auctions, market/IOC/FOK and post-only orders, STP, replace/partial cancel, mass cancel and expiry |
-| Validation | Reference oracle, differential fuzzing and shrinking, scenarios, canonical journals and replay, decoder corpora, allocation guards, sanitizer and cross-platform checks |
-
-The browser and HTTP service expose fixed-spread and inventory-aware quoting, TWAP and immediate-sweep execution. Parent results distinguish simulation completion, remaining quantity, observation-window coverage and costs on executed shares. Unexecuted opportunity cost remains unavailable. Historical replay models, arbitrary uploaded strategy code, multi-user authentication and live-server monitoring through the research UI are not implemented. Synthetic agent models are controlled experiments, not calibrated market impact.
-
-## Start locally
-
-Requires a C++20 compiler, GNU Make, Bun, and Node.js for Next.js. Tested compilers include Apple clang, GCC 14 and Clang 19.
+From the repository root:
 
 ```sh
 cd web
-bun install --frozen-lockfile
+bun install
 bun run dev
 ```
 
-This builds and starts `exsim_api` on loopback port 7600 with Next.js on port 3000. Open `http://localhost:3000`. The explicit `bun run dev:mock` command selects the TypeScript mock for UI-only work.
+This builds the C++ backend and starts both backend and frontend:
 
-For a production build, standalone deployment, persistent macOS services and a private Tailscale link, see [DEPLOYMENT.md](docs/DEPLOYMENT.md).
+- Frontend: http://127.0.0.1:3000
+- Backend: http://127.0.0.1:7600
 
-## Automate research
+By default, this uses file-backed metadata. To use an existing PostgreSQL database set this variable in your environment:
 
-```sh
-make -j4 tools EXTRA_CXXFLAGS=-Werror
-
-./build/release/exsim_research run config/research/fixed_spread_narrow.conf \
-  --out /tmp/exsim-narrow --seeds 1..5
-./build/release/exsim_research run config/research/fixed_spread_wide.conf \
-  --out /tmp/exsim-wide --seeds 1..5
-./build/release/exsim_research compare /tmp/exsim-narrow /tmp/exsim-wide
+```dotenv
+EXSIM_DATABASE_URL=postgresql://USER:PASSWORD@localhost:5432/exsim
 ```
 
-The CLI re-executes runs before comparison by default. Native artifacts include the saved configuration, manifests, commands/events, lifecycle evidence, series, ledger records, summary and replay verification. See [RESEARCH_RUNNER.md](docs/RESEARCH_RUNNER.md).
-
-## Connect over exchange protocols
+Or you can skip all that and run it via docker compose.
 
 ```sh
-./build/release/exsim_server --config config/exsim.conf
-./build/release/exsim_client --user ALICE --password alice --server 127.0.0.1:15000 \
-  "buy A1 SPY 100 400.00" "wait 1500" "cancel A1"
+sh docker/create-secrets.sh
+docker compose up -d --build --wait
 ```
 
-The protocol runtime is a separate process from deterministic browser research. It uses a single reactor for order state, preallocated hot-path storage, and a bounded journal handoff to a persistence worker. Queue overflow and persistence failure follow explicit shutdown/continue policies. A stalled journal cannot silently become a successful complete capture. [Runtime and protocol documentation](docs/SERVER_RUNTIME.md).
+## Key Design Decisions
 
-## Architecture and stack
+### Efficiency is not compromised.
 
-- **C++:** matching, simulation, strategies, accounting, network protocols, journals and the HTTP service.
-- **Frontend:** Bun, Next.js, TypeScript, Tailwind CSS and shadcn/ui, with self-hosted IBM Plex typography. The research workstation has persistent navigation, a searchable experiment library, compact run outcomes and a keyboard-driven event tape. The browser uses a same-origin proxy and generated OpenAPI types. [Design notes](docs/UI_DESIGN.md).
-- **Shared implementation:** deterministic research and the real-time protocol runtime instantiate the same matching-engine code, with separate state. The engine itself reads no clock, performs no I/O and uses no randomness.
+This was previously a limited order book project, as such the exchange simulator choices of data structures and algorithms were chosen to prioritize limited order book operations efficiency.
+We use hash map (Order Id -> Order) and another hash map for price level (Price -> Order List) with order linked list inside.
+This resulted in expected O(1) time complexity for order lookup, non-crossing order insertion and quantity updates, FIFO append/unlink price-level operations and best-bid/ask queries.
+And match an incoming order at expected O(F + S) with F = fills produced; S = total bitmap words scanned.
 
-[Product decisions](docs/PRODUCT.md) · [Architecture](docs/ARCHITECTURE.md) · [Matching specification](docs/SPEC.md) · [HTTP/OpenAPI](docs/API.md) · [Gateway contracts](docs/GATEWAYS.md)
+### Try to simulate the real trader-exchange relationship.
 
-## Validation
+The trader and exchange worker are two different processes that communicate through UNIX socket with swappable exchange protocol.
+The experiments is also as repeatable as possible. The engine has no clock, I/O or randomness. The scheduler supplies time and seeded inputs.
 
-```sh
-make -j4 test EXTRA_CXXFLAGS=-Werror
-make -j4 test MODE=debug EXTRA_CXXFLAGS=-Werror
-make -j4 test MODE=tsan FILTER=server_ EXTRA_CXXFLAGS=-Werror
+### Exchange protocol is extensible at the core.
 
-cd web
-bun test
-bun run typecheck
-bun run lint
-bun run build
-bun run test:e2e
-```
+The exchange protocol is designed to seperate from the worker, it is used as a function to translate struct to bytes.
+As a result the new protocol can be introduced and the old protocal can be updated in a very convenient fasion.
 
-The current API repair passes **71/71** focused cases in release and ASan/UBSan.
-Independent fault/restart probes cleared the reviewed recorder-failure and cache-allocation
-findings, including fill-based accounting checks. Fresh Linux GCC/Clang checks
-also pass **71/71** each with warning-free API builds. Independent selected-fill
-review passes nine focused browser cases, including five new async/navigation
-edge probes now included in ordinary CI coverage.
+## Limitations & Further Reading
 
-Frontend evidence is **82** invariants, typecheck, lint and a production build;
-the selected-fill fix passes its unchanged reviewer reproducer and three focused
-browser regressions. The earlier execution checkpoint passed **13** browser cases,
-including two actual Next-proxy/C++ workflows, and **9** real-binary HTTP contract
-cases covering all 23 operations. Deployment tooling passes **40** disposable
-fixture checks. These counts cover different revisions and are not added together.
-
-Historical combined integration evidence is **932** macOS release tests, **928**
-ASan/UBSan tests and **143** focused server TSan tests. Linux GCC and Clang each
-passed **53** focused API/runtime checks after those repairs; the earlier combined
-Linux snapshot passed 927 tests with each compiler. Current scoped checks do not
-replace that historical engine/protocol evidence. Exact current evidence:
-[recorder repair](docs/quality/RECORDER_FAILURE_REPAIR_2026-11-07.md),
-[independent re-check](docs/reviews/RECORDER_FAILURE_REPAIR_RECHECK_2026-11-07.md),
-[fill identity repair](docs/quality/FILL_IDENTITY_REPAIR_2026-11-07.md).
-
-The paired release was promoted after a verified offline backup and restored-data
-preflight preserved existing runs, inspection responses and native comparisons.
-[Release identity, checks and operational limits](docs/quality/RELEASE_2026-11-07.md).
-A post-use check also caught runtime route-cache additions. The final frontend
-keeps those writes out of the release, and a new browser invariant checks the
-whole standalone tree before/after use. The corrected build passes two real
-C++ browser flows, five async/navigation probes and full post-tour readiness.
-[Cache correction and receipts](docs/quality/RELEASE_CACHE_REPAIR_2026-11-07.md).
-
-Five new regressions fail the reviewed pre-fix code and pass the repairs. Exact revisions, logs and limits: [integration fixes](docs/reviews/INTEGRATION_FIXES_2026-11-06.md), [working checkpoint](docs/WORK_PLAN.md), [fuzzing](docs/FUZZING.md).
-
-## Performance and project history
-
-Measured engine and protocol results, their hardware/setup and limits are in [PERFORMANCE.md](docs/PERFORMANCE.md). The walkthrough is a product demonstration, not a benchmark. Unselected FIX codec optimization branches remain outside this integration.
-
-exsim grew out of `lob`, a limit order book project. Its earlier implementation and benchmarks remain documented in [LOB_HISTORY.md](docs/LOB_HISTORY.md).
+- This is a very early alpha, expects bugs.
+- Uploaded strategies are not implemented. Only templated strategy are available.
+- Latency is simulated using configurable delays and jitter.
