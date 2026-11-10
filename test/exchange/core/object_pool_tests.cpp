@@ -1,12 +1,12 @@
-// lob::ObjectPool: exact reservation, bounded exhaustion and slot reuse.
+// exsim::exchange::ObjectPool: exact reservation, bounded exhaustion and slot reuse.
 
-#include "../framework/test.hpp"
+#include "test/framework/test.hpp"
 #include <exchange/object_pool.hpp>
 #include <test/framework/alloc_counter.hpp>
 
 #include <cstdint>
 
-using lob::ObjectPool;
+using exsim::exchange::ObjectPool;
 
 TEST_CASE(object_pool, bounded_pool_holds_exactly_its_reservation_and_reuses_slots) {
     ObjectPool<std::uint64_t, 16> pool;
@@ -68,7 +68,7 @@ TEST_CASE(object_pool, throwing_constructor_restores_the_free_slot) {
         int value;
         explicit SometimesThrows(bool fail) : value(42) { if (fail) throw 7; }
     };
-    lob::ObjectPool<SometimesThrows> pool;
+    exsim::exchange::ObjectPool<SometimesThrows> pool;
     pool.reserve(1);
     pool.set_allow_growth(false);
     bool threw = false;

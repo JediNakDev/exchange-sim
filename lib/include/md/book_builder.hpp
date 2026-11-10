@@ -163,7 +163,7 @@ private:
     std::unique_ptr<OrderSlot[]> orders_;
     std::unique_ptr<Level[]> levels_;
     std::unique_ptr<InstrumentRecord[]> instruments_;
-    lob::FlatHashMap<std::uint32_t> order_slots_by_reference_;
+    exsim::exchange::FlatHashMap<std::uint32_t> order_slots_by_reference_;
     std::uint32_t free_order_slot_ = kNoOrderSlot;
     std::size_t live_orders_ = 0;
     std::uint64_t applied_messages_ = 0;

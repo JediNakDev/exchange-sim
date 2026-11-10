@@ -1,7 +1,7 @@
 #ifndef EXSIM_ENGINE_PRICE_LADDER_HPP
 #define EXSIM_ENGINE_PRICE_LADDER_HPP
 
-// Instrument configuration and read-only ladder views over lob::OrderBook.
+// Instrument configuration and read-only ladder views over exsim::exchange::OrderBook.
 // The legacy book owns price levels, occupancy words and FIFO links.
 
 #include <instrument.hpp>
@@ -20,23 +20,23 @@ namespace exsim::engine {
 // Retain the public engine limit of 2^24 ticks per instrument side.
 inline constexpr std::uint64_t kMaxLadderTicks = std::uint64_t{1} << 24;
 
-// Read-only views of the original LOB ladder and occupancy words. Mutations
-// go through lob::OrderBook, which owns levels, pooled orders and FIFO links.
+// Read-only views of the order book ladder and occupancy words. Mutations
+// go through exsim::exchange::OrderBook, which owns levels, pooled orders and FIFO links.
 struct LegacyLevels {
-    lob::OrderBook* book = nullptr;
-    lob::Side side{};
+    exsim::exchange::OrderBook* book = nullptr;
+    exsim::exchange::Side side{};
     // Construct the empty view at setup; no function-local static guard or
     // first-query initialization can enter the matching path.
-    lob::PriceLevel empty{0};
-    const lob::PriceLevel& operator[](std::size_t tick) const noexcept {
-        const auto* level = book->price_level(side,static_cast<lob::Price>(tick));
+    exsim::exchange::PriceLevel empty{0};
+    const exsim::exchange::PriceLevel& operator[](std::size_t tick) const noexcept {
+        const auto* level = book->price_level(side,static_cast<exsim::exchange::Price>(tick));
         return level ? *level : empty;
     }
 };
 struct LegacyOccupancy {
     static constexpr std::uint32_t kNotFound = std::numeric_limits<std::uint32_t>::max();
-    lob::OrderBook* book = nullptr;
-    lob::Side side{};
+    exsim::exchange::OrderBook* book = nullptr;
+    exsim::exchange::Side side{};
     std::uint32_t find_at_or_above(std::uint32_t tick) const noexcept {
         const auto price = book->next_price(side,tick,true);
         return price ? static_cast<std::uint32_t>(*price) : kNotFound;
@@ -50,7 +50,7 @@ struct LegacyOccupancy {
 struct PriceLadder {
     LegacyLevels levels;
     LegacyOccupancy occupied;
-    PriceLadder(lob::OrderBook* book, lob::Side side) : levels{book,side}, occupied{book,side} {}
+    PriceLadder(exsim::exchange::OrderBook* book, exsim::exchange::Side side) : levels{book,side}, occupied{book,side} {}
 };
 
 // Sentinels chosen so that "does tick t cross the opposite best" is a single
@@ -67,7 +67,7 @@ struct InstrumentBook {
     Price last_trade_price = 0;
     std::int32_t best_bid_tick = kNoBidTick;
     std::int32_t best_ask_tick = kNoAskTick;
-    std::unique_ptr<lob::OrderBook> storage;
+    std::unique_ptr<exsim::exchange::OrderBook> storage;
     PriceLadder ladders[2];  // indexed by Side: BUY = bids, SELL = asks
 
 
@@ -76,9 +76,9 @@ struct InstrumentBook {
           tick_count(ticks),
           id(instrument_id),
           phase(instrument_config.initial_phase),
-          storage(std::make_unique<lob::OrderBook>(lob::OrderBookConfig{
-              max_orders,max_orders,0,static_cast<lob::Price>(ticks - 1),1,false})),
-          ladders{PriceLadder(storage.get(),lob::Side::BUY), PriceLadder(storage.get(),lob::Side::SELL)} {}
+          storage(std::make_unique<exsim::exchange::OrderBook>(exsim::exchange::OrderBookConfig{
+              max_orders,max_orders,0,static_cast<exsim::exchange::Price>(ticks - 1),1,false})),
+          ladders{PriceLadder(storage.get(),exsim::exchange::Side::BUY), PriceLadder(storage.get(),exsim::exchange::Side::SELL)} {}
 
     [[nodiscard]] PriceLadder& ladder(Side side) noexcept { return ladders[static_cast<std::size_t>(side)]; }
     [[nodiscard]] const PriceLadder& ladder(Side side) const noexcept {

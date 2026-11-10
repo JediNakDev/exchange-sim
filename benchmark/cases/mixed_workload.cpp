@@ -18,7 +18,7 @@ static void BM_MixedWorkload(benchmark::State& state) {
         PrePopulatedBook prepop(30, 5);
         auto& book = prepop.book();
         const auto& ids = prepop.ids();
-        std::vector<lob::OrderId> active_ids(ids);
+        std::vector<exsim::exchange::OrderId> active_ids(ids);
         latencies.clear();
         size_t idx = 0;
         state.ResumeTiming();

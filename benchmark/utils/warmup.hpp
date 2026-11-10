@@ -10,7 +10,7 @@
 namespace bench {
 
 inline void warmup() {
-    lob::OrderBook book;
+    exsim::exchange::OrderBook book;
     const auto& w = workload();
 
     for (size_t i = 0; i < WARMUP_ITERATIONS; ++i) {

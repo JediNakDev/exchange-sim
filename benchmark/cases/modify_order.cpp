@@ -7,7 +7,7 @@ using namespace bench;
 static void BM_ModifyOrder(benchmark::State& state) {
     const auto& w = workload();
     std::unique_ptr<PrePopulatedBook> prepop;
-    const std::vector<lob::OrderId>* ids = nullptr;
+    const std::vector<exsim::exchange::OrderId>* ids = nullptr;
 
     BenchmarkRunner runner(state, "ModifyOrder");
     runner.run_with_setup(

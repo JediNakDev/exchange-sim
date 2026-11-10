@@ -1,9 +1,9 @@
-#ifndef LOB_ORDER_HPP
-#define LOB_ORDER_HPP
+#ifndef EXSIM_EXCHANGE_ORDER_HPP
+#define EXSIM_EXCHANGE_ORDER_HPP
 
 #include "types.hpp"
 
-namespace lob {
+namespace exsim::exchange {
 
 class PriceLevel;
 

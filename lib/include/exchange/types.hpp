@@ -1,9 +1,9 @@
-#ifndef LOB_TYPES_HPP
-#define LOB_TYPES_HPP
+#ifndef EXSIM_EXCHANGE_TYPES_HPP
+#define EXSIM_EXCHANGE_TYPES_HPP
 
 #include <cstdint>
 
-namespace lob {
+namespace exsim::exchange {
 
 enum class Side : uint8_t { BUY, SELL };
 

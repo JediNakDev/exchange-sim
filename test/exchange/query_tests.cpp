@@ -3,7 +3,7 @@
 #include <exchange/order_book.hpp>
 #include <cassert>
 
-using namespace lob;
+using namespace exsim::exchange;
 
 void test_best_bid_ask() {
     OrderBook book;

@@ -1,5 +1,5 @@
-#ifndef LOB_TOOLS_DIFF_HPP
-#define LOB_TOOLS_DIFF_HPP
+#ifndef EXSIM_EXCHANGE_TOOLS_DIFF_HPP
+#define EXSIM_EXCHANGE_TOOLS_DIFF_HPP
 
 // Snapshot-level diff between the production OrderBook and ReferenceBook.
 // Returns true iff the top-`depth` of both books agree on price, total
@@ -10,7 +10,7 @@
 #include <sstream>
 #include <string>
 
-namespace lob::tools {
+namespace exsim::exchange::tools {
 
 struct DiffResult {
     bool        ok = true;
@@ -55,6 +55,6 @@ inline DiffResult diff_books(const OrderBook& engine,
     return out;
 }
 
-}  // namespace lob::tools
+}  // namespace exsim::exchange::tools
 
 #endif

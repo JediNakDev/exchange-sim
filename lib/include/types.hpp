@@ -12,7 +12,7 @@
 
 namespace exsim {
 
-using lob::Side;  // Side::BUY / Side::SELL
+using exsim::exchange::Side;  // Side::BUY / Side::SELL
 
 // Fixed-point price with 4 implied decimals (ITCH / OUCH convention):
 // $150.25 == 1'502'500.

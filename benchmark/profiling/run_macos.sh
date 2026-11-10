@@ -11,7 +11,7 @@
 #   benchmark/profiling/run_macos.sh [output_dir]
 set -euo pipefail
 
-BENCH=build/bench/lob_benchmark
+BENCH=build/bench/exsim_benchmark
 OUT=${1:-benchmark/profiling/macos_$(date +%Y%m%d_%H%M%S)}
 FILTER=${PERF_FILTER:-Mixed}
 

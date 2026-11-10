@@ -69,7 +69,7 @@ private:
     struct State {
         State(const std::string& path, const sim::JournalSetup& setup) : writer(std::in_place, path, setup) {}
         std::optional<Writer> writer;  // closed by the persistence thread
-        lob::engine::SPSCQueue<Entry, Capacity> queue;
+        exsim::exchange::engine::SPSCQueue<Entry, Capacity> queue;
         std::atomic<bool> stopping{false};
         std::atomic<bool> failed{false};
         std::atomic<bool> done{false};

@@ -10,7 +10,7 @@ build/
 # Executables
 *.exe
 *.out
-lob_demo
+exsim_demo
 
 # IDE / Editor
 .vscode/

@@ -1,5 +1,5 @@
-#ifndef LOB_TOOLS_REFERENCE_BOOK_HPP
-#define LOB_TOOLS_REFERENCE_BOOK_HPP
+#ifndef EXSIM_EXCHANGE_TOOLS_REFERENCE_BOOK_HPP
+#define EXSIM_EXCHANGE_TOOLS_REFERENCE_BOOK_HPP
 
 // Reference implementation of a price-time priority limit order book.
 // Deliberately simple (std::map + std::list) so it's obviously correct.
@@ -14,7 +14,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace lob::tools {
+namespace exsim::exchange::tools {
 
 class ReferenceBook {
 public:
@@ -116,6 +116,6 @@ private:
     std::unordered_map<OrderId, Loc>  orders_;
 };
 
-}  // namespace lob::tools
+}  // namespace exsim::exchange::tools
 
 #endif

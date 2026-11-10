@@ -6,7 +6,7 @@
 #include <functional>
 #include <thread>
 
-namespace lob::engine {
+namespace exsim::exchange::engine {
 
 namespace {
 
@@ -188,4 +188,4 @@ void ShardedEngine::worker_loop(std::size_t shard_idx) {
     }
 }
 
-}  // namespace lob::engine
+}  // namespace exsim::exchange::engine

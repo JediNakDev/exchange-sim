@@ -17,7 +17,7 @@
 #include "synthetic.hpp"
 
 #include <exchange/order_book.hpp>
-#include "tools/itch_replay/itch.hpp"
+#include "src/utils/itch_replay/itch.hpp"
 
 #include <chrono>
 #include <cstdint>
@@ -81,16 +81,16 @@ int main(int argc, char** argv) {
 
     std::vector<char> wire;
     if (synth) {
-        lob::tools::SyntheticItchStream gen(0xC0FFEE, synth_n, /*mid=*/10000);
+        exsim::exchange::tools::SyntheticItchStream gen(0xC0FFEE, synth_n, /*mid=*/10000);
         wire = gen.build();
     } else {
         auto raw = read_file(path);
         wire = framed ? unframe(raw) : std::move(raw);
     }
 
-    lob::OrderBook book;
-    lob::tools::ReferenceBook ref;
-    lob::tools::ItchReplayer replayer(book, validate ? &ref : nullptr);
+    exsim::exchange::OrderBook book;
+    exsim::exchange::tools::ReferenceBook ref;
+    exsim::exchange::tools::ItchReplayer replayer(book, validate ? &ref : nullptr);
 
     std::size_t offset = 0;
     std::size_t parsed = 0;
@@ -99,15 +99,15 @@ int main(int argc, char** argv) {
 
     auto t0 = std::chrono::steady_clock::now();
     while (offset < wire.size()) {
-        int sz = lob::itch::message_size(wire[offset]);
+        int sz = exsim::exchange::itch::message_size(wire[offset]);
         if (sz == 0) { ++skipped; ++offset; continue; }
         if (offset + static_cast<std::size_t>(sz) > wire.size()) break;
-        lob::itch::Message m;
-        if (lob::itch::parse(&wire[offset], m)) {
+        exsim::exchange::itch::Message m;
+        if (exsim::exchange::itch::parse(&wire[offset], m)) {
             replayer.apply(m);
             ++parsed;
             if (validate) {
-                auto d = lob::tools::diff_books(book, ref, 10);
+                auto d = exsim::exchange::tools::diff_books(book, ref, 10);
                 if (!d.ok) {
                     if (++mismatches <= 3) {
                         std::cerr << "DIVERGENCE @msg " << parsed << ": " << d.detail << "\n";

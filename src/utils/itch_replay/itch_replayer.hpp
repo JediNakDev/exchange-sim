@@ -1,5 +1,5 @@
-#ifndef LOB_TOOLS_ITCH_REPLAYER_HPP
-#define LOB_TOOLS_ITCH_REPLAYER_HPP
+#ifndef EXSIM_EXCHANGE_TOOLS_ITCH_REPLAYER_HPP
+#define EXSIM_EXCHANGE_TOOLS_ITCH_REPLAYER_HPP
 
 // Drives the production OrderBook from an ITCH 5.0 message stream.
 //
@@ -13,11 +13,11 @@
 
 #include "reference_book.hpp"
 #include <exchange/order_book.hpp>
-#include "tools/itch_replay/itch.hpp"
+#include "src/utils/itch_replay/itch.hpp"
 #include <cstdint>
 #include <unordered_map>
 
-namespace lob::tools {
+namespace exsim::exchange::tools {
 
 struct ReplayStats {
     std::uint64_t adds = 0;
@@ -114,6 +114,6 @@ private:
     ReplayStats stats_;
 };
 
-}  // namespace lob::tools
+}  // namespace exsim::exchange::tools
 
 #endif

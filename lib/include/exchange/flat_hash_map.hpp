@@ -1,5 +1,5 @@
-#ifndef LOB_FLAT_HASH_MAP_HPP
-#define LOB_FLAT_HASH_MAP_HPP
+#ifndef EXSIM_EXCHANGE_FLAT_HASH_MAP_HPP
+#define EXSIM_EXCHANGE_FLAT_HASH_MAP_HPP
 
 #include "compiler.hpp"
 #include <cstddef>
@@ -10,7 +10,7 @@
 #include <utility>
 #include <type_traits>
 
-namespace lob {
+namespace exsim::exchange {
 
 /**
  * FlatHashMap - open-addressing hash map for non-zero uint64 keys.
@@ -64,7 +64,7 @@ public:
     void set_allow_growth(bool allow_growth) noexcept { allow_growth_ = allow_growth; }
 
     [[nodiscard]] V* find(Key key) noexcept {
-        if (LOB_UNLIKELY(mask_ == 0 || key == 0)) {
+        if (EXSIM_EXCHANGE_UNLIKELY(mask_ == 0 || key == 0)) {
             return nullptr;
         }
         for (std::size_t i = slot_of(key);; i = (i + 1) & mask_) {
@@ -87,10 +87,10 @@ public:
     // Inserts key -> value. Returns false if the key already exists, the key
     // is 0, or the map is full and growth is disabled.
     [[nodiscard]] bool insert(Key key, const V& value) {
-        if (LOB_UNLIKELY(key == 0)) {
+        if (EXSIM_EXCHANGE_UNLIKELY(key == 0)) {
             return false;
         }
-        if (LOB_UNLIKELY(size_ >= max_entries_)) {
+        if (EXSIM_EXCHANGE_UNLIKELY(size_ >= max_entries_)) {
             if (!allow_growth_) {
                 return false;
             }
@@ -112,7 +112,7 @@ public:
 
     // Removes `key`. Returns false if it was not present.
     bool erase(Key key) noexcept {
-        if (LOB_UNLIKELY(mask_ == 0 || key == 0)) {
+        if (EXSIM_EXCHANGE_UNLIKELY(mask_ == 0 || key == 0)) {
             return false;
         }
         std::size_t hole = slot_of(key);
@@ -220,6 +220,6 @@ private:
     bool allow_growth_ = false;
 };
 
-}  // namespace lob
+}  // namespace exsim::exchange
 
 #endif

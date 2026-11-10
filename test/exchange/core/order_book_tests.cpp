@@ -1,11 +1,11 @@
-#include "../framework/test.hpp"
+#include "test/framework/test.hpp"
 #include <exchange/order_book.hpp>
 #include <test/framework/alloc_counter.hpp>
 
 #include <limits>
 #include <stdexcept>
 
-using namespace lob;
+using namespace exsim::exchange;
 
 TEST_CASE(order_book, add_order_to_empty_book) {
     OrderBook book;
@@ -689,21 +689,21 @@ TEST_CASE(order_book_query, snapshot_walks_sparse_levels_across_bitmap_words) {
 }
 
 TEST_CASE(order_book_bounds, aggregate_quantity_overflow_does_not_wrap_or_mutate) {
-    lob::OrderBookConfig config;
+    exsim::exchange::OrderBookConfig config;
     config.allow_growth = false;
-    lob::OrderBook book(config);
-    const auto maximum = std::numeric_limits<lob::Quantity>::max();
-    const auto first = book.add_order(100, maximum - 10, lob::Side::BUY);
+    exsim::exchange::OrderBook book(config);
+    const auto maximum = std::numeric_limits<exsim::exchange::Quantity>::max();
+    const auto first = book.add_order(100, maximum - 10, exsim::exchange::Side::BUY);
     REQUIRE(first.remaining_quantity == maximum - 10);
-    const auto second = book.add_order(100, 10, lob::Side::BUY);
+    const auto second = book.add_order(100, 10, exsim::exchange::Side::BUY);
     REQUIRE(second.remaining_quantity == 10);
-    const auto refused = book.add_order(100, 1, lob::Side::BUY);
+    const auto refused = book.add_order(100, 1, exsim::exchange::Side::BUY);
     CHECK_EQ(refused.remaining_quantity, 0u);
     CHECK_EQ(refused.cancelled_quantity, 1u);
     CHECK_EQ(book.get_bid_quantity_at_top(), maximum);
     CHECK(!book.modify_order(second.order_id, 11));
     CHECK_EQ(book.get_bid_quantity_at_top(), maximum);
-    const auto trade = book.add_order(100, 5, lob::Side::SELL);
+    const auto trade = book.add_order(100, 5, exsim::exchange::Side::SELL);
     REQUIRE_EQ(trade.fills.size(), 1u);
     CHECK_EQ(trade.fills.front().quantity, 5u);
     CHECK_EQ(book.get_bid_quantity_at_top(), maximum - 5);

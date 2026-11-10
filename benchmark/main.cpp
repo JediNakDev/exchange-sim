@@ -8,12 +8,12 @@
 
 int main(int argc, char** argv) {
     std::cout << "========================================\n";
-    std::cout << "LOB Benchmark Suite\n";
+    std::cout << "Exsim Benchmark Suite\n";
     std::cout << "========================================\n";
     std::cout << "CPU: " << bench::CPUPinner::cpu_info() << "\n";
 
     int target_core = 0;
-    std::string csv_path = "build/bench/lob_results.csv";
+    std::string csv_path = "build/bench/exsim_results.csv";
 
     int benchmark_argc = 1;
     for (int i = 1; i < argc; ++i) {

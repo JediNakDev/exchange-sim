@@ -3,7 +3,7 @@
 #include <exchange/order_book.hpp>
 #include <cassert>
 
-using namespace lob;
+using namespace exsim::exchange;
 
 void test_add_order_to_empty_book() {
     OrderBook book;

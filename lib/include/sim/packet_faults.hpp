@@ -125,7 +125,7 @@ private:
     };
 
     static bool take(std::uint32_t& counter) noexcept {
-        if (LOB_LIKELY(counter == 0)) {
+        if (EXSIM_EXCHANGE_LIKELY(counter == 0)) {
             return false;
         }
         --counter;
@@ -162,7 +162,7 @@ private:
     // One submission elapsed: release every held packet that is due, oldest first.
     template <typename Sink>
     void tick(Sink& sink) {
-        if (LOB_LIKELY(held_ == 0)) {
+        if (EXSIM_EXCHANGE_LIKELY(held_ == 0)) {
             return;
         }
         for (std::size_t i = 0; i < max_held_; ++i) {

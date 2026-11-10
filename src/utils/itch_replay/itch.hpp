@@ -1,12 +1,12 @@
-#ifndef LOB_PROTOCOL_ITCH_HPP
-#define LOB_PROTOCOL_ITCH_HPP
+#ifndef EXSIM_EXCHANGE_PROTOCOL_ITCH_HPP
+#define EXSIM_EXCHANGE_PROTOCOL_ITCH_HPP
 
 #include <exchange/compiler.hpp>
 #include <exchange/types.hpp>
 #include <cstdint>
 #include <cstring>
 
-namespace lob::itch {
+namespace exsim::exchange::itch {
 
 // ITCH 5.0 message types (subset relevant to order book management)
 enum class MessageType : char {
@@ -23,40 +23,46 @@ enum class MessageType : char {
 struct Message {
     MessageType type;
 
+    struct AddOrder {
+        uint64_t order_ref;
+        uint64_t timestamp_ns;
+        Side     side;
+        uint32_t shares;
+        int64_t  price;     // price in fixed-point (price * 10000)
+    };
+
+    struct OrderExecuted {
+        uint64_t order_ref;
+        uint64_t timestamp_ns;
+        uint32_t executed_shares;
+        uint64_t match_number;
+    };
+
+    struct OrderCancel {
+        uint64_t order_ref;
+        uint64_t timestamp_ns;
+        uint32_t cancelled_shares;
+    };
+
+    struct OrderDelete {
+        uint64_t order_ref;
+        uint64_t timestamp_ns;
+    };
+
+    struct OrderReplace {
+        uint64_t original_order_ref;
+        uint64_t new_order_ref;
+        uint64_t timestamp_ns;
+        uint32_t shares;
+        int64_t  price;
+    };
+
     union {
-        struct {
-            uint64_t order_ref;
-            uint64_t timestamp_ns;
-            Side     side;
-            uint32_t shares;
-            int64_t  price;     // price in fixed-point (price * 10000)
-        } add_order;
-
-        struct {
-            uint64_t order_ref;
-            uint64_t timestamp_ns;
-            uint32_t executed_shares;
-            uint64_t match_number;
-        } order_executed;
-
-        struct {
-            uint64_t order_ref;
-            uint64_t timestamp_ns;
-            uint32_t cancelled_shares;
-        } order_cancel;
-
-        struct {
-            uint64_t order_ref;
-            uint64_t timestamp_ns;
-        } order_delete;
-
-        struct {
-            uint64_t original_order_ref;
-            uint64_t new_order_ref;
-            uint64_t timestamp_ns;
-            uint32_t shares;
-            int64_t  price;
-        } order_replace;
+        AddOrder add_order;
+        OrderExecuted order_executed;
+        OrderCancel order_cancel;
+        OrderDelete order_delete;
+        OrderReplace order_replace;
     };
 };
 
@@ -180,6 +186,6 @@ inline bool parse(const char* buf, Message& msg) noexcept {
     }
 }
 
-} // namespace lob::itch
+} // namespace exsim::exchange::itch
 
 #endif

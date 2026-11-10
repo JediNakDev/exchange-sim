@@ -1,12 +1,12 @@
-#include "../tests/order_tests.hpp"
-#include "../tests/matching_tests.hpp"
-#include "../tests/query_tests.hpp"
-#include "../tests/itch_replay_tests.hpp"
+#include "order_tests.hpp"
+#include "matching_tests.hpp"
+#include "query_tests.hpp"
+#include "itch_replay_tests.hpp"
 #include <iostream>
 
 int main() {
     std::cout << "═══════════════════════════════════════════════════════════════\n";
-    std::cout << "           LIMIT ORDER BOOK - UNIT TESTS                       \n";
+    std::cout << "           EXSIM EXCHANGE - UNIT TESTS                       \n";
     std::cout << "═══════════════════════════════════════════════════════════════\n\n";
 
     run_order_tests();

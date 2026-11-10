@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Linux perf-based profiling for the LOB benchmark binary.
+# Linux perf-based profiling for the Exsim benchmark binary.
 #
 # Captures:
 #   - perf stat counters (cycles, instructions, cache-misses, branch-misses,
@@ -14,7 +14,7 @@
 # Requires: linux-tools-common (perf), repo built via `make benchmark`.
 set -euo pipefail
 
-BENCH=build/bench/lob_benchmark
+BENCH=build/bench/exsim_benchmark
 OUT=${1:-benchmark/profiling/perf_$(date +%Y%m%d_%H%M%S)}
 CORE=${PERF_CORE:-0}
 FILTER=${PERF_FILTER:-Mixed}

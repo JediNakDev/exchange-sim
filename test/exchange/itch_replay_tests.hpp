@@ -1,0 +1,6 @@
+#ifndef EXSIM_EXCHANGE_TESTS_ITCH_REPLAY_TESTS_HPP
+#define EXSIM_EXCHANGE_TESTS_ITCH_REPLAY_TESTS_HPP
+
+void itch_replay_tests();
+
+#endif

@@ -1,5 +1,5 @@
-#ifndef LOB_TOOLS_SYNTHETIC_HPP
-#define LOB_TOOLS_SYNTHETIC_HPP
+#ifndef EXSIM_EXCHANGE_TOOLS_SYNTHETIC_HPP
+#define EXSIM_EXCHANGE_TOOLS_SYNTHETIC_HPP
 
 // Deterministic ITCH 5.0 stream generator. Emits wire-format bytes for
 // A / E / X / D / U messages so the replayer's parse path is exercised
@@ -8,7 +8,7 @@
 // executes, 5% replaces. All adds are non-marketable by construction
 // (buys below current best ask, sells above current best bid).
 
-#include "tools/itch_replay/itch.hpp"
+#include "src/utils/itch_replay/itch.hpp"
 #include <exchange/types.hpp>
 #include <cstdint>
 #include <cstring>
@@ -16,7 +16,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace lob::tools {
+namespace exsim::exchange::tools {
 
 class SyntheticItchStream {
 public:
@@ -191,6 +191,6 @@ private:
     }
 };
 
-}  // namespace lob::tools
+}  // namespace exsim::exchange::tools
 
 #endif

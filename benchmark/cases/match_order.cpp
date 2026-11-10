@@ -27,14 +27,14 @@ static void BM_MatchOrder(benchmark::State& state) {
             auto best_bid = book.get_best_bid();
             auto best_ask = book.get_best_ask();
 
-            lob::Price price;
-            lob::Side side;
+            exsim::exchange::Price price;
+            exsim::exchange::Side side;
             if (i % 2 == 0 && best_ask) {
                 price = *best_ask;
-                side = lob::Side::BUY;
+                side = exsim::exchange::Side::BUY;
             } else if (best_bid) {
                 price = *best_bid;
-                side = lob::Side::SELL;
+                side = exsim::exchange::Side::SELL;
             } else {
                 price = order.price;
                 side = order.side;
@@ -51,7 +51,7 @@ static void BM_MatchOrder(benchmark::State& state) {
             if (book.get_total_orders() < 100) {
                 for (int j = 0; j < 10; ++j) {
                     const auto& refill = w.get(idx++);
-                    lob::Price refill_price = refill.side == lob::Side::BUY
+                    exsim::exchange::Price refill_price = refill.side == exsim::exchange::Side::BUY
                                               ? BASE_PRICE - (j + 1) * TICK_SIZE
                                               : BASE_PRICE + (j + 1) * TICK_SIZE;
                     (void)book.add_order(refill_price, refill.quantity, refill.side);

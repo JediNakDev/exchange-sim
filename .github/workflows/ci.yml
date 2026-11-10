@@ -16,5 +16,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: unit tests
         run: make -j4 unit MODE=${{ matrix.mode }} EXTRA_CXXFLAGS=-Werror
+      - name: standalone exchange tests
+        run: make -j4 exchange-test MODE=${{ matrix.mode }} EXTRA_CXXFLAGS=-Werror
       - name: API and exchange integration
         run: make -j4 integration MODE=${{ matrix.mode }} EXTRA_CXXFLAGS=-Werror

@@ -5,7 +5,7 @@
 #include <limits>
 #include <stdexcept>
 
-namespace lob {
+namespace exsim::exchange {
 
 namespace {
 
@@ -62,7 +62,7 @@ OrderBook::OrderBook(const OrderBookConfig& config)
 }
 
 bool OrderBook::ensure_price_range(Price price) {
-    if (LOB_LIKELY(price >= min_price_ && price <= max_price_)) {
+    if (EXSIM_EXCHANGE_LIKELY(price >= min_price_ && price <= max_price_)) {
         return true;
     }
     if (!allow_growth_) {
@@ -171,9 +171,9 @@ bool OrderBook::add_order_to_book_impl(Order* order) {
     auto*& best  = (S == Side::BUY) ? highest_buy_ : lowest_sell_;
 
     PriceLevel*& level = ladder[idx];
-    if (LOB_UNLIKELY(!level)) {
+    if (EXSIM_EXCHANGE_UNLIKELY(!level)) {
         level = level_pool_.create(order->price);
-        if (LOB_UNLIKELY(!level)) {
+        if (EXSIM_EXCHANGE_UNLIKELY(!level)) {
             return false;
         }
         set_active(active, idx);
@@ -236,13 +236,13 @@ bool OrderBook::match_order_impl(Order& incoming) {
         PriceLevel* contra_level = best;
 
         if constexpr (S == Side::BUY) {
-            if (LOB_UNLIKELY(incoming.price < contra_level->price)) break;
+            if (EXSIM_EXCHANGE_UNLIKELY(incoming.price < contra_level->price)) break;
         } else {
-            if (LOB_UNLIKELY(incoming.price > contra_level->price)) break;
+            if (EXSIM_EXCHANGE_UNLIKELY(incoming.price > contra_level->price)) break;
         }
 
         while (!incoming.is_filled() && !contra_level->is_empty()) {
-            if (LOB_UNLIKELY(fills.size() >= max_fills_per_add_order_)) {
+            if (EXSIM_EXCHANGE_UNLIKELY(fills.size() >= max_fills_per_add_order_)) {
                 // Still crossing, but the bounded fill buffer is full. Stop
                 // here: every executed fill is reported and the caller
                 // cancels the remainder. The current level is non-empty, so
@@ -261,7 +261,7 @@ bool OrderBook::match_order_impl(Order& incoming) {
             resting->fill(fill_qty);
             contra_level->total_volume -= fill_qty;
 
-            if (LOB_LIKELY(resting->is_filled())) {
+            if (EXSIM_EXCHANGE_LIKELY(resting->is_filled())) {
                 const OrderId resting_id = resting->id;
                 contra_level->pop_front();
                 (void)orders_.erase(resting_id);
@@ -269,7 +269,7 @@ bool OrderBook::match_order_impl(Order& incoming) {
             }
         }
 
-        if (LOB_LIKELY(contra_level->is_empty())) {
+        if (EXSIM_EXCHANGE_LIKELY(contra_level->is_empty())) {
             const std::size_t idx = ladder_index(contra_level->price);
             auto& ladder = (S == Side::BUY) ? ask_ladder_ : bid_ladder_;
             auto& active = (S == Side::BUY) ? ask_active_words_ : bid_active_words_;
@@ -304,7 +304,7 @@ template void OrderBook::remove_order_from_book_impl<Side::SELL>(Order*);
 
 OrderBook::AddResult OrderBook::add_order(Price price, Quantity quantity, Side side) {
     fill_buffer_.clear();
-    if (LOB_UNLIKELY(next_order_id_ == 0 || !ensure_price_range(price))) {
+    if (EXSIM_EXCHANGE_UNLIKELY(next_order_id_ == 0 || !ensure_price_range(price))) {
         return AddResult{0, {}, 0, 0, false};
     }
     if (allow_growth_) {
@@ -327,22 +327,22 @@ OrderBook::AddResult OrderBook::add_order(Price price, Quantity quantity, Side s
     if (remaining == 0) {
         return AddResult{order_id, fill_buffer_, 0, 0, false};
     }
-    if (LOB_UNLIKELY(fill_limit_reached)) {
+    if (EXSIM_EXCHANGE_UNLIKELY(fill_limit_reached)) {
         // The remainder still crosses; resting it would cross the book.
         return AddResult{order_id, fill_buffer_, 0, remaining, true};
     }
     Order* order_ptr = order_pool_.create(incoming);
-    if (LOB_UNLIKELY(!order_ptr)) {
+    if (EXSIM_EXCHANGE_UNLIKELY(!order_ptr)) {
         return AddResult{order_id, fill_buffer_, 0, remaining, false};
     }
-    if (LOB_UNLIKELY(!orders_.insert(order_id, order_ptr))) {
+    if (EXSIM_EXCHANGE_UNLIKELY(!orders_.insert(order_id, order_ptr))) {
         order_pool_.destroy(order_ptr);
         return AddResult{order_id, fill_buffer_, 0, remaining, false};
     }
     const bool placed = (side == Side::BUY)
         ? add_order_to_book_impl<Side::BUY>(order_ptr)
         : add_order_to_book_impl<Side::SELL>(order_ptr);
-    if (LOB_UNLIKELY(!placed)) {
+    if (EXSIM_EXCHANGE_UNLIKELY(!placed)) {
         // No price-level slot: drop the remainder instead of keeping an id
         // that is not on any level.
         (void)orders_.erase(order_id);
@@ -412,7 +412,7 @@ std::uint64_t OrderBook::active_word(Side side, std::size_t word) const noexcept
 
 bool OrderBook::cancel_order(OrderId order_id) {
     Order** slot = orders_.find(order_id);
-    if (LOB_UNLIKELY(!slot)) {
+    if (EXSIM_EXCHANGE_UNLIKELY(!slot)) {
         return false;
     }
 
@@ -429,7 +429,7 @@ bool OrderBook::cancel_order(OrderId order_id) {
 
 bool OrderBook::modify_order(OrderId order_id, Quantity new_quantity) {
     Order** slot = orders_.find(order_id);
-    if (LOB_UNLIKELY(!slot)) {
+    if (EXSIM_EXCHANGE_UNLIKELY(!slot)) {
         return false;
     }
 
@@ -545,4 +545,4 @@ OrderBook::BookSnapshot OrderBook::get_snapshot(size_t depth) const {
     return snapshot;
 }
 
-}  // namespace lob
+}  // namespace exsim::exchange

@@ -1,5 +1,5 @@
-#ifndef LOB_ENGINE_SHARDED_ENGINE_HPP
-#define LOB_ENGINE_SHARDED_ENGINE_HPP
+#ifndef EXSIM_EXCHANGE_ENGINE_SHARDED_ENGINE_HPP
+#define EXSIM_EXCHANGE_ENGINE_SHARDED_ENGINE_HPP
 
 #include <exchange/order_book.hpp>
 #include <exchange/spsc_queue.hpp>
@@ -12,7 +12,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace lob::engine {
+namespace exsim::exchange::engine {
 
 using SymbolId = std::uint32_t;
 
@@ -80,6 +80,6 @@ private:
     alignas(128) std::atomic<std::uint64_t> next_client_order_id_{1};
 };
 
-}  // namespace lob::engine
+}  // namespace exsim::exchange::engine
 
 #endif
