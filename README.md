@@ -2,24 +2,14 @@
 
 A simple exchange simulator for testing trading strategies with various trading protocal supported.
 
-## Architecture
-
-Our architecture is composed by Next.js frontend app, C++ backend server, trader and exchange worker for testing trading strategies jobs, Postgres database, and local file (should be replaced by s3 or equivalent in production).
-
 ```mermaid
 flowchart TD
-    FE[Frontend] <-->|HTTP| BE[Backend]
-    BE --> DB[Database]
+  subgraph SERVER
+    API <-->|"UNIX socket"| EXCHANGE
+  end
 
-    subgraph SIM[Simulation]
-        direction LR
-        T[Trader Process]
-        E[Exchange Process]
-
-        T <-->|UNIX Socket| E
-    end
-
-    BE <-->|UNIX Socket| SIM
+  EXCHANGE <-->|"TCP: orders and private replies"| TRADER
+  EXCHANGE <-->|"UDP: market data and recovery"| TRADER
 ```
 
 ## Getting Started
@@ -27,30 +17,37 @@ flowchart TD
 From the repository root:
 
 ```sh
-INPUT THE CMD FOR ME
+make -j4 apps
+./build/release/exsim_api --bind 127.0.0.1 --port 7600 --data-dir exchanges
 ```
 
-## Key Design Decisions
+This builds both binaries and starts the management API at `http://127.0.0.1:7600`. Create and start exchanges through the API using the [API specs](./docs/api.md).
 
-### Efficiency is not compromised.
+To run a standalone exchange directly instead:
 
-This was previously a limited order book project, as such the exchange simulator choices of data structures and algorithms were chosen to prioritize limited order book operations efficiency.
-We use hash map (Order Id -> Order) and another hash map for price level (Price -> Order List) with order linked list inside.
-This resulted in expected O(1) time complexity for order lookup, non-crossing order insertion and quantity updates, FIFO append/unlink price-level operations and best-bid/ask queries.
-And match an incoming order at expected O(F + S) with F = fills produced; S = total bitmap words scanned.
+```sh
+./build/release/exsim_exchanged --config test/fixtures/exchange.conf
+```
 
-### Try to simulate the real trader-exchange relationship.
+It starts with empty books, waiting for external trading clients. Stop either process with **Ctrl+C**.
 
-The trader and exchange worker are two different processes that communicate through UNIX socket with swappable exchange protocol.
-The experiments is also as repeatable as possible. The engine has no clock, I/O or randomness. The scheduler supplies time and seeded inputs.
+To run tests or benchmarks:
 
-### Exchange protocol is extensible at the core.
+```sh
+make -j4 test
+make -j4 bench
+```
 
-The exchange protocol is designed to seperate from the worker, it is used as a function to translate struct to bytes.
-As a result the new protocol can be introduced and the old protocal can be updated in a very convenient fasion.
-
-## Limitations & Further Reading
+## Limitations
 
 - This is a very early alpha, expects bugs.
-- Uploaded strategies are not implemented. Only templated strategy are available.
-- Latency is simulated using configurable delays and jitter.
+- We provided only exchange simulator, you have to have your own trader engine.
+- Currently only support ITCH 5.0, OUCH 4.2, and FIX 4.4.
+
+## Further Reading
+
+- [API specs](./docs/api.md)
+- [Architecture](./docs/architecture.md)
+- [Choices of Data structures and Rationale](./docs/dsa.md)
+- [TEST](.test/README.md)
+- [BENCHMARK](.benchmark/README.md)

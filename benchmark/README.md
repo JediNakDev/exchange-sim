@@ -1,7 +1,4 @@
-# Exsim Benchmark Suite
-
-Restored from `0.1.4` and built against the current `lib/src/exchange/order_book.cpp`.
-The historical sharding harness lives in `support/` and is only linked into this suite.
+# Benchmark Suite
 
 Install Google Benchmark (`brew install google-benchmark` on macOS), then run:
 

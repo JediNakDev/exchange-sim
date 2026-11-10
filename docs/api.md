@@ -1,4 +1,4 @@
-# Running the exchange API
+# API specs
 
 Build the two C++23 processes from the repository root:
 

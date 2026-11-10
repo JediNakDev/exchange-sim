@@ -1,16 +1,15 @@
-# Exchange architecture
+# Architecture
 
 Exsim hosts empty exchanges. External trading engines provide every order and all liquidity. One C++ HTTP API manages definitions and supervises one C++ process per running exchange. Live exchange state stays in RAM; definitions are small INI files.
 
-## Processes
-
-Each node is one process, except the external trading engine node, which is one computer. Repeat exchange and trader nodes as needed.
-
 ```mermaid
-flowchart LR
-    API["Management API process"] <-->|"Private local control socket"| EXCHANGE["Exchange process"]
-    EXCHANGE <-->|"TCP: orders and private replies"| TRADER["External trading engine computer"]
-    EXCHANGE <-->|"UDP: market data and recovery"| TRADER
+flowchart TD
+  subgraph SERVER
+    API <-->|"UNIX socket"| EXCHANGE
+  end
+
+  EXCHANGE <-->|"TCP: orders and private replies"| TRADER
+  EXCHANGE <-->|"UDP: market data and recovery"| TRADER
 ```
 
 Matching, gateways, market-data publication, and recovery all run inside the exchange process. The API is outside the trading path. No frontend, trader worker, strategy templates, bots, research orchestration, or PostgreSQL is required.
@@ -19,12 +18,12 @@ Matching, gateways, market-data publication, and recovery all run inside the exc
 
 For two exchanges on the same host, the management, OUCH, and market-data endpoints use these seven configured ports. FIX adds one TCP listener per exchange:
 
-| Purpose | Exchange A | Exchange B |
-| --- | --- | --- |
-| Shared management HTTP/TCP | 7600 | 7600 |
-| Order entry and private responses, TCP | 15000 | 15010 |
-| Public feed destination, UDP multicast | 16000 | 16010 |
-| Recovery requests and replies, UDP unicast | 16001 | 16011 |
+| Purpose                                    | Exchange A | Exchange B |
+| ------------------------------------------ | ---------- | ---------- |
+| Shared management HTTP/TCP                 | 7600       | 7600       |
+| Order entry and private responses, TCP     | 15000      | 15010      |
+| Public feed destination, UDP multicast     | 16000      | 16010      |
+| Recovery requests and replies, UDP unicast | 16001      | 16011      |
 
 The listed endpoints comprise five listeners and two public feed destinations. Including FIX gives seven listeners and two feed destinations, or nine configured ports for two exchanges. Use different multicast groups for the two feeds. The private control sockets need no TCP/UDP ports. Trader computers connect to these existing endpoints; more traders do not add exchange listeners. Their temporary source ports are assigned by their operating systems.
 
