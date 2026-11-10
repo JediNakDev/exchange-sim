@@ -1,6 +1,7 @@
 #include "api/exchange_service.hpp"
 #include "api/api_json.hpp"
 #include "ipc/exchange_control.hpp"
+#include <array>
 #include <cerrno>
 #include <cctype>
 #include <csignal>
@@ -32,9 +33,10 @@ server::ServerConfig validate(std::string_view text) {
     if (!server::parse_config(text, config, error)) throw std::invalid_argument(error);
     if (config.users.empty()) throw std::invalid_argument("configure at least one user");
     for (const auto& user : config.users)
-        if (user.protocol != server::Protocol::Ouch42 && user.protocol != server::Protocol::Fix44) throw std::invalid_argument("only ouch42 and fix44 users are supported");
+        if (user.protocol != server::Protocol::Ouch42 && user.protocol != server::Protocol::Fix44 && user.protocol != server::Protocol::Ilink3)
+            throw std::invalid_argument("only ouch42, fix44 and ilink3 users are supported");
     if (config.exchange.fixp_sbe_port || config.exchange.admin_port)
-        throw std::invalid_argument("FIXP and public admin listeners are not enabled");
+        throw std::invalid_argument("legacy fixp_sbe and public admin listeners are not enabled");
     std::uint32_t address = 0;
     if (!net::parse_ipv4_address(config.exchange.bind_address, address) || address == 0 || net::is_ipv4_multicast_address(address))
         throw std::invalid_argument("bind_address must be a specific local unicast IPv4 address");
@@ -61,7 +63,7 @@ std::string redacted(std::string_view config) {
         const auto last = key.find_last_not_of(" \t");
         if (last != std::string::npos) key.resize(last + 1);
         for (char& c : key) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-        if (key == "password") line = "password = [REDACTED]";
+        if (key == "password" || key == "replay_password" || key == "ilink_secret_key") line = key + " = [REDACTED]";
         output += line + '\n';
     }
     return output;
@@ -70,6 +72,10 @@ HttpResponse response(int status, std::string body) {
     HttpResponse result; result.status = status; result.body = std::move(body);
     result.set_header("Content-Type", "application/json");
     return result;
+}
+std::array<std::uint16_t, 4> feed_ports(const server::MarketDataSection& md) {
+    if (md.protocol == server::MarketDataProtocol::Mdp3) return {md.port, md.backup_port, md.snapshot_port, md.instrument_port};
+    return {md.port, 0, 0, 0};
 }
 void reap(pid_t pid) noexcept {
     int status = 0;
@@ -167,7 +173,7 @@ HttpResponse ExchangeService::handle(const HttpRequest& request) {
     try {
         for (auto& [id, exchange] : exchanges_) { (void)id; refresh(exchange); }
         if (request.path == "/v1/service" && request.method == "GET")
-            return response(200, R"({"product":"exsim","apiVersion":"v1","profile":"ouch42_soupbintcp_itch50_moldudp64","orderEntryProtocols":["ouch42_soupbintcp","fix44"]})");
+            return response(200, R"({"product":"exsim","apiVersion":"v1","profile":"ouch42_soupbintcp_itch50_moldudp64","orderEntryProtocols":["ouch42_soupbintcp","fix44","ilink3"],"marketDataProtocols":["itch50_moldudp64","mdp3_sbe"]})");
         const std::string root = "/v1/exchanges";
         if (request.path == root) {
             if (request.method == "GET") {
@@ -221,9 +227,11 @@ HttpResponse ExchangeService::handle(const HttpRequest& request) {
         if (action == "start" && request.method == "POST") {
             if (exchange.pid > 0) return response(200, view(exchange));
             for (const auto& [other_id, other] : exchanges_) {
-                if (other_id != id && other.pid > 0 && other.config.market_data.address == exchange.config.market_data.address &&
-                    other.config.market_data.port == exchange.config.market_data.port)
-                    return exchange_error(409, "feed_conflict", "another running exchange uses this market data destination");
+                if (other_id == id || other.pid <= 0 || other.config.market_data.address != exchange.config.market_data.address) continue;
+                for (const auto port : feed_ports(exchange.config.market_data))
+                    for (const auto other_port : feed_ports(other.config.market_data))
+                        if (port && port == other_port)
+                            return exchange_error(409, "feed_conflict", "another running exchange uses this market data destination");
             }
             int descriptors[2];
             if (::socketpair(AF_UNIX, SOCK_STREAM, 0, descriptors) != 0) throw std::runtime_error("cannot create control socket");

@@ -96,7 +96,8 @@ public:
         if (!failure.empty()) return failure;
         failure = market_data_.open(config_, poller_, net::make_poll_token(kRetransmissionPollTag, 0));
         if (!failure.empty()) return failure;
-        const md::PublishStatus started = market_data_.start(core_.now(), core_.engine());
+        const auto now = core_.now();
+        const md::PublishStatus started = market_data_.start(now, core_.engine(), core_.epoch_ns(now));
         if (started != md::PublishStatus::Ok) {
             return "market data start of day failed (status " + std::to_string(static_cast<int>(started)) + ")";
         }
@@ -119,6 +120,7 @@ public:
         }
         if (core_.shutdown_requested()) progress_shutdown();
         (endpoint<Gateways>().flush(), ...);
+        market_data_.flush();
     }
 
     void run() noexcept {
@@ -170,6 +172,9 @@ private:
         tcp.max_connections = config_.exchange.max_connections;
         tcp.receive_buffer_capacity = options_.connection_receive_buffer_bytes;
         tcp.send_buffer_capacity = options_.connection_send_buffer_bytes;
+        if constexpr (requires { Gateway::enabled(config_); }) {
+            if (!Gateway::enabled(config_)) tcp.max_connections = 0;
+        }
         return std::make_unique<Endpoint<Gateway>>(tcp, poller_, static_cast<std::uint8_t>(index + 1),
                                                    sessions_.template user_directory<Gateway>(), core_);
     }
@@ -185,6 +190,7 @@ private:
     template <class Gateway>
     void open_endpoint(std::string& failure) {
         if (!failure.empty()) return;
+        if constexpr (requires { Gateway::enabled(config_); }) if (!Gateway::enabled(config_)) return;
         if (net::ErrorCode error = endpoint<Gateway>().open(); error != 0) {
             failure = std::string(Gateway::name) + " listener on " + config_.exchange.bind_address + ":" +
                       std::to_string(Gateway::configured_port(config_)) + ": " + std::strerror(error);
@@ -194,7 +200,7 @@ private:
     void route_event(const net::PollEvent& event) noexcept {
         const std::uint8_t tag = net::poll_token_tag(event.token);
         if (tag == kRetransmissionPollTag) {
-            market_data_.handle_retransmission_requests();
+            market_data_.handle_recovery_event(event);
             return;
         }
         (void)((tag == gateway_poll_tag<Gateways>() ? (endpoint<Gateways>().handle_event(event), true) : false) || ...);
@@ -227,11 +233,12 @@ private:
             drain_deadline_ns_ = now + options_.end_of_day_drain_timeout_ns;
             (endpoint<Gateways>().close_for_end_of_day(), ...);
         }
-        std::uint32_t remaining = 0;
+        std::uint32_t remaining = market_data_.recovery_connection_count();
         ((remaining += endpoint<Gateways>().transport_connection_count()), ...);
         if (remaining != 0 && now < drain_deadline_ns_) return;
         if (remaining != 0) {
             (endpoint<Gateways>().close_all_now(), ...);
+            market_data_.close_recovery_now();
         }
         if (!journal_drain_started_) {
             journal_drain_started_ = true;
@@ -248,6 +255,7 @@ private:
         if (options_.log == nullptr) return;
         std::array<char, net::kIpv4EndpointTextCapacity> text{};
         const auto print = [&](std::string_view what, net::Ipv4Endpoint where) {
+            if (where.port == 0) return;
             const std::size_t length = net::format_ipv4_endpoint(where, text);
             std::fprintf(options_.log, "exsim: %.*s listening on %.*s\n", static_cast<int>(what.size()), what.data(),
                          static_cast<int>(length), text.data());
@@ -276,7 +284,7 @@ private:
 };
 
 // The active exchange server: OUCH 4.2 over SoupBinTCP and FIX 4.4.
-using ServerRuntime = BasicServerRuntime<runtime::OuchGateway, runtime::FixGateway>;
+using ServerRuntime = BasicServerRuntime<runtime::OuchGateway, runtime::FixGateway, runtime::IlinkGateway>;
 
 }  // namespace exsim::server
 

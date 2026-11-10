@@ -55,7 +55,7 @@ Paths below are relative to `/v1`.
 
 Successful calls return `200` unless shown otherwise. Create and replace take an object containing only a `config` string with the full INI.
 
-Responses redact passwords. Keep the original config for replacement; a redacted response cannot be submitted as a config.
+Responses redact passwords, MDP replay passwords, and iLink HMAC secrets. Keep the original config for replacement; a redacted response cannot be submitted as a config.
 
 Running definitions cannot be replaced or deleted (`409`). Repeated start or stop returns the existing state. Connections requires a running process (`409` otherwise). Invalid configs return `400`; unknown IDs return `404`.
 
@@ -63,11 +63,13 @@ Startup readiness or port conflicts return `409`. Failure to launch the executab
 
 ## Trading connections
 
-Set each user's `protocol` to `ouch42` or `fix44`. OUCH 4.2 over SoupBinTCP and FIX 4.4 share the same books. Public events use ITCH 5.0 over MoldUDP64.
+Set each user's `protocol` to `ouch42`, `fix44`, or `ilink3`. All gateways share the same books. Public events use ITCH 5.0 over MoldUDP64 by default, or CME MDP 3.0 with `[market_data] protocol=mdp3`.
 
-Configure TCP listeners with `ouch_port` and `fix_port`. The connections response exposes `orderEntryPort` and `fixOrderEntryPort`. Listener port zero requests an OS-assigned port. Query connections after every start for actual ports and the fresh market-data session identity.
+Configure TCP listeners with `ouch_port`, `fix_port`, and `ilink_port`. The connections response exposes `orderEntryPort`, `fixOrderEntryPort`, and `ilinkOrderEntryPort`. Listener port zero requests an OS-assigned port. iLink is disabled when no iLink users or explicit listener are configured. Query connections after every start for actual ports.
 
-Use a specific local IPv4 `bind_address` and a nonzero market-data destination port. Running exchanges need distinct feed address and port pairs. A unicast feed sends to one destination address; multicast needs a working network path.
+MDP uses `snapshot_port` and `instrument_port` for recovery feeds and optional `backup_port` for a redundant incremental feed. `retransmit_port` is then an authenticated TCP replay listener; `recoveryTransport` reports `tcp`. ITCH recovery remains UDP. See the [CME profile, credentials, limits, and sample config](ilink-and-mdp.md).
+
+Use a specific local IPv4 `bind_address` and nonzero market-data destination ports. Running exchanges need distinct feed address and port pairs, including MDP snapshot, instrument, and backup destinations. A unicast feed sends to one destination address; multicast needs a working network path.
 
 The HTTP API has no authentication and defaults to loopback. Remote traders need a reachable exchange address.
 
@@ -77,7 +79,7 @@ Stop the API with Ctrl+C. It stops and reaps its managed exchanges. Children als
 
 The data directory is locked to one API process. Config files retain full credentials with owner-only permissions. Books and sessions are not saved.
 
-Standalone exchanges can use optional journal settings. Managed exchanges currently reject journaling, FIXP, and public admin listeners.
+Standalone exchanges can use optional journal settings. Managed exchanges currently reject journaling, the legacy Exsim `fixp_sbe` protocol, and public admin listeners. CME iLink 3 has its own FIXP/SBE gateway.
 
 To run an exchange directly:
 

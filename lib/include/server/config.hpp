@@ -40,15 +40,16 @@
 
 namespace exsim::server {
 
-// Order-entry protocol of a configured user: OUCH 4.2 over SoupBinTCP, FIX
-// 4.4, or Exsim SBE over FIXP (not CME iLink).
-enum class Protocol : std::uint8_t { Ouch42 = 0, Fix44 = 1, FixpSbe = 2 };
+// Active gateways: OUCH, FIX 4.4 and CME iLink 3. FixpSbe retains the
+// inactive legacy Exsim value for configuration compatibility.
+enum class Protocol : std::uint8_t { Ouch42 = 0, Fix44 = 1, FixpSbe = 2, Ilink3 = 3 };
 
 constexpr std::string_view to_string(Protocol protocol) noexcept {
     switch (protocol) {
         case Protocol::Ouch42: return "ouch42";
         case Protocol::Fix44: return "fix44";
         case Protocol::FixpSbe: return "fixp_sbe";
+        case Protocol::Ilink3: return "ilink3";
     }
     return "unknown";
 }
@@ -61,6 +62,12 @@ struct UserConfig {
     OwnerId owner = 0;         // STP group; 0 = none
     StpMode stp = StpMode::None;
     bool cancel_on_disconnect = true;
+    std::string ilink_access_key;
+    std::string ilink_secret_key;  // base64url-encoded 32-byte HMAC key
+    std::string ilink_session;
+    std::string ilink_firm;
+    std::uint64_t ilink_party_id = 0;
+    std::string ilink_account;
 };
 
 inline constexpr Timestamp kNanosecondsPerDay = Timestamp{86'400} * 1'000'000'000;
@@ -70,6 +77,7 @@ struct ExchangeSection {
     std::string bind_address = "127.0.0.1";
     std::uint16_t ouch_port = 0;   // 0 = OS-assigned (logged at startup)
     std::uint16_t fix_port = 0;
+    std::uint16_t ilink_port = 0;
     std::uint16_t fixp_sbe_port = 0;
     std::uint16_t admin_port = 0;
     std::uint32_t max_connections = 64;
@@ -81,7 +89,10 @@ struct ExchangeSection {
     Timestamp trading_day_end_ns = kNanosecondsPerDay;
 };
 
+enum class MarketDataProtocol : std::uint8_t { Itch50, Mdp3 };
+
 struct MarketDataSection {
+    MarketDataProtocol protocol = MarketDataProtocol::Itch50;
     std::string address = "127.0.0.1";  // unicast destination or multicast group
     std::uint16_t port = 0;
     std::string interface_address;      // multicast egress interface; empty = default
@@ -92,6 +103,17 @@ struct MarketDataSection {
     std::string session = "EXSIM";      // MoldUDP64 session (<= 10 chars)
     std::uint32_t retransmit_buffer = 1u << 20;  // messages kept for retransmission
     std::uint32_t noii_interval_ms = 1000;
+    std::uint16_t channel_id = 1;
+    std::uint8_t market_segment_id = 1;
+    std::uint8_t book_depth = 10;
+    std::uint16_t snapshot_port = 0;    // MDP snapshot destination
+    std::uint16_t instrument_port = 0;  // MDP instrument replay destination
+    std::uint16_t backup_port = 0;      // optional redundant incremental destination
+    std::uint32_t snapshot_interval_ms = 1000;
+    std::uint32_t instrument_interval_ms = 5000;
+    std::uint32_t replay_buffer_packets = 4096;
+    std::string replay_username;
+    std::string replay_password;
 };
 
 struct EngineSection {

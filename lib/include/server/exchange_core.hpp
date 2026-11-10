@@ -232,6 +232,13 @@ public:
     }
 
     [[nodiscard]] std::uint64_t realtime_ns() const noexcept { return clock_.realtime_ns(); }
+    [[nodiscard]] std::uint64_t epoch_ns(Timestamp timestamp) const noexcept {
+        if constexpr (requires { clock_.epoch_ns(timestamp); }) return clock_.epoch_ns(timestamp);
+        else {
+            const auto day = now(), epoch = realtime_ns();
+            return timestamp <= day && day - timestamp <= epoch ? epoch - (day - timestamp) : epoch;
+        }
+    }
 
     // ---- Timer (server loop, once per iteration) ------------------------------
 

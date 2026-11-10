@@ -20,6 +20,9 @@ $(error MODE must be release, debug, perf or bench)
 endif
 LDFLAGS += $(EXTRA_LDFLAGS)
 LDLIBS := -lpthread
+ifeq ($(shell uname -s),Linux)
+LDLIBS += -lcrypto
+endif
 TEST_LIB_SRCS := lib/src/exsim/md/book_builder.cpp lib/src/exsim/net/tcp_client.cpp lib/src/exsim/server/admin.cpp lib/src/exsim/server/core/admin_text.cpp
 LIB_SRCS := $(filter-out $(TEST_LIB_SRCS),$(shell find lib/src -name '*.cpp' | sort))
 obj = $(patsubst %.cpp,$(BUILD)/obj/%.o,$(1))
@@ -47,7 +50,7 @@ unit: $(BUILD)/unit_tests
 $(BUILD)/integration_tests: $(call obj,test/main.cpp $(INTEGRATION_SRCS)) $(LIB_OBJS) $(TEST_LIB_OBJS)
 	$(CXX) $(LDFLAGS) $^ -o $@ $(LDLIBS)
 integration: apps $(BUILD)/integration_tests
-	./$(BUILD)/integration_tests $(FILTER)
+	EXSIM_BUILD=$(BUILD) ./$(BUILD)/integration_tests $(FILTER)
 	EXSIM_BUILD=$(BUILD) python3 -B test/integration/exchange_api_test.py
 test: unit integration exchange-test
 clean:

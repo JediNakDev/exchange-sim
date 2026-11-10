@@ -30,12 +30,14 @@
 #include "event.hpp"
 #include "gateway/fix/fix_gateway.hpp"
 #include "gateway/ouch/ouch_server.hpp"
+#include "gateway/ilink/ilink_connection.hpp"
 #include "server/config.hpp"
 #include "server/core/policies.hpp"
 #include "server/runtime/tcp_send_sink.hpp"
 #include "types.hpp"
 
 #include <cstddef>
+#include <algorithm>
 #include <cstdint>
 #include <memory>
 #include <optional>
@@ -165,6 +167,38 @@ struct BasicFixGateway {
 
 using FixGateway = BasicFixGateway<TcpSendSink>;
 using OuchGateway = BasicOuchGateway<TcpSendSink>;
+
+template<class ByteSink> struct BasicIlinkGateway {
+    static constexpr std::string_view name = "ilink3";
+    using UserDirectory = gateway::ilink::IlinkUsers<ByteSink>;
+    static std::unique_ptr<UserDirectory> make_user_directory(const ServerConfig& config) {
+        return std::make_unique<UserDirectory>(config);
+    }
+    static std::uint16_t configured_port(const ServerConfig& config) noexcept { return config.exchange.ilink_port; }
+    static bool enabled(const ServerConfig& config) noexcept {
+        return config.exchange.ilink_port != 0 || std::any_of(config.users.begin(), config.users.end(),
+            [](const auto& user) { return user.protocol == Protocol::Ilink3; });
+    }
+    template<class Core> static void dispatch(UserDirectory& users, SessionId session, std::span<const Event> events, Core& core) noexcept {
+        if (auto* user = users.find(session)) user->on_events(events, core);
+    }
+    template<class Core> static void on_shutdown(UserDirectory&, Timestamp, Core&) noexcept {}
+    template<class Core> class Connection {
+    public:
+        explicit Connection(UserDirectory& users) : session_(users) {}
+        void open(ByteSink sink, server::ConnectionId id, Core& core) noexcept { session_.open(sink, id, core); }
+        std::size_t on_data(std::span<const char> bytes, Core& core) noexcept { return session_.on_data(bytes, core); }
+        void on_timer(Core& core) noexcept { session_.on_timer(core); }
+        bool wants_close() const noexcept { return session_.wants_close(); }
+        bool flush_before_close() const noexcept { return session_.flush_before_close(); }
+        void close_for_end_of_day(Core& core) noexcept { session_.shutdown(core); }
+        void on_closed(Core& core) noexcept { session_.on_closed(core); }
+        SessionId bound_session() const noexcept { return session_.bound_session(); }
+    private:
+        gateway::ilink::IlinkConnection<ByteSink> session_;
+    };
+};
+using IlinkGateway = BasicIlinkGateway<TcpSendSink>;
 
 }  // namespace exsim::server::runtime
 

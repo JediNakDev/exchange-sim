@@ -27,6 +27,7 @@
 #include "net/socket.hpp"
 #include "net/udp.hpp"
 #include "server/config.hpp"
+#include "server/runtime/mdp_runtime.hpp"
 #include "sim/packet_faults.hpp"
 
 #include <array>
@@ -52,7 +53,10 @@ public:
           packet_faults_(config.market_data.max_payload, settings.max_held_packets),
           publisher_(publisher_config(config, settings), FeedPacketSink{this}),
           retransmission_server_(publisher_.ring(), md::RetransmissionConfig{config.market_data.session,
-                                                                            config.market_data.max_payload, 1024}) {}
+                                                                            config.market_data.max_payload, 1024}) {
+        if (config.market_data.protocol == MarketDataProtocol::Mdp3)
+            mdp_ = std::make_unique<MdpRuntime>(config, settings.max_held_packets);
+    }
 
     MarketDataRuntime(const MarketDataRuntime&) = delete;
     MarketDataRuntime& operator=(const MarketDataRuntime&) = delete;
@@ -61,6 +65,7 @@ public:
     // latter with `poller` under `retransmission_token`. Returns "" or an
     // error message.
     [[nodiscard]] std::string open(const ServerConfig& config, net::Poller& poller, std::uint64_t retransmission_token) {
+        if (mdp_) return mdp_->open(poller, net::poll_token_tag(retransmission_token), settings_.send_buffer_bytes);
         const MarketDataSection& section = config.market_data;
         std::uint32_t feed_address = 0;
         if (!net::parse_ipv4_address(section.address, feed_address)) {
@@ -102,7 +107,8 @@ public:
 
     // Registers the engine's instruments and sends the start-of-day messages.
     template <class Engine>
-    [[nodiscard]] md::PublishStatus start(Timestamp now, const Engine& engine) {
+    [[nodiscard]] md::PublishStatus start(Timestamp now, const Engine& engine, std::uint64_t epoch = net::realtime_ns()) {
+        if (mdp_) return mdp_->start(now, engine, epoch);
         const md::PublishStatus registered = publisher_.add_instruments_from(engine);
         if (registered != md::PublishStatus::Ok) return registered;
         return publisher_.start_session(now);
@@ -110,25 +116,29 @@ public:
 
     // ---- MarketData policy ------------------------------------------------------
     void on_events(std::span<const Event> batch) {
+        if (mdp_) { mdp_->on_events(batch); return; }
         (void)publisher_.on_events(batch);  // a failure stops the feed: see stopped()
     }
-    void flush() { publisher_.flush(); }
+    void flush() { if (mdp_) mdp_->flush(); else publisher_.flush(); }
 
     template <class Core>
     void on_timer(Timestamp now, const Core& core) {
+        if (mdp_) { mdp_->on_timer(now, settings_.heartbeat_interval_ns); return; }
         if (publisher_.state() == md::PublisherState::Live || publisher_.state() == md::PublisherState::Ended) {
             (void)publisher_.poll(now, core.engine());
         }
     }
 
-    [[nodiscard]] std::uint64_t next_sequence() const noexcept { return publisher_.next_sequence(); }
-    [[nodiscard]] sim::PacketFaultInjector& packet_faults() noexcept { return packet_faults_; }
+    [[nodiscard]] std::uint64_t next_sequence() const noexcept { return mdp_ ? mdp_->next_sequence() : publisher_.next_sequence(); }
+    [[nodiscard]] sim::PacketFaultInjector& packet_faults() noexcept { return mdp_ ? mdp_->packet_faults() : packet_faults_; }
     void reset_packet_faults() {
+        if (mdp_) { mdp_->reset_packet_faults(); return; }
         packet_faults_.clear_faults();
         packet_faults_.flush([this](std::span<const char> packet) { send_datagram(packet); });
     }
 
     void on_shutdown(Timestamp now) {
+        if (mdp_) { mdp_->on_shutdown(now); return; }
         reset_packet_faults();
         if (publisher_.state() == md::PublisherState::Live) {
             (void)publisher_.end_of_day(now);
@@ -139,6 +149,12 @@ public:
     }
 
     // ---- retransmission ----------------------------------------------------------
+    void handle_recovery_event(const net::PollEvent& event) {
+        if (mdp_) mdp_->handle_event(event);
+        else handle_retransmission_requests();
+    }
+    [[nodiscard]] std::uint32_t recovery_connection_count() const noexcept { return mdp_ ? mdp_->connection_count() : 0; }
+    void close_recovery_now() noexcept { if (mdp_) mdp_->close_all_now(); }
     // Answers every pending request datagram (level-triggered readiness).
     void handle_retransmission_requests() {
         // Level-triggered readiness will report remaining packets next time.
@@ -161,11 +177,11 @@ public:
 
     // ---- queries -------------------------------------------------------------------
     // True once the publisher stopped because a batch could not be published.
-    [[nodiscard]] bool stopped() const noexcept { return publisher_.state() == md::PublisherState::Stopped; }
-    [[nodiscard]] md::PublishStatus stop_reason() const noexcept { return publisher_.stop_reason(); }
-    [[nodiscard]] md::PublisherState state() const noexcept { return publisher_.state(); }
-    [[nodiscard]] net::Ipv4Endpoint feed_destination() const noexcept { return feed_destination_; }
-    [[nodiscard]] net::Ipv4Endpoint retransmission_endpoint() const noexcept { return retransmission_endpoint_; }
+    [[nodiscard]] bool stopped() const noexcept { return state() == md::PublisherState::Stopped; }
+    [[nodiscard]] md::PublishStatus stop_reason() const noexcept { return mdp_ ? mdp_->stop_reason() : publisher_.stop_reason(); }
+    [[nodiscard]] md::PublisherState state() const noexcept { return mdp_ ? mdp_->state() : publisher_.state(); }
+    [[nodiscard]] net::Ipv4Endpoint feed_destination() const noexcept { return mdp_ ? mdp_->feed_destination() : feed_destination_; }
+    [[nodiscard]] net::Ipv4Endpoint retransmission_endpoint() const noexcept { return mdp_ ? mdp_->retransmission_endpoint() : retransmission_endpoint_; }
 
 private:
     struct FeedPacketSink {
@@ -177,7 +193,7 @@ private:
         md::PublisherConfig publisher;
         publisher.session = config.market_data.session;
         publisher.max_payload = config.market_data.max_payload;
-        publisher.retransmit_buffer_messages = config.market_data.retransmit_buffer;
+        publisher.retransmit_buffer_messages = config.market_data.protocol == MarketDataProtocol::Mdp3 ? 1 : config.market_data.retransmit_buffer;
         publisher.max_instruments = config.engine.engine.max_instruments;
         publisher.day_origin = 0;  // core timestamps are already ns since local midnight
         publisher.heartbeat_interval_ns = settings.heartbeat_interval_ns;
@@ -202,6 +218,7 @@ private:
     sim::PacketFaultInjector packet_faults_;
     md::MarketDataPublisher<FeedPacketSink> publisher_;
     md::RetransmissionServer retransmission_server_;
+    std::unique_ptr<MdpRuntime> mdp_;
     net::UdpSender feed_sender_;
     net::UdpReceiver retransmission_socket_;
     net::Ipv4Endpoint feed_destination_{};
