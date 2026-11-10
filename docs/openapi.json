@@ -24,7 +24,8 @@
                   "required": [
                     "product",
                     "apiVersion",
-                    "profile"
+                    "profile",
+                    "orderEntryProtocols"
                   ],
                   "properties": {
                     "product": {
@@ -35,6 +36,18 @@
                     },
                     "profile": {
                       "const": "ouch42_soupbintcp_itch50_moldudp64"
+                    },
+                    "orderEntryProtocols": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "ouch42_soupbintcp",
+                          "fix44"
+                        ]
+                      },
+                      "minItems": 2,
+                      "uniqueItems": true
                     }
                   }
                 }
@@ -474,7 +487,8 @@
           "marketDataAddress",
           "marketDataPort",
           "recoveryPort",
-          "session"
+          "session",
+          "fixOrderEntryPort"
         ],
         "properties": {
           "address": {
@@ -509,6 +523,12 @@
           "session": {
             "type": "string",
             "maxLength": 10
+          },
+          "fixOrderEntryPort": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 65535,
+            "description": "FIX 4.4 TCP listener; authenticates users configured with protocol=fix44."
           }
         }
       },

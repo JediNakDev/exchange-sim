@@ -1,8 +1,0 @@
-instrument AAA tick=0.01 lot=1 max_qty=100 min=99 max=101 ref=100 phase=CONTINUOUS
-session alice own
-session bob own2
-NEW_ORDER instrument=AAA session=alice cl_ord_id=a side=BUY qty=10 price=100
-SET_PHASE instrument=AAA phase=HALTED
-CANCEL session=alice orig_cl_ord_id=a3
-expect order session=alice cl_ord_id=a qty=3tif leaves_qty=3 êorder_id=1
-CANCEorig_cl_orpect no events

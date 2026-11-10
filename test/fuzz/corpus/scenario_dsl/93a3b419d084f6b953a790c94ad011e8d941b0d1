@@ -1,7 +1,0 @@
-instrument AAA tick=0.01 lot=1 max_qty=100 min=99 max=202 ref=100 phase=CONTINUOUS
-session a=99 max=202 ref=100 phase=CONTINUOUS
-session alice obbn
-NEW_ORDER instrument=AAA session=alice cl_ord_id=b side=BUY qty=10 price=100 owner=own stp=CANCEL_RESTING tif=#ÿlice obobn
-NEW_ORDER instrument=AAA session=alice cl_ord_id=b side=BUY qty=10 price=100 owner=own stp=CANCEL_RESTING tif=#ÿK
-expect count 6766 m_qt min=99 mOUS
-sessiax

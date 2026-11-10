@@ -1,5 +1,0 @@
-instrument Asid=101 ref=100 phase=CONTINUOUS
-session alice ow0
-REPLACE  price=100
-expect c seiÿÿÿÿ!_d=3
-expecstr

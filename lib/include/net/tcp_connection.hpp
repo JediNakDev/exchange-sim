@@ -34,8 +34,8 @@ class TcpConnection {
     // Disconnect while retaining final inbound bytes for the framer.
     void disconnect() noexcept { socket_.close(); }
 
-    bool is_open() const noexcept { return socket_.is_open(); }
     int fd() const noexcept { return socket_.fd(); }
+
 
     ReceiveBuffer& receive_buffer() noexcept { return receive_buffer_; }
     const ReceiveBuffer& receive_buffer() const noexcept { return receive_buffer_; }

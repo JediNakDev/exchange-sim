@@ -32,9 +32,9 @@ server::ServerConfig validate(std::string_view text) {
     if (!server::parse_config(text, config, error)) throw std::invalid_argument(error);
     if (config.users.empty()) throw std::invalid_argument("configure at least one user");
     for (const auto& user : config.users)
-        if (user.protocol != server::Protocol::Ouch42) throw std::invalid_argument("only ouch42 users are supported");
-    if (config.exchange.fix_port || config.exchange.fixp_sbe_port || config.exchange.admin_port)
-        throw std::invalid_argument("FIX, FIXP and public admin listeners are not enabled");
+        if (user.protocol != server::Protocol::Ouch42 && user.protocol != server::Protocol::Fix44) throw std::invalid_argument("only ouch42 and fix44 users are supported");
+    if (config.exchange.fixp_sbe_port || config.exchange.admin_port)
+        throw std::invalid_argument("FIXP and public admin listeners are not enabled");
     std::uint32_t address = 0;
     if (!net::parse_ipv4_address(config.exchange.bind_address, address) || address == 0 || net::is_ipv4_multicast_address(address))
         throw std::invalid_argument("bind_address must be a specific local unicast IPv4 address");
@@ -167,7 +167,7 @@ HttpResponse ExchangeService::handle(const HttpRequest& request) {
     try {
         for (auto& [id, exchange] : exchanges_) { (void)id; refresh(exchange); }
         if (request.path == "/v1/service" && request.method == "GET")
-            return response(200, R"({"product":"exsim","apiVersion":"v1","profile":"ouch42_soupbintcp_itch50_moldudp64"})");
+            return response(200, R"({"product":"exsim","apiVersion":"v1","profile":"ouch42_soupbintcp_itch50_moldudp64","orderEntryProtocols":["ouch42_soupbintcp","fix44"]})");
         const std::string root = "/v1/exchanges";
         if (request.path == root) {
             if (request.method == "GET") {

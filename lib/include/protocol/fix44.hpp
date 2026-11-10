@@ -271,13 +271,6 @@ public:
   bool get_uint(unsigned tag, std::uint64_t &v) const noexcept {
     return parse_uint(get(tag), v);
   }
-  bool get_int(unsigned tag, std::int64_t &v) const noexcept {
-    auto s = get(tag);
-    if (s.empty())
-      return false;
-    auto r = std::from_chars(s.data(), s.data() + s.size(), v);
-    return r.ec == std::errc{} && r.ptr == s.data() + s.size();
-  }
   bool get_char(unsigned tag, char &v) const noexcept {
     auto s = get(tag);
     if (s.size() != 1)

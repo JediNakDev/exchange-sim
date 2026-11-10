@@ -1,6 +1,0 @@
-instrument AAA tick=0.01 lot=1 max_qty=1'0 min=99 max=101 ref=100 phase=CONTINUOUS
-session alice own
-session boent=AAA sesion=alicestrument=ALTED
-CANCEL session=alice orig_cl_ord_id=a reduce_to_total_qty=3
-expect canceled canceled_qty=7 leaves_qty=3
-expect 

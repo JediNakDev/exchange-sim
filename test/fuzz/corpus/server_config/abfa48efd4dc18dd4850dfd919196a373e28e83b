@@ -1,4 +1,0 @@
-[engine]
-max_instruments=  1000
-[instrument A`APL]
-reference_price = 149.25

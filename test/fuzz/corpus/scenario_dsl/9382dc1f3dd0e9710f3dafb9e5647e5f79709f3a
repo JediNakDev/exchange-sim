@@ -1,7 +1,0 @@
-instrument AAA tick=0.01 lot=1 max_qty=100 min=99 max=101 ref=100 phase=CONTINUOUS
-session alice e=SELL qty=10 price=100
-NEW_ORDER instrument=AAA session=alice cl_ord_id=b side=SELL qty=10 price=100
-NEW_ORDER instrument=AAA session=alice cl_ord_id=c side=BUY qty=10 price=100
-expect count 2
-expect accepted
-expect fill sell.cl_˜˜˜˜˜˜˜˜˜˜˜˜˜˜˜˜˜˜˜˜˜˜˜˜˜˜˜˜˜˜˜˜˜y=10

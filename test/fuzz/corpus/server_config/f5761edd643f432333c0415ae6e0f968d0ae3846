@@ -1,6 +1,0 @@
-[engine]
-max_instruments = 25
-[user ALICE]
-session_id = 1
-password = secr
-prOtocol =  fix 

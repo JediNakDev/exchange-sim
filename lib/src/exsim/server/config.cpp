@@ -111,10 +111,6 @@ struct Parser {
         return false;
     }
 
-    bool fail_at(int line, const std::string& msg) {
-        line_no = line;
-        return fail(msg);
-    }
 
     bool bad_value(std::string_view key, std::string_view value) {
         return fail("invalid value '" + std::string(value) + "' for '" + std::string(key) + "'");

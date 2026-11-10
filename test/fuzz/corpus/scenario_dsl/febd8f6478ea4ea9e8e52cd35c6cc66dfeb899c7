@@ -1,7 +1,0 @@
-instrument AAA tick=0.01 lot=1 max_qty=10TINUOUS
-session alice own
-session bob own2
-NEW_ORDER instrument=AAA session=alice cl_ord_id=a side=BUY qty=10 price=120
-NEW_ORDER instrument=AAA session=alice cl_ord_id=bloe=BUY qty=10 price=100
-MASS_CAcan]
-s

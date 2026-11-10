@@ -1,6 +1,0 @@
-instrument AAA tick=0.01 lot=1 max_qty=100NUOUS
-session alice own
-session bob own2
-SET_PHASE 
-SET_PHASE instrument=AAA phase=CLOSED
-`expect t

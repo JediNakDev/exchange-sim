@@ -120,7 +120,6 @@ public:
     }
 
     [[nodiscard]] const RetransmissionStats& stats() const noexcept { return stats_; }
-    [[nodiscard]] const MoldSessionName& session_name() const noexcept { return session_name_; }
 
 private:
     static std::size_t checked_payload(std::size_t max_payload) {

@@ -17,7 +17,7 @@ Matching, gateways, market-data publication, and recovery all run inside the exc
 
 ## Endpoints
 
-For two exchanges on the same host, use seven configured ports:
+For two exchanges on the same host, the management, OUCH, and market-data endpoints use these seven configured ports. FIX adds one TCP listener per exchange:
 
 | Purpose | Exchange A | Exchange B |
 | --- | --- | --- |
@@ -26,9 +26,9 @@ For two exchanges on the same host, use seven configured ports:
 | Public feed destination, UDP multicast | 16000 | 16010 |
 | Recovery requests and replies, UDP unicast | 16001 | 16011 |
 
-This is five listening endpoints on the host and two public feed destinations. Use different multicast groups for the two feeds. The private control sockets need no TCP/UDP ports. Trader computers connect to these existing endpoints; more traders do not add exchange listeners. Their temporary source ports are assigned by their operating systems.
+The listed endpoints comprise five listeners and two public feed destinations. Including FIX gives seven listeners and two feed destinations, or nine configured ports for two exchanges. Use different multicast groups for the two feeds. The private control sockets need no TCP/UDP ports. Trader computers connect to these existing endpoints; more traders do not add exchange listeners. Their temporary source ports are assigned by their operating systems.
 
-The first enabled profile is OUCH 4.2 over SoupBinTCP 3.0 for order entry, with ITCH 5.0 over MoldUDP64 for public events. The FIX and FIXP/SBE codec and gateway libraries remain tested, but their network listeners are not exposed by this daemon yet. Transport comes from the protocol profile, not an independent TCP/UDP toggle.
+The first enabled profile is OUCH 4.2 over SoupBinTCP 3.0 for order entry, with ITCH 5.0 over MoldUDP64 for public events. FIX 4.4 remains active alongside OUCH. Inactive FIXP/SBE implementations and their tests are archived under `legacy/exsim/` and excluded from active targets. Transport comes from the protocol profile, not an independent TCP/UDP toggle.
 
 Many traders share one TCP listener with separate connections and authenticated sessions. Public market data uses multicast group membership; recovery is a separate unicast request/reply service. TCP and UDP may share a numeric port, but distinct numbers make configuration clearer.
 
@@ -68,7 +68,7 @@ Run native processes on macOS or Linux. Docker and Compose were removed. Use a s
 
 Active verification is unit and integration testing, locally on macOS and OrbStack Ubuntu. See [test commands](../test/README.md). Retain core/session correctness and allocation coverage, protocol golden vectors, network integration, API CRUD/lifecycle, and external TCP/UDP interaction checks.
 
-Fuzz campaigns, benchmarks, and old end-to-end suites are deferred. Further protocol profiles, live snapshots, managed journals, remote authentication, and larger-scale telemetry need separate implementation and validation. Removed reports or obsolete tests do not resolve outstanding correctness findings.
+Fuzz campaigns, benchmarks, old end-to-end/review suites, and standalone diagnostic tools are archived under `legacy/exsim/` and excluded from active builds. Further protocol profiles, live snapshots, managed journals, remote authentication, and larger-scale telemetry need separate implementation and validation. Removed reports or obsolete tests do not resolve outstanding correctness findings.
 
 ## References
 

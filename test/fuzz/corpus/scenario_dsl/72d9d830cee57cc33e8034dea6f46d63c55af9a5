@@ -1,4 +1,0 @@
-instrument AAA tick=0.01 lot=1 max_qty=100 min=99 max=101 ref=100 phase=CONTINUOUS
-session aliceax=102 rNUOUS
-session alice own
-session alibob oting=false

@@ -99,8 +99,6 @@ ErrorCode open_udp_socket(Socket& socket_out) noexcept;
 ErrorCode set_non_blocking(int fd) noexcept;
 ErrorCode set_tcp_no_delay(int fd, bool enabled) noexcept;
 ErrorCode set_reuse_address(int fd, bool enabled) noexcept;
-// SO_REUSEPORT: lets several sockets bind the same port (multicast receivers on one host).
-ErrorCode set_reuse_port(int fd, bool enabled) noexcept;
 // SO_SNDBUF / SO_RCVBUF. The kernel may round the value (Linux doubles it).
 // For TCP, set the receive size before connect/listen so the window scale accounts for it.
 ErrorCode set_send_buffer_size(int fd, int bytes) noexcept;

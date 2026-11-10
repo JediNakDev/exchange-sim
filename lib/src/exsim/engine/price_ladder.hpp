@@ -116,7 +116,6 @@ struct InstrumentBook {
         return side == Side::BUY ? tick >= best_ask_tick : tick <= best_bid_tick;
     }
 
-    [[nodiscard]] bool is_call_phase() const noexcept { return phase == Phase::PreOpen || phase == Phase::PreClose; }
 };
 
 }  // namespace exsim::engine

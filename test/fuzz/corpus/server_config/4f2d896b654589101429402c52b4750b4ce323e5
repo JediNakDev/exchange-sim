@@ -1,4 +1,0 @@
-[engine]
-max_instruments = 64
-max_orders = 1048574
-max_tokens_per_session = 1#im 

@@ -3,6 +3,7 @@
 No browser, database, synthetic traders, or external Python dependencies.
 """
 import concurrent.futures
+from datetime import datetime, timezone
 import json
 import os
 from pathlib import Path
@@ -144,7 +145,7 @@ class ExchangeApiTests(unittest.TestCase):
         self.api("GET", path, expected=404)
 
     def test_rejects_bots_and_unavailable_protocols(self):
-        for extra in ("\n[bot maker]\ntype=market_maker\n", "\n[exchange]\nfix_port=15001\n"):
+        for extra in ("\n[bot maker]\ntype=market_maker\n", "\n[exchange]\nfixp_sbe_port=15001\n"):
             self.api("POST", "/v1/exchanges", {"config": config() + extra}, 400)
 
     def test_two_instances_have_independent_ports_and_empty_books(self):
@@ -299,6 +300,58 @@ class ExchangeApiTests(unittest.TestCase):
                 except OSError:
                     time.sleep(0.02)
         self.assertTrue(released, "child kept trading ports open after manager death")
+
+    def test_api_managed_fix_sessions_trade_through_discovered_port(self):
+        self.assertIn("fix44", self.api("GET", "/v1/service")["orderEntryProtocols"])
+        exchange = self.start(self.create(config().replace("protocol = ouch42", "protocol = fix44")))
+        path = f"/v1/exchanges/{exchange['id']}"
+        details = self.api("GET", path + "/connections")
+        self.assertGreater(details["fixOrderEntryPort"], 0)
+        self.assertNotEqual(details["fixOrderEntryPort"], details["orderEntryPort"])
+
+        def receive(sock):
+            # Read one FIX frame by BodyLength, preserving any following frame.
+            header = b""
+            while header.count(b"\x01") < 2:
+                byte = sock.recv(1)
+                self.assertTrue(byte, "FIX connection closed before header")
+                header += byte
+            body_length = int(header.split(b"\x01")[1].split(b"=")[1])
+            remaining = body_length + 7  # Body plus 10=ddd<SOH>.
+            body = b""
+            while len(body) < remaining:
+                chunk = sock.recv(remaining - len(body))
+                self.assertTrue(chunk, "FIX connection closed before checksum")
+                body += chunk
+            return header + body
+
+        def send(sock, user, kind, sequence, fields):
+            timestamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H:%M:%S.%f")[:-3]
+            body = f"35={kind}|49={user}|56=EXSIM|34={sequence}|52={timestamp}|{fields}".replace("|", "\x01").encode()
+            frame = f"8=FIX.4.4\x019={len(body)}\x01".encode() + body
+            sock.sendall(frame + f"10={sum(frame) % 256:03d}\x01".encode())
+            return timestamp
+
+        alice = socket.create_connection(("127.0.0.1", details["fixOrderEntryPort"]), timeout=3)
+        bob = socket.create_connection(("127.0.0.1", details["fixOrderEntryPort"]), timeout=3)
+        self.addCleanup(alice.close)
+        self.addCleanup(bob.close)
+        send(alice, "ALICE", "A", 1, "98=0|108=30|554=alice|")
+        self.assertIn(b"35=A\x01", receive(alice))
+        send(bob, "BOB", "A", 1, "98=0|108=30|554=bob|")
+        self.assertIn(b"35=A\x01", receive(bob))
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H:%M:%S.%f")[:-3]
+        send(alice, "ALICE", "D", 2, f"11=BUY|55=AAPL|54=1|38=100|40=2|44=150|59=0|60={timestamp}|")
+        self.assertIn(b"39=0\x01", receive(alice))
+        self.assertEqual(self.api("GET", path + "/status")["runtime"]["liveOrders"], "1")
+        send(bob, "BOB", "D", 2, f"11=SELL|55=AAPL|54=2|38=100|40=2|44=150|59=0|60={timestamp}|")
+        for sock in (bob, alice):
+            for _ in range(3):
+                if b"39=2\x01" in receive(sock):
+                    break
+            else:
+                self.fail("FIX execution report did not reach the participant")
+        self.assertEqual(self.api("GET", path + "/status")["runtime"]["liveOrders"], "0")
 
 
 if __name__ == "__main__":

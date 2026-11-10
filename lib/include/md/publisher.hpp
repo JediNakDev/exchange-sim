@@ -344,7 +344,6 @@ public:
     // ---- queries --------------------------------------------------------------
     [[nodiscard]] std::uint64_t next_sequence() const noexcept { return next_sequence_; }
     [[nodiscard]] const RetransmissionRing& ring() const noexcept { return ring_; }
-    [[nodiscard]] const MoldSessionName& session_name() const noexcept { return session_name_; }
     [[nodiscard]] std::size_t max_payload() const noexcept { return config_.max_payload; }
     [[nodiscard]] PublisherState state() const noexcept { return state_; }
     [[nodiscard]] PublishStatus stop_reason() const noexcept { return stop_reason_; }

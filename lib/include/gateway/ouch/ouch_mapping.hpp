@@ -5,10 +5,7 @@
 // its "Supported simulator profile" specify. Pure constexpr functions; the
 // session code in ouch_server.hpp applies them.
 //
-// The reason maps deliberately do not use protocol::ouch42::reject_reason /
-// cancel_reason: those codec helpers predate the 2026-11-02 contract repair
-// and differ from GATEWAYS.md (NotAllowedInPhase must be 'R'; MassCancel and
-// CancelOnDisconnect must be 'U').
+// Engine-to-wire reason mappings live here; codecs handle wire layouts only.
 
 #include "protocol/ouch42.hpp"
 #include "types.hpp"

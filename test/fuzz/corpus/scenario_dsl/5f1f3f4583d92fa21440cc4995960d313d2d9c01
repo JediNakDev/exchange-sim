@@ -1,4 +1,0 @@
-instrument AAA tick=0.01 lot=1 max_qty=100 min=99 max=101 ref=100 phase=CONTINUOUS
-session alice own
-session bob own1
-MASS_CANCEL session=alice cancel_on_disconnect=99 maxcanceled_count=2

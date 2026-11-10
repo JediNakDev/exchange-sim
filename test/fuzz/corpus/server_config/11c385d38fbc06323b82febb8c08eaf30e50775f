@@ -1,5 +1,0 @@
-# abl
-[instrument AAPL]
-tick_size = 1
-max_order_qty =00
-s

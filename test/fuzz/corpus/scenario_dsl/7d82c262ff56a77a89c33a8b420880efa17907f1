@@ -1,6 +1,0 @@
-instrument AAA  phase=CONTINUOUS
-session alice Ôown
-session bob own2
-SET_PHASE instrum››t=AAA phase=PRE_OPEN
-e cl_ord=_i1bd st=1 max_q1
-t

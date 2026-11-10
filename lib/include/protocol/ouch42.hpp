@@ -611,54 +611,5 @@ inline Status decode(const char *p, std::size_t n, OrderReplaced &m) noexcept {
 inline Status decode(std::span<const char> p, OrderReplaced &m) noexcept {
   return decode(p.data(), p.size(), m);
 }
-constexpr TimeInForce time_in_force(std::uint32_t seconds) noexcept {
-  return seconds == 0 ? TimeInForce::IOC : TimeInForce::Day;
-}
-constexpr std::uint32_t tif_seconds(TimeInForce tif) noexcept {
-  return tif == TimeInForce::IOC ? 0 : 99998;
-}
-constexpr char reject_reason(RejectReason reason) noexcept {
-  switch (reason) {
-  case RejectReason::None:
-    return ' ';
-  case RejectReason::UnknownInstrument:
-    return 'S';
-  case RejectReason::InvalidClOrdId:
-  case RejectReason::DuplicateClOrdId:
-    return 'O';
-  case RejectReason::InvalidQuantity:
-    return 'Z';
-  case RejectReason::InvalidPrice:
-    return 'X';
-  case RejectReason::MarketClosed:
-    return 'C';
-  case RejectReason::InstrumentHalted:
-    return 'H';
-  case RejectReason::PostOnlyWouldCross:
-    return 'O';
-  case RejectReason::CapacityExceeded:
-    return 'O';
-  default:
-    return 'O';
-  }
-}
-constexpr char cancel_reason(CancelReason reason) noexcept {
-  switch (reason) {
-  case CancelReason::UserRequested:
-    return 'U';
-  case CancelReason::ImmediateOrCancel:
-  case CancelReason::FillOrKill:
-    return 'I';
-  case CancelReason::SelfTradePrevention:
-    return 'Q';
-  case CancelReason::MassCancel:
-    return 'S';
-  case CancelReason::CancelOnDisconnect:
-    return 'Z';
-  case CancelReason::EndOfDay:
-    return 'E';
-  }
-  return 'Z';
-}
 } // namespace exsim::protocol::ouch42
 #endif

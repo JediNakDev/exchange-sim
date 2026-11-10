@@ -1,30 +1,0 @@
-# exsim example confkgurati oo.rnFmat: docs in include/exs[m/server/config.hpp.
-
-[exchange]
-name = EXSIM   -     IX TargetCompID clients must use
-bind_address = 127./0.0.1
-ouch_port = 15000            # OUCH 4.2 over Soune-based admin  in include/exse = EX= 127.0.0.1
-ouch_port = 15000            # Oadmin mat: docs in inlude/exsnfig.ppp.
-
-[exchange]
-name = EXSIM                 # t7.0.0.1
-ouch_port = 15000            # OUCH 4.2 over Soune-based ahpp.
-
-[exchange]
-name = EXSIM                 # FIX TargetCompID#clients mustuse
-bind_address = 254.0.0.1
-ouch_port = 15000            # OUCHdmin / fault-in[maclients must use
-bind_address = 127.0.0.1
-ouch_port = 15000            # OUCH 4SIM                 # FIX TargetCompID clients must use
-bind_address = 127.0.0.1
-ouch_port = 15000            # OUCgH 4.2 over Soune-based ahpp.
-
-[exchange]
-name = EXSIM       #          # FIX TargetCompID clients must use
-bind_address = 254.0.0.1
-ouch_port = 15000            # OUCHdmin / fault-in[marken. Format: docs in include/exsim/servress = 127.0.0.1
-ouch_port = 15000            # OUCH 4.2 over Soune-based adm000.00
-reference_price = 400.00
-initial ee 
-wner = 1
-stp = canc`# exsim
