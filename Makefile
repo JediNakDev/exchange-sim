@@ -7,6 +7,8 @@
 #   make check              test in release and debug (sanitizer) modes
 #   make apps MODE=perf    optimised API and worker binaries (-O3 -march=native -flto)
 #   make bench              exsim protocol benchmarks (MODE=bench)
+#   make lob-test           restored 0.1.2 book tests and ITCH replay validation
+#   make benchmark          restored 0.1.2 LOB benchmark suite
 #   make legacy             standalone book tests, tools and examples
 #   make legacy-bench       standalone book benchmark suite
 #   make clean
@@ -99,7 +101,7 @@ $(shell printf '%s\n' $(call shell_quote,$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(BENCH_
 $(shell cmp -s $(BUILD)/compile.tmp $(BUILD)/compile.config || cp $(BUILD)/compile.tmp $(BUILD)/compile.config)
 $(shell printf '%s\n' $(call shell_quote,$(CXX) $(CXXFLAGS) $(LDFLAGS) $(LDLIBS) $(BENCH_LDFLAGS)) > $(BUILD)/link.tmp)
 $(shell cmp -s $(BUILD)/link.tmp $(BUILD)/link.config || cp $(BUILD)/link.tmp $(BUILD)/link.config)
-$(shell printf '%s\n' $(call shell_quote,$(LIB_SRCS) $(TEST_SRCS) $(EXAMPLE_SRCS) $(TEST_TOOL_SRCS) $(wildcard src/*/*.cpp) $(LEGACY_SRCS) $(LEGACY_TEST_SRCS) $(LEGACY_TOOL_SRCS) $(LEGACY_BENCH_SRCS) $(shell find test/benchmark -name '*.cpp' | sort)) > $(BUILD)/sources.tmp)
+$(shell printf '%s\n' $(call shell_quote,$(LIB_SRCS) $(TEST_SRCS) $(EXAMPLE_SRCS) $(TEST_TOOL_SRCS) $(wildcard src/*/*.cpp) $(LEGACY_SRCS) $(LEGACY_TEST_SRCS) $(LEGACY_TOOL_SRCS) $(LEGACY_BENCH_SRCS) $(wildcard tests/*.cpp benchmark/*.cpp benchmark/cases/*.cpp benchmark/support/*.cpp tools/itch_replay/*.cpp) $(shell find test/benchmark -name '*.cpp' | sort)) > $(BUILD)/sources.tmp)
 $(shell cmp -s $(BUILD)/sources.tmp $(BUILD)/sources.config || cp $(BUILD)/sources.tmp $(BUILD)/sources.config)
 
 LIB_OBJS := $(call obj,$(LIB_SRCS))
@@ -164,9 +166,47 @@ apps: $(DAEMON_BINS) $(BUILD)/exsim_api
 
 examples: $(EXAMPLE_BINS)
 
-# Back-compat alias for the 1.4.0 README.
+# Restored standalone LOB suite from 0.1.2, linked to the current book.
+LOB_TEST_SRCS := $(sort $(wildcard tests/*.cpp))
+LOB_BENCH_SRCS := $(sort $(wildcard benchmark/*.cpp benchmark/cases/*.cpp benchmark/support/*.cpp))
+LOB_TEST_BIN := $(BUILD)/lob_tests
+LOB_BENCH_BIN := build/bench/lob_benchmark
+ITCH_BIN := $(BUILD)/itch_replay
+
+.PHONY: lob-test benchmark benchmark-run benchmark-filter
+lob-test: $(LOB_TEST_BIN)
+	./$(LOB_TEST_BIN)
+
+$(BUILD)/obj/tests/%.o: CXXFLAGS += -UNDEBUG
+$(LOB_TEST_BIN): $(call obj,$(LOB_TEST_SRCS)) $(BOOK_OBJS) $(BUILD)/link.config $(BUILD)/sources.config
+	@mkdir -p $(dir $@)
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(filter %.o,$^) -o $@ $(LDLIBS)
+
+$(ITCH_BIN): $(call obj,tools/itch_replay/replay_main.cpp) $(BOOK_OBJS) $(BUILD)/link.config $(BUILD)/sources.config
+	@mkdir -p $(dir $@)
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(filter %.o,$^) -o $@ $(LDLIBS)
+
 itch-replay:
-	$(MAKE) MODE=perf build/perf/legacy/itch_replay
+	$(MAKE) MODE=perf build/perf/itch_replay
+
+ifeq ($(MODE),bench)
+$(BUILD)/obj/benchmark/%.o: CPPFLAGS += -I benchmark $(BENCH_CPPFLAGS)
+$(LOB_BENCH_BIN): $(call obj,$(LOB_BENCH_SRCS)) $(BOOK_OBJS) $(BUILD)/link.config $(BUILD)/sources.config
+	@mkdir -p $(dir $@)
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(filter %.o,$^) -o $@ $(BENCH_LDFLAGS) -lbenchmark $(LDLIBS)
+endif
+
+benchmark:
+	$(MAKE) MODE=bench $(LOB_BENCH_BIN)
+
+benchmark-run: benchmark
+	./$(LOB_BENCH_BIN) $(ARGS)
+
+benchmark-filter: benchmark
+	./$(LOB_BENCH_BIN) --benchmark_filter=$(FILTER) $(ARGS)
+
+LOB_OBJS := $(call obj,$(LOB_TEST_SRCS) $(LOB_BENCH_SRCS) tools/itch_replay/replay_main.cpp)
+-include $(LOB_OBJS:.o=.d)
 
 # ---------------------------------------------------------------------------
 # Google Benchmark suite (Homebrew on macOS, system install on Linux).
