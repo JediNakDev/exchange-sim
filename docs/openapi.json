@@ -1,0 +1,560 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Exsim exchange management",
+    "version": "1.0.0",
+    "description": "Manage empty exchange processes. Traders connect directly using the returned TCP/UDP endpoints."
+  },
+  "servers": [
+    {
+      "url": "http://127.0.0.1:7600"
+    }
+  ],
+  "paths": {
+    "/v1/service": {
+      "get": {
+        "operationId": "getService",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "product",
+                    "apiVersion",
+                    "profile",
+                    "orderEntryProtocols"
+                  ],
+                  "properties": {
+                    "product": {
+                      "const": "exsim"
+                    },
+                    "apiVersion": {
+                      "const": "v1"
+                    },
+                    "profile": {
+                      "const": "ouch42_soupbintcp_itch50_moldudp64"
+                    },
+                    "orderEntryProtocols": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "ouch42_soupbintcp",
+                          "fix44"
+                        ]
+                      },
+                      "minItems": 2,
+                      "uniqueItems": true
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "400 invalid input; 404 unknown route/ID; 405 unsupported collection/item method; 409 state/port/feed conflict; 500 internal error; 503 process unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/exchanges": {
+      "get": {
+        "operationId": "listExchanges",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Exchange"
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "400 invalid input; 404 unknown route/ID; 405 unsupported collection/item method; 409 state/port/feed conflict; 500 internal error; 503 process unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createExchange",
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Exchange"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "400 invalid input; 404 unknown route/ID; 405 unsupported collection/item method; 409 state/port/feed conflict; 500 internal error; 503 process unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "config"
+                ],
+                "properties": {
+                  "config": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Full INI as in test/fixtures/exchange.conf, including credentials. Only OUCH users, specific unicast IPv4 binds, and a nonzero UDP feed destination port are enabled. Listener port zero means OS-assigned. Bots, public admin, FIX, FIXP and managed journals are rejected."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/exchanges/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "operationId": "getExchange",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Exchange"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "400 invalid input; 404 unknown route/ID; 405 unsupported collection/item method; 409 state/port/feed conflict; 500 internal error; 503 process unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "replaceExchangeConfig",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Exchange"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "400 invalid input; 404 unknown route/ID; 405 unsupported collection/item method; 409 state/port/feed conflict; 500 internal error; 503 process unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "config"
+                ],
+                "properties": {
+                  "config": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Full INI as in test/fixtures/exchange.conf, including credentials. Only OUCH users, specific unicast IPv4 binds, and a nonzero UDP feed destination port are enabled. Listener port zero means OS-assigned. Bots, public admin, FIX, FIXP and managed journals are rejected."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "description": "Requires a stopped or exited instance. Full credentials must be resubmitted; [REDACTED] cannot be used as input."
+      },
+      "delete": {
+        "operationId": "deleteExchange",
+        "responses": {
+          "204": {
+            "description": "Definition deleted"
+          },
+          "default": {
+            "description": "400 invalid input; 404 unknown route/ID; 405 unsupported collection/item method; 409 state/port/feed conflict; 500 internal error; 503 process unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "Requires a stopped or exited instance; never implicitly stops a running instance."
+      }
+    },
+    "/v1/exchanges/{id}/start": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "operationId": "startExchange",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Exchange"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "400 invalid input; 404 unknown route/ID; 405 unsupported collection/item method; 409 state/port/feed conflict; 500 internal error; 503 process unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "Waits for socket readiness. Repeated start returns the existing process. Startup failures roll back sockets and return 409; executable launch failure returns 503."
+      }
+    },
+    "/v1/exchanges/{id}/stop": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "operationId": "stopExchange",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Exchange"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "400 invalid input; 404 unknown route/ID; 405 unsupported collection/item method; 409 state/port/feed conflict; 500 internal error; 503 process unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "Waits for graceful shutdown and bounded forced termination. Repeated stop is harmless."
+      }
+    },
+    "/v1/exchanges/{id}/status": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "operationId": "getExchangeStatus",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Exchange"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "400 invalid input; 404 unknown route/ID; 405 unsupported collection/item method; 409 state/port/feed conflict; 500 internal error; 503 process unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/exchanges/{id}/connections": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "operationId": "getExchangeConnections",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Connections"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "400 invalid input; 404 unknown route/ID; 405 unsupported collection/item method; 409 state/port/feed conflict; 500 internal error; 503 process unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Exchange": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "state",
+          "pid",
+          "error",
+          "config",
+          "runtime"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "stopped",
+              "running",
+              "failed"
+            ]
+          },
+          "pid": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "error": {
+            "type": "string"
+          },
+          "config": {
+            "type": "string",
+            "description": "Saved INI with password values replaced by [REDACTED]."
+          },
+          "runtime": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Runtime"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "Runtime": {
+        "type": "object",
+        "required": [
+          "state",
+          "liveOrders",
+          "commandsApplied",
+          "connections"
+        ],
+        "properties": {
+          "state": {
+            "enum": [
+              "running",
+              "stopping"
+            ]
+          },
+          "liveOrders": {
+            "type": "string",
+            "pattern": "^[0-9]+$"
+          },
+          "commandsApplied": {
+            "type": "string",
+            "pattern": "^[0-9]+$"
+          },
+          "connections": {
+            "$ref": "#/components/schemas/Connections"
+          }
+        }
+      },
+      "Connections": {
+        "type": "object",
+        "required": [
+          "address",
+          "orderEntryProtocol",
+          "orderEntryPort",
+          "marketDataProtocol",
+          "marketDataAddress",
+          "marketDataPort",
+          "recoveryPort",
+          "session",
+          "fixOrderEntryPort"
+        ],
+        "properties": {
+          "address": {
+            "type": "string",
+            "format": "ipv4"
+          },
+          "orderEntryProtocol": {
+            "const": "ouch42_soupbintcp"
+          },
+          "orderEntryPort": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 65535
+          },
+          "marketDataProtocol": {
+            "const": "itch50_moldudp64"
+          },
+          "marketDataAddress": {
+            "type": "string",
+            "format": "ipv4"
+          },
+          "marketDataPort": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 65535
+          },
+          "recoveryPort": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 65535
+          },
+          "session": {
+            "type": "string",
+            "maxLength": 10
+          },
+          "fixOrderEntryPort": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 65535,
+            "description": "FIX 4.4 TCP listener; authenticates users configured with protocol=fix44."
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message"
+            ],
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

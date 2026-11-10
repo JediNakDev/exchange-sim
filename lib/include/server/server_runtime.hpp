@@ -4,14 +4,14 @@
 // The exsim server: one thread, one reactor loop (server contract 1,
 // server runtime). BasicServerRuntime<Gateways...> owns the poller,
 // the exchange core, the market-data runtime, one order-entry endpoint per
-// gateway and the admin console:
+// gateway:
 //
 //   poll_once():
 //     poller.wait(busy_poll ? 0 : idle timeout)
 //     route events: gateway connections (-> on_data -> core.submit ->
-//                   dispatch to sessions, ITCH, bots), admin lines,
+//                   dispatch to sessions and ITCH),
 //                   MoldUDP64 retransmission requests
-//     core.timer(now): end of day, bots, NOII / MoldUDP64 heartbeat,
+//     core.timer(now): end of day, NOII / MoldUDP64 heartbeat,
 //                      journal flush
 //     endpoints: delayed inbound bytes, gateway timers, requested closes
 //     core disconnect requests (`fault user X disconnect`)
@@ -27,7 +27,6 @@
 #include "net/tcp_server.hpp"
 #include "server/config.hpp"
 #include "server/exchange_core.hpp"
-#include "server/runtime/admin_endpoint.hpp"
 #include "server/runtime/gateway_sessions.hpp"
 #include "server/runtime/journal_worker.hpp"
 #include "server/runtime/market_data_runtime.hpp"
@@ -52,15 +51,13 @@ namespace exsim::server {
 
 struct ServerRuntimeOptions {
     bool busy_poll = false;          // poller.wait(0): lowest latency, one core at 100%
-    int idle_poll_timeout_ms = 1;    // otherwise: timer resolution (bots, delays, heartbeats)
+    int idle_poll_timeout_ms = 1;    // otherwise: timer resolution (delays and heartbeats)
     // ns since local midnight at startup; nullopt reads the wall clock.
     std::optional<Timestamp> day_time_at_start;
-    std::string admin_bind_address = "127.0.0.1";  // admin console: loopback unless told otherwise
     std::uint64_t end_of_day_drain_timeout_ns = 3'000'000'000;  // wait for logouts and flushes
     runtime::MarketDataRuntimeSettings market_data{};
     std::size_t connection_receive_buffer_bytes = 64 * 1024;
     std::size_t connection_send_buffer_bytes = 4 * 1024 * 1024;
-    bool bots_enabled_at_start = true;
     std::FILE* log = stderr;  // startup listener reporting only; nullptr = silent
 };
 
@@ -72,7 +69,6 @@ public:
     template <class Gateway>
     using Endpoint = runtime::OrderEntryEndpoint<Gateway, Core>;
 
-    static constexpr std::uint8_t kAdminPollTag = 0x40;
     static constexpr std::uint8_t kRetransmissionPollTag = 0x41;
 
     // Setup: builds everything. Throws std::runtime_error / invalid_argument
@@ -84,9 +80,8 @@ public:
           market_data_(config_, options_.market_data),
           sessions_(config_),
           core_(config_, sessions_, market_data_, clock_),
-          endpoints_(make_endpoint<Gateways>(gateway_index<Gateways>())...),
-          admin_(admin_tcp_config(), poller_, kAdminPollTag, core_) {
-        core_.set_bots_enabled(options_.bots_enabled_at_start);
+          endpoints_(make_endpoint<Gateways>(gateway_index<Gateways>())...) {
+
     }
 
     BasicServerRuntime(const BasicServerRuntime&) = delete;
@@ -99,10 +94,6 @@ public:
         std::string failure;
         (open_endpoint<Gateways>(failure), ...);
         if (!failure.empty()) return failure;
-        if (net::ErrorCode error = admin_.open(); error != 0) {
-            return "admin listener on " + options_.admin_bind_address + ":" +
-                   std::to_string(config_.exchange.admin_port) + ": " + std::strerror(error);
-        }
         failure = market_data_.open(config_, poller_, net::make_poll_token(kRetransmissionPollTag, 0));
         if (!failure.empty()) return failure;
         const md::PublishStatus started = market_data_.start(core_.now(), core_.engine());
@@ -128,7 +119,6 @@ public:
         }
         if (core_.shutdown_requested()) progress_shutdown();
         (endpoint<Gateways>().flush(), ...);
-        admin_.flush();
     }
 
     void run() noexcept {
@@ -155,7 +145,6 @@ public:
     [[nodiscard]] net::Ipv4Endpoint listen_endpoint() noexcept {
         return endpoint<Gateway>().listen_endpoint();
     }
-    [[nodiscard]] net::Ipv4Endpoint admin_endpoint() const noexcept { return admin_.listen_endpoint(); }
     [[nodiscard]] net::Ipv4Endpoint retransmission_endpoint() const noexcept {
         return market_data_.retransmission_endpoint();
     }
@@ -185,16 +174,6 @@ private:
                                                    sessions_.template user_directory<Gateway>(), core_);
     }
 
-    net::TcpServerConfig admin_tcp_config() const {
-        net::TcpServerConfig tcp;
-        tcp.listen_endpoint =
-            net::Ipv4Endpoint{parse_address(options_.admin_bind_address, "admin bind address"), config_.exchange.admin_port};
-        tcp.max_connections = 8;
-        tcp.receive_buffer_capacity = 16 * 1024;
-        tcp.send_buffer_capacity = 4 * 1024 * 1024;
-        return tcp;
-    }
-
     static std::uint32_t parse_address(const std::string& text, const char* what) {
         std::uint32_t address = 0;
         if (!net::parse_ipv4_address(text, address)) {
@@ -216,10 +195,6 @@ private:
         const std::uint8_t tag = net::poll_token_tag(event.token);
         if (tag == kRetransmissionPollTag) {
             market_data_.handle_retransmission_requests();
-            return;
-        }
-        if (tag == kAdminPollTag) {
-            admin_.handle_event(event);
             return;
         }
         (void)((tag == gateway_poll_tag<Gateways>() ? (endpoint<Gateways>().handle_event(event), true) : false) || ...);
@@ -278,7 +253,6 @@ private:
                          static_cast<int>(length), text.data());
         };
         (print(Gateways::name, endpoint<Gateways>().listen_endpoint()), ...);
-        print("admin", admin_.listen_endpoint());
         print("md retransmission", market_data_.retransmission_endpoint());
         const std::size_t length = net::format_ipv4_endpoint(market_data_.feed_destination(), text);
         std::fprintf(options_.log, "exsim: md feed to %.*s%s\n", static_cast<int>(length), text.data(),
@@ -294,7 +268,6 @@ private:
     Sessions sessions_;
     Core core_;
     std::tuple<std::unique_ptr<Endpoint<Gateways>>...> endpoints_;
-    runtime::AdminEndpoint<Core> admin_;
     std::atomic<bool> external_shutdown_requested_{false};
     bool end_of_day_started_ = false;
     bool journal_drain_started_ = false;
@@ -302,9 +275,8 @@ private:
     std::uint64_t drain_deadline_ns_ = 0;
 };
 
-// The exsim server: OUCH 4.2, FIX 4.4 and SBE 1.0 over FIXP 1.0
-// (server runtime, "Adding a protocol").
-using ServerRuntime = BasicServerRuntime<runtime::OuchGateway, runtime::FixGateway, runtime::FixpSbeGateway>;
+// The active exchange server: OUCH 4.2 over SoupBinTCP and FIX 4.4.
+using ServerRuntime = BasicServerRuntime<runtime::OuchGateway, runtime::FixGateway>;
 
 }  // namespace exsim::server
 

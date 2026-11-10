@@ -1,7 +1,0 @@
-#[nect = true
-
-[user BOB]
-password =2 boh42
-session_id = 100
-owner = 100
-st = cancel_r

@@ -108,25 +108,21 @@ TEST_CASE(server_core_admin, book_prints_a_price_ladder) {
 }
 
 TEST_CASE(server_core_admin, status_reports_every_part_of_the_core) {
-    RecordingHarness h(parse_test_config(kTwoBots));
+    RecordingHarness h(parse_test_config());
     REQUIRE(h.core.bind(1, 42));
     REQUIRE_EQ(h.core.submit(limit_order(1, 1, kAapl, Side::BUY, 1'499'900, 30)), SubmitResult::Applied);
     const std::string reply = h.admin("status");
     CHECK(reply.rfind("exchange EXSIM shutdown=no\n", 0) == 0);
     CHECK(contains(reply, "trading_day start=00:00:00 end=24:00:00 last_command_ts=1000000000\n"));
-    CHECK(contains(reply, "connections bound=1 users=5 bot_users=2\n"));
+    CHECK(contains(reply, "connections bound=1 users=5\n"));
     CHECK(contains(reply, "user ALICE session=1 protocol=ouch42 bound=yes connection=42 "
                           "reject=0 delay_us=0 drop_out=0 disconnect=no\n"));
     CHECK(contains(reply, "user CAROL session=3 protocol=fix44 bound=no reject=0"));
-    CHECK(contains(reply, "user MM1 session=100 protocol=ouch42 bot=yes\n"));
     CHECK(contains(reply, "orders live=1\n"));
     CHECK(contains(reply, "instrument AAPL id=1 phase=CONTINUOUS bid=149.99 ask=- last=-\n"));
     CHECK(contains(reply, "instrument MSFT id=2 phase=PRE_OPEN bid=- ask=- last=-\n"));
     CHECK(contains(reply, "md next_sequence=2\n"));
     CHECK(contains(reply, "md faults drop_ppm=0 dup_ppm=0 reorder_ppm=0 delay=1 seed=1 held=0 idle=yes"));
-    CHECK(contains(reply, "bots on count=2\n"));
-    CHECK(contains(reply, "bot maker type=market_maker user=MM1 instrument=AAPL enabled=yes inventory=0"));
-    CHECK(contains(reply, "bot taker type=noise_taker user=NT1 instrument=AAPL enabled=yes"));
     CHECK(contains(reply, "journal state=disabled records=0 failures=0 on_failure=shutdown\n"));
     CHECK(contains(reply, "commands applied=1 outside_trading_day=0 after_shutdown=0 output_capacity_failures=0 deferred=0 "
                           "deferred_overflows=0\n"));
@@ -138,7 +134,6 @@ TEST_CASE(server_core_admin, status_without_optional_market_data_hooks) {
     const std::string reply = h.admin("status");
     CHECK(contains(reply, "md next_sequence=unavailable\n"));
     CHECK(contains(reply, "md faults unavailable\n"));
-    CHECK(contains(reply, "bots on count=0\n"));
     CHECK(ends_with_ok(reply));
 }
 
@@ -215,28 +210,10 @@ TEST_CASE(server_core_admin, md_faults_without_an_injector_are_an_error) {
 }
 
 TEST_CASE(server_core_admin, user_fault_errors) {
-    RecordingHarness h(parse_test_config(kTwoBots));
+    RecordingHarness h(parse_test_config());
     CHECK_EQ(h.admin("fault user NOBODY reject 1"), std::string("ERR unknown user NOBODY\n"));
-    CHECK_EQ(h.admin("fault user MM1 reject 1"),
-             std::string("ERR user MM1 is driven by a bot; gateway faults do not apply\n"));
     CHECK_EQ(h.admin("fault user ALICE disconnect"), std::string("ERR user ALICE is not connected\n"));
     CHECK(!h.core.has_disconnect_requests());
-}
-
-TEST_CASE(server_core_admin, bots_on_and_off) {
-    RecordingHarness h(parse_test_config(kTwoBots));
-    CHECK(h.core.bots_enabled());
-    CHECK_EQ(h.admin("bots off"), std::string("bots off (2 configured)\nOK\n"));
-    CHECK(!h.core.bots_enabled());
-    for (const auto& bot : h.core.bots()) CHECK(!bot.state->enabled());
-    h.core.timer(h.clock.day);
-    CHECK_EQ(h.recorder.batch_count(), 0u);  // disabled bots stay silent
-    CHECK(contains(h.admin("status"), "bots off count=2\n"));
-
-    CHECK_EQ(h.admin("bots on"), std::string("bots on (2 configured)\nOK\n"));
-    CHECK(h.core.bots_enabled());
-    h.core.timer(h.clock.day);
-    CHECK(h.recorder.batch_count() > 0u);
 }
 
 TEST_CASE(server_core_admin, shutdown_closes_every_instrument_once) {

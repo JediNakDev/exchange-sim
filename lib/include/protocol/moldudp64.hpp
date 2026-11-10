@@ -69,7 +69,6 @@ public:
     return Status::ok;
   }
   std::span<const char> packet() const noexcept { return buffer_.first(used_); }
-  std::size_t remaining() const noexcept { return buffer_.size() - used_; }
 };
 class PacketReader {
   std::span<const char> bytes_{};

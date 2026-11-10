@@ -34,8 +34,6 @@ TEST_CASE(server_admin, simple_commands) {
     CHECK_EQ(b.count, 5u);
     const auto deep_book = ok("book MSFT 20");
     CHECK_EQ(deep_book.count, 20u);
-    CHECK(ok("bots on").on);
-    CHECK(!ok("bots OFF").on);
 }
 
 TEST_CASE(server_admin, md_faults) {
@@ -98,7 +96,7 @@ TEST_CASE(server_admin, rejects_bad_input) {
 
 TEST_CASE(server_admin, help_lists_every_verb) {
     const std::string_view h = admin_help();
-    for (std::string_view verb : {"status", "phase", "book", "fault md", "fault user", "bots", "shutdown"}) {
+    for (std::string_view verb : {"status", "phase", "book", "fault md", "fault user", "shutdown"}) {
         CHECK(h.find(verb) != std::string_view::npos);
     }
 }

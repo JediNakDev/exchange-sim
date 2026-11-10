@@ -1,5 +1,0 @@
-instrument AAA tick=0.01 lot=1 max_qty=1'0 min=99 max=101 ref=100 phase=CONTINUOUS
-session alice own
-session bob own2
-NEW_ORDER instrument=AAA session=alice cl_ord_id=a side= YUBice=100
-SET_PHASE insnt=AKA phase=HA 

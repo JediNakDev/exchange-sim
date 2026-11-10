@@ -1,128 +1,50 @@
-// exsim_api: the local research HTTP API (HTTP API contract, config/api/openapi.yaml).
-//
-//   exsim_api [--port N] [--bind ADDRESS] [--data-dir DIR] [--max-live-runs N]
-//
-// --port 0 binds an ephemeral port. Once listening, the service prints one
-// line "exsim_api listening on http://<address>:<port>" to stdout, which the
-// development script and the end-to-end test read. SIGINT or SIGTERM stops
-// the service; runs that were still live are recorded as failed.
-
+#include "api/exchange_service.hpp"
 #include "api/http_server.hpp"
-#include "api/research_service.hpp"
-
+#include <charconv>
 #include <csignal>
-#include <cstdint>
-#include <cstdlib>
-#include <exception>
+#include <filesystem>
 #include <iostream>
-#include <string>
-#include <string_view>
-
 #include <pthread.h>
+#include <sys/stat.h>
 #ifdef __APPLE__
 #include <mach-o/dyld.h>
 #endif
-
-namespace {
-
-constexpr std::string_view kUsage =
-    "usage: exsim_api [--port N] [--bind ADDRESS] [--data-dir DIR] [--max-live-runs N]\n"
-    "  --port N           TCP port (default 7600; 0 picks an ephemeral port)\n"
-    "  --bind ADDRESS     IPv4 address to bind (default 127.0.0.1; v1 has no access control)\n"
-    "  --data-dir DIR     experiments, runs and artifacts (default ./exsim-api-data)\n"
-    "  --max-live-runs N  simulations held at once, running or paused (default 8)\n"
-    "  --source-revision ID  supplied source revision; omitted means unavailable\n"
-    "  --release-id ID       supplied release identity; omitted means unavailable\n"
-    "  --import-file-metadata  import existing metadata into an empty PostgreSQL database\n"
-    "  EXSIM_DATABASE_URL     libpq connection string; unset selects legacy files\n";
-
-bool parse_unsigned_argument(std::string_view text, std::uint64_t maximum, std::uint64_t& value) {
-    if (text.empty() || text.size() > 20) return false;
-    std::uint64_t parsed = 0;
-    for (const char character : text) {
-        if (character < '0' || character > '9') return false;
-        parsed = parsed * 10 + static_cast<std::uint64_t>(character - '0');
-        if (parsed > maximum) return false;
-    }
-    value = parsed;
-    return true;
-}
-
-}  // namespace
-
-int main(int argument_count, char** arguments) {
-    exsim::api::HttpServerOptions server_options;
-    exsim::api::ResearchServiceOptions service_options;
-    service_options.isolate_runs = true;
-    if (const char* database = std::getenv("EXSIM_DATABASE_URL")) service_options.database_url = database;
-#ifdef __APPLE__
-    std::uint32_t length = 0;
-    _NSGetExecutablePath(nullptr, &length);
-    std::string executable(length, '\0');
-    if (_NSGetExecutablePath(executable.data(), &length) != 0) return 1;
-    service_options.executable_path = std::filesystem::canonical(executable.c_str()).string();
-#else
-    service_options.executable_path = std::filesystem::canonical("/proc/self/exe").string();
-#endif
-    for (int index = 1; index < argument_count; ++index) {
-        const std::string_view flag = arguments[index];
-        if (flag == "--help" || flag == "-h") {
-            std::cout << kUsage;
-            return 0;
-        }
-        if (flag == "--import-file-metadata") {
-            service_options.import_file_metadata = true;
-            continue;
-        }
-        if (index + 1 >= argument_count) {
-            std::cerr << "exsim_api: " << flag << " needs a value\n" << kUsage;
-            return 2;
-        }
-        const std::string_view value = arguments[++index];
-        std::uint64_t number = 0;
-        if (flag == "--port" && parse_unsigned_argument(value, 65535, number)) {
-            server_options.port = static_cast<std::uint16_t>(number);
-
-        } else if (flag == "--bind") {
-            server_options.bind_address = std::string(value);
-        } else if (flag == "--source-revision") {
-            service_options.source_revision = value;
-        } else if (flag == "--release-id") {
-            service_options.release_id = value;
-        } else if (flag == "--data-dir") {
-            service_options.data_directory = std::string(value);
-        } else if (flag == "--max-live-runs" && parse_unsigned_argument(value, 256, number) && number > 0) {
-            service_options.max_live_simulations = static_cast<std::size_t>(number);
-        } else {
-            std::cerr << "exsim_api: bad argument " << flag << " " << value << "\n" << kUsage;
-            return 2;
-        }
-    }
-
-
-    // Block the stop signals in every thread; the main thread waits for them.
-    sigset_t stop_signals;
-    sigemptyset(&stop_signals);
-    sigaddset(&stop_signals, SIGINT);
-    sigaddset(&stop_signals, SIGTERM);
-    pthread_sigmask(SIG_BLOCK, &stop_signals, nullptr);
-    std::signal(SIGPIPE, SIG_IGN);
-
+int main(int argc, char** argv) {
+    exsim::api::HttpServerOptions options;
+    std::filesystem::path directory = "exchanges";
     try {
-        exsim::api::ResearchService service(service_options);
-        exsim::api::HttpServer server(
-            server_options, [&service](const exsim::api::HttpRequest& request) { return service.handle(request); },
-            [&service](int status, std::string_view code, std::string_view message) { return service.rejection_response(status, code, message); });
+        for (int i = 1; i < argc; ++i) {
+            const std::string_view flag = argv[i];
+            if (flag == "--help") { std::cout << "exsim_api [--bind IPv4] [--port PORT] [--data-dir PATH]\n"; return 0; }
+            if (i + 1 == argc) throw std::invalid_argument("missing option value");
+            const std::string_view value = argv[++i];
+            if (flag == "--bind") options.bind_address = value;
+            else if (flag == "--data-dir") directory = value;
+            else if (flag == "--port") {
+                unsigned port = 0;
+                const auto [end, error] = std::from_chars(value.data(), value.data() + value.size(), port);
+                if (error != std::errc{} || end != value.data() + value.size() || port > 65535) throw std::invalid_argument("invalid port");
+                options.port = static_cast<std::uint16_t>(port);
+            } else throw std::invalid_argument("unknown option");
+        }
+        ::umask(0077);
+        std::signal(SIGPIPE, SIG_IGN);
+        sigset_t signals; sigemptyset(&signals); sigaddset(&signals, SIGINT); sigaddset(&signals, SIGTERM);
+        pthread_sigmask(SIG_BLOCK, &signals, nullptr);
+#ifdef __APPLE__
+        std::uint32_t size = 0; _NSGetExecutablePath(nullptr, &size);
+        std::string path(size, '\0');
+        if (_NSGetExecutablePath(path.data(), &size) != 0) throw std::runtime_error("cannot resolve executable");
+        const auto binary = std::filesystem::canonical(path.c_str());
+#else
+        const auto binary = std::filesystem::canonical("/proc/self/exe");
+#endif
+        exsim::api::ExchangeService service(directory, binary.parent_path() / "exsim_exchanged");
+        exsim::api::HttpServer server(options, [&service](const auto& request) { return service.handle(request); }, exsim::api::exchange_error);
         server.start();
-        std::cout << "exsim_api listening on http://" << server_options.bind_address << ":" << server.port() << std::endl;
-        int received_signal = 0;
-        sigwait(&stop_signals, &received_signal);
-        std::cerr << "exsim_api: stopping on signal " << received_signal << "\n";
+        std::cout << "exsim_api listening on http://" << options.bind_address << ':' << server.port() << std::endl;
+        int signal = 0; sigwait(&signals, &signal);
         server.stop();
-        service.shutdown();
-    } catch (const std::exception& error) {
-        std::cerr << "exsim_api: " << error.what() << "\n";
-        return 1;
-    }
+    } catch (const std::exception& error) { std::cerr << "exsim_api: " << error.what() << '\n'; return 1; }
     return 0;
 }

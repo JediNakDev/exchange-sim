@@ -1,5 +1,0 @@
-instrument AAA tick=0.01 lot=1 max_qty=10
-session alice own
-session bob  instrument=AAA session=ae cl_ord_rice=100 owner=own
-NEW_ORDER instrument=AAA session=bob cl_ord_id=b side=BUY qty=10 price=100 owner=own stp=CANCEL_AGGRESSOR
-expect aAcceptedwas_resting=false

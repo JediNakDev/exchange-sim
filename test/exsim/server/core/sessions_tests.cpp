@@ -50,21 +50,6 @@ TEST_CASE(server_core_sessions, authenticate_checks_name_password_and_protocol) 
     CHECK(h.core.user(55) == nullptr);
 }
 
-TEST_CASE(server_core_sessions, bot_users_cannot_log_in_or_bind) {
-    RecordingHarness without_bots(parse_test_config());
-    CHECK(without_bots.core.authenticate("MM1", "mm1", Protocol::Ouch42) != nullptr);
-    CHECK(!without_bots.core.is_bot_session(100));
-
-    RecordingHarness with_bots(parse_test_config(kTwoBots));
-    CHECK(with_bots.core.authenticate("MM1", "mm1", Protocol::Ouch42) == nullptr);
-    CHECK(with_bots.core.authenticate("NT1", "nt1", Protocol::Ouch42) == nullptr);
-    CHECK(with_bots.core.is_bot_session(100));
-    CHECK(with_bots.core.is_bot_session(101));
-    CHECK(!with_bots.core.is_bot_session(1));
-    CHECK(!with_bots.core.bind(100, 5));
-    CHECK_EQ(with_bots.core.bound_connection_count(), 0u);
-}
-
 TEST_CASE(server_core_sessions, one_live_binding_per_session) {
     RecordingHarness h(parse_test_config());
     CHECK(!h.core.is_bound(1));

@@ -1,265 +1,91 @@
-# Exchange simulator build.
-#
-#   make                    library objects, applications and test tools (MODE=release)
-#   make test               build + run the full test suite
-#   make test MODE=debug    same, with AddressSanitizer + UBSan
-#   make test MODE=tsan     same, with ThreadSanitizer
-#   make check              test in release and debug (sanitizer) modes
-#   make apps MODE=perf    optimised API and worker binaries (-O3 -march=native -flto)
-#   make bench              exsim protocol benchmarks (MODE=bench)
-#   make lob-test           restored 0.1.2 book tests and ITCH replay validation
-#   make benchmark          restored 0.1.2 LOB benchmark suite
-#   make legacy             standalone book tests, tools and examples
-#   make legacy-bench       standalone book benchmark suite
-#   make clean
-#
-# Sources are discovered automatically:
-#   lib/src/**/*.cpp        reusable library implementation
-#   src/<daemon>/*.cpp      daemon entry points, linked separately
-#   test/{exsim,framework,lob}/**/*.cpp and test/main.cpp: run_tests
-#   test/tools/<name>/*.cpp validation and diagnostic CLIs
-#   legacy/examples/*.cpp   opt-in via make examples
-#   test/benchmark/**/*.cpp build/bench/benchmark
-
 .DEFAULT_GOAL := all
 MODE ?= release
-
 CXX ?= c++
-STD := -std=c++20
-WARNINGS := -Wall -Wextra -Wpedantic -Wshadow
-CPPFLAGS := -I lib/include -I . -MMD -MP
-# The production MatchingEngine is linked into run_tests, so the differential,
-# scenario, preflight and allocation tests also run against it by default.
-CPPFLAGS += -DEXSIM_TEST_PRODUCTION
-LDLIBS := -lpthread
-
-# PostgreSQL is a control-plane dependency, optional for standalone simulator builds.
-WITH_POSTGRES ?= 0
-PG_CONFIG ?= pg_config
-ifeq ($(WITH_POSTGRES),1)
-  CPPFLAGS += -DEXSIM_WITH_POSTGRES -I$(shell $(PG_CONFIG) --includedir)
-  LDLIBS += -L$(shell $(PG_CONFIG) --libdir) -lpq
-endif
-
-ifeq ($(MODE),release)
-  OPT := -O2 -g
-else ifeq ($(MODE),debug)
-  OPT := -O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=undefined
-  LDOPT := -fsanitize=address,undefined
-else ifeq ($(MODE),tsan)
-  OPT := -O1 -g -fsanitize=thread
-  LDOPT := -fsanitize=thread
-else ifeq ($(MODE),perf)
-  OPT := -O3 -march=native -DNDEBUG -flto -fno-omit-frame-pointer
-  LDOPT := -flto
-else ifeq ($(MODE),bench)
-  OPT := -O3 -march=native -mtune=native -DNDEBUG -flto -fno-omit-frame-pointer -DLOB_DETERMINISTIC_POOL
-  LDOPT := -flto
-else
-  $(error unknown MODE '$(MODE)' (release|debug|tsan|perf|bench))
-endif
-
-CXXFLAGS := $(STD) $(OPT) $(WARNINGS) $(EXTRA_CXXFLAGS)
-LDFLAGS := $(LDOPT) $(EXTRA_LDFLAGS)
-
 BUILD := build/$(MODE)
-obj = $(patsubst %.cpp,$(BUILD)/obj/%.o,$(1))
-
-LIB_SRCS := $(shell find lib/src -name '*.cpp' | sort)
-TEST_SRCS := test/main.cpp $(shell find test/exsim test/framework test/lob -name '*.cpp' | sort)
-EXAMPLE_SRCS := $(sort $(wildcard legacy/examples/*.cpp))
-DAEMON_NAMES := exsim_apid exsim_traderd exsim_exchanged
-DAEMON_BINS := $(addprefix $(BUILD)/,$(DAEMON_NAMES))
-
-TEST_TOOL_NAMES := $(sort $(patsubst test/tools/%/,%,$(dir $(wildcard test/tools/*/*.cpp))))
-TEST_TOOL_SRCS := $(wildcard test/tools/*/*.cpp)
-TEST_TOOL_BINS := $(addprefix $(BUILD)/,$(TEST_TOOL_NAMES))
-
-
-ifeq ($(shell uname -s),Darwin)
-  BENCHMARK_PREFIX := $(shell brew --prefix google-benchmark 2>/dev/null || echo /opt/homebrew/opt/google-benchmark)
-  BENCH_CPPFLAGS := -I$(BENCHMARK_PREFIX)/include
-  BENCH_LDFLAGS := -L$(BENCHMARK_PREFIX)/lib
+CPPFLAGS := -I lib/include -I . -MMD -MP
+CXXFLAGS := -std=c++23 -Wall -Wextra -Wpedantic -Wshadow $(EXTRA_CXXFLAGS)
+ifeq ($(MODE),debug)
+CXXFLAGS += -O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined
+LDFLAGS += -fsanitize=address,undefined
+else ifeq ($(MODE),release)
+CXXFLAGS += -O2 -g
+else ifeq ($(MODE),perf)
+CXXFLAGS += -O3 -march=native -DNDEBUG -flto -fno-omit-frame-pointer
+LDFLAGS += -flto
+else ifeq ($(MODE),bench)
+CXXFLAGS += -O3 -march=native -mtune=native -DNDEBUG -flto -fno-omit-frame-pointer -DLOB_DETERMINISTIC_POOL
+LDFLAGS += -flto
+else
+$(error MODE must be release, debug, perf or bench)
 endif
-
-# Standalone LOB applications and sharding code are opt-in.
-LEGACY_SRCS := $(shell find legacy/src -name '*.cpp' 2>/dev/null | sort)
-LEGACY_OBJS := $(call obj,$(LEGACY_SRCS))
-LEGACY_TEST_SRCS := $(wildcard legacy/test/lob/*.cpp)
-LEGACY_TOOL_SRCS := $(wildcard legacy/test/tools/*/*.cpp)
-LEGACY_BENCH_SRCS := $(shell find legacy/test/benchmark -name '*.cpp' 2>/dev/null | sort)
-LEGACY_TEST_BIN := $(BUILD)/legacy/run_tests
-LEGACY_TOOL_BIN := $(BUILD)/legacy/itch_replay
-LEGACY_BENCH_BIN := build/bench/legacy/benchmark
-
-# Quote arbitrary configuration text as one shell argument.
-shell_quote = '$(subst ','"'"',$(1))'
-# Parse-time content stamps change timestamps only when the configuration changes.
-# Separate modes retain independent configurations. Source removal forces relink.
-$(shell mkdir -p $(BUILD))
-$(shell printf '%s\n' $(call shell_quote,$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(BENCH_CPPFLAGS)) > $(BUILD)/compile.tmp)
-$(shell cmp -s $(BUILD)/compile.tmp $(BUILD)/compile.config || cp $(BUILD)/compile.tmp $(BUILD)/compile.config)
-$(shell printf '%s\n' $(call shell_quote,$(CXX) $(CXXFLAGS) $(LDFLAGS) $(LDLIBS) $(BENCH_LDFLAGS)) > $(BUILD)/link.tmp)
-$(shell cmp -s $(BUILD)/link.tmp $(BUILD)/link.config || cp $(BUILD)/link.tmp $(BUILD)/link.config)
-$(shell printf '%s\n' $(call shell_quote,$(LIB_SRCS) $(TEST_SRCS) $(EXAMPLE_SRCS) $(TEST_TOOL_SRCS) $(wildcard src/*/*.cpp) $(LEGACY_SRCS) $(LEGACY_TEST_SRCS) $(LEGACY_TOOL_SRCS) $(LEGACY_BENCH_SRCS) $(wildcard tests/*.cpp benchmark/*.cpp benchmark/cases/*.cpp benchmark/support/*.cpp tools/itch_replay/*.cpp) $(shell find test/benchmark -name '*.cpp' | sort)) > $(BUILD)/sources.tmp)
-$(shell cmp -s $(BUILD)/sources.tmp $(BUILD)/sources.config || cp $(BUILD)/sources.tmp $(BUILD)/sources.config)
-
+LDFLAGS += $(EXTRA_LDFLAGS)
+LDLIBS := -lpthread
+TEST_LIB_SRCS := lib/src/exsim/md/book_builder.cpp lib/src/exsim/net/tcp_client.cpp lib/src/exsim/server/admin.cpp lib/src/exsim/server/core/admin_text.cpp
+LIB_SRCS := $(filter-out $(TEST_LIB_SRCS),$(shell find lib/src -name '*.cpp' | sort))
+obj = $(patsubst %.cpp,$(BUILD)/obj/%.o,$(1))
 LIB_OBJS := $(call obj,$(LIB_SRCS))
-BOOK_OBJS := $(call obj,lib/src/order_book.cpp)
-TEST_BIN := $(BUILD)/run_tests
-EXAMPLE_BINS := $(patsubst legacy/examples/%.cpp,$(BUILD)/legacy/examples/%,$(EXAMPLE_SRCS))
-
-.PHONY: all lib test check apps test-tools examples bench bench-run clean itch-replay
-
-$(TEST_BIN) $(TEST_TOOL_BINS) $(EXAMPLE_BINS): $(BUILD)/link.config $(BUILD)/sources.config
-
-all: $(DAEMON_BINS) $(BUILD)/exsim_api $(TEST_BIN) $(TEST_TOOL_BINS)
-
-lib: $(LIB_OBJS)
-
-$(BUILD)/obj/%.o: %.cpp $(BUILD)/compile.config
+TEST_LIB_OBJS := $(call obj,$(TEST_LIB_SRCS))
+# Unit coverage stays local to codecs, gateways, matching and core policies.
+UNIT_SRCS := $(shell find test/lob test/framework test/exsim/engine test/exsim/protocol test/exsim/gateway test/exsim/md test/exsim/server/core -name '*.cpp' | sort)
+UNIT_SRCS := $(filter-out %udp_loopback_tests.cpp,$(UNIT_SRCS))
+UNIT_SRCS += test/exsim/api/api_json_tests.cpp test/exsim/server/config_tests.cpp test/exsim/server/config_review_tests.cpp test/exsim/server/admin_tests.cpp test/exsim/sim/packet_faults_tests.cpp test/exsim/foundation/contract_tests.cpp
+INTEGRATION_SRCS := $(shell find test/exsim/net -name '*.cpp' | sort) test/exsim/api/http_tests.cpp test/exsim/md/udp_loopback_tests.cpp test/framework/alloc_counter.cpp
+.PHONY: all apps test unit integration clean
+all: apps
+apps: $(BUILD)/exsim_api $(BUILD)/exsim_exchanged
+$(BUILD)/obj/%.o: %.cpp Makefile
 	@mkdir -p $(dir $@)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
+$(BUILD)/exsim_exchanged: $(call obj,src/exchange/main.cpp) $(LIB_OBJS)
+	$(CXX) $(LDFLAGS) $^ -o $@ $(LDLIBS)
+$(BUILD)/exsim_api: $(call obj,src/api/main.cpp) $(LIB_OBJS) | $(BUILD)/exsim_exchanged
+	$(CXX) $(LDFLAGS) $^ -o $@ $(LDLIBS)
+$(BUILD)/unit_tests: $(call obj,test/main.cpp $(UNIT_SRCS)) $(LIB_OBJS) $(TEST_LIB_OBJS)
+	$(CXX) $(LDFLAGS) $^ -o $@ $(LDLIBS)
+unit: $(BUILD)/unit_tests
+	./$(BUILD)/unit_tests $(FILTER)
+$(BUILD)/integration_tests: $(call obj,test/main.cpp $(INTEGRATION_SRCS)) $(LIB_OBJS) $(TEST_LIB_OBJS)
+	$(CXX) $(LDFLAGS) $^ -o $@ $(LDLIBS)
+integration: apps $(BUILD)/integration_tests
+	./$(BUILD)/integration_tests $(FILTER)
+	EXSIM_BUILD=$(BUILD) python3 -B test/integration/exchange_api_test.py
+test: unit integration
+clean:
+	rm -rf $(BUILD)
+-include $(shell find $(BUILD)/obj -name '*.d' 2>/dev/null)
 
-$(TEST_BIN): | $(BUILD)/exsim_traderd $(BUILD)/exsim_exchanged
-
-$(TEST_BIN): $(call obj,$(TEST_SRCS)) $(LIB_OBJS)
-	@mkdir -p $(dir $@)
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(filter %.o,$^) -o $@ $(LDLIBS)
-
-define DAEMON_RULE
-$(BUILD)/$(1): $(call obj,$(sort $(wildcard src/$(2)/*.cpp))) $(LIB_OBJS) $(BUILD)/link.config $(BUILD)/sources.config
-	@mkdir -p $$(dir $$@)
-	$$(CXX) $$(CXXFLAGS) $$(LDFLAGS) $$(filter %.o,$$^) -o $$@ $$(LDLIBS)
-endef
-$(eval $(call DAEMON_RULE,exsim_apid,api))
-$(eval $(call DAEMON_RULE,exsim_traderd,trader))
-$(eval $(call DAEMON_RULE,exsim_exchanged,exchange))
-
-$(BUILD)/exsim_apid: | $(BUILD)/exsim_exchanged $(BUILD)/exsim_traderd
-$(BUILD)/exsim_research: | $(BUILD)/exsim_traderd
-
-$(BUILD)/exsim_api: $(BUILD)/exsim_apid $(BUILD)/exsim_exchanged $(BUILD)/exsim_traderd
-	cp $(BUILD)/exsim_apid $@
-
-define TEST_TOOL_RULE
-$(BUILD)/$(1): $(call obj,$(sort $(wildcard test/tools/$(1)/*.cpp))) $(LIB_OBJS)
-	@mkdir -p $$(dir $$@)
-	$$(CXX) $$(CXXFLAGS) $$(LDFLAGS) $$(filter %.o,$$^) -o $$@ $$(LDLIBS)
-endef
-$(foreach t,$(TEST_TOOL_NAMES),$(eval $(call TEST_TOOL_RULE,$(t))))
-
-test-tools: $(TEST_TOOL_BINS)
-
-$(BUILD)/legacy/examples/%: $(BUILD)/obj/legacy/examples/%.o $(BOOK_OBJS)
-	@mkdir -p $(dir $@)
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(filter %.o,$^) -o $@ $(LDLIBS)
-
-test: $(TEST_BIN)
-	./$(TEST_BIN) $(FILTER)
-
-check:
-	$(MAKE) MODE=release test
-	$(MAKE) MODE=debug test
-
-apps: $(DAEMON_BINS) $(BUILD)/exsim_api
-
-examples: $(EXAMPLE_BINS)
-
-# Restored standalone LOB suite from 0.1.2, linked to the current book.
+# Standalone LOB tests and benchmarks restored from release 0.1.2.
+BOOK_OBJS := $(call obj,lib/src/order_book.cpp)
 LOB_TEST_SRCS := $(sort $(wildcard tests/*.cpp))
 LOB_BENCH_SRCS := $(sort $(wildcard benchmark/*.cpp benchmark/cases/*.cpp benchmark/support/*.cpp))
-LOB_TEST_BIN := $(BUILD)/lob_tests
 LOB_BENCH_BIN := build/bench/lob_benchmark
-ITCH_BIN := $(BUILD)/itch_replay
 
-.PHONY: lob-test benchmark benchmark-run benchmark-filter
-lob-test: $(LOB_TEST_BIN)
-	./$(LOB_TEST_BIN)
+ifeq ($(shell uname -s),Darwin)
+BENCHMARK_PREFIX := $(shell brew --prefix google-benchmark 2>/dev/null || echo /opt/homebrew/opt/google-benchmark)
+BENCH_CPPFLAGS := -I$(BENCHMARK_PREFIX)/include
+BENCH_LDFLAGS := -L$(BENCHMARK_PREFIX)/lib
+endif
 
+.PHONY: lob-test benchmark benchmark-run benchmark-filter itch-replay
 $(BUILD)/obj/tests/%.o: CXXFLAGS += -UNDEBUG
-$(LOB_TEST_BIN): $(call obj,$(LOB_TEST_SRCS)) $(BOOK_OBJS) $(BUILD)/link.config $(BUILD)/sources.config
-	@mkdir -p $(dir $@)
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(filter %.o,$^) -o $@ $(LDLIBS)
+$(BUILD)/lob_tests: $(call obj,$(LOB_TEST_SRCS)) $(BOOK_OBJS)
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) $^ -o $@ $(LDLIBS)
+lob-test: $(BUILD)/lob_tests
+	./$(BUILD)/lob_tests
 
-$(ITCH_BIN): $(call obj,tools/itch_replay/replay_main.cpp) $(BOOK_OBJS) $(BUILD)/link.config $(BUILD)/sources.config
-	@mkdir -p $(dir $@)
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(filter %.o,$^) -o $@ $(LDLIBS)
-
+$(BUILD)/itch_replay: $(call obj,tools/itch_replay/replay_main.cpp) $(BOOK_OBJS)
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) $^ -o $@ $(LDLIBS)
 itch-replay:
 	$(MAKE) MODE=perf build/perf/itch_replay
 
 ifeq ($(MODE),bench)
 $(BUILD)/obj/benchmark/%.o: CPPFLAGS += -I benchmark $(BENCH_CPPFLAGS)
-$(LOB_BENCH_BIN): $(call obj,$(LOB_BENCH_SRCS)) $(BOOK_OBJS) $(BUILD)/link.config $(BUILD)/sources.config
-	@mkdir -p $(dir $@)
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(filter %.o,$^) -o $@ $(BENCH_LDFLAGS) -lbenchmark $(LDLIBS)
+$(LOB_BENCH_BIN): $(call obj,$(LOB_BENCH_SRCS)) $(BOOK_OBJS)
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) $^ -o $@ $(BENCH_LDFLAGS) -lbenchmark $(LDLIBS)
 endif
-
 benchmark:
 	$(MAKE) MODE=bench $(LOB_BENCH_BIN)
-
 benchmark-run: benchmark
 	./$(LOB_BENCH_BIN) $(ARGS)
-
 benchmark-filter: benchmark
 	./$(LOB_BENCH_BIN) --benchmark_filter=$(FILTER) $(ARGS)
-
-LOB_OBJS := $(call obj,$(LOB_TEST_SRCS) $(LOB_BENCH_SRCS) tools/itch_replay/replay_main.cpp)
--include $(LOB_OBJS:.o=.d)
-
-# ---------------------------------------------------------------------------
-# Google Benchmark suite (Homebrew on macOS, system install on Linux).
-# ---------------------------------------------------------------------------
-BENCH_SRCS := $(shell find test/benchmark -name '*.cpp' | sort)
-BENCH_BIN := build/bench/benchmark
-
-ifeq ($(MODE),bench)
-$(BENCH_BIN): $(BUILD)/link.config $(BUILD)/sources.config
-$(BENCH_BIN): CPPFLAGS += -I test/benchmark $(BENCH_CPPFLAGS)
-$(BENCH_BIN): $(call obj,$(BENCH_SRCS)) $(LIB_OBJS)
-	@mkdir -p $(dir $@)
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(filter %.o,$^) -o $@ $(BENCH_LDFLAGS) -lbenchmark $(LDLIBS)
-
-$(BUILD)/obj/test/benchmark/%.o: CPPFLAGS += -I test/benchmark $(BENCH_CPPFLAGS)
-endif
-
-bench:
-	$(MAKE) MODE=bench $(BENCH_BIN)
-
-bench-run: bench
-	./$(BENCH_BIN) $(ARGS)
-
-clean:
-	rm -rf build
-
-.PHONY: legacy legacy-test legacy-tools legacy-bench
-legacy: legacy-test legacy-tools examples
-legacy-tools: $(LEGACY_TOOL_BIN)
-legacy-test: $(LEGACY_TEST_BIN)
-	./$(LEGACY_TEST_BIN) $(FILTER)
-
-$(BUILD)/obj/legacy/%.o: CPPFLAGS += -I legacy/include
-
-$(LEGACY_TEST_BIN) $(LEGACY_TOOL_BIN) $(EXAMPLE_BINS): $(BUILD)/link.config $(BUILD)/sources.config
-$(LEGACY_TEST_BIN): $(call obj,test/main.cpp test/framework/alloc_counter.cpp $(LEGACY_TEST_SRCS)) $(LEGACY_OBJS) $(BOOK_OBJS)
-	@mkdir -p $(dir $@)
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(filter %.o,$^) -o $@ $(LDLIBS)
-
-$(LEGACY_TOOL_BIN): $(call obj,$(LEGACY_TOOL_SRCS)) $(BOOK_OBJS)
-	@mkdir -p $(dir $@)
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(filter %.o,$^) -o $@ $(LDLIBS)
-
-ifeq ($(MODE),bench)
-$(LEGACY_BENCH_BIN): $(BUILD)/link.config $(BUILD)/sources.config
-$(LEGACY_BENCH_BIN): $(call obj,$(LEGACY_BENCH_SRCS)) $(LEGACY_OBJS) $(BOOK_OBJS)
-	@mkdir -p $(dir $@)
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(filter %.o,$^) -o $@ $(BENCH_LDFLAGS) -lbenchmark $(LDLIBS)
-$(BUILD)/obj/legacy/test/benchmark/%.o: CPPFLAGS += -I legacy/test/benchmark $(BENCH_CPPFLAGS)
-endif
-
-legacy-bench:
-	$(MAKE) MODE=bench $(LEGACY_BENCH_BIN)
-
-ALL_OBJS := $(LIB_OBJS) $(call obj,$(TEST_SRCS) $(EXAMPLE_SRCS) $(BENCH_SRCS) $(TEST_TOOL_SRCS) $(wildcard src/*/*.cpp) $(LEGACY_SRCS) $(LEGACY_TEST_SRCS) $(LEGACY_TOOL_SRCS) $(LEGACY_BENCH_SRCS))
--include $(ALL_OBJS:.o=.d)

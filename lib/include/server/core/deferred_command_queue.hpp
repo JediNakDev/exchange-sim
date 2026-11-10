@@ -38,7 +38,6 @@ public:
         return true;
     }
 
-    [[nodiscard]] bool empty() const noexcept { return size_ == 0; }
     [[nodiscard]] std::size_t size() const noexcept { return size_; }
     [[nodiscard]] std::size_t capacity() const noexcept { return capacity_; }
 

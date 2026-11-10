@@ -1,8 +1,0 @@
-# exssconnect = true
-
-[user CAROL]                                # sn them
-stp = cancel_aggressor
-cancel_on_disconnect = .
-
-[e9
-st

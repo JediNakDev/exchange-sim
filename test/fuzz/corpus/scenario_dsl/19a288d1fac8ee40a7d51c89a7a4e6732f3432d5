@@ -1,3 +1,0 @@
-instrument AAA tick=-.14 lot=1 max_qty=200 min=99 max=101 ref=100 phase=CONTINUOUS
-session alice true
-e

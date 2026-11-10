@@ -23,20 +23,13 @@
 //                              initial_phase
 //   [user <USERNAME>]          password, protocol, session_id, owner, stp,
 //                              cancel_on_disconnect
-//   [bot <NAME>]               type (market_maker|noise_taker), user,
-//                              instrument (symbol), then the options of
-//                              exsim::sim::bots::apply_bot_option
-//                              (lib/include/sim/bots/README.md)
-//
 // Prices are decimal dollars ("150.25"), stored with 4 implied decimals.
 // Trading-day times are "HH:MM[:SS[.fraction]]" local time; the end may be
-// "24:00". See config/exsim.conf for a complete example and
+// "24:00". See test/fixtures/exchange.conf for a complete example and
 // exchange core for the bot and journal semantics.
 
 #include "instrument.hpp"
 #include "matching_engine.hpp"
-#include "sim/bots/market_maker.hpp"
-#include "sim/bots/noise_taker.hpp"
 #include "types.hpp"
 
 #include <cstddef>
@@ -48,7 +41,7 @@
 namespace exsim::server {
 
 // Order-entry protocol of a configured user: OUCH 4.2 over SoupBinTCP, FIX
-// 4.4, or SBE over FIXP (historical design notes).
+// 4.4, or Exsim SBE over FIXP (not CME iLink).
 enum class Protocol : std::uint8_t { Ouch42 = 0, Fix44 = 1, FixpSbe = 2 };
 
 constexpr std::string_view to_string(Protocol protocol) noexcept {
@@ -118,33 +111,6 @@ constexpr std::string_view to_string(JournalFailurePolicy p) noexcept {
     return p == JournalFailurePolicy::Shutdown ? "shutdown" : "continue";
 }
 
-// Upper bound on [bot] sections; the exchange core's BotSet is sized by it.
-inline constexpr std::size_t kMaxBots = 32;
-
-enum class BotType : std::uint8_t { MarketMaker = 0, NoiseTaker = 1 };
-
-constexpr std::string_view to_string(BotType t) noexcept {
-    return t == BotType::MarketMaker ? "market_maker" : "noise_taker";
-}
-
-// One [bot NAME] section, resolved at parse time: session_id and owner come
-// from `user`, the instrument id from `instrument` (config order, 1-based,
-// which is the engine's add order), and stp from the user unless the
-// section sets it. Only the config matching `type` is meaningful.
-struct BotSectionConfig {
-    std::string name;
-    BotType type = BotType::MarketMaker;
-    std::string user;               // a configured user; the bot owns its session exclusively
-    std::string instrument_symbol;  // the one instrument the bot trades
-    sim::bots::MarketMakerConfig market_maker{};
-    sim::bots::NoiseTakerConfig noise_taker{};
-
-    [[nodiscard]] const sim::bots::BotConfig& identity() const noexcept {
-        return type == BotType::MarketMaker ? static_cast<const sim::bots::BotConfig&>(market_maker)
-                                            : static_cast<const sim::bots::BotConfig&>(noise_taker);
-    }
-};
-
 struct ServerConfig {
     ExchangeSection exchange;
     MarketDataSection market_data;
@@ -154,7 +120,6 @@ struct ServerConfig {
     std::uint32_t journal_flush_interval_ms = 1000;  // periodic flush from the core timer; 0 = never
     std::vector<InstrumentConfig> instruments;
     std::vector<UserConfig> users;
-    std::vector<BotSectionConfig> bots;
 
     [[nodiscard]] const UserConfig* find_user(std::string_view username) const noexcept;
 };

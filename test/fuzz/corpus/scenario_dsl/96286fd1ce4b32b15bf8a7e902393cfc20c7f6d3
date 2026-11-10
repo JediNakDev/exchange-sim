@@ -1,3 +1,0 @@
-instrument AAA tick=0.01 lot=1 max_qty=10ref=100 phase=CONTINUOUS
-session μμμμμμμ bob own2
-NEW_ORDER instrument=AAA sessiolan=ice cl_ord_id=a side=BUY qty=10 =ynts

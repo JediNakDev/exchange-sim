@@ -1,3 +1,0 @@
-instrument AAA tick=0.0100 min=99 max=101 ref=100 phase=CONTINUOUS
-session alice leaves_qty=3
-expect order session=alice cl_ord_rd=aession=alice orig_cl_oy=0

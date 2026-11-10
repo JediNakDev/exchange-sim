@@ -755,7 +755,7 @@ private:
 };
 
 // All FIX users of the server, built at setup. find() maps a SessionId to its
-// state in O(1); find_by_comp_id() serves Logon. on_events() is the
+// state in O(1). on_events() is the
 // server contract 2.3 dispatch for FIX users: each distinct session of the
 // batch gets exactly one FixUserState::on_events call, in first-seen order.
 template <FixByteSink Sink>
@@ -781,14 +781,6 @@ public:
     [[nodiscard]] FixUserState<Sink>* find(SessionId session) noexcept {
         const std::uint16_t position = index_by_session_[session];
         return position == 0 ? nullptr : users_[position - 1u].get();
-    }
-    [[nodiscard]] FixUserState<Sink>* find_by_comp_id(std::string_view comp_id) noexcept {
-        for (const auto& user : users_) {
-            if (user->comp_id() == comp_id) {
-                return user.get();
-            }
-        }
-        return nullptr;
     }
 
     template <class Context>

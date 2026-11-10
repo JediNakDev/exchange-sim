@@ -1,7 +1,7 @@
 # FIX 4.4 gateway integration
 
 Include `gateway/fix/fix_gateway.hpp`. All types are in
-`exsim::gateway::fix`; implementations are header-only C++20 templates.
+`exsim::gateway::fix`; implementations are header-only C++23 templates.
 
 - `FixByteSink`: `char* prepare(size_t)` and `void commit(size_t)`, both noexcept.
 - `FixTime{monotonic_ns, realtime_ns}`: injected timer and Unix wire clocks.

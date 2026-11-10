@@ -1,9 +1,0 @@
-# exsi
-[engine]
-max_instruments = 4
-max_orders = 1048576
-max_tokens_per_session = 1048578576
-store_bytes_per_session = 000000017566744069824666112
-
-[journal]
-path on_disconct = tru.

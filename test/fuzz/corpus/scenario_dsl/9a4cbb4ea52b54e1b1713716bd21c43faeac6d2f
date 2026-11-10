@@ -1,5 +1,0 @@
-instrument e=CONTINUOUS
-session alice o sck=0.01 lotZ=1 mr~f=100 phase=CONTINUOUS
-session alice own
-session bob own2
-SET_PHASE instS0 ent=AAA IsesNs

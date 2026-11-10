@@ -27,27 +27,7 @@ flowchart TD
 From the repository root:
 
 ```sh
-cd web
-bun install
-bun run dev
-```
-
-This builds the C++ backend and starts both backend and frontend:
-
-- Frontend: http://127.0.0.1:3000
-- Backend: http://127.0.0.1:7600
-
-By default, this uses file-backed metadata. To use an existing PostgreSQL database set this variable in your environment:
-
-```dotenv
-EXSIM_DATABASE_URL=postgresql://USER:PASSWORD@localhost:5432/exsim
-```
-
-Or you can skip all that and run it via docker compose.
-
-```sh
-sh docker/create-secrets.sh
-docker compose up -d --build --wait
+INPUT THE CMD FOR ME
 ```
 
 ## Key Design Decisions

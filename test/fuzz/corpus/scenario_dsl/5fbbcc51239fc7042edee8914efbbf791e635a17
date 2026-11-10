@@ -1,6 +1,0 @@
-instrument AAA tick=0.01 lot=1OUS
-session alice own
-session bo_oid=bl_ord`id=b side=BUY qty=10 price=100
-REPLACE session=alice oÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿrig_cl_ord_id=a qty=5 price=1ce cl_ord_id=n9
-NEW_ORDER instrume=10 price=100
-REPLACE ses-siotion_ty=00 match`id=4

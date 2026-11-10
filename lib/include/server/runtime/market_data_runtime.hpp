@@ -27,7 +27,6 @@
 #include "net/socket.hpp"
 #include "net/udp.hpp"
 #include "server/config.hpp"
-#include "sim/canonical.hpp"
 #include "sim/packet_faults.hpp"
 
 #include <array>
@@ -44,14 +43,6 @@ struct MarketDataRuntimeSettings {
     std::uint64_t heartbeat_interval_ns = 1'000'000'000;  // MoldUDP64 heartbeat after this much silence
     std::size_t max_held_packets = 256;                  // reorder fault capacity
     int send_buffer_bytes = 4 << 20;                     // SO_SNDBUF of the feed socket; 0 = OS default
-};
-
-struct MarketDataRuntimeStats {
-    std::uint64_t datagrams_sent = 0;
-    std::uint64_t datagram_send_failures = 0;  // ENOBUFS and friends: receivers recover by request
-    std::uint64_t retransmission_requests = 0;
-    std::uint64_t retransmission_responses = 0;
-    std::uint64_t events_published = 0;
 };
 
 class MarketDataRuntime {
@@ -119,10 +110,6 @@ public:
 
     // ---- MarketData policy ------------------------------------------------------
     void on_events(std::span<const Event> batch) {
-        for (const Event& event : batch) {
-            event_stream_hash_ = sim::hash_event(event, event_stream_hash_);
-        }
-        stats_.events_published += batch.size();
         (void)publisher_.on_events(batch);  // a failure stops the feed: see stopped()
     }
     void flush() { publisher_.flush(); }
@@ -164,13 +151,11 @@ public:
                 if (errno == EINTR || errno == EMSGSIZE) continue;
                 return;  // would block (or a transient error): wait for the next readiness
             }
-            ++stats_.retransmission_requests;
-            const md::RetransmitResult result = retransmission_server_.answer(
+            (void)retransmission_server_.answer(
                 std::span<const char>(request_buffer_.data(), static_cast<std::size_t>(length)),
                 [this, requester](std::span<const char> response) {
                     (void)retransmission_socket_.send_to(response, requester);
                 });
-            if (result.status == md::RetransmitStatus::Answered) ++stats_.retransmission_responses;
         }
     }
 
@@ -179,11 +164,6 @@ public:
     [[nodiscard]] bool stopped() const noexcept { return publisher_.state() == md::PublisherState::Stopped; }
     [[nodiscard]] md::PublishStatus stop_reason() const noexcept { return publisher_.stop_reason(); }
     [[nodiscard]] md::PublisherState state() const noexcept { return publisher_.state(); }
-    // sim::hash_event over every published event, in order: equals the hash
-    // exsim_replay prints for the journal of the same day.
-    [[nodiscard]] std::uint64_t event_stream_hash() const noexcept { return event_stream_hash_; }
-    [[nodiscard]] const MarketDataRuntimeStats& stats() const noexcept { return stats_; }
-    [[nodiscard]] const md::PublisherStats& publisher_stats() const noexcept { return publisher_.stats(); }
     [[nodiscard]] net::Ipv4Endpoint feed_destination() const noexcept { return feed_destination_; }
     [[nodiscard]] net::Ipv4Endpoint retransmission_endpoint() const noexcept { return retransmission_endpoint_; }
 
@@ -215,11 +195,7 @@ private:
 
     void send_datagram(std::span<const char> packet) noexcept {
         if (feed_destination_.port == 0) return;  // feed disabled (no destination port configured)
-        if (feed_sender_.send_to(packet, feed_destination_) < 0) {
-            ++stats_.datagram_send_failures;
-        } else {
-            ++stats_.datagrams_sent;
-        }
+        (void)feed_sender_.send_to(packet, feed_destination_);
     }
 
     MarketDataRuntimeSettings settings_;
@@ -231,8 +207,6 @@ private:
     net::Ipv4Endpoint feed_destination_{};
     net::Ipv4Endpoint retransmission_endpoint_{};
     std::array<char, 2048> request_buffer_{};
-    std::uint64_t event_stream_hash_ = 14695981039346656037ull;
-    MarketDataRuntimeStats stats_{};
 };
 
 }  // namespace exsim::server::runtime

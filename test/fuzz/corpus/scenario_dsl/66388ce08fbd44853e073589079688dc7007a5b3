@@ -1,5 +1,0 @@
-instrument AAA tick=0.01 lot=1 max_qty=100 min=99 max=101 ref=100 phase=CONTINUOUS
-session alice own
-session boinstrument AAA tick=0.01 lot=1 max_b own2
-NEW_ORDER instrument=AAA session=alice cl_ord_id=arice=98
-expect rejected reason= tick=0.01 lot=1 max_ain=99l

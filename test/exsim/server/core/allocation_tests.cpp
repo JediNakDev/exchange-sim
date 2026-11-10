@@ -1,6 +1,6 @@
 // Steady state of the exchange core allocates nothing on the C++ heap:
 // submit and dispatch (including deferred commands from inside a callback),
-// the timer with both bots trading and journaling on, bind/unbind with
+// the timer with external client commands and journaling on, bind/unbind with
 // cancel-on-disconnect, and every fault query a gateway or the loop makes.
 
 #include "test/exsim/server/core/core_test_support.hpp"
@@ -47,14 +47,14 @@ struct Workload {
     ClOrdId next_token = 1;
     std::size_t disconnects_taken = 0;
 
-    // One trading "second": bots on every millisecond, client flow and
+    // One trading "second": timers every millisecond, client flow and
     // connection churn in between.
     void run_one_round() {
         for (int step = 0; step < 1000; ++step) {
             now += kMillisecond;
             clock.day = now;
             core.timer(now);
-            if (step == 100) client_flow();
+            if (step % 10 == 0) client_flow();
             if (step == 400) fault_queries();
             if (step == 700) connection_churn();
         }
@@ -116,7 +116,7 @@ TEST_CASE(server_core_allocation, steady_state_allocates_nothing) {
     if (!testfw::allocation_counting_available()) return;  // ASan/TSan builds
     const std::string journal_path = temp_journal_path("allocation");
     const ServerConfig config =
-        parse_test_config(std::string(kTwoBots) + "\n[journal]\npath = " + journal_path + "\nflush_interval_ms = 100\n");
+        parse_test_config(std::string{} + "\n[journal]\npath = " + journal_path + "\nflush_interval_ms = 100\n");
 
     UnbindingSessions sessions;
     CountingMarketData market_data;
@@ -124,7 +124,7 @@ TEST_CASE(server_core_allocation, steady_state_allocates_nothing) {
     {
         CountingCore core(config, sessions, market_data, clock);
         Workload workload{sessions, clock, core};
-        workload.run_one_round();  // warm-up: first quotes, first journal flush
+        workload.run_one_round();  // warm-up: client flow and first journal flush
 
         // Fault state as the admin console would leave it (admin allocates,
         // so it stays outside the measured scope).

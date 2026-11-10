@@ -47,7 +47,6 @@ class ReceiveBuffer {
     }
     std::size_t size() const noexcept { return write_offset_ - read_offset_; }
     std::size_t capacity() const noexcept { return capacity_; }
-    bool empty() const noexcept { return write_offset_ == read_offset_; }
 
     // Drops `bytes` from the front of readable() (a framer consumes whole messages).
     void consume(std::size_t bytes) noexcept {

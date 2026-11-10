@@ -1,9 +1,0 @@
-[engine]
-max_instruments = 2
-max_orders = 1000
-[instrument AMM1]
-tick_size = 0.01
-[user '''''''''''''''''''''''''''''''IXCLI]
-prOtocol =  fix44
-session_id = 2
-stp= cancel_both

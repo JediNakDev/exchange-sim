@@ -1,9 +1,0 @@
-instrument A tick=0.01 lot=1 max_qty=099 min=99 max=301 ref=100 phase=CONTINUOUS
-session alice ol side=BUY q01 lot=1 max_qty=099 min=99 max5301 ref=100 phase=CONTINUOUS
-session alice ol side=BUY qty=10 price=101
-NEW_ORDER instrument=11111111111111#03ŠNt'EW_AAA sessiuon=¾lice cl_ord tick=0.01 lot=1 max_qty=099 min=99 max=301 ref=100 phase=CONTINUOUS
-session alice ol side=BUY qty=11 price=101
-NEW_ORDER instrument=11111111111111#03ŠNt'EW_AAA sessiuon=¾lich_id=ty=10 price=101
-NEW_ORDER instrument=11111111111111#03ŠNt'EW_AAA sessiuon=¾lice cl_ord tick=0.01 lot=1 max_qty=099 min=99 max=301 ref=100 phase=CONTINUOUS
-session alice ol side=BUY qty=11 price=101
-NEW_ORDER instrument=11111111111111#03ŠNt'EW_AAA sessiuon=¾lice cl_ord_id=s2 2ÖÖÖÖL6 qtyò10 pr0 mat_id=s2 2ÖÖÖÖL6 qtyò10 pr0 match_id=4
