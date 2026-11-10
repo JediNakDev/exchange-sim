@@ -1,17 +1,20 @@
 # API specs
 
-Build the two C++23 processes from the repository root:
+Build and start the management API from the repository root:
 
 ```sh
 make -j4 apps
-./build/release/exsim_api --bind 127.0.0.1 --port 7600 --data-dir output/exchanges
+./build/release/exsim_api --bind 127.0.0.1 --port 7600 --data-dir exchanges
 ```
 
-The API saves exchange configs in the data directory. It holds live process state in RAM. Starting the API reloads definitions as stopped; it does not resume orders or automatically restart exchanges. The data directory is locked to one manager.
+This starts the API at `http://127.0.0.1:7600`. It saves exchange definitions on disk and holds live process state in RAM. Restarting the API reloads definitions as stopped.
 
-Create a definition using the sample INI config:
+## Create and start an exchange
+
+Create a request from the sample config:
 
 ```sh
+mkdir -p output
 python3 - <<'PY' > output/exchange-request.json
 import json
 from pathlib import Path
@@ -21,7 +24,7 @@ curl -sS -H 'Content-Type: application/json' \
   --data-binary @output/exchange-request.json http://127.0.0.1:7600/v1/exchanges
 ```
 
-Use the returned ID:
+Use the returned ID in place of `EXCHANGE_ID`:
 
 ```sh
 curl -sS -X POST http://127.0.0.1:7600/v1/exchanges/EXCHANGE_ID/start
@@ -31,18 +34,57 @@ curl -sS -X POST http://127.0.0.1:7600/v1/exchanges/EXCHANGE_ID/stop
 curl -sS -X DELETE http://127.0.0.1:7600/v1/exchanges/EXCHANGE_ID
 ```
 
-`PUT /v1/exchanges/{id}` replaces a stopped definition using the same `{"config":"..."}` request. Responses redact passwords; send your original/full config for replacement. Updating or deleting a running exchange returns `409`. Start waits for readiness and stop waits for exit; both return `200`, including repeated calls. Requests to a failed startup return its failure, with the definition retained for correction and retry.
+Every start creates empty books. External trading clients provide the orders.
 
-Order entry supports OUCH 4.2 over SoupBinTCP and FIX 4.4, sharing the same books and ITCH 5.0 over MoldUDP64 public feed. Set each participant's `protocol` to `ouch42` or `fix44`. The exchange opens a TCP listener for each protocol; `ouch_port` and `fix_port` configure them, and connection details return `orderEntryPort` and `fixOrderEntryPort`. Set unique market-data destinations for simultaneously running exchanges. Listener port `0` requests an OS-assigned TCP/recovery port. Market-data destination port must be explicit and nonzero. Query `connections` for the actual ports and fresh session identity on each start.
+## Routes
 
-Use a specific local IPv4 `bind_address`. Use a reachable LAN address for trader computers on another machine. Multicast also needs a working interface/network path. A unicast market-data destination supports one receiving address, not many subscribers. The HTTP API has no authentication and binds loopback by default.
+Paths below are relative to `/v1`.
 
-You can also start an unmanaged exchange directly:
+| Method | Path | Result |
+| --- | --- | --- |
+| GET | `/service` | Supported service profile |
+| GET | `/exchanges` | All definitions |
+| POST | `/exchanges` | Create a stopped definition, `201` |
+| GET | `/exchanges/{id}` | Definition and process state |
+| PUT | `/exchanges/{id}` | Replace a stopped definition |
+| DELETE | `/exchanges/{id}` | Delete a stopped definition, `204` |
+| POST | `/exchanges/{id}/start` | Start and wait for readiness |
+| POST | `/exchanges/{id}/stop` | Stop and wait for exit |
+| GET | `/exchanges/{id}/status` | State and live status when running |
+| GET | `/exchanges/{id}/connections` | Live endpoint details |
+
+Successful calls return `200` unless shown otherwise. Create and replace take an object containing only a `config` string with the full INI.
+
+Responses redact passwords. Keep the original config for replacement; a redacted response cannot be submitted as a config.
+
+Running definitions cannot be replaced or deleted (`409`). Repeated start or stop returns the existing state. Connections requires a running process (`409` otherwise). Invalid configs return `400`; unknown IDs return `404`.
+
+Startup readiness or port conflicts return `409`. Failure to launch the executable returns `503`. The definition remains available for correction and retry. The API currently allows at most 32 definitions.
+
+## Trading connections
+
+Set each user's `protocol` to `ouch42` or `fix44`. OUCH 4.2 over SoupBinTCP and FIX 4.4 share the same books. Public events use ITCH 5.0 over MoldUDP64.
+
+Configure TCP listeners with `ouch_port` and `fix_port`. The connections response exposes `orderEntryPort` and `fixOrderEntryPort`. Listener port zero requests an OS-assigned port. Query connections after every start for actual ports and the fresh market-data session identity.
+
+Use a specific local IPv4 `bind_address` and a nonzero market-data destination port. Running exchanges need distinct feed address and port pairs. A unicast feed sends to one destination address; multicast needs a working network path.
+
+The HTTP API has no authentication and defaults to loopback. Remote traders need a reachable exchange address.
+
+## Shutdown and disk state
+
+Stop the API with Ctrl+C. It stops and reaps its managed exchanges. Children also shut down if their private connection to the manager closes.
+
+The data directory is locked to one API process. Config files retain full credentials with owner-only permissions. Books and sessions are not saved.
+
+Standalone exchanges can use optional journal settings. Managed exchanges currently reject journaling, FIXP, and public admin listeners.
+
+To run an exchange directly:
 
 ```sh
 ./build/release/exsim_exchanged --config test/fixtures/exchange.conf
 ```
 
-Stop it with SIGINT or SIGTERM. Managed exchanges also stop if their manager disappears. Every new process starts with empty books. Journaling is available to standalone exchanges through the existing INI settings; managed journaling is not enabled in this first API.
+Stop it with SIGINT or SIGTERM. It also starts with empty books.
 
-See [OpenAPI](openapi.json) for the HTTP contract and [architecture](architecture.md) for process boundaries. Docker and Compose are not part of this checkout; run the native processes on macOS or Linux.
+See [OpenAPI](openapi.json) for the HTTP contract and [architecture](architecture.md) for process boundaries.

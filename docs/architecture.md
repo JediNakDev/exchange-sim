@@ -1,76 +1,66 @@
 # Architecture
 
-Exsim hosts empty exchanges. External trading engines provide every order and all liquidity. One C++ HTTP API manages definitions and supervises one C++ process per running exchange. Live exchange state stays in RAM; definitions are small INI files.
+Exsim runs empty exchanges. External trading engines provide every order and all liquidity. A C++ HTTP API manages config files and one C++ process per running exchange. Live exchange state stays in RAM.
 
 ```mermaid
 flowchart TD
   subgraph SERVER
     API <-->|"UNIX socket"| EXCHANGE
   end
-
   EXCHANGE <-->|"TCP: orders and private replies"| TRADER
   EXCHANGE <-->|"UDP: market data and recovery"| TRADER
 ```
 
-Matching, gateways, market-data publication, and recovery all run inside the exchange process. The API is outside the trading path. No frontend, trader worker, strategy templates, bots, research orchestration, or PostgreSQL is required.
+## Processes
 
-## Endpoints
+The API creates, updates, starts, stops, and deletes exchange definitions. It saves full INI configs on disk and reloads them as stopped after restart. It does not restore orders or restart exchanges automatically.
 
-For two exchanges on the same host, the management, OUCH, and market-data endpoints use these seven configured ports. FIX adds one TCP listener per exchange:
+Each exchange runs gateways, matching, market-data publication, and recovery. One event loop sequences commands across sessions. The API stays outside the trading path.
 
-| Purpose                                    | Exchange A | Exchange B |
-| ------------------------------------------ | ---------- | ---------- |
-| Shared management HTTP/TCP                 | 7600       | 7600       |
-| Order entry and private responses, TCP     | 15000      | 15010      |
-| Public feed destination, UDP multicast     | 16000      | 16010      |
-| Recovery requests and replies, UDP unicast | 16001      | 16011      |
+A private UNIX socket carries management commands and status. Start waits for readiness. Stop waits for exit and forces termination if needed. A lost manager connection stops the child exchange.
 
-The listed endpoints comprise five listeners and two public feed destinations. Including FIX gives seven listeners and two feed destinations, or nine configured ports for two exchanges. Use different multicast groups for the two feeds. The private control sockets need no TCP/UDP ports. Trader computers connect to these existing endpoints; more traders do not add exchange listeners. Their temporary source ports are assigned by their operating systems.
+## Trading connections
 
-The first enabled profile is OUCH 4.2 over SoupBinTCP 3.0 for order entry, with ITCH 5.0 over MoldUDP64 for public events. FIX 4.4 remains active alongside OUCH. Inactive FIXP/SBE implementations and their tests are archived under `legacy/exsim/` and excluded from active targets. Transport comes from the protocol profile, not an independent TCP/UDP toggle.
+OUCH 4.2 runs over SoupBinTCP. FIX 4.4 uses a separate TCP listener. Both use the same matching engine and books. Public events use ITCH 5.0 over MoldUDP64.
 
-Many traders share one TCP listener with separate connections and authenticated sessions. Public market data uses multicast group membership; recovery is a separate unicast request/reply service. TCP and UDP may share a numeric port, but distinct numbers make configuration clearer.
+Many traders can connect to one order-entry listener. Each has its own authenticated session. More traders do not require more exchange listener ports.
 
-## Management
+| Endpoint | Transport | Purpose |
+| --- | --- | --- |
+| Management API | HTTP/TCP | Manage exchange processes |
+| OUCH order entry | TCP | Orders and private replies |
+| FIX order entry | TCP | Orders and private replies |
+| Public feed destination | UDP | Market data |
+| Recovery listener | UDP | Requests and retransmitted messages |
 
-See [API usage](api.md) and [OpenAPI](openapi.json). The API provides definition CRUD, start/stop, status, and actual connection details. A definition is created stopped. Each start creates a fresh session identity and empty books.
+Use a specific local IPv4 bind address. TCP and recovery listener port zero requests an OS-assigned port. The feed destination needs a nonzero port. Query the API for actual connection details after each start.
 
-Start waits for socket readiness before returning `200`. Stop waits for bounded graceful shutdown, then forces termination if necessary. Repeated start or stop returns the existing state without duplicating work. Running definitions cannot be edited or deleted (`409`). After startup failure or a crash, an exited definition can be corrected, deleted, or restarted.
+Multicast needs a working interface and network path. A unicast feed sends to one destination address. Separate running exchanges cannot share the same feed address and port.
 
-The API serializes management operations and reports process exits when servicing requests. OS socket binding is the final authority for port conflicts; partial startup failure closes every socket and reaps the child. Running exchanges cannot share the same feed destination. The config directory is locked to one API process.
+## State and timing
 
-All private IPC messages have bounded sizes and timeouts. Status requests run between exchange loop iterations. This is a simple operator path, not a high-frequency telemetry service. A control failure stops the affected child and reports failure rather than returning stale live state as healthy.
+Each process starts with empty books and a fresh managed market-data session identity. Instruments, users, limits, and initial trading phases come from config. The sample starts AAPL in continuous trading.
 
-On API shutdown, children drain concurrently and are reaped. On manager crash, closing the private socket causes children to shut down. Definitions reload as stopped after API restart. There is no automatic process restart or live-state recovery.
+Matching takes commands and supplied timestamps. It does not read the clock or use randomness. The runtime supplies elapsed timing and trading-day timestamps. A seed alone cannot reproduce external network traffic.
 
-## Exchange behavior
+Order storage, session buffers, and recovery history have configured limits. The production matching path uses preallocated storage. Slow consumers and exhausted capacity follow rejection or disconnect rules.
 
-A gateway validates framing and session state, then translates messages into exchange commands. One loop sequences commands across sessions. The core validates instrument rules and applies matching, then routes private session responses and public events.
+See [data structures and algorithms](dsa.md) for storage and matching costs.
 
-Keep the matching engine independent of sockets and wall-clock reads. The runtime supplies monotonic elapsed timing and trading-day timestamps. External traffic is real-time input, so a seed alone cannot reproduce it.
+## Disk state
 
-Order pools, session buffers, and recovery history are bounded and allocated at startup. The existing core and gateway allocation checks remain active. Capacity failures reject orders; slow TCP consumers follow gateway disconnect rules instead of growing unbounded queues.
+The manager locks its config directory so only one API process can use it. Config writes use atomic replacement and owner-only file permissions. Responses redact passwords; replacement requests need the full original credentials.
 
-An empty exchange still needs instruments, tick/lot sizes, limits, users, session rules, and initial trading phases. The sample config starts AAPL in continuous trading so external clients can trade immediately. Protocol support is a defined subset, not a claim of complete venue compatibility.
+Standalone exchanges can write journals. Managed journaling is currently rejected. Journals do not provide automatic crash recovery, and abrupt termination can lose buffered records.
 
-## Files and network scope
+Books, session state, and feed history disappear when an exchange exits. Recovery only covers the retained feed ring. Late subscribers need earlier feed history or a future snapshot service.
 
-The manager saves full config files with owner-only permissions and atomic replacement. API responses redact passwords. Replacing a definition requires a full config with credentials. Managed journals are not enabled in the first API; standalone exchanges retain the existing optional journal settings.
+## Limitations
 
-Books, orders, session sequences, and retransmission buffers are discarded when the exchange exits. Journal files support offline inspection, not automatic crash recovery. Abrupt termination may lose buffered journal records.
+The HTTP API has no authentication and defaults to loopback. Remote traders need a reachable exchange address. Multicast delivery needs a suitable network.
 
-MoldUDP64 recovery covers retained session history only. Join before trading begins. Late join or a gap beyond the ring needs a fresh session or a future snapshot service. A retransmission ring is not a full book snapshot service.
+Protocol support is a subset of each specification. FIXP/SBE, live snapshots, and automatic state recovery are not active features.
 
-Run native processes on macOS or Linux. Docker and Compose were removed. Use a specific local IPv4 bind address and the correct interface for multicast. A unicast feed destination supports one receiver, not multicast fan-out. Remote clients need a reachable host address and a multicast-capable LAN. Public internet routing and HTTP proxies do not provide multicast delivery.
+Run native processes on macOS or Linux. Active checks cover unit and integration tests. The benchmark suite measures order-book operations and a benchmark-only sharding harness, not the complete exchange service.
 
-## Verification and remaining work
-
-Active verification is unit and integration testing, locally on macOS and OrbStack Ubuntu. See [test commands](../test/README.md). Retain core/session correctness and allocation coverage, protocol golden vectors, network integration, API CRUD/lifecycle, and external TCP/UDP interaction checks.
-
-Fuzz campaigns, benchmarks, old end-to-end/review suites, and standalone diagnostic tools are archived under `legacy/exsim/` and excluded from active builds. Further protocol profiles, live snapshots, managed journals, remote authentication, and larger-scale telemetry need separate implementation and validation. Removed reports or obsolete tests do not resolve outstanding correctness findings.
-
-## References
-
-- [SoupBinTCP 3.0](https://www.nasdaqtrader.com/content/technicalsupport/specifications/dataproducts/soupbintcp.pdf)
-- [MoldUDP64](https://www.nasdaqtrader.com/content/technicalsupport/specifications/dataproducts/moldudp64.pdf)
-- [RFC 6335: transport port identifiers](https://www.rfc-editor.org/rfc/rfc6335.html)
+See [API specs](api.md), [OpenAPI](openapi.json), [tests](../test/README.md), and [benchmarks](../benchmark/README.md).

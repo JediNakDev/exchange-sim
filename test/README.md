@@ -1,23 +1,45 @@
 # Tests
 
-Two active targets:
+From the repository root:
 
 ```sh
-make -j4 unit
-make -j4 integration
 make -j4 test
 ```
 
-`unit` covers matching, books, protocol codecs, in-memory gateway sessions, config, JSON, and exchange core policies. `integration` covers native socket/HTTP/feed components and the API with real child exchange processes over loopback TCP/UDP. It checks CRUD, session matching, feed recovery, isolation, conflicts, shutdown, and restart. No database or frontend is required.
+This runs three suites:
 
-Use `MODE=debug` for AddressSanitizer and UBSan. Use `FILTER=substring` to select native test cases; API process integration always runs its complete small set. Outputs go to `build/<mode>/`.
+| Command | Coverage |
+| --- | --- |
+| `make -j4 unit` | Matching, books, codecs, gateways, config, JSON, and core policies |
+| `make -j4 integration` | Sockets, HTTP, feeds, and API-managed exchange processes |
+| `make -j4 exchange-test` | Standalone order, matching, query, and ITCH replay checks |
 
-For OrbStack Ubuntu, use a separate build directory to avoid mixing macOS and Linux objects:
+Integration tests use loopback TCP/UDP and real child processes. They check lifecycle, trading, feed recovery, conflicts, isolation, and shutdown. Replay compares 100,000 synthetic messages with a reference book.
+
+## Debug and filtering
+
+```sh
+make -j4 test MODE=debug
+make -j4 unit FILTER=matching
+make -j4 integration FILTER=net_
+```
+
+Debug builds use AddressSanitizer and UBSan. `FILTER` selects native unit and integration cases by substring. It does not filter the standalone suite or the Python API tests.
+
+Builds go to `build/<mode>/`. CI runs all three suites on macOS and Ubuntu in release and debug modes.
+
+## OrbStack Ubuntu
+
+Use a separate build directory so Linux and macOS objects do not mix:
 
 ```sh
 orb -m ubuntu make -j4 test BUILD=build/linux-release EXTRA_CXXFLAGS=-Werror
 ```
 
-Fuzz campaigns, benchmarks, old server end-to-end/review suites, standalone tools, and inactive FIXP/SBE tests live under `legacy/exsim/`. They are excluded from these targets and CI and need migration before becoming active again. Removed strategy/research tests are outside the exchange-only product scope.
+## Scope
 
-Market-data receivers and book builders remain as validators for active publisher/recovery tests. Those implementations and the TCP test client are linked only into test binaries. Tests with historical `arena_*` and `vector_*` names still exercise the current production matching engine.
+Fuzz campaigns and old end-to-end suites are deferred. Inactive FIXP/SBE code remains under ignored `legacy/`. Removing old reports or tests does not resolve the findings they described.
+
+The active benchmark suite lives in [benchmark/](../benchmark/README.md). Replay lives in `src/utils/itch_replay/`.
+
+Book builders, the TCP test client, and admin test helpers are linked into test binaries. Historical `arena_*` and `vector_*` test names still exercise the current matching engine.

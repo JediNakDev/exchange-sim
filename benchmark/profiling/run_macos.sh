@@ -16,7 +16,7 @@ OUT=${1:-benchmark/profiling/macos_$(date +%Y%m%d_%H%M%S)}
 FILTER=${PERF_FILTER:-Mixed}
 
 if [[ ! -x "$BENCH" ]]; then
-    echo "error: $BENCH not found — run 'make benchmark' first" >&2
+    echo "error: $BENCH not found; run 'make -j4 bench-build' first" >&2
     exit 1
 fi
 mkdir -p "$OUT"

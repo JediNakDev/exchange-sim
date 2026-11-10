@@ -11,7 +11,7 @@
 #   benchmark/profiling/run_perf.sh [output_dir]
 #
 # Defaults: writes artifacts under benchmark/profiling/perf_$(date +%s)/
-# Requires: linux-tools-common (perf), repo built via `make benchmark`.
+# Requires: linux-tools-common (perf), repo built via `make -j4 bench-build`.
 set -euo pipefail
 
 BENCH=build/bench/exsim_benchmark
@@ -20,7 +20,7 @@ CORE=${PERF_CORE:-0}
 FILTER=${PERF_FILTER:-Mixed}
 
 if [[ ! -x "$BENCH" ]]; then
-    echo "error: $BENCH not found — run 'make benchmark' first" >&2
+    echo "error: $BENCH not found; run 'make -j4 bench-build' first" >&2
     exit 1
 fi
 mkdir -p "$OUT"
@@ -29,13 +29,13 @@ echo "=== perf stat (cache + branch counters) ==="
 perf stat -e cycles,instructions,cache-references,cache-misses,branch-instructions,branch-misses,L1-dcache-loads,L1-dcache-load-misses \
     -o "$OUT/perf_stat.txt" \
     taskset -c "$CORE" \
-    "$BENCH" --benchmark_filter="$FILTER" --benchmark_min_time=3s
+    "$BENCH" --core="$CORE" --benchmark_filter="$FILTER" --benchmark_min_time=3s
 echo "  → $OUT/perf_stat.txt"
 
 echo "=== perf record (sampled call stacks) ==="
 perf record -F 999 --call-graph dwarf -o "$OUT/perf.data" -- \
     taskset -c "$CORE" \
-    "$BENCH" --benchmark_filter="$FILTER" --benchmark_min_time=2s
+    "$BENCH" --core="$CORE" --benchmark_filter="$FILTER" --benchmark_min_time=2s
 echo "  → $OUT/perf.data"
 
 echo "=== perf report (top symbols) ==="

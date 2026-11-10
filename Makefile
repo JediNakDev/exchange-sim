@@ -58,7 +58,8 @@ clean:
 BOOK_OBJS := $(call obj,lib/src/exchange/order_book.cpp)
 EXCHANGE_TEST_SRCS := $(sort $(wildcard test/exchange/*.cpp))
 BENCH_SRCS := $(sort $(wildcard benchmark/*.cpp benchmark/cases/*.cpp benchmark/support/*.cpp))
-BENCH_BIN := build/bench/exsim_benchmark
+BENCH_BUILD ?= build/bench
+BENCH_BIN := $(BENCH_BUILD)/exsim_benchmark
 
 ifeq ($(shell uname -s),Darwin)
 BENCHMARK_PREFIX := $(shell brew --prefix google-benchmark 2>/dev/null || echo /opt/homebrew/opt/google-benchmark)
@@ -66,7 +67,7 @@ BENCH_CPPFLAGS := -I$(BENCHMARK_PREFIX)/include
 BENCH_LDFLAGS := -L$(BENCHMARK_PREFIX)/lib
 endif
 
-.PHONY: exchange-test benchmark benchmark-run benchmark-filter itch-replay
+.PHONY: exchange-test bench bench-build itch-replay
 $(BUILD)/obj/test/exchange/%.o: CXXFLAGS += -UNDEBUG
 $(BUILD)/exchange_tests: $(call obj,$(EXCHANGE_TEST_SRCS)) $(BOOK_OBJS)
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) $^ -o $@ $(LDLIBS)
@@ -83,9 +84,7 @@ $(BUILD)/obj/benchmark/%.o: CPPFLAGS += -I benchmark $(BENCH_CPPFLAGS)
 $(BENCH_BIN): $(call obj,$(BENCH_SRCS)) $(BOOK_OBJS)
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) $^ -o $@ $(BENCH_LDFLAGS) -lbenchmark $(LDLIBS)
 endif
-benchmark:
-	$(MAKE) MODE=bench $(BENCH_BIN)
-benchmark-run: benchmark
-	./$(BENCH_BIN) $(ARGS)
-benchmark-filter: benchmark
-	./$(BENCH_BIN) --benchmark_filter=$(FILTER) $(ARGS)
+bench-build:
+	$(MAKE) MODE=bench BUILD=$(BENCH_BUILD) $(BENCH_BIN)
+bench: bench-build
+	./$(BENCH_BIN) $(if $(FILTER),--benchmark_filter='$(FILTER)') $(ARGS)

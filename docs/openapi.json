@@ -134,7 +134,7 @@
                   "config": {
                     "type": "string",
                     "minLength": 1,
-                    "description": "Full INI as in test/fixtures/exchange.conf, including credentials. Only OUCH users, specific unicast IPv4 binds, and a nonzero UDP feed destination port are enabled. Listener port zero means OS-assigned. Bots, public admin, FIX, FIXP and managed journals are rejected."
+                    "description": "Full INI as in test/fixtures/exchange.conf, including credentials. OUCH 4.2 and FIX 4.4 users are supported. Use a specific unicast IPv4 bind address and a nonzero UDP feed destination port. Listener port zero means OS-assigned. Bots, public admin, FIXP and managed journals are rejected."
                   }
                 }
               }
@@ -217,7 +217,7 @@
                   "config": {
                     "type": "string",
                     "minLength": 1,
-                    "description": "Full INI as in test/fixtures/exchange.conf, including credentials. Only OUCH users, specific unicast IPv4 binds, and a nonzero UDP feed destination port are enabled. Listener port zero means OS-assigned. Bots, public admin, FIX, FIXP and managed journals are rejected."
+                    "description": "Full INI as in test/fixtures/exchange.conf, including credentials. OUCH 4.2 and FIX 4.4 users are supported. Use a specific unicast IPv4 bind address and a nonzero UDP feed destination port. Listener port zero means OS-assigned. Bots, public admin, FIXP and managed journals are rejected."
                   }
                 }
               }

@@ -1,29 +1,12 @@
-# Networking tests
+# Network tests
 
-The tests use loopback sockets and ephemeral ports. They cover TCP connections,
-partial writes, bounded buffers, stale readiness tokens, UDP and multicast.
-macOS uses kqueue; Linux uses epoll.
+These integration tests use loopback sockets and temporary ports. They cover TCP connections, partial writes, bounded buffers, stale readiness tokens, UDP, multicast, and protocol runtime behavior.
 
 ```sh
-make test FILTER=Network
-make test MODE=debug FILTER=Network
+make -j4 integration
+make -j4 integration MODE=debug
 ```
 
-The allocation check counts C++ heap allocations after setup. Sanitizer builds
-skip allocation counting; they still check memory safety.
+macOS uses kqueue. Linux uses epoll. Allocation checks count C++ heap allocations after setup. Sanitizer builds skip allocation counting and still check memory safety.
 
-## Integration
-
-Keep the Poller alive longer than the TcpServer. Route readiness events by
-owner tag, consume complete frames in callbacks, then call `flush_pending`.
-
-Gateway `prepare(n)` maps to `reserve_send(id, n).data()` with an explicit
-empty-span check. `commit(n)` maps to `commit_send(id, n)`.
-Use reserved spans immediately, before another buffer mutation or callback.
-Callbacks must not throw or recursively dispatch another poll batch.
-
-Readiness events expire at the next wait. Unregister clients before disconnect,
-or discard stale tokens. A full receive buffer needs parsing before another
-read. Send overflow closes the connection on the next flush.
-
-Graceful close drains pending output. The application owns the drain timeout.
+The integration target also runs the Python API tests. See [test commands](../../README.md) for filtering and OrbStack builds.

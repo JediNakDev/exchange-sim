@@ -1,29 +1,48 @@
-# Benchmark Suite
+# Benchmarks
 
-Install Google Benchmark (`brew install google-benchmark` on macOS), then run:
+Install Google Benchmark, then run from the repository root:
 
 ```sh
-make exchange-test
-make exchange-test MODE=debug
-make benchmark
-make benchmark-filter FILTER=GetBestBid
-make benchmark-run ARGS="--csv=output/exsim_results.csv --core=0"
-make itch-replay
-./build/perf/itch_replay --synth 100000 --validate
+# macOS
+brew install google-benchmark
+
+# Ubuntu
+sudo apt-get install libbenchmark-dev
+
+make -j4 bench
 ```
 
-The default CSV output is `build/bench/exsim_results.csv`. Custom output directories must exist.
-The CSVs in `results/` retain their historical data under the new release names.
-See [results/README.md](../results/README.md) for the version mapping.
+This builds the optimized C++23 binary and runs the suite. It uses native CPU tuning, LTO, and bounded order-book pools. Compilation is parallel; the benchmark runner starts once after linking.
 
-The suite covers add, match, cancel, modify, best bid/ask, spread, snapshot,
-mixed and cancel-heavy workloads, plus sharded throughput and latency.
-It uses Google Benchmark, seeded workloads, warmup, CPU pinning where available,
-and latency percentiles. Timings include per-operation clock overhead.
+## Selected runs
 
-`make exchange-test` runs the original order, matching, query and ITCH replay tests
-with assertions enabled. ITCH replay checks 100,000 synthetic messages against
-a reference book after every message. The unit and integration suites under `test/` remain available
-through `make test`.
+```sh
+make -j4 bench FILTER=GetBestBid
+make -j4 bench FILTER=MixedWorkload ARGS="--csv=output/exsim_results.csv --core=0"
+make -j4 bench ARGS="--benchmark_list_tests=true"
+make -j4 bench-build
+```
 
-See `profiling/` for the restored scripts and historical captures.
+`FILTER` is a Google Benchmark regular expression. `ARGS` passes runner options. `bench-build` only builds, for profiling or direct runs.
+
+The binary is `build/bench/exsim_benchmark`. CSV output defaults to `build/bench/exsim_results.csv` and is replaced on each run. Create custom output directories first. On OrbStack Ubuntu, use `BENCH_BUILD=build/linux-bench` to keep Linux objects separate.
+
+## Coverage
+
+The suite measures add, match, cancel, modify, best bid/ask, spread, snapshot, mixed, and cancel-heavy operations. Sharded cases use a benchmark-only harness under `support/`. They do not measure production exchange threading or API performance.
+
+Workloads use fixed seeds and warmup. Latency samples include clock overhead. The custom CSV keeps the first sample batch for each benchmark name; it is not a combined summary of every Google Benchmark iteration.
+
+CPU affinity is attempted. Linux can pin a thread to a CPU. macOS uses an affinity hint, which does not guarantee a specific core.
+
+## Replay
+
+```sh
+make -j4 itch-replay
+./build/perf/itch_replay --synth 100000 --validate
+make -j4 exchange-test
+```
+
+Replay drives the standalone order book. Validation compares it with a reference book. It does not test TCP gateways or the management API.
+
+See [profiling](profiling/README.md) for capture scripts and [historical results](../results/README.md) for older measurements.
