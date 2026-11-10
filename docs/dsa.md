@@ -12,7 +12,7 @@ A bitmap marks occupied ticks. When a level empties, the book scans 64-bit words
 
 The tradeoff is memory. Arrays cover the configured price band, including empty ticks. The production engine allows at most 2^24 ticks per instrument side. A narrow band saves memory.
 
-See [price levels](../lib/include/exchange/price_level.hpp), [order book](../lib/include/exchange/order_book.hpp), and [instrument ladders](../lib/src/exsim/engine/price_ladder.hpp).
+See [price levels](../lib/include/exchange/price_level.hpp), [order book](../lib/include/exchange/order_book.hpp), and [instrument ladders](../lib/src/engine/price_ladder.hpp).
 
 ## Order lookup and storage
 
@@ -36,7 +36,7 @@ A simple aggressive order takes expected O(F + W) work, where F is the number of
 
 Auction planning scans occupied prices and bitmap words in the crossed range. It chooses the largest executable quantity, then the smallest imbalance, then the price closest to the last trade or reference price. A remaining tie uses the lower price. Execution fills FIFO orders at that single auction price.
 
-See [matching engine](../lib/src/exsim/engine/matching_engine.cpp).
+See [matching engine](../lib/src/engine/matching_engine.cpp).
 
 ## Exchange metadata
 
@@ -46,7 +46,7 @@ Intrusive lists track active orders globally, by session, and by instrument. Thi
 
 Event buffers are supplied by the caller. Their capacity is checked before commands run. Capacity and price limits bound memory use; they do not make every command constant time. Each instrument also reserves book storage, so increasing instrument and order limits can use substantial RAM.
 
-See [order metadata](../lib/src/exsim/engine/order_metadata.hpp) and [engine interface](../lib/include/matching_engine.hpp).
+See [order metadata](../lib/src/engine/order_metadata.hpp) and [engine interface](../lib/include/matching_engine.hpp).
 
 ## Operation time complexity
 
