@@ -5,10 +5,16 @@ Exsim runs empty exchanges. External trading engines provide every order and all
 ```mermaid
 flowchart TD
   subgraph SERVER
-    API <-->|"UNIX socket"| EXCHANGE
+    API[Managing API] <-->|"Manage socket"| EX1[Exchange Process]
+    API <-->|"Manage socket"| EX2[Exchange Process]
   end
-  EXCHANGE <-->|"TCP: orders and private replies"| TRADER
-  EXCHANGE <-->|"UDP: market data and recovery"| TRADER
+
+  EX1 <-->|"TCP: Orders and private replies"| TD1[Trader]
+  EX1 <-->|"UDP: Market data and recovery"| TD1[Trader]
+  EX1 <-->|"TCP"| TD2[Trader]
+  EX1 <-->|"UDP"| TD2[Trader]
+  EX2 <-->|"TCP"| TD3[Trader]
+  EX2 <-->|"UDP"| TD3[Trader]
 ```
 
 ## Processes
@@ -25,13 +31,13 @@ OUCH 4.2 runs over SoupBinTCP. FIX 4.4 uses a separate TCP listener. Both use th
 
 Many traders can connect to one order-entry listener. Each has its own authenticated session. More traders do not require more exchange listener ports.
 
-| Endpoint | Transport | Purpose |
-| --- | --- | --- |
-| Management API | HTTP/TCP | Manage exchange processes |
-| OUCH order entry | TCP | Orders and private replies |
-| FIX order entry | TCP | Orders and private replies |
-| Public feed destination | UDP | Market data |
-| Recovery listener | UDP | Requests and retransmitted messages |
+| Endpoint                | Transport | Purpose                             |
+| ----------------------- | --------- | ----------------------------------- |
+| Management API          | HTTP/TCP  | Manage exchange processes           |
+| OUCH order entry        | TCP       | Orders and private replies          |
+| FIX order entry         | TCP       | Orders and private replies          |
+| Public feed destination | UDP       | Market data                         |
+| Recovery listener       | UDP       | Requests and retransmitted messages |
 
 Use a specific local IPv4 bind address. TCP and recovery listener port zero requests an OS-assigned port. The feed destination needs a nonzero port. Query the API for actual connection details after each start.
 

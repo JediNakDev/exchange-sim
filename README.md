@@ -5,11 +5,16 @@ A simple exchange simulator for testing trading strategies with various trading 
 ```mermaid
 flowchart TD
   subgraph SERVER
-    API <-->|"UNIX socket"| EXCHANGE
+    API[Managing API] <-->|"Manage socket"| EX1[Exchange Process]
+    API <-->|"Manage socket"| EX2[Exchange Process]
   end
 
-  EXCHANGE <-->|"TCP: orders and private replies"| TRADER
-  EXCHANGE <-->|"UDP: market data and recovery"| TRADER
+  EX1 <-->|"TCP: Orders and private replies"| TD1[Trader]
+  EX1 <-->|"UDP: Market data and recovery"| TD1[Trader]
+  EX1 <-->|"TCP"| TD2[Trader]
+  EX1 <-->|"UDP"| TD2[Trader]
+  EX2 <-->|"TCP"| TD3[Trader]
+  EX2 <-->|"UDP"| TD3[Trader]
 ```
 
 ## Getting Started
@@ -43,6 +48,7 @@ make -j4 bench
 - This is a very early alpha, expects bugs.
 - We provided only exchange simulator, you have to have your own trader engine.
 - Currently only support ITCH 5.0, OUCH 4.2, and FIX 4.4.
+- iLink and MDP coming soon.
 
 ## Further Reading
 
