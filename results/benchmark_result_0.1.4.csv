@@ -1,2 +1,0 @@
-Benchmark,Samples,Mean_ns,P50_ns,P95_ns,P99_ns,P99.9_ns,P99.99_ns,Min_ns,Max_ns,StdDev_ns,Throughput_ops_per_sec
-MixedWorkload,,27.391,41,84,167,250,417,0,17417,69.1838,21453700

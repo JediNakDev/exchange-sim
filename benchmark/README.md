@@ -18,7 +18,6 @@ make itch-replay
 The default CSV output is `build/bench/lob_results.csv`. Custom output directories must exist.
 The CSVs in `results/` retain their historical data under the new release names.
 See [results/README.md](../results/README.md) for the version mapping.
-The 0.1.4 CSV recovers the later MixedWorkload console capture; see the results notes.
 
 The suite covers add, match, cancel, modify, best bid/ask, spread, snapshot,
 mixed and cancel-heavy workloads, plus sharded throughput and latency.
