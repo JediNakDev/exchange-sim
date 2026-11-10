@@ -1,6 +1,0 @@
-[engine]
-max_instruments = 1
-max_orders = 1000
-[instrument MSFTAAPL]
-[user FIXCLI]
-protocol = fix

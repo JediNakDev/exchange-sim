@@ -1,5 +1,5 @@
-#ifndef LOB_OBJECT_POOL_HPP
-#define LOB_OBJECT_POOL_HPP
+#ifndef EXSIM_EXCHANGE_OBJECT_POOL_HPP
+#define EXSIM_EXCHANGE_OBJECT_POOL_HPP
 
 #include "compiler.hpp"
 #include <cstddef>
@@ -9,7 +9,7 @@
 #include <utility>
 #include <vector>
 
-namespace lob {
+namespace exsim::exchange {
 
 // Free-list pool. reserve() allocates exactly the requested node count in one
 // contiguous block; when growth is allowed, an empty free list adds a further
@@ -50,8 +50,8 @@ public:
     // Returns nullptr when the pool is empty and growth is disabled.
     template <typename... Args>
     T* create(Args&&... args) {
-        if (LOB_UNLIKELY(!free_list_)) {
-            if (LOB_UNLIKELY(!allow_growth_)) {
+        if (EXSIM_EXCHANGE_UNLIKELY(!free_list_)) {
+            if (EXSIM_EXCHANGE_UNLIKELY(!allow_growth_)) {
                 return nullptr;
             }
             allocate_block(BlockSize);
@@ -105,6 +105,6 @@ private:
     bool allow_growth_ = true;
 };
 
-}  // namespace lob
+}  // namespace exsim::exchange
 
 #endif

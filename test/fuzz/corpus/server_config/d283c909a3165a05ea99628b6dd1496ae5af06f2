@@ -1,5 +1,0 @@
-#IM
-
-[market_data]  
-loopback = true
-retransmit_port =lo   

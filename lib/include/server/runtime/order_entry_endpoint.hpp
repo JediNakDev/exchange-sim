@@ -70,7 +70,6 @@ public:
     [[nodiscard]] net::ErrorCode open() noexcept { return tcp_server_.open(); }
     [[nodiscard]] net::Ipv4Endpoint listen_endpoint() const noexcept { return tcp_server_.listen_endpoint(); }
     [[nodiscard]] std::uint8_t poll_tag() const noexcept { return poll_tag_; }
-    [[nodiscard]] std::uint32_t open_connection_count() const noexcept { return open_connections_; }
     // Open plus closing-and-flushing connections.
     [[nodiscard]] std::uint32_t transport_connection_count() const noexcept { return tcp_server_.connection_count(); }
 

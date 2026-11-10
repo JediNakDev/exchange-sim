@@ -100,17 +100,6 @@ bool same_canonical_events(const std::vector<Event>& left, const std::vector<Eve
     return true;
 }
 
-SessionId command_session(const Command& command) {
-    switch (command.type) {
-        case CommandType::NewOrder: return command.new_order.session;
-        case CommandType::Cancel: return command.cancel.session;
-        case CommandType::Replace: return command.replace.session;
-        case CommandType::MassCancel: return command.mass_cancel.session;
-        case CommandType::SetPhase: return 0;
-    }
-    return 0;
-}
-
 bool journal_is_readable(const std::string& path) {
     try {
         sim::JournalReader reader(path);
@@ -124,12 +113,13 @@ bool journal_is_readable(const std::string& path) {
 
 TEST_CASE(server_core_journal, replay_reproduces_every_dispatched_event) {
     const TempFile journal{temp_journal_path("replay")};
-    RecordingHarness h(parse_test_config(std::string(kTwoBots) + journal_section(journal.path)));
+    RecordingHarness h(parse_test_config(std::string{} + journal_section(journal.path)));
     REQUIRE(h.core.journal_state() == JournalState::Healthy);
     REQUIRE(h.core.bind(1, 11));
     REQUIRE(h.core.bind(2, 12));
 
-    // Clients, bots, admin and a disconnect, interleaved on one clock.
+    REQUIRE_EQ(h.core.submit(limit_order(2, 9, kAapl, Side::SELL, 1'500'000, 100)), SubmitResult::Applied);
+    // Clients, admin and a disconnect, interleaved on one clock.
     for (Timestamp now = kSecond; now < 2 * kSecond; now += kMillisecond) {
         h.clock.day = now;
         h.core.timer(now);
@@ -159,15 +149,11 @@ TEST_CASE(server_core_journal, replay_reproduces_every_dispatched_event) {
     CHECK_EQ(replay.events.size(), h.recorder.events.size());
     CHECK(same_canonical_events(replay.events, h.recorder.events));
 
-    bool saw_maker = false, saw_taker = false, saw_cancel_on_disconnect = false;
+    bool saw_cancel_on_disconnect = false;
     for (const Command& command : replay.commands) {
-        saw_maker = saw_maker || command_session(command) == 100;
-        saw_taker = saw_taker || command_session(command) == 101;
         saw_cancel_on_disconnect = saw_cancel_on_disconnect || (command.type == CommandType::MassCancel &&
                                                                 command.mass_cancel.cancel_on_disconnect);
     }
-    CHECK(saw_maker);
-    CHECK(saw_taker);
     CHECK(saw_cancel_on_disconnect);
     CHECK(replay.commands.back().type == CommandType::SetPhase);
 }

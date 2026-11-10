@@ -1,8 +1,8 @@
 #ifndef EXSIM_ENGINE_ORDER_METADATA_HPP
 #define EXSIM_ENGINE_ORDER_METADATA_HPP
 
-// Exchange metadata indexed by the original LOB order's context_index.
-// The LOB owns resting orders, price levels, FIFO links and remaining shares.
+// Exchange metadata indexed by the order book order's context_index.
+// The order book owns resting orders, price levels, FIFO links and remaining shares.
 // These preallocated arrays retain session/STP attributes, cumulative fills,
 // and engine/session/instrument query lists. Index 0 means no metadata slot.
 

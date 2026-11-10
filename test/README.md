@@ -1,41 +1,37 @@
 # Tests
 
-Native tests use the shared runner. Benchmark and fuzz have separate entry points.
-Binaries still go in `build/<mode>/`.
+From the repository root:
 
 ```sh
 make -j4 test
+```
+
+This runs three suites:
+
+| Command | Coverage |
+| --- | --- |
+| `make -j4 unit` | Matching, books, codecs, gateways, config, JSON, and core policies |
+| `make -j4 integration` | Sockets, HTTP, feeds, and API-managed exchange processes |
+| `make -j4 exchange-test` | Standalone order, matching, query, and ITCH replay checks |
+
+Integration tests use loopback TCP/UDP and real child processes. They check lifecycle, trading, feed recovery, conflicts, isolation, and shutdown. Replay compares 100,000 synthetic messages with a reference book.
+
+## Debug and filtering
+
+```sh
 make -j4 test MODE=debug
-make -j4 test-tools
-make bench
+make -j4 unit FILTER=matching
+make -j4 integration FILTER=net_
 ```
 
-`make apps` builds the API and its workers. `make test-tools` builds benchmarks, differential fuzz, scenario and replay checks, plus the diagnostic and research CLIs.
-The replay and scenario tools use an independent reference engine for validation.
-Standalone book examples, ITCH replay and sharding tests live in `legacy/`.
+Debug builds use AddressSanitizer and UBSan. `FILTER` selects native unit and integration cases by substring. It does not filter the standalone suite or the Python API tests.
 
-## Fuzz
+Builds go to `build/<mode>/`. CI runs all three suites on macOS and Ubuntu in release and debug modes.
 
-The committed corpus is replayed by the normal native tests. Campaigns need clang with libFuzzer, available in the development Docker image.
+## Scope
 
-```sh
-make -C test/fuzz
-make -C test/fuzz run TARGET=itch50 SECONDS=30 JOBS=1 WORKERS=1
-make -C test/fuzz seeds
-```
+Fuzz campaigns and old end-to-end suites are deferred. Inactive FIXP/SBE code remains under ignored `legacy/`. Removing old reports or tests does not resolve the findings they described.
 
-Campaign output goes in `build/fuzz/`. `make -C test/fuzz merge TARGET=itch50` updates the committed corpus.
+The active benchmark suite lives in [benchmark/](../benchmark/README.md). Replay lives in `src/utils/itch_replay/`.
 
-## Integration
-
-Run from the repository root:
-
-```sh
-python3 -B test/integration/test_research_audit.py
-python3 -B test/integration/test_research_delivery.py
-python3 -B test/integration/compose_secrets_test.py
-python3 test/integration/process_architecture_test.py
-```
-
-The PostgreSQL and Compose integration tests need their services. CI sets up disposable instances.
-Frontend tests stay in `web/test/` and run through the Bun package.
+Book builders, the TCP test client, and admin test helpers are linked into test binaries. Historical `arena_*` and `vector_*` test names still exercise the current matching engine.

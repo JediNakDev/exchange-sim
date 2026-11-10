@@ -1,9 +1,0 @@
-name=nt1
-session_id=8
-instrument=1
-mean_interval_ms=20
-min_size=1
-max_size=50
-limit_ppm=250000
-fair_value_ticks=15000
-enabled=0

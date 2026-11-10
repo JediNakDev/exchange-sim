@@ -4,7 +4,7 @@
 // Protocol-independent exchange core of the exsim server (server contract,
 // exchange core). It owns the matching engine, the startup-sized
 // EventBuffer, the configured users and their session bindings, the
-// optional canonical journal, the simulated-liquidity bots and the admin
+// optional canonical journal and the admin
 // and fault-injection state, and it is the gateway Context of SERVER.md 2.1.
 //
 //   ExchangeCore<Sessions, MarketData, Clock> core(config, sessions, md, clock);
@@ -30,7 +30,6 @@
 #include "server/core/policies.hpp"
 #include "server/core/session_dispatch_set.hpp"
 #include "server/core/user_faults.hpp"
-#include "sim/bots/bot_set.hpp"
 #include "sim/journal.hpp"
 #include "sim/packet_faults.hpp"
 
@@ -97,17 +96,6 @@ template <typename Sessions, typename MarketData, CoreClock Clock, typename Jour
     requires CoreMarketData<MarketData>
 class ExchangeCore {
 public:
-    using BotRegistry = sim::bots::BotSet<kMaxBots>;
-
-    // Read-only view of one configured bot, for status and tests.
-    struct BotEntry {
-        std::string name;
-        BotType type = BotType::MarketMaker;
-        std::string user;
-        std::string instrument_symbol;
-        const sim::bots::BotState* state = nullptr;
-    };
-
     ExchangeCore(const ServerConfig& config, Sessions& sessions, MarketData& market_data, const Clock& clock,
                  CoreOptions options = {})
         : config_(config),
@@ -124,7 +112,6 @@ public:
           journal_flush_interval_ns_(Timestamp{config.journal_flush_interval_ms} * 1'000'000) {
         static_assert(CoreSessions<Sessions, ExchangeCore>,
                       "Sessions needs on_events(SessionId, std::span<const Event>, Core&)");
-        static_assert(sim::bots::BotContext<ExchangeCore>);
         if (day_start_ >= day_end_ || day_end_ > kNanosecondsPerDay) {
             throw std::invalid_argument("trading day range");
         }
@@ -145,7 +132,6 @@ public:
             users_.push_back(UserRuntime{&user});
             user_index_by_session_[user.session_id] = static_cast<std::uint16_t>(users_.size());
         }
-        add_configured_bots();
         if (!config_.journal_path.empty()) {
             journal_.emplace(config_.journal_path, sim::JournalSetup{config_.engine.engine, config_.instruments});
         }
@@ -165,14 +151,14 @@ public:
     // ---- Gateway Context (SERVER.md 2.1) ------------------------------------
 
     // nullptr: unknown user, wrong protocol, wrong password (an empty
-    // configured password accepts any), or a user driven by a bot.
+    // configured password accepts any).
     [[nodiscard]] const UserConfig* authenticate(std::string_view username, std::string_view password,
                                                  Protocol protocol) const noexcept {
         for (const UserRuntime& user : users_) {
             if (user.config->username != username) {
                 continue;
             }
-            if (user.bot_owned || user.config->protocol != protocol) {
+            if (user.config->protocol != protocol) {
                 return nullptr;
             }
             if (!user.config->password.empty() && user.config->password != password) {
@@ -183,12 +169,12 @@ public:
         return nullptr;
     }
 
-    // false: unknown session, bot session, already bound (second login), or
+    // false: unknown session, already bound (second login), or
     // called from a dispatch callback (logins come from inbound data; this
     // bounds the queued unbind MassCancels to one per user).
     [[nodiscard]] bool bind(SessionId session, ConnectionId connection) noexcept {
         UserRuntime* user = user_for_session(session);
-        if (user == nullptr || user->bot_owned || user->bound || dispatching_) {
+        if (user == nullptr || user->bound || dispatching_) {
             return false;
         }
         user->bound = true;
@@ -232,7 +218,7 @@ public:
 
     // SERVER.md section 1, steps 1-5. When it returns Applied, every event of
     // the command (and of any command deferred meanwhile) has reached the
-    // sessions, market data and bots. Nothing else is applied, journaled or
+    // sessions and market data. Nothing else is applied, journaled or
     // dispatched.
     SubmitResult submit(const Command& command) noexcept {
         return submit_or_defer(command, deferred_.capacity() - users_.size());
@@ -249,7 +235,7 @@ public:
 
     // ---- Timer (server loop, once per iteration) ------------------------------
 
-    // End of trading day check, bots, market-data timer hook, periodic journal
+    // End of trading day check, market-data timer hook, periodic journal
     // flush. `loop_now` is ns since local midnight; the value handed on is
     // made non-decreasing.
     void timer(Timestamp loop_now) noexcept {
@@ -265,9 +251,6 @@ public:
             shutdown_pending_ = true;  // the trading day is over
         }
         finish_outer_operation();
-        if (!shutdown_ && now_for_timers >= day_start_) {
-            bots_.on_timer(now_for_timers, *this);
-        }
         if constexpr (MarketDataTimerWithCore<MarketData, ExchangeCore>) {
             (void)call_market_data_hook([&] { return market_data_.on_timer(now_for_timers, std::as_const(*this)); });
         } else if constexpr (MarketDataTimer<MarketData>) {
@@ -385,12 +368,6 @@ public:
             case AdminOp::FaultUserDropOut:
             case AdminOp::FaultUserDisconnect:
             case AdminOp::FaultUserOff: execute_user_fault(command, reply); return;
-            case AdminOp::Bots:
-                set_bots_enabled(command.on);
-                append_line(reply, std::string("bots ") + (command.on ? "on" : "off") + " (" +
-                                       std::to_string(bot_entries_.size()) + " configured)");
-                append_ok(reply);
-                return;
             case AdminOp::Shutdown:
                 if (shutdown_) {
                     append_line(reply, "already shut down");
@@ -422,13 +399,6 @@ public:
     }
 
     [[nodiscard]] bool shutdown_requested() const noexcept { return shutdown_; }
-
-    void set_bots_enabled(bool enabled) noexcept {
-        bots_.set_enabled(enabled);
-        bots_enabled_ = enabled;
-    }
-    [[nodiscard]] bool bots_enabled() const noexcept { return bots_enabled_; }
-    [[nodiscard]] std::span<const BotEntry> bots() const noexcept { return bot_entries_; }
 
     // Requests a flush. With the synchronous writer this writes the footer;
     // with the runtime worker journal_drained() acknowledges completion.
@@ -488,17 +458,11 @@ public:
         return runtime->connection;
     }
     [[nodiscard]] std::size_t bound_connection_count() const noexcept { return bound_connection_count_; }
-    [[nodiscard]] bool is_bot_session(SessionId session) const noexcept {
-        const UserRuntime* runtime = user_for_session(session);
-        return runtime != nullptr && runtime->bot_owned;
-    }
-
 private:
     struct UserRuntime {
         const UserConfig* config = nullptr;
         ConnectionId connection = 0;
         bool bound = false;
-        bool bot_owned = false;
         UserFaultState faults{};
     };
 
@@ -517,28 +481,6 @@ private:
             }
         }
         return nullptr;
-    }
-
-    void add_configured_bots() {
-        for (const BotSectionConfig& bot : config_.bots) {
-            UserRuntime* owner = user_for_name(bot.user);
-            const sim::bots::BotConfig& identity = bot.identity();
-            if (owner == nullptr || owner->bot_owned || owner->config->session_id != identity.session_id ||
-                engine_.instrument(identity.instrument) == nullptr) {
-                throw std::invalid_argument("bot " + bot.name + ": unresolved user or instrument");
-            }
-            const sim::bots::BotState* state = nullptr;
-            if (bot.type == BotType::MarketMaker) {
-                state = bots_.add(bot.market_maker);
-            } else {
-                state = bots_.add(bot.noise_taker);
-            }
-            if (state == nullptr) {
-                throw std::invalid_argument("bot " + bot.name + " rejected by BotSet");
-            }
-            owner->bot_owned = true;
-            bot_entries_.push_back(BotEntry{bot.name, bot.type, bot.user, bot.instrument_symbol, state});
-        }
     }
 
     // Step 1: strictly increasing day-relative stamp.
@@ -649,8 +591,8 @@ private:
         }
     }
 
-    // Steps 4-5: sessions (once each, first appearance, bots excluded), then
-    // market data on_events + flush, then bots.
+    // Steps 4-5: sessions (once each, first appearance), then
+    // market data on_events + flush.
     void dispatch_batch() noexcept {
         if (events_.empty()) {
             return;
@@ -659,9 +601,7 @@ private:
         dispatching_ = true;
         for (const Event& event : batch) {
             visit_event_sessions(event, [this](SessionId session) {
-                if (!is_bot_session(session)) {
-                    dispatch_set_.add(session);
-                }
+                dispatch_set_.add(session);
             });
         }
         for (const SessionId session : dispatch_set_.sessions()) {
@@ -673,7 +613,6 @@ private:
             ++counters_.market_data_failed_batches;
         }
         market_data_.flush();
-        bots_.on_events(batch);
         ++counters_.batches_dispatched;
         dispatching_ = false;
     }
@@ -820,10 +759,6 @@ private:
             append_error(reply, "unknown user " + command.user);
             return;
         }
-        if (user->bot_owned) {
-            append_error(reply, "user " + command.user + " is driven by a bot; gateway faults do not apply");
-            return;
-        }
         UserFaultState& faults = user->faults;
         switch (command.op) {
             case AdminOp::FaultUserReject: faults.reject_next_new_orders = command.count; break;
@@ -854,18 +789,12 @@ private:
         append_line(reply, "exchange " + config_.exchange.name + " shutdown=" + (shutdown_ ? "yes" : "no"));
         append_line(reply, "trading_day start=" + format_day_time(day_start_) + " end=" + format_day_time(day_end_) +
                                " last_command_ts=" + std::to_string(last_command_ts_));
-        std::size_t bot_users = 0;
-        for (const UserRuntime& user : users_) {
-            bot_users += user.bot_owned ? 1 : 0;
-        }
         append_line(reply, "connections bound=" + std::to_string(bound_connection_count_) +
-                               " users=" + std::to_string(users_.size()) + " bot_users=" + std::to_string(bot_users));
+                               " users=" + std::to_string(users_.size()));
         for (const UserRuntime& user : users_) {
             std::string line = "user " + user.config->username + " session=" + std::to_string(user.config->session_id) +
                                " protocol=" + std::string(to_string(user.config->protocol));
-            if (user.bot_owned) {
-                line += " bot=yes";
-            } else {
+            {
                 line += std::string(" bound=") + (user.bound ? "yes connection=" + std::to_string(user.connection) : "no");
                 line += " " + describe_user_faults(user.faults);
             }
@@ -905,19 +834,6 @@ private:
         market_data_state_line += " failed_batches=" + std::to_string(counters_.market_data_failed_batches) +
                                   " last_failure=" + std::string(md_status_text(counters_.market_data_last_failure));
         append_line(reply, market_data_state_line);
-        append_line(reply, std::string("bots ") + (bots_enabled_ ? "on" : "off") +
-                               " count=" + std::to_string(bot_entries_.size()));
-        for (const BotEntry& bot : bot_entries_) {
-            const sim::bots::BotStats& stats = bot.state->stats();
-            append_line(reply, "bot " + bot.name + " type=" + std::string(to_string(bot.type)) + " user=" + bot.user +
-                                   " instrument=" + bot.instrument_symbol + " enabled=" +
-                                   (bot.state->enabled() ? "yes" : "no") + " inventory=" +
-                                   std::to_string(bot.state->inventory()) + " orders=" +
-                                   std::to_string(bot.state->orders().size()) + " submitted=" +
-                                   std::to_string(stats.commands_submitted) + " fills=" +
-                                   std::to_string(stats.fills_received) + " rejects=" +
-                                   std::to_string(stats.rejects_received));
-        }
         append_line(reply, "journal state=" + std::string(to_string(journal_state())) +
                                (config_.journal_path.empty() ? std::string() : " path=" + config_.journal_path) +
                                " records=" + std::to_string(counters_.journal_records) +
@@ -968,8 +884,6 @@ private:
     std::unique_ptr<std::uint16_t[]> user_index_by_session_;  // SessionId -> users_ index + 1, 0 = none
     SessionDispatchSet dispatch_set_;
     DeferredCommandQueue deferred_;
-    BotRegistry bots_;
-    std::vector<BotEntry> bot_entries_;
     std::optional<Journal> journal_;
     CoreCounters counters_{};
 
@@ -988,7 +902,6 @@ private:
     bool journal_failed_ = false;
     bool shutdown_pending_ = false;
     bool shutdown_ = false;
-    bool bots_enabled_ = true;
 };
 
 }  // namespace exsim::server

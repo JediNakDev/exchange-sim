@@ -1,5 +1,0 @@
-# esie
-
-[instrument AAPL]
-max_order_qty = 1000000000000000000000000
-= ca

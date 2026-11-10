@@ -1,0 +1,3 @@
+file_bytes=29738880 parsed=1000000 skipped=0 elapsed_s=0.287303 msg_per_sec=3.48065e+06
+adds=524136 executes=66756 cancels=142582 deletes=237953 replaces=28524 unknown_ref=786 dropped_cross=0
+best_bid=9950 best_ask=10050 live_orders=285481

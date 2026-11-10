@@ -1,10 +1,10 @@
-#ifndef LOB_PRICE_LEVEL_HPP
-#define LOB_PRICE_LEVEL_HPP
+#ifndef EXSIM_EXCHANGE_PRICE_LEVEL_HPP
+#define EXSIM_EXCHANGE_PRICE_LEVEL_HPP
 
 #include "order.hpp"
 #include <cstddef>
 
-namespace lob {
+namespace exsim::exchange {
 
 /**
  * PriceLevel (Limit) - represents a single limit price in the order book.

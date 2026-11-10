@@ -1,5 +1,5 @@
-#ifndef LOB_ORDER_BOOK_HPP
-#define LOB_ORDER_BOOK_HPP
+#ifndef EXSIM_EXCHANGE_ORDER_BOOK_HPP
+#define EXSIM_EXCHANGE_ORDER_BOOK_HPP
 
 #include "price_level.hpp"
 #include "flat_hash_map.hpp"
@@ -10,9 +10,9 @@
 #include <span>
 #include <vector>
 
-namespace lob {
+namespace exsim::exchange {
 
-#ifdef LOB_DETERMINISTIC_POOL
+#ifdef EXSIM_EXCHANGE_DETERMINISTIC_POOL
 inline constexpr bool kOrderBookGrowsByDefault = false;
 #else
 inline constexpr bool kOrderBookGrowsByDefault = true;
@@ -37,7 +37,7 @@ struct OrderBookConfig {
     // true: the limits are initial sizes. Pools, the id map and the ladder
     // grow on demand (heap allocation inside add_order); a failed growth
     // throws and leaves the book unchanged. Replaying external data relies
-    // on this; LOB_DETERMINISTIC_POOL builds default to false.
+    // on this; EXSIM_EXCHANGE_DETERMINISTIC_POOL builds default to false.
     bool allow_growth = kOrderBookGrowsByDefault;
 };
 

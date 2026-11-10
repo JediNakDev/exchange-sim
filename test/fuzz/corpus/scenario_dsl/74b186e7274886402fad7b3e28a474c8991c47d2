@@ -1,2 +1,0 @@
-instrument AAA tick=0.01 lot=1 max_qty=1002
-NEW_ORDER instrument=AAA såss=0 type= reason=NCEL

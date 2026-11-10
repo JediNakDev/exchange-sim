@@ -1,4 +1,0 @@
-instrument AAA tick=0.01 lot=1·max_qty=100US
-session alice o2 ty=3 êorder_id=1
-CANCEL session=alice orig_cl_ord_id=a reduce_to_total_qty=5
-expect no events

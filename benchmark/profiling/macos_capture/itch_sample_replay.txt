@@ -1,0 +1,283 @@
+Analysis of sampling itch_replay (pid 71281) every 1 millisecond
+Process:         itch_replay [71281]
+Path:            /Users/USER/Documents/*/itch_replay
+Load Address:    0x102dec000
+Identifier:      itch_replay
+Version:         0
+Code Type:       ARM64
+Platform:        macOS
+Parent Process:  launchd [1]
+Target Type:     live task
+
+Date/Time:       2569-05-11 17:16:30.702 +0700
+Launch Time:     2569-05-11 17:16:10.587 +0700
+OS Version:      macOS 26.2 (25C56)
+Report Version:  7
+Analysis Tool:   /usr/bin/sample
+
+Physical footprint:         3.0G
+Physical footprint (peak):  3.0G
+Idle exit:                  untracked
+----
+
+Call graph:
+    4187 Thread_42736742   DispatchQueue_1: com.apple.main-thread  (serial)
+      4187 start  (in dyld) + 7184  [0x18fc6dd54]
+        1864 main  (in itch_replay) + 4560  [0x102deebdc]
+        + 1498 lob::tools::ItchReplayer::do_delete(unsigned long long)  (in itch_replay) + 252  [0x102df1ea8]
+        + ! 926 lob::tools::ItchReplayer::do_delete(unsigned long long)  (in itch_replay) + 252  [0x102df1ea8]
+        + ! : 926 lob::OrderBook::cancel_order(unsigned long long)  (in itch_replay) + 460,240,...  [0x102ded6f4,0x102ded618,...]
+        + ! 520 lob::OrderBook::cancel_order(unsigned long long)  (in itch_replay) + 856  [0x102ded880]
+        + ! : 218 _xzm_free  (in libsystem_malloc.dylib) + 1016,1116,...  [0x18fe55b3c,0x18fe55ba0,...]
+        + ! : 176 _xzm_chunk_list_slot_push  (in libsystem_malloc.dylib) + 128  [0x18fe5cb58]
+        + ! : | 176 _xzm_chunk_list_push  (in libsystem_malloc.dylib) + 96,44,...  [0x18fe5b9d0,0x18fe5b99c,...]
+        + ! : 79 _xzm_chunk_list_slot_push  (in libsystem_malloc.dylib) + 44,32,...  [0x18fe5cb04,0x18fe5caf8,...]
+        + ! : 31 _xzm_free  (in libsystem_malloc.dylib) + 348  [0x18fe558a0]
+        + ! : | 30 _platform_memset  (in libsystem_platform.dylib) + 180,188,...  [0x19003f144,0x19003f14c,...]
+        + ! : | 1 DYLD-STUB$$_platform_bzero  (in libsystem_malloc.dylib) + 8  [0x18fe6a45c]
+        + ! : 10 _free  (in libsystem_malloc.dylib) + 96,20,...  [0x18fe62a8c,0x18fe62a40,...]
+        + ! : 3 DYLD-STUB$$free  (in libc++abi.dylib) + 8  [0x18ffede48]
+        + ! : 3 _xzm_chunk_list_push  (in libsystem_malloc.dylib) + 156  [0x18fe5ba0c]
+        + ! 39 lob::OrderBook::cancel_order(unsigned long long)  (in itch_replay) + 844  [0x102ded874]
+        + ! : 39 <deduplicated_symbol>  (in itch_replay) + 204,252,...  [0x102dec62c,0x102dec65c,...]
+        + ! 6 lob::OrderBook::cancel_order(unsigned long long)  (in itch_replay) + 0,872  [0x102ded528,0x102ded890]
+        + ! 4 _xzm_chunk_list_slot_push  (in libsystem_malloc.dylib) + 260,264  [0x18fe5cbdc,0x18fe5cbe0]
+        + ! 3 _xzm_free  (in libsystem_malloc.dylib) + 1168,1164  [0x18fe55bd4,0x18fe55bd0]
+        + 209 lob::tools::ItchReplayer::do_delete(unsigned long long)  (in itch_replay) + 284  [0x102df1ec8]
+        + ! 154 _xzm_free  (in libsystem_malloc.dylib) + 348  [0x18fe558a0]
+        + ! : 73 DYLD-STUB$$_platform_bzero  (in libsystem_malloc.dylib) + 0  [0x18fe6a454]
+        + ! : 55 _platform_memset  (in libsystem_platform.dylib) + 180,176,...  [0x19003f144,0x19003f140,...]
+        + ! : 26 __bzero  (in libsystem_platform.dylib) + 0,8,...  [0x19003f030,0x19003f038,...]
+        + ! 38 _xzm_free  (in libsystem_malloc.dylib) + 332,480,...  [0x18fe55890,0x18fe55924,...]
+        + ! 7 _free  (in libsystem_malloc.dylib) + 12,56,...  [0x18fe62a38,0x18fe62a64,...]
+        + ! 3 xzm_malloc_zone_try_free_default  (in libsystem_malloc.dylib) + 0  [0x18fe5ebcc]
+        + ! 2 DYLD-STUB$$operator delete(void*)  (in itch_replay) + 4  [0x102df3828]
+        + ! 2 _xzm_chunk_list_slot_push  (in libsystem_malloc.dylib) + 128  [0x18fe5cb58]
+        + ! : 2 _xzm_chunk_list_push  (in libsystem_malloc.dylib) + 44  [0x18fe5b99c]
+        + ! 2 _xzm_chunk_list_slot_push  (in libsystem_malloc.dylib) + 44,136  [0x18fe5cb04,0x18fe5cb60]
+        + ! 1 _xzm_chunk_list_push  (in libsystem_malloc.dylib) + 156  [0x18fe5ba0c]
+        + 84 lob::tools::ItchReplayer::do_delete(unsigned long long)  (in itch_replay) + 164,136,...  [0x102df1e50,0x102df1e34,...]
+        + 71 lob::tools::ItchReplayer::do_delete(unsigned long long)  (in itch_replay) + 272  [0x102df1ebc]
+        + ! 71 <deduplicated_symbol>  (in itch_replay) + 176,136,...  [0x102dec610,0x102dec5e8,...]
+        + 1 _xzm_chunk_list_slot_push  (in libsystem_malloc.dylib) + 260  [0x18fe5cbdc]
+        + 1 _xzm_free  (in libsystem_malloc.dylib) + 1168  [0x18fe55bd4]
+        1607 main  (in itch_replay) + 4516  [0x102deebb0]
+        + 632 lob::tools::ItchReplayer::do_add(unsigned long long, lob::Side, long long, unsigned long long)  (in itch_replay) + 2424,148,...  [0x102df0b34,0x102df0250,...]
+        + 496 lob::tools::ItchReplayer::do_add(unsigned long long, lob::Side, long long, unsigned long long)  (in itch_replay) + 2168  [0x102df0a34]
+        + ! 493 operator new(unsigned long)  (in libc++abi.dylib) + 52  [0x18ffeda78]
+        + ! : 340 _xzm_xzone_malloc_freelist_outlined  (in libsystem_malloc.dylib) + 324  [0x18fe5a940]
+        + ! : | 190 _xzm_xzone_find_and_malloc_from_freelist_chunk  (in libsystem_malloc.dylib) + 344  [0x18fe5b24c]
+        + ! : | + 190 _xzm_xzone_malloc_from_freelist_chunk  (in libsystem_malloc.dylib) + 84,164,...  [0x18fe5ad38,0x18fe5ad88,...]
+        + ! : | 134 _xzm_xzone_find_and_malloc_from_freelist_chunk  (in libsystem_malloc.dylib) + 200,296,...  [0x18fe5b1bc,0x18fe5b21c,...]
+        + ! : | 8 _xzm_xzone_find_and_malloc_from_freelist_chunk  (in libsystem_malloc.dylib) + 172  [0x18fe5b1a0]
+        + ! : | + 8 _xzm_chunk_list_pop  (in libsystem_malloc.dylib) + 16,64,...  [0x18fe5ba24,0x18fe5ba54,...]
+        + ! : | 6 _xzm_chunk_list_pop  (in libsystem_malloc.dylib) + 268  [0x18fe5bb20]
+        + ! : | 1 _xzm_xzone_find_and_malloc_from_freelist_chunk  (in libsystem_malloc.dylib) + 1396  [0x18fe5b668]
+        + ! : | + 1 xzm_segment_group_alloc_chunk  (in libsystem_malloc.dylib) + 556  [0x18fe3f03c]
+        + ! : | +   1 _xzm_segment_group_find_and_allocate_chunk  (in libsystem_malloc.dylib) + 292  [0x18fe3f5ac]
+        + ! : | 1 _xzm_xzone_malloc_from_freelist_chunk  (in libsystem_malloc.dylib) + 676  [0x18fe5af88]
+        + ! : 50 _xzm_xzone_malloc_tiny  (in libsystem_malloc.dylib) + 276,76,...  [0x18fe59294,0x18fe591cc,...]
+        + ! : 28 _xzm_xzone_malloc_freelist_outlined  (in libsystem_malloc.dylib) + 288,764,...  [0x18fe5a91c,0x18fe5aaf8,...]
+        + ! : 24 _xzm_xzone_malloc_from_freelist_chunk  (in libsystem_malloc.dylib) + 680,672,...  [0x18fe5af8c,0x18fe5af84,...]
+        + ! : 21 <deduplicated_symbol>  (in libsystem_malloc.dylib) + 108,116,...  [0x18fe54c8c,0x18fe54c94,...]
+        + ! : 12 _xzm_xzone_malloc_freelist_outlined  (in libsystem_malloc.dylib) + 252  [0x18fe5a8f8]
+        + ! : | 12 _xzm_xzone_malloc_from_freelist_chunk  (in libsystem_malloc.dylib) + 84,252,...  [0x18fe5ad38,0x18fe5ade0,...]
+        + ! : 9 _xzm_xzone_malloc  (in libsystem_malloc.dylib) + 336,8,...  [0x18fe551dc,0x18fe55094,...]
+        + ! : 4 DYLD-STUB$$malloc_type_malloc  (in libc++abi.dylib) + 8  [0x18ffede88]
+        + ! : 4 _xzm_xzone_find_and_malloc_from_freelist_chunk  (in libsystem_malloc.dylib) + 1944  [0x18fe5b88c]
+        + ! : 1 malloc_type_malloc  (in libsystem_malloc.dylib) + 72  [0x18fe4917c]
+        + ! 2 operator new(unsigned long)  (in libc++abi.dylib) + 36,52  [0x18ffeda68,0x18ffeda78]
+        + ! 1 DYLD-STUB$$operator new(unsigned long)  (in itch_replay) + 4  [0x102df3840]
+        + 346 lob::tools::ItchReplayer::do_add(unsigned long long, lob::Side, long long, unsigned long long)  (in itch_replay) + 3336  [0x102df0ec4]
+        + ! 339 operator new(unsigned long)  (in libc++abi.dylib) + 52  [0x18ffeda78]
+        + ! : 147 <deduplicated_symbol>  (in libsystem_malloc.dylib) + 0,208,...  [0x18fe54c20,0x18fe54cf0,...]
+        + ! : 48 _xzm_xzone_malloc  (in libsystem_malloc.dylib) + 24,8,...  [0x18fe550a4,0x18fe55094,...]
+        + ! : 39 _xzm_xzone_malloc_tiny  (in libsystem_malloc.dylib) + 276,88,...  [0x18fe59294,0x18fe591d8,...]
+        + ! : 32 _xzm_xzone_malloc_freelist_outlined  (in libsystem_malloc.dylib) + 324  [0x18fe5a940]
+        + ! : | 12 _xzm_xzone_find_and_malloc_from_freelist_chunk  (in libsystem_malloc.dylib) + 172  [0x18fe5b1a0]
+        + ! : | + 12 _xzm_chunk_list_pop  (in libsystem_malloc.dylib) + 16,196,...  [0x18fe5ba24,0x18fe5bad8,...]
+        + ! : | 11 _xzm_xzone_find_and_malloc_from_freelist_chunk  (in libsystem_malloc.dylib) + 344  [0x18fe5b24c]
+        + ! : | + 11 _xzm_xzone_malloc_from_freelist_chunk  (in libsystem_malloc.dylib) + 988,84,...  [0x18fe5b0c0,0x18fe5ad38,...]
+        + ! : | 5 _xzm_xzone_find_and_malloc_from_freelist_chunk  (in libsystem_malloc.dylib) + 80,92,...  [0x18fe5b144,0x18fe5b150,...]
+        + ! : | 2 _xzm_chunk_list_pop  (in libsystem_malloc.dylib) + 268  [0x18fe5bb20]
+        + ! : | 2 _xzm_xzone_malloc_from_freelist_chunk  (in libsystem_malloc.dylib) + 676  [0x18fe5af88]
+        + ! : 27 malloc_type_malloc  (in libsystem_malloc.dylib) + 84,16,...  [0x18fe49188,0x18fe49144,...]
+        + ! : 24 _xzm_xzone_malloc_freelist_outlined  (in libsystem_malloc.dylib) + 764,36,...  [0x18fe5aaf8,0x18fe5a820,...]
+        + ! : 7 _xzm_xzone_find_and_malloc_from_freelist_chunk  (in libsystem_malloc.dylib) + 1944  [0x18fe5b88c]
+        + ! : 6 DYLD-STUB$$malloc_type_malloc  (in libc++abi.dylib) + 8,0  [0x18ffede88,0x18ffede80]
+        + ! : 5 _xzm_xzone_malloc_from_freelist_chunk  (in libsystem_malloc.dylib) + 680,668  [0x18fe5af8c,0x18fe5af80]
+        + ! : 3 _xzm_xzone_malloc_freelist_outlined  (in libsystem_malloc.dylib) + 252  [0x18fe5a8f8]
+        + ! : | 3 _xzm_xzone_malloc_from_freelist_chunk  (in libsystem_malloc.dylib) + 28,84,...  [0x18fe5ad00,0x18fe5ad38,...]
+        + ! : 1 _xzm_xzone_malloc_freelist_outlined  (in libsystem_malloc.dylib) + 264  [0x18fe5a904]
+        + ! :   1 _malloc_ulock_self_owner_value  (in libsystem_malloc.dylib) + 4  [0x18fe5b0e8]
+        + ! 3 _xzm_xzone_malloc_freelist_outlined  (in libsystem_malloc.dylib) + 808  [0x18fe5ab24]
+        + ! 3 operator new(unsigned long)  (in libc++abi.dylib) + 36,28  [0x18ffeda68,0x18ffeda60]
+        + ! 1 DYLD-STUB$$operator new(unsigned long)  (in itch_replay) + 4  [0x102df3840]
+        + 70 lob::tools::ItchReplayer::do_add(unsigned long long, lob::Side, long long, unsigned long long)  (in itch_replay) + 2380  [0x102df0b08]
+        + ! 70 __bzero  (in libsystem_platform.dylib) + 64  [0x19003f070]
+        + 19 lob::OrderBook::ensure_price_range(long long)  (in itch_replay) + 64,68  [0x102dec74c,0x102dec750]
+        + 16 lob::tools::ItchReplayer::do_add(unsigned long long, lob::Side, long long, unsigned long long)  (in itch_replay) + 2824  [0x102df0cc4]
+        + ! 16 lob::OrderBook::ensure_price_range(long long)  (in itch_replay) + 16,28,...  [0x102dec71c,0x102dec728,...]
+        + 14 lob::tools::ItchReplayer::do_add(unsigned long long, lob::Side, long long, unsigned long long)  (in itch_replay) + 6224  [0x102df1a0c]
+        + ! 14 lob::ObjectPool<lob::Order, 4096ul>::allocate_block()  (in itch_replay) + 244,248,...  [0x102ded1f0,0x102ded1f4,...]
+        + 11 lob::tools::ItchReplayer::do_add(unsigned long long, lob::Side, long long, unsigned long long)  (in itch_replay) + 68  [0x102df0200]
+        + ! 11 lob::OrderBook::ensure_price_range(long long)  (in itch_replay) + 28,36,...  [0x102dec728,0x102dec730,...]
+        + 3 operator new(unsigned long)  (in libc++abi.dylib) + 76  [0x18ffeda90]
+        219 main  (in itch_replay) + 6372  [0x102def2f0]
+        + 178 lob::tools::ItchReplayer::do_delete(unsigned long long)  (in itch_replay) + 252  [0x102df1ea8]
+        + ! 105 lob::tools::ItchReplayer::do_delete(unsigned long long)  (in itch_replay) + 252  [0x102df1ea8]
+        + ! : 105 lob::OrderBook::cancel_order(unsigned long long)  (in itch_replay) + 460,240,...  [0x102ded6f4,0x102ded618,...]
+        + ! 70 lob::OrderBook::cancel_order(unsigned long long)  (in itch_replay) + 856  [0x102ded880]
+        + ! : 32 _xzm_free  (in libsystem_malloc.dylib) + 1016,604,...  [0x18fe55b3c,0x18fe559a0,...]
+        + ! : 26 _xzm_chunk_list_slot_push  (in libsystem_malloc.dylib) + 128  [0x18fe5cb58]
+        + ! : | 26 _xzm_chunk_list_push  (in libsystem_malloc.dylib) + 96,16,...  [0x18fe5b9d0,0x18fe5b980,...]
+        + ! : 6 _xzm_free  (in libsystem_malloc.dylib) + 348  [0x18fe558a0]
+        + ! : | 5 _platform_memset  (in libsystem_platform.dylib) + 176,188,...  [0x19003f140,0x19003f14c,...]
+        + ! : | 1 DYLD-STUB$$_platform_bzero  (in libsystem_malloc.dylib) + 8  [0x18fe6a45c]
+        + ! : 3 _free  (in libsystem_malloc.dylib) + 56,0  [0x18fe62a64,0x18fe62a2c]
+        + ! : 3 _xzm_chunk_list_slot_push  (in libsystem_malloc.dylib) + 100,44  [0x18fe5cb3c,0x18fe5cb04]
+        + ! 2 lob::OrderBook::cancel_order(unsigned long long)  (in itch_replay) + 844  [0x102ded874]
+        + ! : 2 <deduplicated_symbol>  (in itch_replay) + 20,212  [0x102dec574,0x102dec634]
+        + ! 1 _xzm_chunk_list_slot_push  (in libsystem_malloc.dylib) + 260  [0x18fe5cbdc]
+        + 27 lob::tools::ItchReplayer::do_delete(unsigned long long)  (in itch_replay) + 284  [0x102df1ec8]
+        + ! 21 _xzm_free  (in libsystem_malloc.dylib) + 348  [0x18fe558a0]
+        + ! : 12 DYLD-STUB$$_platform_bzero  (in libsystem_malloc.dylib) + 0,8  [0x18fe6a454,0x18fe6a45c]
+        + ! : 7 _platform_memset  (in libsystem_platform.dylib) + 180,184  [0x19003f144,0x19003f148]
+        + ! : 2 __bzero  (in libsystem_platform.dylib) + 0  [0x19003f030]
+        + ! 4 _xzm_free  (in libsystem_malloc.dylib) + 480,388  [0x18fe55924,0x18fe558c8]
+        + ! 1 DYLD-STUB$$free  (in libc++abi.dylib) + 8  [0x18ffede48]
+        + ! 1 _free  (in libsystem_malloc.dylib) + 76  [0x18fe62a78]
+        + 10 lob::tools::ItchReplayer::do_delete(unsigned long long)  (in itch_replay) + 272  [0x102df1ebc]
+        + ! 10 <deduplicated_symbol>  (in itch_replay) + 44,128,...  [0x102dec58c,0x102dec5e0,...]
+        + 3 lob::tools::ItchReplayer::do_delete(unsigned long long)  (in itch_replay) + 84,104  [0x102df1e00,0x102df1e14]
+        + 1 _xzm_chunk_list_slot_push  (in libsystem_malloc.dylib) + 260  [0x18fe5cbdc]
+        208 main  (in itch_replay) + 4376,4412,...  [0x102deeb24,0x102deeb48,...]
+        127 main  (in itch_replay) + 4536  [0x102deebc4]
+        + 123 lob::tools::ItchReplayer::reduce(unsigned long long, unsigned long long)  (in itch_replay) + 200,528,...  [0x102df1be4,0x102df1d2c,...]
+        + 3 lob::tools::ItchReplayer::reduce(unsigned long long, unsigned long long)  (in itch_replay) + 348  [0x102df1c78]
+        + ! 2 lob::tools::ItchReplayer::reduce(unsigned long long, unsigned long long)  (in itch_replay) + 348  [0x102df1c78]
+        + ! : 2 lob::OrderBook::cancel_order(unsigned long long)  (in itch_replay) + 240  [0x102ded618]
+        + ! 1 lob::OrderBook::cancel_order(unsigned long long)  (in itch_replay) + 856  [0x102ded880]
+        + !   1 _xzm_free  (in libsystem_malloc.dylib) + 348  [0x18fe558a0]
+        + !     1 _platform_memset  (in libsystem_platform.dylib) + 176  [0x19003f140]
+        + 1 lob::tools::ItchReplayer::reduce(unsigned long long, unsigned long long)  (in itch_replay) + 380  [0x102df1c98]
+        +   1 _xzm_free  (in libsystem_malloc.dylib) + 348  [0x18fe558a0]
+        +     1 _platform_memset  (in libsystem_platform.dylib) + 180  [0x19003f144]
+        80 main  (in itch_replay) + 4468  [0x102deeb80]
+        + 79 lob::tools::ItchReplayer::reduce(unsigned long long, unsigned long long)  (in itch_replay) + 452,200,...  [0x102df1ce0,0x102df1be4,...]
+        + 1 lob::tools::ItchReplayer::reduce(unsigned long long, unsigned long long)  (in itch_replay) + 348  [0x102df1c78]
+        +   1 lob::tools::ItchReplayer::reduce(unsigned long long, unsigned long long)  (in itch_replay) + 348  [0x102df1c78]
+        +     1 lob::OrderBook::cancel_order(unsigned long long)  (in itch_replay) + 240  [0x102ded618]
+        64 main  (in itch_replay) + 6400  [0x102def30c]
+        + 39 lob::tools::ItchReplayer::do_add(unsigned long long, lob::Side, long long, unsigned long long)  (in itch_replay) + 1940,1964,...  [0x102df0950,0x102df0968,...]
+        + 15 lob::tools::ItchReplayer::do_add(unsigned long long, lob::Side, long long, unsigned long long)  (in itch_replay) + 3336  [0x102df0ec4]
+        + ! 14 operator new(unsigned long)  (in libc++abi.dylib) + 52  [0x18ffeda78]
+        + ! : 6 _xzm_xzone_malloc_tiny  (in libsystem_malloc.dylib) + 408,328,...  [0x18fe59318,0x18fe592c8,...]
+        + ! : 3 _xzm_xzone_malloc  (in libsystem_malloc.dylib) + 336,8  [0x18fe551dc,0x18fe55094]
+        + ! : 3 _xzm_xzone_malloc_freelist_outlined  (in libsystem_malloc.dylib) + 324  [0x18fe5a940]
+        + ! : | 2 _xzm_xzone_find_and_malloc_from_freelist_chunk  (in libsystem_malloc.dylib) + 344  [0x18fe5b24c]
+        + ! : | + 2 _xzm_xzone_malloc_from_freelist_chunk  (in libsystem_malloc.dylib) + 192,988  [0x18fe5ada4,0x18fe5b0c0]
+        + ! : | 1 _xzm_xzone_find_and_malloc_from_freelist_chunk  (in libsystem_malloc.dylib) + 172  [0x18fe5b1a0]
+        + ! : |   1 _xzm_chunk_list_pop  (in libsystem_malloc.dylib) + 64  [0x18fe5ba54]
+        + ! : 1 _xzm_xzone_malloc_freelist_outlined  (in libsystem_malloc.dylib) + 252  [0x18fe5a8f8]
+        + ! : | 1 _xzm_xzone_malloc_from_freelist_chunk  (in libsystem_malloc.dylib) + 208  [0x18fe5adb4]
+        + ! : 1 _xzm_xzone_malloc_freelist_outlined  (in libsystem_malloc.dylib) + 288  [0x18fe5a91c]
+        + ! 1 DYLD-STUB$$operator new(unsigned long)  (in itch_replay) + 4  [0x102df3840]
+        + 9 lob::tools::ItchReplayer::do_add(unsigned long long, lob::Side, long long, unsigned long long)  (in itch_replay) + 2168  [0x102df0a34]
+        + ! 9 operator new(unsigned long)  (in libc++abi.dylib) + 52  [0x18ffeda78]
+        + !   4 _xzm_xzone_malloc_tiny  (in libsystem_malloc.dylib) + 76,104,...  [0x18fe591cc,0x18fe591e8,...]
+        + !   2 malloc_type_malloc  (in libsystem_malloc.dylib) + 28,72  [0x18fe49150,0x18fe4917c]
+        + !   1 _xzm_xzone_malloc  (in libsystem_malloc.dylib) + 180  [0x18fe55140]
+        + !   1 _xzm_xzone_malloc_freelist_outlined  (in libsystem_malloc.dylib) + 324  [0x18fe5a940]
+        + !   : 1 _xzm_xzone_find_and_malloc_from_freelist_chunk  (in libsystem_malloc.dylib) + 172  [0x18fe5b1a0]
+        + !   :   1 _xzm_chunk_list_pop  (in libsystem_malloc.dylib) + 196  [0x18fe5bad8]
+        + !   1 _xzm_xzone_malloc_from_freelist_chunk  (in libsystem_malloc.dylib) + 680  [0x18fe5af8c]
+        + 1 lob::tools::ItchReplayer::do_add(unsigned long long, lob::Side, long long, unsigned long long)  (in itch_replay) + 2824  [0x102df0cc4]
+        +   1 lob::OrderBook::ensure_price_range(long long)  (in itch_replay) + 0  [0x102dec70c]
+        16 lob::tools::ItchReplayer::do_add(unsigned long long, lob::Side, long long, unsigned long long)  (in itch_replay) + 6096,6100,...  [0x102df198c,0x102df1990,...]
+        2 lob::tools::ItchReplayer::reduce(unsigned long long, unsigned long long)  (in itch_replay) + 244  [0x102df1c10]
+
+Total number in stack (recursive counted multiple, when >=5):
+        11       _xzm_xzone_malloc_from_freelist_chunk  (in libsystem_malloc.dylib) + 0  [0x18fe5ace4]
+        7       _xzm_chunk_list_slot_push  (in libsystem_malloc.dylib) + 0  [0x18fe5cad8]
+        6       _platform_memset  (in libsystem_platform.dylib) + 0  [0x19003f090]
+        6       _xzm_chunk_list_pop  (in libsystem_malloc.dylib) + 0  [0x18fe5ba14]
+        6       _xzm_free  (in libsystem_malloc.dylib) + 0  [0x18fe55744]
+        6       _xzm_free  (in libsystem_malloc.dylib) + 348  [0x18fe558a0]
+        5       _xzm_chunk_list_push  (in libsystem_malloc.dylib) + 0  [0x18fe5b970]
+        5       lob::OrderBook::cancel_order(unsigned long long)  (in itch_replay) + 0  [0x102ded528]
+
+Sort by top of stack, same collapsed (when >= 5):
+        lob::OrderBook::cancel_order(unsigned long long)  (in itch_replay)        1040
+        lob::tools::ItchReplayer::do_add(unsigned long long, lob::Side, long long, unsigned long long)  (in itch_replay)        687
+        _xzm_free  (in libsystem_malloc.dylib)        296
+        _xzm_xzone_malloc_from_freelist_chunk  (in libsystem_malloc.dylib)        252
+        _xzm_chunk_list_push  (in libsystem_malloc.dylib)        208
+        main  (in itch_replay)        208
+        lob::tools::ItchReplayer::reduce(unsigned long long, unsigned long long)  (in itch_replay)        204
+        <deduplicated_symbol>  (in libsystem_malloc.dylib)        168
+        _xzm_xzone_find_and_malloc_from_freelist_chunk  (in libsystem_malloc.dylib)        150
+        <deduplicated_symbol>  (in itch_replay)        122
+        _platform_memset  (in libsystem_platform.dylib)        99
+        _xzm_xzone_malloc_tiny  (in libsystem_malloc.dylib)        99
+        __bzero  (in libsystem_platform.dylib)        98
+        _xzm_chunk_list_slot_push  (in libsystem_malloc.dylib)        91
+        DYLD-STUB$$_platform_bzero  (in libsystem_malloc.dylib)        87
+        lob::tools::ItchReplayer::do_delete(unsigned long long)  (in itch_replay)        87
+        _xzm_xzone_malloc  (in libsystem_malloc.dylib)        61
+        _xzm_xzone_malloc_freelist_outlined  (in libsystem_malloc.dylib)        56
+        lob::OrderBook::ensure_price_range(long long)  (in itch_replay)        47
+        _xzm_chunk_list_pop  (in libsystem_malloc.dylib)        30
+        malloc_type_malloc  (in libsystem_malloc.dylib)        30
+        _free  (in libsystem_malloc.dylib)        21
+        lob::ObjectPool<lob::Order, 4096ul>::allocate_block()  (in itch_replay)        14
+        DYLD-STUB$$malloc_type_malloc  (in libc++abi.dylib)        10
+        operator new(unsigned long)  (in libc++abi.dylib)        8
+
+Binary Images:
+       0x102dec000 -        0x102df3eab +itch_replay (0) <C1174AED-E650-3FEF-9116-245AFA14E917> /Users/*/Documents/*/itch_replay
+       0x18fbe0000 -        0x18fc3348b  libobjc.A.dylib (951.1) <1E0A4B36-0701-3482-AA51-000F0ECC7506> /usr/lib/libobjc.A.dylib
+       0x18fc34000 -        0x18fc64bcb  libdyld.dylib (1335) <3A7FDAA5-69EC-3846-AA49-DE7BDEE00285> /usr/lib/system/libdyld.dylib
+       0x18fc65000 -        0x18fd03fc3  dyld (1.0.0 - 1335) <0975AFBA-C46B-364C-BD84-A75DAA9E455A> /usr/lib/dyld
+       0x18fd04000 -        0x18fd071d0  libsystem_blocks.dylib (96) <B64F976B-5966-3643-9B57-0EB17D149482> /usr/lib/system/libsystem_blocks.dylib
+       0x18fd08000 -        0x18fd5cf7f  libxpc.dylib (3089.60.7) <4DB07AE5-6544-3D18-B44B-DCACA4D02FB8> /usr/lib/system/libxpc.dylib
+       0x18fd5d000 -        0x18fd7d8df  libsystem_trace.dylib (1815.61.1) <16F2ABF3-27FC-3B12-AE3C-F039C083AE7B> /usr/lib/system/libsystem_trace.dylib
+       0x18fd7e000 -        0x18fe2a96f  libcorecrypto.dylib (1922.60.11) <A925150E-A21F-3273-A38D-EB304C5D2D18> /usr/lib/system/libcorecrypto.dylib
+       0x18fe2b000 -        0x18fe76bff  libsystem_malloc.dylib (792.60.6) <F68E01CC-EC92-3F25-BAC8-956A3DE42627> /usr/lib/system/libsystem_malloc.dylib
+       0x18fe77000 -        0x18febde5f  libdispatch.dylib (1542.0.4) <A4B349E8-DD6F-3B71-84D9-34F3B4ACD849> /usr/lib/system/libdispatch.dylib
+       0x18febe000 -        0x18fec0feb  libsystem_featureflags.dylib (101) <6AD11065-D06A-3212-97FC-4EEC4AC48F51> /usr/lib/system/libsystem_featureflags.dylib
+       0x18fec1000 -        0x18ff43047  libsystem_c.dylib (1725.40.4) <FB5569A9-CB26-36C2-AA05-E99243692B60> /usr/lib/system/libsystem_c.dylib
+       0x18ff44000 -        0x18ffd6ea3  libc++.1.dylib (2000.67) <BEBE1F75-49D4-32E9-9978-FF8D0E799801> /usr/lib/libc++.1.dylib
+       0x18ffd7000 -        0x18fff192f  libc++abi.dylib (2000.67) <51C9FB66-83AA-3C40-A806-99BC96BAFD7F> /usr/lib/libc++abi.dylib
+       0x18fff2000 -        0x19002e49f  libsystem_kernel.dylib (12377.61.12) <548C45C8-9733-3F0D-8EF4-C06DF1DF2AD0> /usr/lib/system/libsystem_kernel.dylib
+       0x19002f000 -        0x19003babb  libsystem_pthread.dylib (539) <527C4BA0-91A5-378B-B3E2-D38269CA5A66> /usr/lib/system/libsystem_pthread.dylib
+       0x19003c000 -        0x1900443ef  libsystem_platform.dylib (359.60.3) <4DBAF982-1576-3FFC-86BE-03A9D2C96BE5> /usr/lib/system/libsystem_platform.dylib
+       0x190045000 -        0x190074e23  libsystem_info.dylib (600) <363CFE03-0003-3DA6-BE41-820B917B7955> /usr/lib/system/libsystem_info.dylib
+       0x193fe8000 -        0x193ff2397  libsystem_darwin.dylib (1725.40.4) <C25292BB-AA30-37D2-8001-E7276ADBAF1E> /usr/lib/system/libsystem_darwin.dylib
+       0x194459000 -        0x19446aff3  libsystem_notify.dylib (344.0.1) <DF1ED23D-F338-306D-BD06-A7F9B4534B23> /usr/lib/system/libsystem_notify.dylib
+       0x196738000 -        0x196752fdb  libsystem_networkextension.dylib (2205.60.9.0.1) <C2085EB4-0A94-3D87-94ED-D5555D3FA837> /usr/lib/system/libsystem_networkextension.dylib
+       0x1967d6000 -        0x1967edff3  libsystem_asl.dylib (406) <867E699E-8CC6-3792-AC6E-35C5769FADBA> /usr/lib/system/libsystem_asl.dylib
+       0x198383000 -        0x19838b3b7  libsystem_symptoms.dylib (2158.60.3) <8D869291-11B3-3D2A-BFDF-F1C1688E19F1> /usr/lib/system/libsystem_symptoms.dylib
+       0x19c305000 -        0x19c33d2b7  libsystem_containermanager.dylib (725.60.4) <FA1FC4AB-E5A0-391C-8951-41EFEE847E0D> /usr/lib/system/libsystem_containermanager.dylib
+       0x19d753000 -        0x19d75766f  libsystem_configuration.dylib (1385.60.3) <11F5CF47-6E93-3FF7-8E5E-E98F69742465> /usr/lib/system/libsystem_configuration.dylib
+       0x19d758000 -        0x19d75e6a7  libsystem_sandbox.dylib (2680.60.11) <FD4A58D2-D1AB-3936-86EE-CCB6852E0761> /usr/lib/system/libsystem_sandbox.dylib
+       0x19ecd2000 -        0x19ecd51fb  libquarantine.dylib (196.40.3) <18BE2FA3-66CE-3EBF-9E13-8478DF73E146> /usr/lib/system/libquarantine.dylib
+       0x19f455000 -        0x19f45bf4f  libsystem_coreservices.dylib (191.2.4) <0646DDBF-346D-3273-9C9B-968121293B8A> /usr/lib/system/libsystem_coreservices.dylib
+       0x19f9a8000 -        0x19f9e58b7  libsystem_m.dylib (3309) <42E15F5C-02B8-3B56-9889-5B59CADD45EB> /usr/lib/system/libsystem_m.dylib
+       0x19f9e7000 -        0x19f9ea537  libmacho.dylib (1030.6.3) <D1DA6556-F3D8-3A33-96FF-0B8876A1F0B6> /usr/lib/system/libmacho.dylib
+       0x19fa04000 -        0x19fa1161f  libcommonCrypto.dylib (600035) <87FEBA92-8FE5-32C3-8317-F6F86489CCFB> /usr/lib/system/libcommonCrypto.dylib
+       0x19fa12000 -        0x19fa1bb0b  libunwind.dylib (1900.125) <33789B37-0F3B-389C-BF0A-80FB03A2FB31> /usr/lib/system/libunwind.dylib
+       0x19fa24000 -        0x19fa2e6ff  libcopyfile.dylib (230.0.1.0.1) <317DAF5E-A6BB-3DFF-BCA1-8053DE7A8A2C> /usr/lib/system/libcopyfile.dylib
+       0x19fa2f000 -        0x19fa3295f  libcompiler_rt.dylib (103.3) <E54BAD88-9E9A-3A4D-8E4A-6146B120C1EC> /usr/lib/system/libcompiler_rt.dylib
+       0x19fa33000 -        0x19fa37a1b  libsystem_collections.dylib (1725.40.4) <90FA7AF0-2D12-3FC1-A87A-C4EDE396FDC5> /usr/lib/system/libsystem_collections.dylib
+       0x19fa38000 -        0x19fa3b4bf  libsystem_secinit.dylib (168.40.2) <755B9674-5B57-39CE-B247-4183C3ED6613> /usr/lib/system/libsystem_secinit.dylib
+       0x19fa3c000 -        0x19fa3eb57  libremovefile.dylib (84) <2F92CF32-4C5F-3D57-AEBC-9655B810A23C> /usr/lib/system/libremovefile.dylib
+       0x19fa3f000 -        0x19fa3ff27  libkeymgr.dylib (31) <FBDDA038-D728-3E69-815A-333D6B00BBDF> /usr/lib/system/libkeymgr.dylib
+       0x19fa40000 -        0x19fa48f87  libsystem_dnssd.dylib (2881.60.4) <5DF6DD6A-358E-3170-97D7-EB2107F4DB89> /usr/lib/system/libsystem_dnssd.dylib
+       0x19fa49000 -        0x19fa4e0b3  libcache.dylib (95) <C8B9304A-229B-3775-B353-2333D154987B> /usr/lib/system/libcache.dylib
+       0x19fa4f000 -        0x19fa50cf3  libSystem.B.dylib (1356) <EF46521E-50DB-3B5D-A1F5-5294C83D9B25> /usr/lib/libSystem.B.dylib
+       0x28a4fc000 -        0x28a503319  libRosetta.dylib (365.3) <4B2D840F-AD4B-3A47-9749-3CB480DF3717> /usr/lib/libRosetta.dylib
+       0x28bc09000 -        0x28bc0cdeb  libsystem_darwindirectory.dylib (122) <B6309151-0733-31ED-8150-92CE2BB7FEA5> /usr/lib/system/libsystem_darwindirectory.dylib
+       0x28bc0d000 -        0x28bc16117  libsystem_eligibility.dylib (286.60.23) <65295E08-697D-334C-8A97-B6FE0D9797A0> /usr/lib/system/libsystem_eligibility.dylib
+       0x28bc17000 -        0x28bc1e873  libsystem_sanitizers.dylib (25) <D81DCFCF-61F5-3C56-ACA1-42C900E5364D> /usr/lib/system/libsystem_sanitizers.dylib
+       0x28bc1f000 -        0x28bc1fbb7  libsystem_trial.dylib (474.2.0.5) <820D601F-6489-32A9-9405-ECD7378C3570> /usr/lib/system/libsystem_trial.dylib

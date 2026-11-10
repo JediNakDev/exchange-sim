@@ -1,0 +1,29 @@
+Unable to determine clock rate from sysctl: hw.cpufrequency: No such file or directory
+This does not affect benchmark measurements, only the metadata output.
+========================================
+LOB Benchmark Suite
+========================================
+CPU: Apple Silicon / macOS
+CPU Pinning: Not available
+CSV Output: results/benchmark_result_1.3.0.csv
+========================================
+
+Warmup...
+Done.
+
+***WARNING*** Failed to set thread affinity. Estimated CPU frequency may be incorrect.
+2026-05-11T17:15:21+07:00
+Running ./build/benchmark
+Run on (8 X 24 MHz CPU s)
+CPU Caches:
+  L1 Data 64 KiB
+  L1 Instruction 128 KiB
+  L2 Unified 4096 KiB (x8)
+Load Average: 9.67, 7.58, 6.37
+------------------------------------------------------------------------------------------
+Benchmark                                Time             CPU   Iterations UserCounters...
+------------------------------------------------------------------------------------------
+BM_MixedWorkload/min_time:5.000    7457236 ns      5613435 ns         1245 Max_ns=17.417k Mean_ns=27.391 Min_ns=0 P50_ns=41 P95_ns=84 P99.99_ns=417 P99.9_ns=250 P99_ns=167 StdDev_ns=69.1838 Throughput=21.4537M Throughput_ops_sec=21.4537M items_per_second=17.8144M/s 60% query, 25% add, 10% cancel, 5% modify
+
+Results: results/benchmark_result_1.3.0.csv
+sv

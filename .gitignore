@@ -10,11 +10,12 @@ build/
 # Executables
 *.exe
 *.out
-lob_demo
+exsim_demo
 
 # IDE / Editor
 .vscode/
 .idea/
+.cache/
 *.swp
 *.swo
 *~
@@ -25,6 +26,7 @@ lob_demo
 
 # Dependency files
 *.d
+/compile_commands.json
 
 # Local Compose credentials and configuration
 .secrets/
@@ -34,3 +36,6 @@ lob_demo
 output/
 __pycache__/
 legacy/
+
+# Default local exchange configuration directory
+/exchanges/

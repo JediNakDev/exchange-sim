@@ -1,4 +1,0 @@
-instrument AAA tick=01 max_qty=100 min=99 max=101 ref=100 phase=CONTINUOUS
-session alic=HALTED
-CANCEL scl_ord_id=a reduce_to_total_qty=6
-expect c

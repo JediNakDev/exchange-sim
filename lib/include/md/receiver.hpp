@@ -154,8 +154,6 @@ public:
     [[nodiscard]] bool end_of_session_reached() const noexcept { return end_of_session_reported_; }
     [[nodiscard]] std::size_t buffered_messages() const noexcept { return buffered_count_; }
     [[nodiscard]] const ReceiverStats& stats() const noexcept { return stats_; }
-    [[nodiscard]] const MoldSessionName& session_name() const noexcept { return session_name_; }
-    [[nodiscard]] RequestSink& request_sink() noexcept { return request_sink_; }
 
 private:
     struct OutstandingRequest {

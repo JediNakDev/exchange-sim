@@ -1,7 +1,0 @@
-instrument AAA tick=0.01 lot=1 max_qty=100 min=99 max=101 ref=100 phase=CONTINUOUS
-session alice own
-session bob own2
-SET_PHASE instrument=AAA phase=CLOSED
-NEW_ORDER instrument=AAA session=alice cl_ord_id=a side=BUY qty=10 price=757
-expect rejected reason=MARKET_CLOSED
-SET_PHASE instrumenumeA phase=PRED

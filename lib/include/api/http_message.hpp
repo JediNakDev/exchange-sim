@@ -1,7 +1,7 @@
 #ifndef EXSIM_API_HTTP_MESSAGE_HPP
 #define EXSIM_API_HTTP_MESSAGE_HPP
 
-// HTTP/1.1 request parsing and response serialization for the research API.
+// HTTP/1.1 request parsing and response serialization for the exchange management API.
 //
 // Control-plane code: standard containers are fine, but every input is
 // bounded. parse_http_request() works on a byte buffer that may hold a

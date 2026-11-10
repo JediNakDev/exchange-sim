@@ -1,9 +1,0 @@
-# exs.hpp.
-
-[exchange]
-name = EXSIM                 # FIX Targeartbeat_interval_ms = 1000
-soup_session = EXSl         # empty = disabled
-
-[instrument AAPL]
-tick_size = 0.01
-lot_size = 1             # same firm as ALICE: STP applies 6e

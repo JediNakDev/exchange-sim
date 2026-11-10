@@ -74,7 +74,6 @@ enum class CloseReason : std::uint8_t {
     SendBufferOverflow,  // more than send_buffer_capacity bytes queued: the peer reads too slowly
 };
 
-const char* close_reason_name(CloseReason reason) noexcept;
 
 template <class Handler>
 concept TcpServerHandler = requires(Handler& handler, ConnectionId id, Ipv4Endpoint peer, ReceiveBuffer& received,
@@ -100,7 +99,6 @@ class TcpServer {
 
     // The bound address; with port 0 in the config this holds the real port after open().
     Ipv4Endpoint listen_endpoint() const noexcept { return listen_endpoint_; }
-    std::uint8_t token_tag() const noexcept { return token_tag_; }
 
     // Accepts on listener events; on connection events reads (one recv) and
     // delivers data, flushes on write readiness, detects peer close and errors.
@@ -183,7 +181,6 @@ class TcpServer {
     }
 
     std::uint32_t connection_count() const noexcept { return connection_count_; }  // open + closing
-    std::uint32_t max_connections() const noexcept { return static_cast<std::uint32_t>(slots_.size()); }
     std::uint64_t rejected_connection_count() const noexcept { return rejected_connection_count_; }
 
    private:

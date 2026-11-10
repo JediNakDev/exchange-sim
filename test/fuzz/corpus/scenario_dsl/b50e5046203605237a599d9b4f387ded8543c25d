@@ -1,7 +1,0 @@
-instrument 10CONTINUOUS
-session alice own
-session bob  sid'e=BUY qty=10 price=100
-MASS_CANCEL session=alice cancel_on_disconnect=true
-expect cson=CANCEL_ON_DISCONNECT
-expect canceled cl_ord_id=b
-expeneinstr um

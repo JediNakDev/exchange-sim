@@ -76,28 +76,7 @@ session_id = 101
 owner = 101
 )";
 
-inline const char* const kTwoBots = R"(
-[bot maker]
-type = market_maker
-user = MM1
-instrument = AAPL
-seed = 7
-levels = 2
-size = 100
-spread_ticks = 1
-requote_ms = 50
-fair_value_step_ms = 200
 
-[bot taker]
-type = noise_taker
-user = NT1
-instrument = AAPL
-seed = 11
-mean_interval_ms = 20
-min_size = 10
-max_size = 50
-limit_ppm = 0
-)";
 
 inline ServerConfig parse_test_config(const std::string& extra = "") {
     ServerConfig config;

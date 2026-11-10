@@ -174,19 +174,6 @@ TEST_CASE(server_core_time, submit_after_admin_shutdown_is_refused_and_not_journ
     CHECK_EQ(server::to_string(SubmitResult::ExchangeShutDown), std::string_view("exchange shut down"));
 }
 
-TEST_CASE(server_core_time, timer_before_the_day_start_runs_no_bots) {
-    RecordingHarness h(parse_test_config(std::string(kTradingDay) + kTwoBots));
-    h.clock.day = kDayStart - kSecond;
-    h.core.timer(h.clock.day);
-    CHECK_EQ(h.recorder.batch_count(), 0u);
-    CHECK_EQ(h.recorder.market_data_timer_calls, 1u);
-
-    h.clock.day = kDayStart;
-    h.core.timer(h.clock.day);
-    CHECK(h.recorder.batch_count() > 0u);  // the maker quotes on its first timer
-    for (const Event& event : h.recorder.events) CHECK(event.ts >= kDayStart);
-}
-
 TEST_CASE(server_core_time, timer_value_handed_on_never_goes_backwards) {
     RecordingHarness h(parse_test_config());
     h.clock.day = 9 * kSecond;

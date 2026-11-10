@@ -1,4 +1,0 @@
-[engine]
-max_orders = 1000
-[instrument A`APL]
-tick_size = 1

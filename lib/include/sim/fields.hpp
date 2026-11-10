@@ -324,37 +324,6 @@ constexpr void visit_fields(const OrderInfo& o, F&& f) {
     f(Field{"cum_qty", FieldKind::Quantity, to_raw(o.cum_qty)});
 }
 
-// Field-by-field equality (never memcmp: union padding is indeterminate).
-template <typename T>
-[[nodiscard]] bool fields_equal(const T& a, const T& b) noexcept {
-    constexpr std::size_t kMaxFields = 32;
-    std::uint64_t raw_a[kMaxFields];
-    std::size_t count_a = 0;
-    visit_fields(a, [&](const Field& field) {
-        if (count_a < kMaxFields) raw_a[count_a] = field.raw;
-        ++count_a;
-    });
-    std::size_t count_b = 0;
-    bool equal = true;
-    visit_fields(b, [&](const Field& field) {
-        if (count_b >= count_a || count_b >= kMaxFields || raw_a[count_b] != field.raw) equal = false;
-        ++count_b;
-    });
-    return equal && count_a == count_b;
-}
-
-[[nodiscard]] inline bool events_equal(const Event& a, const Event& b) noexcept {
-    return a.type == b.type && fields_equal(a, b);
-}
-
-[[nodiscard]] inline bool commands_equal(const Command& a, const Command& b) noexcept {
-    return a.type == b.type && fields_equal(a, b);
-}
-
-[[nodiscard]] inline bool order_infos_equal(const OrderInfo& a, const OrderInfo& b) noexcept {
-    return fields_equal(a, b);
-}
-
 }  // namespace exsim::sim
 
 #endif

@@ -94,9 +94,6 @@ ErrorCode set_tcp_no_delay(int fd, bool enabled) noexcept {
 ErrorCode set_reuse_address(int fd, bool enabled) noexcept {
     return set_socket_option(fd, SOL_SOCKET, SO_REUSEADDR, enabled);
 }
-ErrorCode set_reuse_port(int fd, bool enabled) noexcept {
-    return set_socket_option(fd, SOL_SOCKET, SO_REUSEPORT, enabled);
-}
 ErrorCode set_send_buffer_size(int fd, int bytes) noexcept {
     return set_socket_option(fd, SOL_SOCKET, SO_SNDBUF, bytes);
 }

@@ -1,18 +1,5 @@
 #include <net/tcp_server.hpp>
 namespace exsim::net {
-const char* close_reason_name(CloseReason reason) noexcept {
-    switch (reason) {
-        case CloseReason::PeerClosed:
-            return "peer closed";
-        case CloseReason::ConnectionError:
-            return "connection error";
-        case CloseReason::ReceiveBufferFull:
-            return "receive buffer full";
-        case CloseReason::SendBufferOverflow:
-            return "send buffer overflow";
-    }
-    return "unknown";
-}
 TcpServer::TcpServer(const TcpServerConfig& config, Poller& poller, std::uint8_t tag)
     : config_(config),
       poller_(poller),

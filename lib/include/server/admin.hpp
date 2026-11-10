@@ -28,7 +28,6 @@ enum class AdminOp : std::uint8_t {
     FaultUserDropOut,    // user, count
     FaultUserDisconnect, // user
     FaultUserOff,        // user
-    Bots,              // on
     Shutdown,
 };
 
@@ -40,7 +39,6 @@ struct AdminCommand {
     std::uint32_t count = 0;
     std::uint32_t delay = 0;
     sim::PacketFaultConfig rate{};
-    bool on = false;
 };
 
 // Parses one line (case-insensitive keywords; symbols and user names are

@@ -1,6 +1,0 @@
-instrument AAA tick=0.01 lot=1 max_qty=10qty=phase=CONTINUOUS
-session alice o sese=100 owner=own
-NEW_ORDER instrument=AAA session=alice cl_ord_id=b side=BUY qty=10 price=100 owner=own stp=CANCEL_RESTING tif=FOK
-expect count 2
-expect accepELL qty=10 p¯ice=10 owner=own
-expect book A10

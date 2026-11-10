@@ -1,0 +1,400 @@
+Analysis of sampling benchmark (pid 71225) every 1 millisecond
+Process:         benchmark [71225]
+Path:            /Users/USER/Documents/*/benchmark
+Load Address:    0x102914000
+Identifier:      benchmark
+Version:         0
+Code Type:       ARM64
+Platform:        macOS
+Parent Process:  launchd [1]
+Target Type:     live task
+
+Date/Time:       2569-05-11 17:15:21.231 +0700
+Launch Time:     2569-05-11 17:15:20.299 +0700
+OS Version:      macOS 26.2 (25C56)
+Report Version:  7
+Analysis Tool:   /usr/bin/sample
+
+Physical footprint:         54.6M
+Physical footprint (peak):  54.6M
+Idle exit:                  untracked
+----
+
+Call graph:
+    3405 Thread_42735686   DispatchQueue_1: com.apple.main-thread  (serial)
+      3405 start  (in dyld) + 7184  [0x18fc6dd54]
+        3405 main  (in benchmark) + 1604  [0x102937bac]
+          3405 benchmark::RunSpecifiedBenchmarks()  (in benchmark) + 92  [0x102915348]
+            3405 benchmark::RunSpecifiedBenchmarks(benchmark::BenchmarkReporter*, benchmark::BenchmarkReporter*, std::basic_string<char>)  (in benchmark) + 1776  [0x102915a7c]
+              3405 benchmark::internal::BenchmarkRunner::DoOneRepetition()  (in benchmark) + 156  [0x102928274]
+                3405 benchmark::internal::BenchmarkRunner::DoNIterations()  (in benchmark) + 432  [0x1029275f8]
+                  3405 benchmark::internal::(anonymous namespace)::ThreadRunnerDefault::RunThreads(std::function<void (int)> const&)  (in benchmark) + 148  [0x1029288e4]
+                    3405 benchmark::internal::(anonymous namespace)::RunInThread(benchmark::internal::BenchmarkInstance const*, long long, int, benchmark::internal::ThreadManager*, benchmark::internal::PerfCountersMeasurement*, benchmark::ProfilerManager*)  (in benchmark) + 96  [0x102927f20]
+                      3405 benchmark::internal::BenchmarkInstance::Run(long long, int, benchmark::internal::ThreadTimer*, benchmark::internal::ThreadManager*, benchmark::internal::PerfCountersMeasurement*, benchmark::ProfilerManager*) const  (in benchmark) + 176  [0x10291aedc]
+                        1090 BM_MixedWorkload(benchmark::State&)  (in benchmark) + 300  [0x10293c7dc]
+                        + 1089 std::chrono::steady_clock::now()  (in libc++.1.dylib) + 28  [0x18ff54ef0]
+                        + ! 1027 clock_gettime  (in libsystem_c.dylib) + 60  [0x18fecfe08]
+                        + ! : 971 clock_gettime_nsec_np  (in libsystem_c.dylib) + 400  [0x18fec2178]
+                        + ! : | 971 mach_continuous_time  (in libsystem_kernel.dylib) + 84,88,...  [0x18fff306c,0x18fff3070,...]
+                        + ! : 28 clock_gettime_nsec_np  (in libsystem_c.dylib) + 356,8,...  [0x18fec214c,0x18fec1ff0,...]
+                        + ! : 25 clock_gettime_nsec_np  (in libsystem_c.dylib) + 240  [0x18fec20d8]
+                        + ! : | 25 mach_timebase_info  (in libsystem_kernel.dylib) + 8,28,...  [0x18fff2fc8,0x18fff2fdc,...]
+                        + ! : 3 mach_timebase_info  (in libsystem_kernel.dylib) + 80  [0x18fff3010]
+                        + ! 44 clock_gettime  (in libsystem_c.dylib) + 64,92,...  [0x18fecfe0c,0x18fecfe28,...]
+                        + ! 18 DYLD-STUB$$clock_gettime  (in libc++.1.dylib) + 0,8  [0x18ffabb5c,0x18ffabb64]
+                        + 1 DYLD-STUB$$std::chrono::steady_clock::now()  (in benchmark) + 0  [0x10293f66c]
+                        925 BM_MixedWorkload(benchmark::State&)  (in benchmark) + 816  [0x10293c9e0]
+                        + 909 std::chrono::steady_clock::now()  (in libc++.1.dylib) + 28  [0x18ff54ef0]
+                        + ! 837 clock_gettime  (in libsystem_c.dylib) + 60  [0x18fecfe08]
+                        + ! : 770 clock_gettime_nsec_np  (in libsystem_c.dylib) + 400  [0x18fec2178]
+                        + ! : | 761 mach_continuous_time  (in libsystem_kernel.dylib) + 84,88,...  [0x18fff306c,0x18fff3070,...]
+                        + ! : | 9 DYLD-STUB$$mach_continuous_time  (in libsystem_c.dylib) + 8,0  [0x18ff3baf0,0x18ff3bae8]
+                        + ! : 30 clock_gettime_nsec_np  (in libsystem_c.dylib) + 240  [0x18fec20d8]
+                        + ! : | 25 mach_timebase_info  (in libsystem_kernel.dylib) + 28,76,...  [0x18fff2fdc,0x18fff300c,...]
+                        + ! : | 5 DYLD-STUB$$mach_timebase_info  (in libsystem_c.dylib) + 8  [0x18ff3bb30]
+                        + ! : 30 clock_gettime_nsec_np  (in libsystem_c.dylib) + 240,40,...  [0x18fec20d8,0x18fec2010,...]
+                        + ! : 7 mach_timebase_info  (in libsystem_kernel.dylib) + 80  [0x18fff3010]
+                        + ! 62 clock_gettime  (in libsystem_c.dylib) + 64,56,...  [0x18fecfe0c,0x18fecfe04,...]
+                        + ! 10 DYLD-STUB$$clock_gettime  (in libc++.1.dylib) + 8  [0x18ffabb64]
+                        + 9 std::chrono::steady_clock::now()  (in libc++.1.dylib) + 0,28,...  [0x18ff54ed4,0x18ff54ef0,...]
+                        + 7 DYLD-STUB$$std::chrono::steady_clock::now()  (in benchmark) + 4  [0x10293f670]
+                        567 BM_MixedWorkload(benchmark::State&)  (in benchmark) + 448  [0x10293c870]
+                        + 212 lob::OrderBook::add_order(long long, unsigned long long, lob::Side)  (in benchmark) + 3040,464,...  [0x102935910,0x102934f00,...]
+                        + 74 lob::OrderBook::add_order(long long, unsigned long long, lob::Side)  (in benchmark) + 2176  [0x1029355b0]
+                        + ! 72 operator new(unsigned long)  (in libc++abi.dylib) + 52  [0x18ffeda78]
+                        + ! : 53 _xzm_xzone_malloc_tiny  (in libsystem_malloc.dylib) + 476,356,...  [0x18fe5935c,0x18fe592e4,...]
+                        + ! : 7 malloc_type_malloc  (in libsystem_malloc.dylib) + 64,56,...  [0x18fe49174,0x18fe4916c,...]
+                        + ! : 4 <deduplicated_symbol>  (in libsystem_malloc.dylib) + 24,108,...  [0x18fe54c38,0x18fe54c8c,...]
+                        + ! : 4 _xzm_xzone_malloc  (in libsystem_malloc.dylib) + 12,184,...  [0x18fe55098,0x18fe55144,...]
+                        + ! : 2 _xzm_xzone_malloc_freelist_outlined  (in libsystem_malloc.dylib) + 36,568  [0x18fe5a820,0x18fe5aa34]
+                        + ! : 1 DYLD-STUB$$malloc_type_malloc  (in libc++abi.dylib) + 0  [0x18ffede80]
+                        + ! : 1 _xzm_xzone_malloc_freelist_outlined  (in libsystem_malloc.dylib) + 324  [0x18fe5a940]
+                        + ! :   1 _xzm_xzone_find_and_malloc_from_freelist_chunk  (in libsystem_malloc.dylib) + 344  [0x18fe5b24c]
+                        + ! :     1 _xzm_xzone_malloc_from_freelist_chunk  (in libsystem_malloc.dylib) + 952  [0x18fe5b09c]
+                        + ! 1 DYLD-STUB$$operator new(unsigned long)  (in benchmark) + 4  [0x10293f784]
+                        + ! 1 operator new(unsigned long)  (in libc++abi.dylib) + 36  [0x18ffeda68]
+                        + 59 lob::OrderBook::add_order(long long, unsigned long long, lob::Side)  (in benchmark) + 332  [0x102934e7c]
+                        + ! 57 operator new(unsigned long)  (in libc++abi.dylib) + 52  [0x18ffeda78]
+                        + ! : 42 _xzm_xzone_malloc_tiny  (in libsystem_malloc.dylib) + 356,260,...  [0x18fe592e4,0x18fe59284,...]
+                        + ! : 6 <deduplicated_symbol>  (in libsystem_malloc.dylib) + 108,12,...  [0x18fe54c8c,0x18fe54c2c,...]
+                        + ! : 5 _xzm_xzone_malloc  (in libsystem_malloc.dylib) + 24,324  [0x18fe550a4,0x18fe551d0]
+                        + ! : 2 malloc_type_malloc  (in libsystem_malloc.dylib) + 28,44  [0x18fe49150,0x18fe49160]
+                        + ! : 1 _xzm_xzone_malloc_freelist_outlined  (in libsystem_malloc.dylib) + 324  [0x18fe5a940]
+                        + ! : | 1 _xzm_xzone_find_and_malloc_from_freelist_chunk  (in libsystem_malloc.dylib) + 344  [0x18fe5b24c]
+                        + ! : |   1 _xzm_xzone_malloc_from_freelist_chunk  (in libsystem_malloc.dylib) + 432  [0x18fe5ae94]
+                        + ! : 1 xzm_malloc_zone_malloc_type_malloc  (in libsystem_malloc.dylib) + 0  [0x18fe5ebe0]
+                        + ! 2 operator new(unsigned long)  (in libc++abi.dylib) + 0,52  [0x18ffeda44,0x18ffeda78]
+                        + 46 lob::OrderBook::add_order(long long, unsigned long long, lob::Side)  (in benchmark) + 1168  [0x1029351c0]
+                        + ! 42 operator new(unsigned long)  (in libc++abi.dylib) + 52  [0x18ffeda78]
+                        + ! : 27 _xzm_xzone_malloc_tiny  (in libsystem_malloc.dylib) + 828,408,...  [0x18fe594bc,0x18fe59318,...]
+                        + ! : 6 <deduplicated_symbol>  (in libsystem_malloc.dylib) + 184,0,...  [0x18fe54cd8,0x18fe54c20,...]
+                        + ! : 6 _xzm_xzone_malloc  (in libsystem_malloc.dylib) + 32,8,...  [0x18fe550ac,0x18fe55094,...]
+                        + ! : 3 DYLD-STUB$$malloc_type_malloc  (in libc++abi.dylib) + 8  [0x18ffede88]
+                        + ! 4 DYLD-STUB$$operator new(unsigned long)  (in benchmark) + 4  [0x10293f784]
+                        + 37 lob::OrderBook::add_order(long long, unsigned long long, lob::Side)  (in benchmark) + 1240  [0x102935208]
+                        + ! 19 _xzm_free  (in libsystem_malloc.dylib) + 728  [0x18fe55a1c]
+                        + ! : 19 mach_absolute_time  (in libsystem_kernel.dylib) + 108,112  [0x18fff30fc,0x18fff3100]
+                        + ! 11 _xzm_free  (in libsystem_malloc.dylib) + 664,952,...  [0x18fe559dc,0x18fe55afc,...]
+                        + ! 3 _xzm_free  (in libsystem_malloc.dylib) + 348  [0x18fe558a0]
+                        + ! : 2 _platform_memset  (in libsystem_platform.dylib) + 180  [0x19003f144]
+                        + ! : 1 __bzero  (in libsystem_platform.dylib) + 0  [0x19003f030]
+                        + ! 2 DYLD-STUB$$operator delete(void*)  (in benchmark) + 4  [0x10293f760]
+                        + ! 1 DYLD-STUB$$free  (in libc++abi.dylib) + 8  [0x18ffede48]
+                        + ! 1 _free  (in libsystem_malloc.dylib) + 0  [0x18fe62a2c]
+                        + 31 lob::OrderBook::add_order(long long, unsigned long long, lob::Side)  (in benchmark) + 756  [0x102935024]
+                        + ! 22 _xzm_free  (in libsystem_malloc.dylib) + 220,944,...  [0x18fe55820,0x18fe55af4,...]
+                        + ! 4 _free  (in libsystem_malloc.dylib) + 32,76,...  [0x18fe62a4c,0x18fe62a78,...]
+                        + ! 4 _xzm_free  (in libsystem_malloc.dylib) + 348  [0x18fe558a0]
+                        + ! : 2 _platform_memset  (in libsystem_platform.dylib) + 184,208  [0x19003f148,0x19003f160]
+                        + ! : 1 DYLD-STUB$$_platform_bzero  (in libsystem_malloc.dylib) + 8  [0x18fe6a45c]
+                        + ! : 1 __bzero  (in libsystem_platform.dylib) + 0  [0x19003f030]
+                        + ! 1 DYLD-STUB$$free  (in libc++abi.dylib) + 8  [0x18ffede48]
+                        + 24 lob::OrderBook::add_order(long long, unsigned long long, lob::Side)  (in benchmark) + 1592  [0x102935368]
+                        + ! 14 _xzm_free  (in libsystem_malloc.dylib) + 48,304,...  [0x18fe55774,0x18fe55874,...]
+                        + ! 5 _xzm_free  (in libsystem_malloc.dylib) + 348  [0x18fe558a0]
+                        + ! : 4 _platform_memset  (in libsystem_platform.dylib) + 180,208  [0x19003f144,0x19003f160]
+                        + ! : 1 __bzero  (in libsystem_platform.dylib) + 0  [0x19003f030]
+                        + ! 4 _free  (in libsystem_malloc.dylib) + 24,56,...  [0x18fe62a44,0x18fe62a64,...]
+                        + ! 1 DYLD-STUB$$operator delete(void*)  (in benchmark) + 4  [0x10293f760]
+                        + 22 lob::OrderBook::add_order(long long, unsigned long long, lob::Side)  (in benchmark) + 404  [0x102934ec4]
+                        + ! 13 _xzm_free  (in libsystem_malloc.dylib) + 128,388,...  [0x18fe557c4,0x18fe558c8,...]
+                        + ! 3 _free  (in libsystem_malloc.dylib) + 104,56  [0x18fe62a94,0x18fe62a64]
+                        + ! 2 DYLD-STUB$$operator delete(void*)  (in benchmark) + 4  [0x10293f760]
+                        + ! 2 _xzm_free  (in libsystem_malloc.dylib) + 348  [0x18fe558a0]
+                        + ! : 2 _platform_memset  (in libsystem_platform.dylib) + 208  [0x19003f160]
+                        + ! 2 operator delete(void*)  (in libc++abi.dylib) + 0  [0x18ffeb8e0]
+                        + 15 lob::OrderBook::add_order(long long, unsigned long long, lob::Side)  (in benchmark) + 380  [0x102934eac]
+                        + ! 12 _platform_memmove  (in libsystem_platform.dylib) + 424,428,...  [0x19003f508,0x19003f50c,...]
+                        + ! 3 DYLD-STUB$$memcpy  (in benchmark) + 4  [0x10293f934]
+                        + 11 lob::OrderBook::add_order(long long, unsigned long long, lob::Side)  (in benchmark) + 744  [0x102935018]
+                        + ! 11 std::__hash_table<std::__hash_value_type<unsigned long long, lob::Order*>>::remove(std::__hash_const_iterator<std::__hash_node<std::__hash_value_type<unsigned long long, lob::Order*>, void*>*>)  (in benchmark) + 144,96,...  [0x102933ff4,0x102933fc4,...]
+                        + 10 lob::OrderBook::add_order(long long, unsigned long long, lob::Side)  (in benchmark) + 1216  [0x1029351f0]
+                        + ! 9 _platform_memmove  (in libsystem_platform.dylib) + 204,428,...  [0x19003f42c,0x19003f50c,...]
+                        + ! 1 DYLD-STUB$$memcpy  (in benchmark) + 4  [0x10293f934]
+                        + 8 _xzm_free  (in libsystem_malloc.dylib) + 1344,1336  [0x18fe55c84,0x18fe55c7c]
+                        + 7 operator new(unsigned long)  (in libc++abi.dylib) + 76  [0x18ffeda90]
+                        + 6 lob::OrderBook::add_order(long long, unsigned long long, lob::Side)  (in benchmark) + 1580  [0x10293535c]
+                        + ! 6 std::__hash_table<std::__hash_value_type<unsigned long long, lob::Order*>>::remove(std::__hash_const_iterator<std::__hash_node<std::__hash_value_type<unsigned long long, lob::Order*>, void*>*>)  (in benchmark) + 192,144,...  [0x102934024,0x102933ff4,...]
+                        + 5 lob::OrderBook::add_order(long long, unsigned long long, lob::Side)  (in benchmark) + 2920  [0x102935898]
+                        +   5 lob::ObjectPool<lob::PriceLevel, 4096ul>::create<long long&>(long long&)  (in benchmark) + 16,36  [0x102934144,0x102934158]
+                        201 BM_MixedWorkload(benchmark::State&)  (in benchmark) + 1396,1152,...  [0x10293cc24,0x10293cb30,...]
+                        197 BM_MixedWorkload(benchmark::State&)  (in benchmark) + 1144  [0x10293cb28]
+                        + 89 <deduplicated_symbol>  (in libc++.1.dylib) + 668  [0x18ff49508]
+                        + ! 89 <deduplicated_symbol>  (in libc++.1.dylib) + 124,116,...  [0x18ff4faf0,0x18ff4fae8,...]
+                        + 56 <deduplicated_symbol>  (in libc++.1.dylib) + 572  [0x18ff494a8]
+                        + ! 56 <deduplicated_symbol>  (in libc++.1.dylib) + 292,388,...  [0x18ff4fc48,0x18ff4fca8,...]
+                        + 52 <deduplicated_symbol>  (in libc++.1.dylib) + 644  [0x18ff494f0]
+                        +   28 <deduplicated_symbol>  (in libc++.1.dylib) + 668  [0x18ff49508]
+                        +   : 28 <deduplicated_symbol>  (in libc++.1.dylib) + 124,112,...  [0x18ff4faf0,0x18ff4fae4,...]
+                        +   14 <deduplicated_symbol>  (in libc++.1.dylib) + 572  [0x18ff494a8]
+                        +   : 14 <deduplicated_symbol>  (in libc++.1.dylib) + 292,40,...  [0x18ff4fc48,0x18ff4fb4c,...]
+                        +   8 <deduplicated_symbol>  (in libc++.1.dylib) + 644  [0x18ff494f0]
+                        +   : 5 <deduplicated_symbol>  (in libc++.1.dylib) + 572  [0x18ff494a8]
+                        +   : | 5 <deduplicated_symbol>  (in libc++.1.dylib) + 40,52,...  [0x18ff4fb4c,0x18ff4fb58,...]
+                        +   : 2 <deduplicated_symbol>  (in libc++.1.dylib) + 592  [0x18ff494bc]
+                        +   : | 2 <deduplicated_symbol>  (in libc++.1.dylib) + 496  [0x18ff50088]
+                        +   : 1 <deduplicated_symbol>  (in libc++.1.dylib) + 668  [0x18ff49508]
+                        +   :   1 <deduplicated_symbol>  (in libc++.1.dylib) + 116  [0x18ff4fae8]
+                        +   1 <deduplicated_symbol>  (in libc++.1.dylib) + 592  [0x18ff494bc]
+                        +   : 1 <deduplicated_symbol>  (in libc++.1.dylib) + 496  [0x18ff50088]
+                        +   1 <deduplicated_symbol>  (in libc++.1.dylib) + 652  [0x18ff494f8]
+                        124 BM_MixedWorkload(benchmark::State&)  (in benchmark) + 1704  [0x10293cd58]
+                        + 80 lob::OrderBook::~OrderBook()  (in benchmark) + 176,96,...  [0x102934bc8,0x102934b78,...]
+                        + 23 lob::OrderBook::~OrderBook()  (in benchmark) + 52  [0x102934b4c]
+                        + ! 11 _xzm_free  (in libsystem_malloc.dylib) + 320,48,...  [0x18fe55884,0x18fe55774,...]
+                        + ! 4 DYLD-STUB$$free  (in libc++abi.dylib) + 8  [0x18ffede48]
+                        + ! 3 _free  (in libsystem_malloc.dylib) + 0,56,...  [0x18fe62a2c,0x18fe62a64,...]
+                        + ! 3 _xzm_free  (in libsystem_malloc.dylib) + 348  [0x18fe558a0]
+                        + ! : 2 _platform_memset  (in libsystem_platform.dylib) + 208  [0x19003f160]
+                        + ! : 1 DYLD-STUB$$_platform_bzero  (in libsystem_malloc.dylib) + 8  [0x18fe6a45c]
+                        + ! 2 DYLD-STUB$$operator delete(void*)  (in benchmark) + 4  [0x10293f760]
+                        + 8 lob::OrderBook::~OrderBook()  (in benchmark) + 328  [0x102934c60]
+                        + ! 7 xzm_segment_group_free_chunk  (in libsystem_malloc.dylib) + 792  [0x18fe3fd54]
+                        + ! : 7 _xzm_segment_group_span_mark_free  (in libsystem_malloc.dylib) + 104  [0x18fe404a4]
+                        + ! :   7 _xzm_reclaim_mark_free  (in libsystem_malloc.dylib) + 164  [0x18fe3ec3c]
+                        + ! :     7 mach_vm_reclaim_update_kernel_accounting  (in libsystem_kernel.dylib) + 92  [0x190005f74]
+                        + ! :       7 mach_vm_reclaim_update_kernel_accounting_trap  (in libsystem_kernel.dylib) + 8  [0x18fff2cb8]
+                        + ! 1 xzm_segment_group_free_chunk  (in libsystem_malloc.dylib) + 576  [0x18fe3fc7c]
+                        + !   1 _xzm_segment_group_segment_span_free_coalesce  (in libsystem_malloc.dylib) + 228  [0x18fe40288]
+                        + !     1 _xzm_segment_group_span_mark_used  (in libsystem_malloc.dylib) + 120  [0x18fe41b38]
+                        + !       1 _xzm_reclaim_mark_used  (in libsystem_malloc.dylib) + 176  [0x18fe3edf0]
+                        + !         1 mach_vm_reclaim_update_kernel_accounting  (in libsystem_kernel.dylib) + 92  [0x190005f74]
+                        + !           1 mach_vm_reclaim_update_kernel_accounting_trap  (in libsystem_kernel.dylib) + 8  [0x18fff2cb8]
+                        + 4 lob::OrderBook::~OrderBook()  (in benchmark) + 84  [0x102934b6c]
+                        + ! 4 __bzero  (in libsystem_platform.dylib) + 68  [0x19003f074]
+                        + 3 lob::OrderBook::~OrderBook()  (in benchmark) + 256  [0x102934c18]
+                        + ! 3 _platform_memset  (in libsystem_platform.dylib) + 140  [0x19003f11c]
+                        + 3 lob::OrderBook::~OrderBook()  (in benchmark) + 396  [0x102934ca4]
+                        + ! 3 xzm_segment_group_free_chunk  (in libsystem_malloc.dylib) + 576  [0x18fe3fc7c]
+                        + !   3 _xzm_segment_group_segment_span_free_coalesce  (in libsystem_malloc.dylib) + 228  [0x18fe40288]
+                        + !     3 _xzm_segment_group_span_mark_used  (in libsystem_malloc.dylib) + 120  [0x18fe41b38]
+                        + !       2 _xzm_reclaim_mark_used  (in libsystem_malloc.dylib) + 176  [0x18fe3edf0]
+                        + !       : 2 mach_vm_reclaim_update_kernel_accounting  (in libsystem_kernel.dylib) + 92  [0x190005f74]
+                        + !       :   2 mach_vm_reclaim_update_kernel_accounting_trap  (in libsystem_kernel.dylib) + 8  [0x18fff2cb8]
+                        + !       1 _xzm_reclaim_mark_used  (in libsystem_malloc.dylib) + 124  [0x18fe3edbc]
+                        + !         1 _xzm_reclaim_mark_used_locked  (in libsystem_malloc.dylib) + 60  [0x18fe412d0]
+                        + !           1 mach_vm_reclaim_try_cancel  (in libsystem_kernel.dylib) + 260  [0x190005dd4]
+                        + !             1 mach_absolute_time  (in libsystem_kernel.dylib) + 108  [0x18fff30fc]
+                        + 2 lob::OrderBook::~OrderBook()  (in benchmark) + 476  [0x102934cf4]
+                        + ! 2 xzm_segment_group_free_chunk  (in libsystem_malloc.dylib) + 576  [0x18fe3fc7c]
+                        + !   2 _xzm_segment_group_segment_span_free_coalesce  (in libsystem_malloc.dylib) + 420  [0x18fe40348]
+                        + !     2 _xzm_segment_group_span_mark_used  (in libsystem_malloc.dylib) + 120  [0x18fe41b38]
+                        + !       2 _xzm_reclaim_mark_used  (in libsystem_malloc.dylib) + 176  [0x18fe3edf0]
+                        + !         2 mach_vm_reclaim_update_kernel_accounting  (in libsystem_kernel.dylib) + 92  [0x190005f74]
+                        + !           2 mach_vm_reclaim_update_kernel_accounting_trap  (in libsystem_kernel.dylib) + 8  [0x18fff2cb8]
+                        + 1 _xzm_free  (in libsystem_malloc.dylib) + 1344  [0x18fe55c84]
+                        111 BM_MixedWorkload(benchmark::State&)  (in benchmark) + 148  [0x10293c744]
+                        + 105 bench::PrePopulatedBook::PrePopulatedBook(int, int)  (in benchmark) + 44  [0x10293a6a4]
+                        + ! 69 lob::OrderBook::OrderBook()  (in benchmark) + 188  [0x102934968]
+                        + ! : 66 lob::ObjectPool<lob::Order, 4096ul>::allocate_block()  (in benchmark) + 248,236,...  [0x102934790,0x102934784,...]
+                        + ! : 3 lob::ObjectPool<lob::Order, 4096ul>::allocate_block()  (in benchmark) + 40  [0x1029346c0]
+                        + ! :   3 operator new(unsigned long)  (in libc++abi.dylib) + 52  [0x18ffeda78]
+                        + ! :     3 _xzm_malloc_large_huge  (in libsystem_malloc.dylib) + 272  [0x18fe54e58]
+                        + ! :       3 xzm_segment_group_alloc_chunk  (in libsystem_malloc.dylib) + 556  [0x18fe3f03c]
+                        + ! :         2 _xzm_segment_group_find_and_allocate_chunk  (in libsystem_malloc.dylib) + 448  [0x18fe3f648]
+                        + ! :         + 2 _xzm_segment_group_span_mark_smaller  (in libsystem_malloc.dylib) + 436  [0x18fe40aa4]
+                        + ! :         +   1 mach_vm_reclaim_update_kernel_accounting  (in libsystem_kernel.dylib) + 36  [0x190005f3c]
+                        + ! :         +   ! 1 mach_absolute_time  (in libsystem_kernel.dylib) + 108  [0x18fff30fc]
+                        + ! :         +   1 mach_vm_reclaim_update_kernel_accounting  (in libsystem_kernel.dylib) + 92  [0x190005f74]
+                        + ! :         +     1 mach_vm_reclaim_update_kernel_accounting_trap  (in libsystem_kernel.dylib) + 8  [0x18fff2cb8]
+                        + ! :         1 _xzm_segment_group_find_and_allocate_chunk  (in libsystem_malloc.dylib) + 268  [0x18fe3f594]
+                        + ! 13 lob::OrderBook::OrderBook()  (in benchmark) + 228  [0x102934990]
+                        + ! : 10 lob::ObjectPool<lob::PriceLevel, 4096ul>::allocate_block()  (in benchmark) + 252,224  [0x1029342a4,0x102934288]
+                        + ! : 3 lob::ObjectPool<lob::PriceLevel, 4096ul>::allocate_block()  (in benchmark) + 184  [0x102934260]
+                        + ! :   3 _platform_memmove  (in libsystem_platform.dylib) + 0  [0x19003f360]
+                        + ! 11 lob::OrderBook::OrderBook()  (in benchmark) + 372  [0x102934a20]
+                        + ! : 11 std::vector<lob::PriceLevel*>::assign(unsigned long, lob::PriceLevel* const&)  (in benchmark) + 200  [0x1029343b8]
+                        + ! 7 lob::OrderBook::OrderBook()  (in benchmark) + 396  [0x102934a38]
+                        + ! : 7 std::vector<lob::PriceLevel*>::assign(unsigned long, lob::PriceLevel* const&)  (in benchmark) + 200,192  [0x1029343b8,0x1029343b0]
+                        + ! 2 lob::OrderBook::OrderBook()  (in benchmark) + 168  [0x102934954]
+                        + ! : 2 __bzero  (in libsystem_platform.dylib) + 64,68  [0x19003f070,0x19003f074]
+                        + ! 2 lob::OrderBook::OrderBook()  (in benchmark) + 436  [0x102934a60]
+                        + ! : 2 std::vector<unsigned long long>::assign(unsigned long, unsigned long long const&)  (in benchmark) + 192  [0x102934588]
+                        + ! 1 lob::OrderBook::OrderBook()  (in benchmark) + 180  [0x102934960]
+                        + 3 bench::PrePopulatedBook::PrePopulatedBook(int, int)  (in benchmark) + 788  [0x10293a98c]
+                        + ! 2 lob::OrderBook::add_order(long long, unsigned long long, lob::Side)  (in benchmark) + 2176  [0x1029355b0]
+                        + ! : 2 operator new(unsigned long)  (in libc++abi.dylib) + 52  [0x18ffeda78]
+                        + ! :   1 <deduplicated_symbol>  (in libsystem_malloc.dylib) + 208  [0x18fe54cf0]
+                        + ! :   1 _xzm_xzone_malloc_tiny  (in libsystem_malloc.dylib) + 528  [0x18fe59390]
+                        + ! 1 lob::OrderBook::add_order(long long, unsigned long long, lob::Side)  (in benchmark) + 1948  [0x1029354cc]
+                        + 2 bench::PrePopulatedBook::PrePopulatedBook(int, int)  (in benchmark) + 424  [0x10293a820]
+                        + ! 1 lob::OrderBook::add_order(long long, unsigned long long, lob::Side)  (in benchmark) + 2176  [0x1029355b0]
+                        + ! : 1 operator new(unsigned long)  (in libc++abi.dylib) + 52  [0x18ffeda78]
+                        + ! :   1 _xzm_xzone_malloc_freelist_outlined  (in libsystem_malloc.dylib) + 324  [0x18fe5a940]
+                        + ! :     1 _xzm_xzone_find_and_malloc_from_freelist_chunk  (in libsystem_malloc.dylib) + 208  [0x18fe5b1c4]
+                        + ! 1 lob::OrderBook::add_order(long long, unsigned long long, lob::Side)  (in benchmark) + 48  [0x102934d60]
+                        + 1 bench::PrePopulatedBook::PrePopulatedBook(int, int)  (in benchmark) + 540  [0x10293a894]
+                        +   1 operator new(unsigned long)  (in libc++abi.dylib) + 52  [0x18ffeda78]
+                        +     1 _xzm_xzone_malloc_tiny  (in libsystem_malloc.dylib) + 268  [0x18fe5928c]
+                        93 BM_MixedWorkload(benchmark::State&)  (in benchmark) + 504  [0x10293c8a8]
+                        + 37 _xzm_free  (in libsystem_malloc.dylib) + 128,228,...  [0x18fe557c4,0x18fe55828,...]
+                        + 31 _xzm_free  (in libsystem_malloc.dylib) + 728  [0x18fe55a1c]
+                        + ! 31 mach_absolute_time  (in libsystem_kernel.dylib) + 108,112,...  [0x18fff30fc,0x18fff3100,...]
+                        + 11 _xzm_free  (in libsystem_malloc.dylib) + 348  [0x18fe558a0]
+                        + ! 6 _platform_memset  (in libsystem_platform.dylib) + 180,160,...  [0x19003f144,0x19003f130,...]
+                        + ! 4 __bzero  (in libsystem_platform.dylib) + 0,24  [0x19003f030,0x19003f048]
+                        + ! 1 DYLD-STUB$$_platform_bzero  (in libsystem_malloc.dylib) + 8  [0x18fe6a45c]
+                        + 6 DYLD-STUB$$free  (in libc++abi.dylib) + 8  [0x18ffede48]
+                        + 5 _free  (in libsystem_malloc.dylib) + 104,12,...  [0x18fe62a94,0x18fe62a38,...]
+                        + 3 DYLD-STUB$$operator delete(void*)  (in benchmark) + 4  [0x10293f760]
+                        60 BM_MixedWorkload(benchmark::State&)  (in benchmark) + 584  [0x10293c8f8]
+                        + 30 BM_MixedWorkload(benchmark::State&)  (in benchmark) + 584  [0x10293c8f8]
+                        + ! 30 lob::OrderBook::cancel_order(unsigned long long)  (in benchmark) + 228,100,...  [0x102935c2c,0x102935bac,...]
+                        + 15 lob::OrderBook::cancel_order(unsigned long long)  (in benchmark) + 72,32  [0x102935b90,0x102935b68]
+                        + 13 lob::OrderBook::cancel_order(unsigned long long)  (in benchmark) + 880  [0x102935eb8]
+                        + ! 6 _xzm_free  (in libsystem_malloc.dylib) + 204,304,...  [0x18fe55810,0x18fe55874,...]
+                        + ! 3 _free  (in libsystem_malloc.dylib) + 0,104  [0x18fe62a2c,0x18fe62a94]
+                        + ! 2 _xzm_free  (in libsystem_malloc.dylib) + 348  [0x18fe558a0]
+                        + ! : 2 _platform_memset  (in libsystem_platform.dylib) + 208  [0x19003f160]
+                        + ! 2 lob::OrderBook::cancel_order(unsigned long long)  (in benchmark) + 880  [0x102935eb8]
+                        + 2 lob::OrderBook::cancel_order(unsigned long long)  (in benchmark) + 868  [0x102935eac]
+                        +   2 std::__hash_table<std::__hash_value_type<unsigned long long, lob::Order*>>::remove(std::__hash_const_iterator<std::__hash_node<std::__hash_value_type<unsigned long long, lob::Order*>, void*>*>)  (in benchmark) + 192,288  [0x102934024,0x102934084]
+                        15 lob::OrderBook::add_order(long long, unsigned long long, lob::Side)  (in benchmark) + 1924,1912,...  [0x1029354b4,0x1029354a8,...]
+                        5 BM_MixedWorkload(benchmark::State&)  (in benchmark) + 708  [0x10293c974]
+                        + 5 lob::OrderBook::modify_order(unsigned long long, unsigned long long)  (in benchmark) + 76,240,...  [0x102935f18,0x102935fbc,...]
+                        5 BM_MixedWorkload(benchmark::State&)  (in benchmark) + 1048  [0x10293cac8]
+                        + 5 _platform_memmove  (in libsystem_platform.dylib) + 104,88,...  [0x19003f3c8,0x19003f3b8,...]
+                        5 _xzm_free  (in libsystem_malloc.dylib) + 1332,1336,...  [0x18fe55c78,0x18fe55c7c,...]
+                        2 BM_MixedWorkload(benchmark::State&)  (in benchmark) + 44  [0x10293c6dc]
+                        + 1 bench::warmup()  (in benchmark) + 36  [0x102937ec0]
+                        + ! 1 lob::OrderBook::OrderBook()  (in benchmark) + 188  [0x102934968]
+                        + !   1 lob::ObjectPool<lob::Order, 4096ul>::allocate_block()  (in benchmark) + 248  [0x102934790]
+                        + 1 bench::warmup()  (in benchmark) + 180  [0x102937f50]
+                        +   1 lob::OrderBook::~OrderBook()  (in benchmark) + 52  [0x102934b4c]
+                        +     1 _xzm_free  (in libsystem_malloc.dylib) + 260  [0x18fe55848]
+                        2 BM_MixedWorkload(benchmark::State&)  (in benchmark) + 132  [0x10293c734]
+                        + 2 benchmark::State::PauseTiming()  (in benchmark) + 56  [0x102914a64]
+                        +   2 benchmark::internal::ThreadTimer::StopTimer()  (in benchmark) + 100  [0x102914c90]
+                        +     2 benchmark::ThreadCPUUsage()  (in benchmark) + 44  [0x102933d54]
+                        +       2 thread_info  (in libsystem_kernel.dylib) + 192  [0x18fffa61c]
+                        +         2 mach_msg2_internal  (in libsystem_kernel.dylib) + 76  [0x190005028]
+                        +           2 mach_msg2_trap  (in libsystem_kernel.dylib) + 8  [0x18fff2c34]
+                        2 BM_MixedWorkload(benchmark::State&)  (in benchmark) + 1016  [0x10293caa8]
+                        + 2 operator new(unsigned long)  (in libc++abi.dylib) + 52  [0x18ffeda78]
+                        +   2 _xzm_malloc_large_huge  (in libsystem_malloc.dylib) + 272  [0x18fe54e58]
+                        +     1 xzm_segment_group_alloc_chunk  (in libsystem_malloc.dylib) + 556  [0x18fe3f03c]
+                        +     ! 1 _xzm_segment_group_find_and_allocate_chunk  (in libsystem_malloc.dylib) + 448  [0x18fe3f648]
+                        +     !   1 _xzm_segment_group_span_mark_smaller  (in libsystem_malloc.dylib) + 436  [0x18fe40aa4]
+                        +     !     1 mach_vm_reclaim_update_kernel_accounting  (in libsystem_kernel.dylib) + 92  [0x190005f74]
+                        +     !       1 mach_vm_reclaim_update_kernel_accounting_trap  (in libsystem_kernel.dylib) + 8  [0x18fff2cb8]
+                        +     1 xzm_segment_group_alloc_chunk  (in libsystem_malloc.dylib) + 1036  [0x18fe3f21c]
+                        1 BM_MixedWorkload(benchmark::State&)  (in benchmark) + 192  [0x10293c770]
+                          1 _platform_memmove  (in libsystem_platform.dylib) + 180  [0x19003f414]
+
+Total number in stack (recursive counted multiple, when >=5):
+        11       _xzm_free  (in libsystem_malloc.dylib) + 0  [0x18fe55744]
+        8       _platform_memset  (in libsystem_platform.dylib) + 0  [0x19003f090]
+        8       operator new(unsigned long)  (in libc++abi.dylib) + 52  [0x18ffeda78]
+        7       _free  (in libsystem_malloc.dylib) + 0  [0x18fe62a2c]
+        7       _xzm_free  (in libsystem_malloc.dylib) + 348  [0x18fe558a0]
+        6       __bzero  (in libsystem_platform.dylib) + 0  [0x19003f030]
+        6       mach_vm_reclaim_update_kernel_accounting  (in libsystem_kernel.dylib) + 92  [0x190005f74]
+        6       mach_vm_reclaim_update_kernel_accounting_trap  (in libsystem_kernel.dylib) + 0  [0x18fff2cb0]
+        5       DYLD-STUB$$operator delete(void*)  (in benchmark) + 0  [0x10293f75c]
+        5       _platform_memmove  (in libsystem_platform.dylib) + 0  [0x19003f360]
+        5       _xzm_xzone_malloc_tiny  (in libsystem_malloc.dylib) + 0  [0x18fe59180]
+
+Sort by top of stack, same collapsed (when >= 5):
+        mach_continuous_time  (in libsystem_kernel.dylib)        1732
+        lob::OrderBook::add_order(long long, unsigned long long, lob::Side)  (in benchmark)        229
+        BM_MixedWorkload(benchmark::State&)  (in benchmark)        201
+        <deduplicated_symbol>  (in libc++.1.dylib)        197
+        _xzm_free  (in libsystem_malloc.dylib)        129
+        _xzm_xzone_malloc_tiny  (in libsystem_malloc.dylib)        124
+        clock_gettime  (in libsystem_c.dylib)        106
+        lob::OrderBook::~OrderBook()  (in benchmark)        80
+        lob::ObjectPool<lob::Order, 4096ul>::allocate_block()  (in benchmark)        67
+        mach_timebase_info  (in libsystem_kernel.dylib)        60
+        clock_gettime_nsec_np  (in libsystem_c.dylib)        58
+        mach_absolute_time  (in libsystem_kernel.dylib)        52
+        lob::OrderBook::cancel_order(unsigned long long)  (in benchmark)        47
+        _platform_memmove  (in libsystem_platform.dylib)        30
+        DYLD-STUB$$clock_gettime  (in libc++.1.dylib)        28
+        _free  (in libsystem_malloc.dylib)        23
+        _platform_memset  (in libsystem_platform.dylib)        23
+        std::__hash_table<std::__hash_value_type<unsigned long long, lob::Order*>>::remove(std::__hash_const_iterator<std::__hash_node<std::__hash_value_type<unsigned long long, lob::Order*>, void*>*>)  (in benchmark)        19
+        std::vector<lob::PriceLevel*>::assign(unsigned long, lob::PriceLevel* const&)  (in benchmark)        18
+        <deduplicated_symbol>  (in libsystem_malloc.dylib)        17
+        _xzm_xzone_malloc  (in libsystem_malloc.dylib)        15
+        mach_vm_reclaim_update_kernel_accounting_trap  (in libsystem_kernel.dylib)        14
+        __bzero  (in libsystem_platform.dylib)        13
+        DYLD-STUB$$free  (in libc++abi.dylib)        12
+        DYLD-STUB$$operator delete(void*)  (in benchmark)        10
+        lob::ObjectPool<lob::PriceLevel, 4096ul>::allocate_block()  (in benchmark)        10
+        operator new(unsigned long)  (in libc++abi.dylib)        10
+        DYLD-STUB$$mach_continuous_time  (in libsystem_c.dylib)        9
+        malloc_type_malloc  (in libsystem_malloc.dylib)        9
+        std::chrono::steady_clock::now()  (in libc++.1.dylib)        9
+        DYLD-STUB$$std::chrono::steady_clock::now()  (in benchmark)        8
+        DYLD-STUB$$mach_timebase_info  (in libsystem_c.dylib)        5
+        DYLD-STUB$$operator new(unsigned long)  (in benchmark)        5
+        lob::ObjectPool<lob::PriceLevel, 4096ul>::create<long long&>(long long&)  (in benchmark)        5
+        lob::OrderBook::modify_order(unsigned long long, unsigned long long)  (in benchmark)        5
+
+Binary Images:
+       0x102914000 -        0x102944fcf +benchmark (0) <39B6A06D-43E2-373A-9FF8-D6C2B1CE4521> /Users/*/Documents/*/benchmark
+       0x18fbe0000 -        0x18fc3348b  libobjc.A.dylib (951.1) <1E0A4B36-0701-3482-AA51-000F0ECC7506> /usr/lib/libobjc.A.dylib
+       0x18fc34000 -        0x18fc64bcb  libdyld.dylib (1335) <3A7FDAA5-69EC-3846-AA49-DE7BDEE00285> /usr/lib/system/libdyld.dylib
+       0x18fc65000 -        0x18fd03fc3  dyld (1.0.0 - 1335) <0975AFBA-C46B-364C-BD84-A75DAA9E455A> /usr/lib/dyld
+       0x18fd04000 -        0x18fd071d0  libsystem_blocks.dylib (96) <B64F976B-5966-3643-9B57-0EB17D149482> /usr/lib/system/libsystem_blocks.dylib
+       0x18fd08000 -        0x18fd5cf7f  libxpc.dylib (3089.60.7) <4DB07AE5-6544-3D18-B44B-DCACA4D02FB8> /usr/lib/system/libxpc.dylib
+       0x18fd5d000 -        0x18fd7d8df  libsystem_trace.dylib (1815.61.1) <16F2ABF3-27FC-3B12-AE3C-F039C083AE7B> /usr/lib/system/libsystem_trace.dylib
+       0x18fd7e000 -        0x18fe2a96f  libcorecrypto.dylib (1922.60.11) <A925150E-A21F-3273-A38D-EB304C5D2D18> /usr/lib/system/libcorecrypto.dylib
+       0x18fe2b000 -        0x18fe76bff  libsystem_malloc.dylib (792.60.6) <F68E01CC-EC92-3F25-BAC8-956A3DE42627> /usr/lib/system/libsystem_malloc.dylib
+       0x18fe77000 -        0x18febde5f  libdispatch.dylib (1542.0.4) <A4B349E8-DD6F-3B71-84D9-34F3B4ACD849> /usr/lib/system/libdispatch.dylib
+       0x18febe000 -        0x18fec0feb  libsystem_featureflags.dylib (101) <6AD11065-D06A-3212-97FC-4EEC4AC48F51> /usr/lib/system/libsystem_featureflags.dylib
+       0x18fec1000 -        0x18ff43047  libsystem_c.dylib (1725.40.4) <FB5569A9-CB26-36C2-AA05-E99243692B60> /usr/lib/system/libsystem_c.dylib
+       0x18ff44000 -        0x18ffd6ea3  libc++.1.dylib (2000.67) <BEBE1F75-49D4-32E9-9978-FF8D0E799801> /usr/lib/libc++.1.dylib
+       0x18ffd7000 -        0x18fff192f  libc++abi.dylib (2000.67) <51C9FB66-83AA-3C40-A806-99BC96BAFD7F> /usr/lib/libc++abi.dylib
+       0x18fff2000 -        0x19002e49f  libsystem_kernel.dylib (12377.61.12) <548C45C8-9733-3F0D-8EF4-C06DF1DF2AD0> /usr/lib/system/libsystem_kernel.dylib
+       0x19002f000 -        0x19003babb  libsystem_pthread.dylib (539) <527C4BA0-91A5-378B-B3E2-D38269CA5A66> /usr/lib/system/libsystem_pthread.dylib
+       0x19003c000 -        0x1900443ef  libsystem_platform.dylib (359.60.3) <4DBAF982-1576-3FFC-86BE-03A9D2C96BE5> /usr/lib/system/libsystem_platform.dylib
+       0x190045000 -        0x190074e23  libsystem_info.dylib (600) <363CFE03-0003-3DA6-BE41-820B917B7955> /usr/lib/system/libsystem_info.dylib
+       0x193fe8000 -        0x193ff2397  libsystem_darwin.dylib (1725.40.4) <C25292BB-AA30-37D2-8001-E7276ADBAF1E> /usr/lib/system/libsystem_darwin.dylib
+       0x194459000 -        0x19446aff3  libsystem_notify.dylib (344.0.1) <DF1ED23D-F338-306D-BD06-A7F9B4534B23> /usr/lib/system/libsystem_notify.dylib
+       0x196738000 -        0x196752fdb  libsystem_networkextension.dylib (2205.60.9.0.1) <C2085EB4-0A94-3D87-94ED-D5555D3FA837> /usr/lib/system/libsystem_networkextension.dylib
+       0x1967d6000 -        0x1967edff3  libsystem_asl.dylib (406) <867E699E-8CC6-3792-AC6E-35C5769FADBA> /usr/lib/system/libsystem_asl.dylib
+       0x198383000 -        0x19838b3b7  libsystem_symptoms.dylib (2158.60.3) <8D869291-11B3-3D2A-BFDF-F1C1688E19F1> /usr/lib/system/libsystem_symptoms.dylib
+       0x19c305000 -        0x19c33d2b7  libsystem_containermanager.dylib (725.60.4) <FA1FC4AB-E5A0-391C-8951-41EFEE847E0D> /usr/lib/system/libsystem_containermanager.dylib
+       0x19d753000 -        0x19d75766f  libsystem_configuration.dylib (1385.60.3) <11F5CF47-6E93-3FF7-8E5E-E98F69742465> /usr/lib/system/libsystem_configuration.dylib
+       0x19d758000 -        0x19d75e6a7  libsystem_sandbox.dylib (2680.60.11) <FD4A58D2-D1AB-3936-86EE-CCB6852E0761> /usr/lib/system/libsystem_sandbox.dylib
+       0x19ecd2000 -        0x19ecd51fb  libquarantine.dylib (196.40.3) <18BE2FA3-66CE-3EBF-9E13-8478DF73E146> /usr/lib/system/libquarantine.dylib
+       0x19f455000 -        0x19f45bf4f  libsystem_coreservices.dylib (191.2.4) <0646DDBF-346D-3273-9C9B-968121293B8A> /usr/lib/system/libsystem_coreservices.dylib
+       0x19f9a8000 -        0x19f9e58b7  libsystem_m.dylib (3309) <42E15F5C-02B8-3B56-9889-5B59CADD45EB> /usr/lib/system/libsystem_m.dylib
+       0x19f9e7000 -        0x19f9ea537  libmacho.dylib (1030.6.3) <D1DA6556-F3D8-3A33-96FF-0B8876A1F0B6> /usr/lib/system/libmacho.dylib
+       0x19fa04000 -        0x19fa1161f  libcommonCrypto.dylib (600035) <87FEBA92-8FE5-32C3-8317-F6F86489CCFB> /usr/lib/system/libcommonCrypto.dylib
+       0x19fa12000 -        0x19fa1bb0b  libunwind.dylib (1900.125) <33789B37-0F3B-389C-BF0A-80FB03A2FB31> /usr/lib/system/libunwind.dylib
+       0x19fa24000 -        0x19fa2e6ff  libcopyfile.dylib (230.0.1.0.1) <317DAF5E-A6BB-3DFF-BCA1-8053DE7A8A2C> /usr/lib/system/libcopyfile.dylib
+       0x19fa2f000 -        0x19fa3295f  libcompiler_rt.dylib (103.3) <E54BAD88-9E9A-3A4D-8E4A-6146B120C1EC> /usr/lib/system/libcompiler_rt.dylib
+       0x19fa33000 -        0x19fa37a1b  libsystem_collections.dylib (1725.40.4) <90FA7AF0-2D12-3FC1-A87A-C4EDE396FDC5> /usr/lib/system/libsystem_collections.dylib
+       0x19fa38000 -        0x19fa3b4bf  libsystem_secinit.dylib (168.40.2) <755B9674-5B57-39CE-B247-4183C3ED6613> /usr/lib/system/libsystem_secinit.dylib
+       0x19fa3c000 -        0x19fa3eb57  libremovefile.dylib (84) <2F92CF32-4C5F-3D57-AEBC-9655B810A23C> /usr/lib/system/libremovefile.dylib
+       0x19fa3f000 -        0x19fa3ff27  libkeymgr.dylib (31) <FBDDA038-D728-3E69-815A-333D6B00BBDF> /usr/lib/system/libkeymgr.dylib
+       0x19fa40000 -        0x19fa48f87  libsystem_dnssd.dylib (2881.60.4) <5DF6DD6A-358E-3170-97D7-EB2107F4DB89> /usr/lib/system/libsystem_dnssd.dylib
+       0x19fa49000 -        0x19fa4e0b3  libcache.dylib (95) <C8B9304A-229B-3775-B353-2333D154987B> /usr/lib/system/libcache.dylib
+       0x19fa4f000 -        0x19fa50cf3  libSystem.B.dylib (1356) <EF46521E-50DB-3B5D-A1F5-5294C83D9B25> /usr/lib/libSystem.B.dylib
+       0x28a4fc000 -        0x28a503319  libRosetta.dylib (365.3) <4B2D840F-AD4B-3A47-9749-3CB480DF3717> /usr/lib/libRosetta.dylib
+       0x28bc09000 -        0x28bc0cdeb  libsystem_darwindirectory.dylib (122) <B6309151-0733-31ED-8150-92CE2BB7FEA5> /usr/lib/system/libsystem_darwindirectory.dylib
+       0x28bc0d000 -        0x28bc16117  libsystem_eligibility.dylib (286.60.23) <65295E08-697D-334C-8A97-B6FE0D9797A0> /usr/lib/system/libsystem_eligibility.dylib
+       0x28bc17000 -        0x28bc1e873  libsystem_sanitizers.dylib (25) <D81DCFCF-61F5-3C56-ACA1-42C900E5364D> /usr/lib/system/libsystem_sanitizers.dylib
+       0x28bc1f000 -        0x28bc1fbb7  libsystem_trial.dylib (474.2.0.5) <820D601F-6489-32A9-9405-ECD7378C3570> /usr/lib/system/libsystem_trial.dylib

@@ -1,9 +1,0 @@
-# exs
-
-[instrument SPY]
-tick_size = 0.01
-[user MM]     
-session_id = 100
-owner = 100
-stp = cancel_resting
-cancel_on_disconnect = true
