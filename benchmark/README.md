@@ -25,7 +25,7 @@ make -j4 bench-build
 
 `FILTER` is a Google Benchmark regular expression. `ARGS` passes runner options. `bench-build` only builds, for profiling or direct runs.
 
-The binary is `build/bench/exsim_benchmark`. CSV output defaults to `build/bench/exsim_results.csv` and is replaced on each run. Create custom output directories first. On OrbStack Ubuntu, use `BENCH_BUILD=build/linux-bench` to keep Linux objects separate.
+The binary is `build/bench/exsim_benchmark`. CSV output defaults to `build/bench/exsim_results.csv` and is replaced on each run. Create custom output directories first. Use a separate `BENCH_BUILD` directory when building for another platform.
 
 ## Coverage
 

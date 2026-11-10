@@ -28,14 +28,6 @@ Debug builds use AddressSanitizer and UBSan. `FILTER` selects native unit and in
 
 Builds go to `build/<mode>/`. CI runs all three suites on macOS and Ubuntu in release and debug modes.
 
-## OrbStack Ubuntu
-
-Use a separate build directory so Linux and macOS objects do not mix:
-
-```sh
-orb -m ubuntu make -j4 test BUILD=build/linux-release EXTRA_CXXFLAGS=-Werror
-```
-
 ## Scope
 
 Fuzz campaigns and old end-to-end suites are deferred. Inactive FIXP/SBE code remains under ignored `legacy/`. Removing old reports or tests does not resolve the findings they described.

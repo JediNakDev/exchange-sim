@@ -9,4 +9,4 @@ make -j4 integration MODE=debug
 
 macOS uses kqueue. Linux uses epoll. Allocation checks count C++ heap allocations after setup. Sanitizer builds skip allocation counting and still check memory safety.
 
-The integration target also runs the Python API tests. See [test commands](../../README.md) for filtering and OrbStack builds.
+The integration target also runs the Python API tests. See [test commands](../../README.md) for filtering and build options.

@@ -48,6 +48,60 @@ Event buffers are supplied by the caller. Their capacity is checked before comma
 
 See [order metadata](../lib/src/exsim/engine/order_metadata.hpp) and [engine interface](../lib/include/matching_engine.hpp).
 
+## Operation time complexity
+
+These costs apply after setup with growth disabled. Hash-table operations use expected costs; a collision chain can take O(H), where H is the number of slots in that table.
+
+- I: configured instruments.
+- N: live orders.
+- P: ticks in one instrument's price band.
+- B: bitmap words in that band, ceil(P / 64).
+- W: total bitmap words examined by an operation, including repeat visits.
+- F: resting orders filled.
+- K: orders visited or returned.
+- L: price levels visited or returned.
+
+### Order book
+
+| Operation | Expected time | Details |
+| --- | --- | --- |
+| Find an order by ID | O(1) | Worst case O(H) |
+| Read a price level | O(1) | Direct tick lookup |
+| Read best bid, ask, spread, mid-price, or top quantity | O(1) | Cached best levels |
+| Read total order count | O(1) | Stored map size |
+| Append or unlink a known order at a level | O(1) | Intrusive FIFO links |
+| Take or return a reserved pool slot | O(1) | Free-list head |
+| Add a non-crossing order | O(1) | Hash insertion, pool slot, and FIFO append |
+| Add an aggressive order | O(1 + F + W) | Matching and best-price scans |
+| Cancel an order | O(1 + W) | W is zero unless the best level empties |
+| Modify quantity | O(1 + W) | Removing the order can empty the best level |
+| Count occupied bid or ask levels | O(B) | Popcount over every occupancy word |
+| Find the next occupied price | O(1 + W) | At most B words in one search |
+| Read a depth snapshot | O(1 + L + W) | Walks levels and allocates result vectors |
+
+The standalone add path can cancel an unfilled remainder when its fill buffer or storage is exhausted. Growth-enabled replay can allocate, rehash, or resize a ladder, so it does not have the bounded-path costs above.
+
+### Matching engine
+
+| Operation | Expected time | Details |
+| --- | --- | --- |
+| Find an instrument by ID, or read its phase or best price | O(1) | Instrument array lookup |
+| Find an instrument by symbol | O(I) | Linear instrument scan |
+| Find an order by session and client order ID | O(1) | Session-token hash map |
+| Find an order by exchange order ID | O(I) | Looks in each instrument's order map |
+| Read live order count | O(1) | Stored counter |
+| Read depth into a caller buffer | O(1 + L + W) | No result-vector allocation |
+| Read orders at one price | O(1 + K) | Walks that level's FIFO |
+| Visit all live orders | O(N) | Excludes callback work |
+| Cancel a session's orders | O(1 + K + W) | Visits that session's list |
+| Match a simple aggressive order | O(1 + F + W) | Excludes extra rule-specific traversals |
+| Plan a crossed auction | O(1 + L + W) | Visits occupied prices in the crossed range |
+| Query auction indication | O(1 + L + W) when crossed; O(1 + K) otherwise | The uncrossed case sums the instrument's live orders |
+
+For the engine tables, W includes scans across all affected books. Global order lookup can take the sum of the instrument hash-table sizes in the worst case. Cancellation and matching can also pay collision-chain costs for each order lookup or removal.
+
+FOK checks, self-trade prevention, auction execution, expiry, and bulk commands can inspect or remove more orders than an ordinary fill. Their cost depends on all orders and prices visited, not just fills produced. Callback and network serialization costs are separate.
+
 ## Network history and journals
 
 Market-data recovery uses a bounded retransmission ring. Old messages are overwritten, so recovery only covers retained history. It cannot supply a full book snapshot to a late subscriber.
