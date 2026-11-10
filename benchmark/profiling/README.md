@@ -1,4 +1,4 @@
-These captures are historical artifacts from 0.1.2, not current measurements.
+These captures are historical artifacts from 0.1.4, not current measurements.
 
 # Profiling
 

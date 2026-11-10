@@ -1,13 +1,21 @@
 # Historical LOB results
 
-The CSV contents are unchanged. Release versions were renamed as follows:
+| CSV version | Original iteration | Commit | Date |
+|-------------|--------------------|--------|------|
+| 0.1.0 | 1.0.0 | c2edf085 | 2026-01-28 |
+| 0.1.1 | 1.1.0 | 0a171e3a | 2026-02-04 |
+| 0.1.2 | 1.2.0 | 753300d8 | 2026-03-01 |
+| 0.1.3 | 1.3.0 | 88511ee2 | 2026-03-25 |
+| 0.1.4 | 1.4.0 | 404feb54 | 2026-05-11 |
 
-| File | Source iteration | Release |
-|------|------------------|---------|
-| `benchmark_result_0.1.0.csv` | 1.0.0 | 0.1.0 |
-| `benchmark_result_0.1.1_bst.csv` | 1.1.0, intrusive lists and price tree | Intermediate work toward 0.1.1 |
-| `benchmark_result_0.1.1_ladder.csv` | 1.2.0, tick ladders and sharding | Intermediate work toward 0.1.1 |
-| `benchmark_result_0.1.1.csv` | 1.3.0, zero-allocation matching | 0.1.1 |
+Files use `benchmark_result_<version>.csv`. The first four files retain
+the original CSV contents unchanged.
 
-Release 0.1.2 added ITCH replay validation and profiling. It contains the
-same final benchmark CSV as 0.1.1; no separate CSV was recorded for it.
+`benchmark_result_0.1.4.csv` contains the single MixedWorkload result recovered
+from [the console capture](../benchmark/profiling/macos_capture/bench_stdout.txt).
+Its values retain the capture's displayed precision; the sample count is blank
+because it was not printed. This is a transcription of a historical run,
+not a new measurement or a complete suite. The original run still used the
+old 1.3.0 output filename, and the tagged CSV was unchanged from 0.1.3.
+
+The ITCH replay measurements are in [benchmark/profiling/](../benchmark/profiling/README.md).

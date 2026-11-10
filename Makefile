@@ -54,7 +54,7 @@ clean:
 	rm -rf $(BUILD)
 -include $(shell find $(BUILD)/obj -name '*.d' 2>/dev/null)
 
-# Standalone LOB tests and benchmarks restored from release 0.1.2.
+# Standalone LOB tests and benchmarks restored from release 0.1.4.
 BOOK_OBJS := $(call obj,lib/src/order_book.cpp)
 LOB_TEST_SRCS := $(sort $(wildcard tests/*.cpp))
 LOB_BENCH_SRCS := $(sort $(wildcard benchmark/*.cpp benchmark/cases/*.cpp benchmark/support/*.cpp))
