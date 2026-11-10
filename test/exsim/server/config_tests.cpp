@@ -22,6 +22,62 @@ session_id = 1
 )";
 }
 
+TEST_CASE(server_config_mdp, fixture_and_cme_identity) {
+    ServerConfig config;
+    std::string error;
+    REQUIRE(load_config("test/fixtures/mdp3.conf", config, error));
+    CHECK_EQ(config.market_data.protocol, MarketDataProtocol::Mdp3);
+    CHECK_EQ(config.market_data.channel_id, 310);
+    CHECK_EQ(config.market_data.book_depth, 10);
+    CHECK_EQ(config.instruments[0].cme_security_id, 800001);
+    CHECK_EQ(std::string_view(config.instruments[0].cme_symbol.data(), 19), "ES-SIMULATED-FUTURE");
+}
+
+TEST_CASE(server_config_mdp, rejects_invalid_profile_without_truncating) {
+    const std::string prefix = R"(
+[market_data]
+protocol = mdp3
+port = 19001
+snapshot_port = 19002
+instrument_port = 19003
+replay_username = CME
+replay_password = secret
+)";
+    const std::string instrument = R"(
+[instrument ES]
+cme_security_id = 800001
+min_price = 1
+max_price = 100
+reference_price = 10
+)";
+    for (const auto extra : {"book_depth=11\n", "channel_id=32768\n", "market_segment_id=255\n", "snapshot_port=19001\n",
+                             "max_payload=1399\n", "replay_password=\n"}) {
+        ServerConfig config; std::string error;
+        CHECK(!parse_config(prefix + extra + instrument, config, error));
+    }
+    for (const auto extra : {"cme_security_id=2147483647\n", "cme_security_id=0\n", "cme_symbol=123456789012345678901\n",
+                             "tick_size=0.00001\n"}) {
+        ServerConfig config; std::string error;
+        CHECK(!parse_config(prefix + instrument + extra, config, error));
+    }
+    ServerConfig config; std::string error;
+    CHECK(!parse_config(prefix + instrument + "[instrument NQ]\ncme_security_id=800001\n", config, error));
+}
+
+TEST_CASE(server_config_ilink, current_schema_fixture_and_missing_credentials) {
+    ServerConfig config; std::string error;
+    REQUIRE(load_config("test/fixtures/ilink3-mdp.conf", config, error));
+    REQUIRE_EQ(config.users.back().protocol, Protocol::Ilink3);
+    CHECK_EQ(config.users.back().ilink_party_id, 1001u);
+    CHECK_EQ(config.users.back().ilink_session, "AAA");
+    auto text = std::string(kMinimal);
+    const auto instrument = text.find("[instrument AAPL]\n") + std::string_view("[instrument AAPL]\n").size();
+    text.insert(instrument, "cme_security_id=800001\n");
+    text += "\n[user ILINK]\nprotocol=ilink3\nsession_id=2\n";
+    CHECK(!parse_config(text, config, error));
+    CHECK(error.find("iLink user requires") != std::string::npos);
+}
+
 TEST_CASE(server_config, prices) {
     Price p = 0;
     CHECK(parse_price("150.25", p));

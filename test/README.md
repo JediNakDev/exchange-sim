@@ -16,6 +16,11 @@ This runs three suites:
 
 Integration tests use loopback TCP/UDP and real child processes. They check lifecycle, trading, feed recovery, conflicts, isolation, and shutdown. Replay compares 100,000 synthetic messages with a reference book.
 
+CME tests cover signed iLink sessions, sequence gaps, reconnect/retransmission,
+order ownership, fills, cancellation, MDP book reconstruction and snapshots,
+TCP packet recovery, and API-managed processes. A combined socket test checks
+private iLink fills against MDP trade IDs, prices, and event timestamps.
+
 ## Debug and filtering
 
 ```sh
@@ -32,6 +37,6 @@ Builds go to `build/<mode>/`. CI runs all three suites on macOS and Ubuntu in re
 
 Fuzz campaigns and old end-to-end suites are deferred. Inactive FIXP/SBE code remains under ignored `legacy/`. Removing old reports or tests does not resolve the findings they described.
 
-The active benchmark suite lives in [benchmark/](../benchmark/README.md). Replay lives in `src/utils/itch_replay/`.
+The active benchmark suite lives in [benchmark/](../benchmark/README.md). Replay lives in `src/utils/itch_replay/`. CME schema sources, regeneration, and supported scope are documented in the [CME profile](../docs/ilink-and-mdp.md).
 
 Book builders, the TCP test client, and admin test helpers are linked into test binaries. Historical `arena_*` and `vector_*` test names still exercise the current matching engine.

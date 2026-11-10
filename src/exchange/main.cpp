@@ -32,14 +32,26 @@ std::string snapshot(Runtime &runtime) {
       .key("fixOrderEntryPort")
       .integer_number(
           runtime.listen_endpoint<exsim::server::runtime::FixGateway>().port)
+      .key("ilinkOrderEntryPort")
+      .integer_number(runtime.listen_endpoint<exsim::server::runtime::IlinkGateway>().port)
       .key("marketDataProtocol")
-      .string("itch50_moldudp64")
+      .string(runtime.config().market_data.protocol == exsim::server::MarketDataProtocol::Mdp3 ? "mdp3_sbe" : "itch50_moldudp64")
       .key("marketDataAddress")
       .string(runtime.config().market_data.address)
       .key("marketDataPort")
       .integer_number(runtime.config().market_data.port)
       .key("recoveryPort")
       .integer_number(runtime.retransmission_endpoint().port)
+      .key("recoveryTransport")
+      .string(runtime.config().market_data.protocol == exsim::server::MarketDataProtocol::Mdp3 ? "tcp" : "udp")
+      .key("snapshotPort")
+      .integer_number(runtime.config().market_data.snapshot_port)
+      .key("instrumentReplayPort")
+      .integer_number(runtime.config().market_data.instrument_port)
+      .key("backupMarketDataPort")
+      .integer_number(runtime.config().market_data.backup_port)
+      .key("channelId")
+      .integer_number(runtime.config().market_data.channel_id)
       .key("session")
       .string(runtime.config().market_data.session)
       .end_object()
@@ -74,11 +86,11 @@ int main(int argc, char **argv) {
     // Order entry shares one core and public feed across both protocols.
     for (const auto &user : config.users)
       if (user.protocol != exsim::server::Protocol::Ouch42 &&
-          user.protocol != exsim::server::Protocol::Fix44)
-        throw std::runtime_error("only ouch42 and fix44 users are supported");
+          user.protocol != exsim::server::Protocol::Fix44 && user.protocol != exsim::server::Protocol::Ilink3)
+        throw std::runtime_error("only ouch42, fix44 and ilink3 users are supported");
     if (config.exchange.fixp_sbe_port || config.exchange.admin_port)
       throw std::runtime_error(
-          "FIXP and public admin listeners are not enabled");
+          "legacy fixp_sbe and public admin listeners are not enabled");
     if (control >= 0) {
       (void)exsim::net::set_non_blocking(control);
       (void)exsim::net::set_no_sigpipe(control);

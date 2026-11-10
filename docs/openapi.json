@@ -25,7 +25,8 @@
                     "product",
                     "apiVersion",
                     "profile",
-                    "orderEntryProtocols"
+                    "orderEntryProtocols",
+                    "marketDataProtocols"
                   ],
                   "properties": {
                     "product": {
@@ -43,11 +44,22 @@
                         "type": "string",
                         "enum": [
                           "ouch42_soupbintcp",
-                          "fix44"
+                          "fix44",
+                          "ilink3"
                         ]
                       },
                       "minItems": 2,
                       "uniqueItems": true
+                    },
+                    "marketDataProtocols": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "itch50_moldudp64",
+                          "mdp3_sbe"
+                        ]
+                      }
                     }
                   }
                 }
@@ -435,7 +447,7 @@
           },
           "config": {
             "type": "string",
-            "description": "Saved INI with password values replaced by [REDACTED]."
+            "description": "Saved INI with password, replay_password and ilink_secret_key values replaced by [REDACTED]."
           },
           "runtime": {
             "oneOf": [
@@ -488,7 +500,13 @@
           "marketDataPort",
           "recoveryPort",
           "session",
-          "fixOrderEntryPort"
+          "fixOrderEntryPort",
+          "recoveryTransport",
+          "snapshotPort",
+          "instrumentReplayPort",
+          "backupMarketDataPort",
+          "channelId",
+          "ilinkOrderEntryPort"
         ],
         "properties": {
           "address": {
@@ -504,7 +522,11 @@
             "maximum": 65535
           },
           "marketDataProtocol": {
-            "const": "itch50_moldudp64"
+            "type": "string",
+            "enum": [
+              "itch50_moldudp64",
+              "mdp3_sbe"
+            ]
           },
           "marketDataAddress": {
             "type": "string",
@@ -529,6 +551,42 @@
             "minimum": 1,
             "maximum": 65535,
             "description": "FIX 4.4 TCP listener; authenticates users configured with protocol=fix44."
+          },
+          "recoveryTransport": {
+            "type": "string",
+            "enum": [
+              "udp",
+              "tcp"
+            ]
+          },
+          "snapshotPort": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 65535,
+            "description": "MDP snapshot UDP destination port; zero for ITCH."
+          },
+          "instrumentReplayPort": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 65535,
+            "description": "MDP instrument definition UDP destination port; zero for ITCH."
+          },
+          "backupMarketDataPort": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 65535,
+            "description": "Optional MDP redundant incremental UDP destination port."
+          },
+          "channelId": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 32767
+          },
+          "ilinkOrderEntryPort": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 65535,
+            "description": "CME iLink 3 schema 8/version 9 TCP listener; zero when no iLink users or explicit listener are configured."
           }
         }
       },

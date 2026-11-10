@@ -22,13 +22,13 @@ public:
     // day_time_at_start: ns since local midnight to report right now;
     // nullopt reads the local wall clock.
     explicit ServerClock(std::optional<Timestamp> day_time_at_start = std::nullopt) noexcept
-        : monotonic_at_start_ns_(net::monotonic_ns()) {
+        : monotonic_at_start_ns_(net::monotonic_ns()), realtime_at_start_ns_(net::realtime_ns()) {
         if (day_time_at_start) {
             day_time_at_start_ns_ = *day_time_at_start;
         } else {
             net::LocalClock local_clock;
             local_clock.refresh();
-            day_time_at_start_ns_ = local_clock.midnight_ns(net::realtime_ns());
+            day_time_at_start_ns_ = local_clock.midnight_ns(realtime_at_start_ns_);
         }
     }
 
@@ -37,9 +37,13 @@ public:
     }
     [[nodiscard]] std::uint64_t realtime_ns() const noexcept { return net::realtime_ns(); }
     [[nodiscard]] std::uint64_t monotonic_ns() const noexcept { return net::monotonic_ns(); }
+    [[nodiscard]] std::uint64_t epoch_ns(Timestamp day_time) const noexcept {
+        return realtime_at_start_ns_ - day_time_at_start_ns_ + day_time;
+    }
 
 private:
     std::uint64_t monotonic_at_start_ns_;
+    std::uint64_t realtime_at_start_ns_;
     Timestamp day_time_at_start_ns_ = 0;
 };
 

@@ -45,6 +45,11 @@ struct InstrumentConfig {
     Price max_price = 10'000'000;       // inclusive, multiple of tick_size
     Price reference_price = 1'000'000;  // auction tie-break until first trade
     Phase initial_phase = Phase::Continuous;
+    // CME identity is independent of the dense internal/ITCH instrument ID.
+    std::int32_t cme_security_id = 0;
+    std::array<char, 20> cme_symbol{};  // NUL padded; empty uses symbol
+    std::uint32_t cme_maturity_date = 20991231;  // YYYYMMDD, synthetic future by default
+    std::uint32_t cme_contract_size = 1;         // index points per contract
 };
 
 // Layout-independent validation; engines also check their allocation byte sizes.

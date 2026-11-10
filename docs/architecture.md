@@ -28,7 +28,7 @@ A private UNIX socket carries management commands and status. Start waits for re
 
 ## Trading connections
 
-OUCH 4.2 runs over SoupBinTCP. FIX 4.4 uses a separate TCP listener. Both use the same matching engine and books. Public events use ITCH 5.0 over MoldUDP64.
+OUCH 4.2 runs over SoupBinTCP. FIX 4.4 and CME iLink 3 use separate TCP listeners. All use the same matching engine and books. Public events use ITCH 5.0 over MoldUDP64 or CME MDP 3.0. The [CME profile](ilink-and-mdp.md) defines supported messages and limits.
 
 Many traders can connect to one order-entry listener. Each has its own authenticated session. More traders do not require more exchange listener ports.
 
@@ -37,8 +37,11 @@ Many traders can connect to one order-entry listener. Each has its own authentic
 | Management API          | HTTP/TCP  | Manage exchange processes           |
 | OUCH order entry        | TCP       | Orders and private replies          |
 | FIX order entry         | TCP       | Orders and private replies          |
+| iLink 3 order entry     | TCP       | FIXP/SBE orders and private replies |
 | Public feed destination | UDP       | Market data                         |
-| Recovery listener       | UDP       | Requests and retransmitted messages |
+| ITCH recovery listener  | UDP       | MoldUDP64 retransmission            |
+| MDP recovery feeds      | UDP       | Snapshots and instrument definitions |
+| MDP replay listener     | TCP       | Authenticated historical packets    |
 
 Use a specific local IPv4 bind address. TCP and recovery listener port zero requests an OS-assigned port. The feed destination needs a nonzero port. Query the API for actual connection details after each start.
 
@@ -60,13 +63,13 @@ The manager locks its config directory so only one API process can use it. Confi
 
 Standalone exchanges can write journals. Managed journaling is currently rejected. Journals do not provide automatic crash recovery, and abrupt termination can lose buffered records.
 
-Books, session state, and feed history disappear when an exchange exits. Recovery only covers the retained feed ring. Late subscribers need earlier feed history or a future snapshot service.
+Books, session state, and feed history disappear when an exchange exits. Recovery covers retained in-memory history. MDP subscribers can join using periodic snapshots and instrument definitions; ITCH subscribers still need earlier feed history.
 
 ## Limitations
 
 The HTTP API has no authentication and defaults to loopback. Remote traders need a reachable exchange address. Multicast delivery needs a suitable network.
 
-Protocol support is a subset of each specification. FIXP/SBE, live snapshots, and automatic state recovery are not active features.
+Protocol support is a subset of each specification. iLink uses the pinned version 9 schema with configured party records. MDP supports MBP snapshots and bounded TCP recovery. Exchange state is not restored after a process restart.
 
 Run native processes on macOS or Linux. Active checks cover unit and integration tests. The benchmark suite measures order-book operations and a benchmark-only sharding harness, not the complete exchange service.
 
