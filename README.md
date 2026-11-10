@@ -8,13 +8,14 @@ flowchart TD
     API[Managing API] <-->|"Manage socket"| EX1[Exchange Process]
     API <-->|"Manage socket"| EX2[Exchange Process]
   end
-
-  EX1 <-->|"TCP: Orders and private replies"| TD1[Trader]
-  EX1 <-->|"UDP: Market data and recovery"| TD1[Trader]
+  API <-->|"HTTP"| TD1[Trader]
+  EX1 <-->|"TCP: Orders and private replies"| TD1
+  EX1 <-->|"UDP: Market data and recovery"| TD1
   EX1 <-->|"TCP"| TD2[Trader]
-  EX1 <-->|"UDP"| TD2[Trader]
-  EX2 <-->|"TCP"| TD3[Trader]
-  EX2 <-->|"UDP"| TD3[Trader]
+  EX1 <-->|"UDP"| TD2
+  API <-->|"HTTP"| TD3[Trader]
+  EX2 <-->|"TCP"| TD3
+  EX2 <-->|"UDP"| TD3
 ```
 
 ## Getting Started
