@@ -4,6 +4,7 @@
 #include "../utils/warmup.hpp"
 #include "../utils/workload.hpp"
 #include <exchange/order_book.hpp>
+#include <chrono>
 
 using namespace bench;
 
