@@ -10,10 +10,12 @@ namespace exsim::exchange::engine {
 // Bounded single-producer single-consumer ring. Each side keeps a private
 // copy of the other side's index and reloads the shared one only when the
 // ring looks full (producer) or empty (consumer), so the steady state does
-// not pull the other thread's cache line on every operation.
+// not pull the other thread's cache line on every operation. Capacity is a
+// power of two so indices wrap with a mask; the ring holds Capacity - 1
+// entries.
 template <typename T, std::size_t Capacity>
 class SPSCQueue {
-    static_assert(Capacity > 1, "Capacity must be > 1");
+    static_assert(Capacity > 1 && (Capacity & (Capacity - 1)) == 0, "Capacity must be a power of two > 1");
 
 public:
     bool try_push(const T& value) noexcept {
@@ -51,7 +53,7 @@ public:
 
 private:
     static constexpr std::size_t increment(std::size_t idx) noexcept {
-        return (idx + 1) % Capacity;
+        return (idx + 1) & (Capacity - 1);
     }
 
     // Consumer-owned line.
