@@ -233,7 +233,7 @@ inline std::uint64_t book_state_digest(const MatchingEngine& engine) {
     return hash;
 }
 
-// SPEC 11 invariants plus query consistency, through the public API only.
+// Book invariants plus query consistency, through the public API only.
 inline void check_book_invariants(const MatchingEngine& engine) {
     const std::vector<OrderInfo> orders = all_live_orders(engine);
     CHECK_EQ(orders.size(), engine.live_order_count());
@@ -286,6 +286,23 @@ inline void check_book_invariants(const MatchingEngine& engine) {
         }
     }
     CHECK_EQ(orders_on_levels, engine.live_order_count());
+
+    // An uncrossed auction indication reports the imbalance of every live
+    // order's leaves, whatever phase the instrument is in.
+    for (InstrumentId id = 1; id <= engine.instrument_count(); ++id) {
+        const AuctionIndicative indicative = engine.auction_indicative(id);
+        if (indicative.crossed) continue;
+        std::uint64_t buy_leaves = 0;
+        std::uint64_t sell_leaves = 0;
+        for (const OrderInfo& order : orders) {
+            if (order.instrument == id) (order.side == Side::BUY ? buy_leaves : sell_leaves) += order.leaves_qty;
+        }
+        CHECK_EQ(indicative.imbalance_qty,
+                 buy_leaves >= sell_leaves ? buy_leaves - sell_leaves : sell_leaves - buy_leaves);
+        CHECK_EQ(indicative.imbalance_side, buy_leaves > sell_leaves   ? Aggressor::Buy
+                                            : sell_leaves > buy_leaves ? Aggressor::Sell
+                                                                       : Aggressor::None);
+    }
 }
 
 }  // namespace arena_test

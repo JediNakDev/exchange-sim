@@ -3,6 +3,7 @@
 #include <test/framework/alloc_counter.hpp>
 
 #include <limits>
+#include <memory>
 #include <stdexcept>
 
 using namespace exsim::exchange;
@@ -711,7 +712,7 @@ TEST_CASE(order_book_bounds, aggregate_quantity_overflow_does_not_wrap_or_mutate
 
 TEST_CASE(order_book_exchange_storage, passive_resting_preserves_fifo_ids_and_crossed_auction_books) {
     OrderBook book(OrderBookConfig{3,3,0,100,1,false});
-    const auto* first = book.rest_order(41,60,20,15,Side::BUY,7);
+    auto* first = book.rest_order(41,60,20,15,Side::BUY,7);
     REQUIRE(first != nullptr);
     REQUIRE(book.rest_order(42,60,10,10,Side::BUY,8) != nullptr);
     REQUIRE(book.rest_order(43,50,8,8,Side::SELL,9) != nullptr);
@@ -726,7 +727,8 @@ TEST_CASE(order_book_exchange_storage, passive_resting_preserves_fifo_ids_and_cr
     CHECK_EQ(level->head_order->next_order->id,42u);
     CHECK_EQ(first->context_index,7u);
     CHECK(book.rest_order(44,70,1,1,Side::BUY,10) == nullptr);
-    CHECK(book.set_leaves(41,0));
+    book.execute_order(*first,15);
+    CHECK_EQ(first->remaining_quantity,0u);
     CHECK_EQ(level->total_volume,10u);
     CHECK(book.find_order(41) != nullptr);
     CHECK(book.cancel_order(41));
@@ -746,22 +748,120 @@ TEST_CASE(order_book_exchange_storage, passive_resting_preserves_fifo_ids_and_cr
 
 TEST_CASE(order_book_exchange_storage, reductions_reject_invalid_growth_and_allocate_nothing) {
     OrderBook book(OrderBookConfig{2,2,0,100,1,false});
-    REQUIRE(book.rest_order(1,10,10,10,Side::BUY,1) != nullptr);
-    REQUIRE(book.rest_order(2,20,10,10,Side::SELL,2) != nullptr);
+    Order* const bid = book.rest_order(1,10,10,10,Side::BUY,1);
+    REQUIRE(bid != nullptr);
+    Order* const ask = book.rest_order(2,20,10,10,Side::SELL,2);
+    REQUIRE(ask != nullptr);
     if (!testfw::allocation_counting_available()) return;
     std::size_t count;
     {
         testfw::AllocationScope allocations;
-        CHECK(!book.set_leaves(1,11));
-        CHECK(!book.set_leaves(99,0));
-        CHECK(book.set_leaves(1,8));
-        CHECK(book.amend_order(1,9,7));
+        CHECK(!book.amend_order(*bid,10,11));  // leaves may not grow
+        CHECK(!book.amend_order(*bid,5,6));    // leaves may not exceed total
+        book.execute_order(*bid,2);
+        CHECK(book.amend_order(*bid,9,7));
         CHECK_EQ(book.find_order(1)->quantity,9u);
         CHECK_EQ(book.find_order(1)->remaining_quantity,7u);
         CHECK_EQ(book.price_level(Side::BUY,10)->total_volume,7u);
-        CHECK(book.cancel_order(2));
+        CHECK_EQ(book.get_total_leaves(Side::BUY),7u);
+        book.remove_order(*ask);
+        CHECK(book.find_order(2) == nullptr);
+        CHECK_EQ(book.get_total_leaves(Side::SELL),0u);
         CHECK(book.rest_order(3,30,5,5,Side::SELL,3) != nullptr);
         count = allocations.count();
     }
     CHECK_EQ(count,0u);
+}
+
+TEST_CASE(order_book_query, next_price_reaches_both_band_edges_on_both_sides) {
+    // Regression: the previous-level search checked its start against the bid
+    // ladder for both sides. Every edge of both ladders must be reachable.
+    OrderBook book(bounded_config(8, 8));
+    REQUIRE(book.rest_order(1, 0, 1, 1, Side::BUY, 0) != nullptr);
+    REQUIRE(book.rest_order(2, 1000, 1, 1, Side::BUY, 0) != nullptr);
+    REQUIRE(book.rest_order(3, 0, 1, 1, Side::SELL, 0) != nullptr);
+    REQUIRE(book.rest_order(4, 1000, 1, 1, Side::SELL, 0) != nullptr);
+    for (const Side side : {Side::BUY, Side::SELL}) {
+        CHECK_EQ(book.next_price(side, 0, true).value_or(-1), 0);
+        CHECK_EQ(book.next_price(side, 1, true).value_or(-1), 1000);
+        CHECK_EQ(book.next_price(side, 1000, false).value_or(-1), 1000);
+        CHECK_EQ(book.next_price(side, 999, false).value_or(-1), 0);
+        CHECK_EQ(book.next_price(side, 5000, false).value_or(-1), 1000);  // clamped to the band
+        CHECK_EQ(book.next_price(side, -5000, true).value_or(-1), 0);
+        CHECK(!book.next_price(side, 1001, true).has_value());
+        CHECK(!book.next_price(side, -1, false).has_value());
+    }
+    CHECK(book.cancel_order(1));
+    CHECK(book.cancel_order(4));
+    CHECK(!book.next_price(Side::BUY, 999, false).has_value());
+    CHECK(!book.next_price(Side::SELL, 1, true).has_value());
+}
+
+TEST_CASE(order_book_exchange_storage, books_on_one_storage_share_capacity_but_not_orders) {
+    auto storage = std::make_shared<OrderBookStorage>(3, 3, false);
+    OrderBook first_book(bounded_config(3, 3), storage);
+    OrderBook second_book(bounded_config(3, 3), storage);
+    Order* const first_bid = first_book.rest_order(1, 100, 5, 5, Side::BUY, 0);
+    REQUIRE(first_bid != nullptr);
+    CHECK(second_book.rest_order(1, 99, 1, 1, Side::BUY, 3) == nullptr);  // ID taken in the other book
+    REQUIRE(second_book.rest_order(2, 100, 7, 7, Side::SELL, 1) != nullptr);
+    REQUIRE(second_book.rest_order(3, 101, 7, 7, Side::SELL, 2) != nullptr);
+    CHECK(second_book.rest_order(4, 102, 1, 1, Side::SELL, 3) == nullptr);  // shared pool is full
+    CHECK(first_book.rest_order(4, 50, 1, 1, Side::BUY, 3) == nullptr);
+    CHECK_EQ(first_book.get_total_orders(), 1u);
+    CHECK_EQ(second_book.get_total_orders(), 2u);
+
+    // One book never sees or changes the other book's orders.
+    CHECK(!first_book.has_order(2));
+    CHECK(first_book.find_order(2) == nullptr);
+    CHECK(!first_book.cancel_order(2));
+    CHECK(!first_book.modify_order(3, 1));
+    CHECK(!second_book.cancel_order(1));
+    CHECK_EQ(second_book.find_order(2)->remaining_quantity, 7u);
+    CHECK_EQ(second_book.get_total_leaves(Side::SELL), 14u);
+    CHECK_EQ(first_book.get_total_leaves(Side::SELL), 0u);
+
+    // A slot freed by one book is usable by the other.
+    first_book.remove_order(*first_bid);
+    CHECK_EQ(first_book.get_bid_levels(), 0u);
+    CHECK(second_book.rest_order(4, 102, 1, 1, Side::SELL, 3) != nullptr);
+    CHECK_EQ(second_book.get_ask_levels(), 3u);
+    CHECK_EQ(second_book.get_best_ask().value_or(-1), 100);
+}
+
+TEST_CASE(order_book, level_order_and_leaves_counts_track_every_mutation) {
+    OrderBookConfig config = bounded_config(16, 16);
+    config.max_price = 10;
+    config.allow_growth = true;
+    OrderBook book(config);
+    const auto check_counts = [&](std::size_t bid_levels, std::size_t ask_levels, std::size_t orders,
+                                  Quantity bid_leaves, Quantity ask_leaves) {
+        CHECK_EQ(book.get_bid_levels(), bid_levels);
+        CHECK_EQ(book.get_ask_levels(), ask_levels);
+        CHECK_EQ(book.get_total_orders(), orders);
+        CHECK_EQ(book.get_total_leaves(Side::BUY), bid_leaves);
+        CHECK_EQ(book.get_total_leaves(Side::SELL), ask_leaves);
+    };
+    check_counts(0, 0, 0, 0, 0);
+    const auto bid_at_5 = book.add_order(5, 3, Side::BUY);
+    (void)book.add_order(5, 4, Side::BUY);
+    (void)book.add_order(4, 2, Side::BUY);
+    (void)book.add_order(8, 6, Side::SELL);
+    check_counts(2, 1, 4, 9, 6);
+    (void)book.add_order(20000, 1, Side::SELL);  // grows the ladder upward
+    (void)book.add_order(-300, 1, Side::BUY);    // grows it downward
+    check_counts(3, 2, 6, 10, 7);
+    const auto partial = book.add_order(5, 5, Side::SELL);  // fills 3 then 2 of 4 at 5
+    REQUIRE_EQ(partial.fills.size(), 2u);
+    const OrderId partly_filled_bid = partial.fills[1].buy_order_id;  // fills is only valid until the next add
+    check_counts(3, 2, 5, 5, 7);
+    CHECK(book.modify_order(partly_filled_bid, 10));  // 2 of 10 filled: leaves 8
+    check_counts(3, 2, 5, 11, 7);
+    CHECK(!book.cancel_order(bid_at_5.order_id));
+    const auto sweep = book.add_order(20000, 20, Side::BUY);  // takes both asks, rests 13
+    CHECK_EQ(sweep.fills.size(), 2u);
+    check_counts(4, 0, 4, 24, 0);
+    CHECK(book.cancel_order(sweep.order_id));
+    CHECK(book.modify_order(partly_filled_bid, 2));  // nothing left: removed
+    check_counts(2, 0, 2, 3, 0);
 }

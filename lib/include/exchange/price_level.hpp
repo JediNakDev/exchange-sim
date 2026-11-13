@@ -26,7 +26,6 @@ public:
     // Price and aggregate data
     Price price;
     Quantity total_volume;      // Total quantity at this price level
-    size_t order_count_;        // Number of orders at this level
 
     // Doubly linked list of orders at this price
     Order* head_order;
@@ -35,9 +34,9 @@ public:
     explicit PriceLevel(Price price_) noexcept
         : price(price_)
         , total_volume(0)
-        , order_count_(0)
         , head_order(nullptr)
         , tail_order(nullptr)
+        , order_count_(0)
     {}
 
     // Add order to tail of the order list - O(1)
@@ -111,6 +110,8 @@ public:
         return order_count_; 
     }
 
+private:
+    size_t order_count_;        // Number of orders at this level
 };
 
 }

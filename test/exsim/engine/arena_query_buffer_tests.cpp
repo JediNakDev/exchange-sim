@@ -1,9 +1,10 @@
-// Query API contracts, SPEC 12 output preflight (InsufficientOutput leaves
+// Query API contracts, output preflight (InsufficientOutput leaves
 // engine and output unchanged) and arena slot reuse at full capacity.
 
 #include <test/exsim/engine/arena_test_support.hpp>
 #include <test/framework/alloc_counter.hpp>
 
+#include <cstdio>
 #include <limits>
 #include <random>
 
@@ -296,4 +297,50 @@ TEST_CASE(arena_capacity, single_slot_engine) {
     fixture.apply(with_tif(limit_order(kBobSession, 1, Side::BUY, 100, 5), TimeInForce::IOC));
     CHECK_EQ(fixture.events[1].canceled.reason, CancelReason::ImmediateOrCancel);
     CHECK_EQ(fixture.engine.live_order_count(), std::size_t{0});
+}
+
+TEST_CASE(arena_capacity, instruments_share_one_order_limit_and_id_lookup) {
+    // Four instruments draw from one max_orders pool: the limit is global, a
+    // slot freed on one instrument is usable on another, and lookup by
+    // OrderId finds orders of every instrument.
+    constexpr std::size_t kMaxOrders = 6;
+    ArenaEngineFixture fixture(Phase::Continuous, 4, EngineConfig{4, kMaxOrders});
+    for (ClOrdId token = 1; token <= kMaxOrders; ++token) {
+        const auto instrument = static_cast<InstrumentId>(1 + (token - 1) % 4);
+        fixture.apply(limit_order(kAliceSession, token, Side::BUY, 50, 1, instrument));
+        REQUIRE_EQ(fixture.events[1].type, EventType::Rested);
+    }
+    for (InstrumentId instrument = 1; instrument <= 4; ++instrument) {
+        fixture.apply(limit_order(kBobSession, instrument, Side::SELL, 150, 1, instrument));
+        CHECK_EQ(fixture.only_event().rejected.reason, RejectReason::CapacityExceeded);
+    }
+    for (OrderId order_id = 1; order_id <= kMaxOrders; ++order_id) {
+        const auto order = fixture.engine.find_order(order_id);
+        REQUIRE(order.has_value());
+        CHECK_EQ(order->instrument, static_cast<InstrumentId>(1 + (order_id - 1) % 4));
+    }
+    CHECK(!fixture.engine.find_order(OrderId{kMaxOrders + 1}).has_value());
+
+    fixture.apply(CancelOrder{0, kAliceSession, 1, 0, 0});  // frees a slot on instrument 1
+    fixture.apply(limit_order(kBobSession, 9, Side::SELL, 150, 1, 4));
+    REQUIRE_EQ(fixture.events[1].type, EventType::Rested);
+    CHECK_EQ(fixture.engine.find_order(fixture.events[1].rested.order_id)->instrument, InstrumentId{4});
+    CHECK(!fixture.engine.find_order(OrderId{1}).has_value());
+    check_book_invariants(fixture.engine);
+}
+
+TEST_CASE(arena_instruments, find_instrument_by_symbol_after_many_instruments) {
+    MatchingEngine engine(EngineConfig{41, 8});  // room for one more, so only the symbol can reject
+    char symbol[8] = {};
+    for (int i = 0; i < 40; ++i) {
+        std::snprintf(symbol, sizeof(symbol), "S%02d", i);
+        REQUIRE_EQ(engine.add_instrument(small_instrument_config(symbol)), static_cast<InstrumentId>(i + 1));
+    }
+    CHECK_EQ(engine.add_instrument(small_instrument_config("S07")), InstrumentId{0});  // symbol taken
+    for (int i = 0; i < 40; ++i) {
+        std::snprintf(symbol, sizeof(symbol), "S%02d", i);
+        CHECK_EQ(engine.find_instrument(Symbol(symbol)), static_cast<InstrumentId>(i + 1));
+    }
+    CHECK_EQ(engine.find_instrument(Symbol("S40")), InstrumentId{0});
+    CHECK_EQ(engine.find_instrument(Symbol("")), InstrumentId{0});
 }

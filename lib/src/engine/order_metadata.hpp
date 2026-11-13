@@ -1,12 +1,14 @@
 #ifndef EXSIM_ENGINE_ORDER_METADATA_HPP
 #define EXSIM_ENGINE_ORDER_METADATA_HPP
 
-// Exchange metadata indexed by the order book order's context_index.
-// The order book owns resting orders, price levels, FIFO links and remaining shares.
-// These preallocated arrays retain session/STP attributes, cumulative fills,
-// and engine/session/instrument query lists. Index 0 means no metadata slot.
+// Engine-only order metadata indexed by the order book order's context_index.
+// The order book owns resting orders (ID, price tick, leaves), price levels and
+// FIFO links. These preallocated arrays hold what the book does not: session
+// and STP attributes, cumulative fills, and engine/session/instrument query
+// lists. Index 0 means no metadata slot.
 
 #include <types.hpp>
+#include <exchange/order.hpp>
 
 #include <cstdint>
 
@@ -32,19 +34,16 @@ inline constexpr unsigned kSessionTokenShift = 48;
 }
 
 struct OrderHot {
-    OrderIndex next;              // metadata free-list link when the slot is free
-    Quantity leaves_qty;
+    exsim::exchange::Order* order;  // the resting book order; its context_index is this slot
+    std::uint64_t session_token;    // make_session_token(session, cl_ord_id)
     Quantity cum_qty;
     OwnerId owner;
-    OrderId order_id;
-    std::uint64_t session_token;  // make_session_token(session, cl_ord_id)
+    OrderIndex next;                // metadata free-list link when the slot is free
 };
 static_assert(sizeof(OrderHot) == 32, "two hot records per cache line");
 
 struct OrderCold {
-    std::uint32_t tick;           // ladder index: price = min_price + tick * tick_size
     InstrumentId instrument;
-    Side side;
     TimeInForce tif;
     StpMode stp;
     bool post_only;
@@ -54,7 +53,7 @@ struct OrderCold {
     OrderIndex next_in_session;   // per-session list, ascending OrderId
     OrderIndex prev_in_session;
 };
-static_assert(sizeof(OrderCold) == 28);
+static_assert(sizeof(OrderCold) == 24);
 
 // Head and tail of an intrusive doubly linked list of orders.
 struct OrderListEnds {
@@ -62,8 +61,8 @@ struct OrderListEnds {
     OrderIndex tail;
 };
 
-// Per-instrument list links, kept apart from OrderCold (which is full at 32
-// bytes) and touched only on add and remove.
+// Per-instrument list links, kept apart from OrderCold and touched only on
+// add and remove.
 struct InstrumentListLinks {
     OrderIndex next;  // per-instrument list, ascending OrderId
     OrderIndex prev;

@@ -1,6 +1,7 @@
 #include <exchange/order_book.hpp>
 #include <exchange/compiler.hpp>
 #include <algorithm>
+#include <cassert>
 #include <cstdint>
 #include <limits>
 #include <stdexcept>
@@ -8,18 +9,6 @@
 namespace exsim::exchange {
 
 namespace {
-
-inline std::size_t bit_word_index(std::size_t idx) noexcept { return idx >> 6; }
-inline std::size_t bit_offset(std::size_t idx) noexcept { return idx & 63u; }
-inline std::size_t bit_word_count(std::size_t ladder_size) noexcept { return (ladder_size + 63) / 64; }
-
-inline void set_active(std::vector<std::uint64_t>& words, std::size_t idx) noexcept {
-    words[bit_word_index(idx)] |= (std::uint64_t{1} << bit_offset(idx));
-}
-
-inline void clear_active(std::vector<std::uint64_t>& words, std::size_t idx) noexcept {
-    words[bit_word_index(idx)] &= ~(std::uint64_t{1} << bit_offset(idx));
-}
 
 // Number of ticks in [min_price, max_price] (min_price <= max_price). The
 // unsigned subtraction is exact, so extreme bands cannot overflow into a
@@ -34,10 +23,28 @@ std::size_t ladder_size_for(Price min_price, Price max_price) {
 
 }  // namespace
 
+OrderBookStorage::OrderBookStorage(std::size_t max_resting_orders, std::size_t max_price_levels, bool allow_growth) {
+    max_resting_orders = std::max<std::size_t>(1, max_resting_orders);
+    orders.reserve(max_resting_orders);
+    order_pool.reserve(max_resting_orders);
+    level_pool.reserve(std::max<std::size_t>(1, max_price_levels));
+    orders.set_allow_growth(allow_growth);
+    order_pool.set_allow_growth(allow_growth);
+    level_pool.set_allow_growth(allow_growth);
+}
+
 OrderBook::OrderBook() : OrderBook(OrderBookConfig{}) {}
 
 OrderBook::OrderBook(const OrderBookConfig& config)
-    : min_price_(std::min(config.min_price, config.max_price))
+    : OrderBook(config, std::make_shared<OrderBookStorage>(config.max_resting_orders, config.max_price_levels,
+                                                           config.allow_growth)) {}
+
+OrderBook::OrderBook(const OrderBookConfig& config, std::shared_ptr<OrderBookStorage> storage)
+    : storage_(std::move(storage))
+    , orders_(storage_->orders)
+    , order_pool_(storage_->order_pool)
+    , level_pool_(storage_->level_pool)
+    , min_price_(std::min(config.min_price, config.max_price))
     , max_price_(std::max(config.min_price, config.max_price))
     , highest_buy_(nullptr)
     , lowest_sell_(nullptr)
@@ -47,18 +54,9 @@ OrderBook::OrderBook(const OrderBookConfig& config)
     const std::size_t ladder_size = ladder_size_for(min_price_, max_price_);
     bid_ladder_.assign(ladder_size, nullptr);
     ask_ladder_.assign(ladder_size, nullptr);
-    bid_active_words_.assign(bit_word_count(ladder_size), 0);
-    ask_active_words_.assign(bit_word_count(ladder_size), 0);
-
-    const auto max_resting_orders = std::max<std::size_t>(1, config.max_resting_orders);
-    orders_.reserve(max_resting_orders);
-    order_pool_.reserve(max_resting_orders);
-    level_pool_.reserve(std::max<std::size_t>(1, config.max_price_levels));
+    bid_active_levels_ = ActiveBitmap(ladder_size);
+    ask_active_levels_ = ActiveBitmap(ladder_size);
     fill_buffer_.reserve(max_fills_per_add_order_);
-
-    orders_.set_allow_growth(allow_growth_);
-    order_pool_.set_allow_growth(allow_growth_);
-    level_pool_.set_allow_growth(allow_growth_);
 }
 
 bool OrderBook::ensure_price_range(Price price) {
@@ -79,23 +77,23 @@ bool OrderBook::ensure_price_range(Price price) {
     // allocation leaves it unchanged.
     std::vector<PriceLevel*> new_bid_ladder(new_size, nullptr);
     std::vector<PriceLevel*> new_ask_ladder(new_size, nullptr);
-    std::vector<std::uint64_t> new_bid_words(bit_word_count(new_size), 0);
-    std::vector<std::uint64_t> new_ask_words(bit_word_count(new_size), 0);
+    ActiveBitmap new_bid_levels(new_size);
+    ActiveBitmap new_ask_levels(new_size);
     for (std::size_t i = 0; i < bid_ladder_.size(); ++i) {
         if (PriceLevel* level = bid_ladder_[i]) {
             new_bid_ladder[i + shift] = level;
-            set_active(new_bid_words, i + shift);
+            new_bid_levels.set(i + shift);
         }
         if (PriceLevel* level = ask_ladder_[i]) {
             new_ask_ladder[i + shift] = level;
-            set_active(new_ask_words, i + shift);
+            new_ask_levels.set(i + shift);
         }
     }
 
     bid_ladder_.swap(new_bid_ladder);
     ask_ladder_.swap(new_ask_ladder);
-    bid_active_words_.swap(new_bid_words);
-    ask_active_words_.swap(new_ask_words);
+    bid_active_levels_ = std::move(new_bid_levels);
+    ask_active_levels_ = std::move(new_ask_levels);
     min_price_ = new_min;
     max_price_ = new_max;
     return true;
@@ -105,60 +103,15 @@ std::size_t OrderBook::ladder_index(Price price) const noexcept {
     return static_cast<std::size_t>(static_cast<std::uint64_t>(price) - static_cast<std::uint64_t>(min_price_));
 }
 
-std::optional<std::size_t> OrderBook::find_prev_active(
-    const std::vector<std::uint64_t>& words,
-    std::size_t from_idx) const noexcept {
-    if (words.empty() || from_idx >= bid_ladder_.size()) {
-        return std::nullopt;
-    }
-
-    std::size_t word = bit_word_index(from_idx);
-    std::uint64_t bits = words[word];
-    const unsigned offset = static_cast<unsigned>(bit_offset(from_idx));
-    const std::uint64_t mask = (offset == 63) ? ~std::uint64_t{0} : ((std::uint64_t{1} << (offset + 1)) - 1);
-    bits &= mask;
-
-    while (true) {
-        if (bits != 0) {
-            const unsigned msb = 63u - static_cast<unsigned>(__builtin_clzll(bits));
-            return (word << 6) + msb;
-        }
-        if (word == 0) {
-            return std::nullopt;
-        }
-        --word;
-        bits = words[word];
-    }
+bool OrderBook::rests_here(const Order& order) const noexcept {
+    if (order.price < min_price_ || order.price > max_price_) return false;
+    const auto& ladder = order.side == Side::BUY ? bid_ladder_ : ask_ladder_;
+    return ladder[ladder_index(order.price)] == order.parent_level;
 }
 
-std::optional<std::size_t> OrderBook::find_next_active(
-    const std::vector<std::uint64_t>& words,
-    std::size_t from_idx) const noexcept {
-    if (words.empty() || from_idx >= bid_ladder_.size()) {
-        return std::nullopt;
-    }
-
-    std::size_t word = bit_word_index(from_idx);
-    std::uint64_t bits = words[word];
-    const unsigned offset = static_cast<unsigned>(bit_offset(from_idx));
-    const std::uint64_t mask = ~((std::uint64_t{1} << offset) - 1);
-    bits &= mask;
-
-    while (word < words.size()) {
-        if (bits != 0) {
-            const unsigned lsb = static_cast<unsigned>(__builtin_ctzll(bits));
-            const std::size_t idx = (word << 6) + lsb;
-            if (idx < bid_ladder_.size()) {
-                return idx;
-            }
-            return std::nullopt;
-        }
-        ++word;
-        if (word < words.size()) {
-            bits = words[word];
-        }
-    }
-    return std::nullopt;
+Order* OrderBook::find_order_here(OrderId id) const noexcept {
+    Order* const* slot = orders_.find(id);
+    return slot && rests_here(**slot) ? *slot : nullptr;
 }
 
 template<Side S>
@@ -167,7 +120,7 @@ bool OrderBook::add_order_to_book_impl(Order* order) {
 
     const std::size_t idx = ladder_index(order->price);
     auto& ladder = (S == Side::BUY) ? bid_ladder_ : ask_ladder_;
-    auto& active = (S == Side::BUY) ? bid_active_words_ : ask_active_words_;
+    auto& active = (S == Side::BUY) ? bid_active_levels_ : ask_active_levels_;
     auto*& best  = (S == Side::BUY) ? highest_buy_ : lowest_sell_;
 
     PriceLevel*& level = ladder[idx];
@@ -176,7 +129,7 @@ bool OrderBook::add_order_to_book_impl(Order* order) {
         if (EXSIM_EXCHANGE_UNLIKELY(!level)) {
             return false;
         }
-        set_active(active, idx);
+        active.set(idx);
         if constexpr (S == Side::BUY) {
             if (!best || level->price > best->price) best = level;
         } else {
@@ -185,6 +138,8 @@ bool OrderBook::add_order_to_book_impl(Order* order) {
     }
     if (level->total_volume > std::numeric_limits<Quantity>::max() - order->remaining_quantity) return false;
     level->add_order(order);
+    ++order_count_;
+    leaves_by_side_[static_cast<std::size_t>(S)] += order->remaining_quantity;
     return true;
 }
 
@@ -195,6 +150,8 @@ void OrderBook::remove_order_from_book_impl(Order* order) {
         return;
     }
 
+    --order_count_;
+    leaves_by_side_[static_cast<std::size_t>(S)] -= order->remaining_quantity;
     level->remove_order(order);
     if (!level->is_empty()) {
         return;
@@ -202,23 +159,19 @@ void OrderBook::remove_order_from_book_impl(Order* order) {
 
     const std::size_t idx = ladder_index(level->price);
     auto& ladder = (S == Side::BUY) ? bid_ladder_ : ask_ladder_;
-    auto& active = (S == Side::BUY) ? bid_active_words_ : ask_active_words_;
+    auto& active = (S == Side::BUY) ? bid_active_levels_ : ask_active_levels_;
 
     ladder[idx] = nullptr;
-    clear_active(active, idx);
+    active.clear(idx);
 
     if constexpr (S == Side::BUY) {
         if (level == highest_buy_) {
-            if (idx == 0) {
-                highest_buy_ = nullptr;
-            } else {
-                const auto prev = find_prev_active(bid_active_words_, idx - 1);
-                highest_buy_ = prev ? bid_ladder_[*prev] : nullptr;
-            }
+            const auto prev = idx == 0 ? std::nullopt : bid_active_levels_.find_at_or_below(idx - 1);
+            highest_buy_ = prev ? bid_ladder_[*prev] : nullptr;
         }
     } else {
         if (level == lowest_sell_) {
-            const auto next = find_next_active(ask_active_words_, idx + 1);
+            const auto next = ask_active_levels_.find_at_or_above(idx + 1);
             lowest_sell_ = next ? ask_ladder_[*next] : nullptr;
         }
     }
@@ -260,10 +213,12 @@ bool OrderBook::match_order_impl(Order& incoming) {
             incoming.fill(fill_qty);
             resting->fill(fill_qty);
             contra_level->total_volume -= fill_qty;
+            leaves_by_side_[static_cast<std::size_t>(resting->side)] -= fill_qty;
 
             if (EXSIM_EXCHANGE_LIKELY(resting->is_filled())) {
                 const OrderId resting_id = resting->id;
                 contra_level->pop_front();
+                --order_count_;
                 (void)orders_.erase(resting_id);
                 order_pool_.destroy(resting);
             }
@@ -272,22 +227,18 @@ bool OrderBook::match_order_impl(Order& incoming) {
         if (EXSIM_EXCHANGE_LIKELY(contra_level->is_empty())) {
             const std::size_t idx = ladder_index(contra_level->price);
             auto& ladder = (S == Side::BUY) ? ask_ladder_ : bid_ladder_;
-            auto& active = (S == Side::BUY) ? ask_active_words_ : bid_active_words_;
+            auto& active = (S == Side::BUY) ? ask_active_levels_ : bid_active_levels_;
 
             ladder[idx] = nullptr;
-            clear_active(active, idx);
+            active.clear(idx);
             level_pool_.destroy(contra_level);
 
             if constexpr (S == Side::BUY) {
-                const auto next = find_next_active(ask_active_words_, idx + 1);
+                const auto next = ask_active_levels_.find_at_or_above(idx + 1);
                 lowest_sell_ = next ? ask_ladder_[*next] : nullptr;
             } else {
-                if (idx == 0) {
-                    highest_buy_ = nullptr;
-                } else {
-                    const auto prev = find_prev_active(bid_active_words_, idx - 1);
-                    highest_buy_ = prev ? bid_ladder_[*prev] : nullptr;
-                }
+                const auto prev = idx == 0 ? std::nullopt : bid_active_levels_.find_at_or_below(idx - 1);
+                highest_buy_ = prev ? bid_ladder_[*prev] : nullptr;
             }
         }
     }
@@ -373,25 +324,32 @@ Order* OrderBook::rest_order(OrderId id, Price price, Quantity quantity,
     return order;
 }
 
-bool OrderBook::set_leaves(OrderId id, Quantity leaves) noexcept {
-    Order** slot = orders_.find(id);
-    if (!slot) return false;
-    Order& order = **slot;
-    if (leaves > order.remaining_quantity) return false;
-    order.parent_level->total_volume -= order.remaining_quantity - leaves;
-    order.remaining_quantity = leaves;
+void OrderBook::execute_order(Order& order, Quantity quantity) noexcept {
+    assert(quantity <= order.remaining_quantity);
+    order.remaining_quantity -= quantity;
+    order.parent_level->total_volume -= quantity;
+    leaves_by_side_[static_cast<std::size_t>(order.side)] -= quantity;
+}
+
+bool OrderBook::amend_order(Order& order, Quantity total, Quantity leaves) noexcept {
+    if (leaves > total || leaves > order.remaining_quantity) return false;
+    execute_order(order, order.remaining_quantity - leaves);
+    order.quantity = total;
     return true;
 }
 
-bool OrderBook::amend_order(OrderId id, Quantity total, Quantity leaves) noexcept {
-    if (leaves > total || !set_leaves(id,leaves)) return false;
-    (*orders_.find(id))->quantity = total;
-    return true;
+void OrderBook::remove_order(Order& order) noexcept {
+    if (order.side == Side::BUY) {
+        remove_order_from_book_impl<Side::BUY>(&order);
+    } else {
+        remove_order_from_book_impl<Side::SELL>(&order);
+    }
+    (void)orders_.erase(order.id);
+    order_pool_.destroy(&order);
 }
 
 const Order* OrderBook::find_order(OrderId id) const noexcept {
-    auto slot = orders_.find(id);
-    return slot ? *slot : nullptr;
+    return find_order_here(id);
 }
 const PriceLevel* OrderBook::price_level(Side side, Price price) const noexcept {
     if (price < min_price_ || price > max_price_) return nullptr;
@@ -401,50 +359,44 @@ std::optional<Price> OrderBook::next_price(Side side, Price from, bool ascending
     if (ascending && from > max_price_) return std::nullopt;
     if (!ascending && from < min_price_) return std::nullopt;
     from = std::clamp(from,min_price_,max_price_);
-    const auto& words = side == Side::BUY ? bid_active_words_ : ask_active_words_;
-    const auto index = ascending ? find_next_active(words,ladder_index(from)) : find_prev_active(words,ladder_index(from));
+    const auto& levels = side == Side::BUY ? bid_active_levels_ : ask_active_levels_;
+    const auto index = ascending ? levels.find_at_or_above(ladder_index(from)) : levels.find_at_or_below(ladder_index(from));
     return index ? std::optional<Price>(min_price_ + static_cast<Price>(*index)) : std::nullopt;
 }
 std::uint64_t OrderBook::active_word(Side side, std::size_t word) const noexcept {
-    const auto& words = side == Side::BUY ? bid_active_words_ : ask_active_words_;
-    return word < words.size() ? words[word] : 0;
+    const auto& levels = side == Side::BUY ? bid_active_levels_ : ask_active_levels_;
+    return word < levels.word_count() ? levels.word(word) : 0;
 }
 
 bool OrderBook::cancel_order(OrderId order_id) {
-    Order** slot = orders_.find(order_id);
-    if (EXSIM_EXCHANGE_UNLIKELY(!slot)) {
+    Order* order = find_order_here(order_id);
+    if (EXSIM_EXCHANGE_UNLIKELY(!order)) {
         return false;
     }
-
-    Order* order = *slot;
-    if (order->side == Side::BUY) {
-        remove_order_from_book_impl<Side::BUY>(order);
-    } else {
-        remove_order_from_book_impl<Side::SELL>(order);
-    }
-    (void)orders_.erase(order_id);
-    order_pool_.destroy(order);
+    remove_order(*order);
     return true;
 }
 
 bool OrderBook::modify_order(OrderId order_id, Quantity new_quantity) {
-    Order** slot = orders_.find(order_id);
-    if (EXSIM_EXCHANGE_UNLIKELY(!slot)) {
+    Order* order = find_order_here(order_id);
+    if (EXSIM_EXCHANGE_UNLIKELY(!order)) {
         return false;
     }
 
-    Order* order = *slot;
     const Quantity filled_qty = order->quantity - order->remaining_quantity;
     const Quantity new_remaining = (new_quantity > filled_qty) ? (new_quantity - filled_qty) : 0;
     if (new_remaining == 0) {
         // Nothing left to execute: a zero-quantity order must not rest.
-        return cancel_order(order_id);
+        remove_order(*order);
+        return true;
     }
 
     PriceLevel* level = order->parent_level;
     const Quantity other_volume = level->total_volume - order->remaining_quantity;
     if (new_remaining > std::numeric_limits<Quantity>::max() - other_volume) return false;
     level->total_volume = other_volume + new_remaining;
+    Quantity& side_leaves = leaves_by_side_[static_cast<std::size_t>(order->side)];
+    side_leaves = side_leaves - order->remaining_quantity + new_remaining;
 
     order->quantity = new_quantity;
     order->remaining_quantity = new_remaining;
@@ -502,22 +454,6 @@ Quantity OrderBook::get_ask_quantity_at_top() const {
     return lowest_sell_ ? lowest_sell_->total_volume : 0;
 }
 
-size_t OrderBook::get_bid_levels() const noexcept {
-    size_t count = 0;
-    for (std::uint64_t w : bid_active_words_) {
-        count += static_cast<size_t>(__builtin_popcountll(w));
-    }
-    return count;
-}
-
-size_t OrderBook::get_ask_levels() const noexcept {
-    size_t count = 0;
-    for (std::uint64_t w : ask_active_words_) {
-        count += static_cast<size_t>(__builtin_popcountll(w));
-    }
-    return count;
-}
-
 OrderBook::BookSnapshot OrderBook::get_snapshot(size_t depth) const {
     BookSnapshot snapshot;
     if (depth == 0) {
@@ -530,7 +466,7 @@ OrderBook::BookSnapshot OrderBook::get_snapshot(size_t depth) const {
         while (idx && snapshot.bids.size() < depth) {
             const PriceLevel* level = bid_ladder_[*idx];
             snapshot.bids.push_back({level->price, level->total_volume, level->order_count()});
-            idx = (*idx == 0) ? std::nullopt : find_prev_active(bid_active_words_, *idx - 1);
+            idx = (*idx == 0) ? std::nullopt : bid_active_levels_.find_at_or_below(*idx - 1);
         }
     }
     if (lowest_sell_) {
@@ -538,7 +474,7 @@ OrderBook::BookSnapshot OrderBook::get_snapshot(size_t depth) const {
         while (idx && snapshot.asks.size() < depth) {
             const PriceLevel* level = ask_ladder_[*idx];
             snapshot.asks.push_back({level->price, level->total_volume, level->order_count()});
-            idx = find_next_active(ask_active_words_, *idx + 1);
+            idx = ask_active_levels_.find_at_or_above(*idx + 1);
         }
     }
 

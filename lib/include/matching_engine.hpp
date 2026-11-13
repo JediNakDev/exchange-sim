@@ -13,10 +13,10 @@
 //
 // Setup cost: the constructor and add_instrument allocate and zero-fill all
 // of their storage up front. If it does not fit they throw std::bad_alloc or
-// std::length_error rather than returning, so size max_orders and price bands
-// for physical memory, including the order book pools and per-instrument reservations.
-//
-// Semantics are specified in matching engine contract.
+// std::length_error rather than returning. The constructor sizes one order
+// pool, level pool and OrderId map shared by all instruments from max_orders;
+// add_instrument adds only that instrument's price ladders, which scale with
+// its price band. Size max_orders and price bands for physical memory.
 
 #include "command.hpp"
 #include "event.hpp"
