@@ -3,14 +3,51 @@
 #include "ipc/exchange_control.hpp"
 #include "server/config.hpp"
 #include "server/server_runtime.hpp"
+#include <cerrno>
 #include <csignal>
+#include <cstring>
 #include <iostream>
-#include <poll.h>
+#include <stdexcept>
+#include <sys/socket.h>
 #include <unistd.h>
 
 namespace {
 volatile std::sig_atomic_t stopping = 0;
 void stop_signal(int) { stopping = 1; }
+
+// The management API's end of the control socketpair, watched by the runtime
+// poller. Commands: "status" replies with a snapshot, "stop" requests shutdown
+// and then replies; anything else or an IPC error requests shutdown and closes
+// the socket.
+struct ControlSocket {
+    int& fd;  // main's control fd: set to -1 here when the socket is closed
+    exsim::server::ServerRuntime& runtime;
+};
+
+// True while the non-blocking socket has unread bytes, EOF or an error, so the
+// next receive_control either reads a command or reports the failure.
+bool control_has_input(int fd) noexcept {
+    char byte = 0;
+    const ssize_t count = ::recv(fd, &byte, 1, MSG_PEEK | MSG_DONTWAIT);
+    return count >= 0 || (errno != EINTR && !exsim::net::is_would_block(errno));
+}
+
+void handle_control_commands(void* context) noexcept {
+    auto& control = *static_cast<ControlSocket*>(context);
+    while (control.fd >= 0 && control_has_input(control.fd)) {
+        try {
+            const auto command = exsim::ipc::receive_control(control.fd);
+            if (command == "stop") control.runtime.request_shutdown();
+            else if (command != "status") throw std::runtime_error("invalid control command");
+            exsim::ipc::send_control(control.fd, exsim::api::runtime_snapshot_json(control.runtime));
+        } catch (...) {
+            control.runtime.request_shutdown();
+            control.runtime.unwatch_readable_fd();
+            ::close(control.fd);
+            control.fd = -1;
+        }
+    }
+}
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -49,23 +86,16 @@ int main(int argc, char** argv) {
         const auto ready = exsim::api::runtime_snapshot_json(runtime);
         if (control >= 0) exsim::ipc::send_control(control, ready, 10000);
         std::cout << ready << std::endl;
+        ControlSocket control_socket{control, runtime};
+        if (control >= 0) {
+            if (const exsim::net::ErrorCode watch_error =
+                    runtime.watch_readable_fd(control, handle_control_commands, &control_socket);
+                watch_error != 0) {
+                throw std::runtime_error("control socket poller: " + std::string(std::strerror(watch_error)));
+            }
+        }
         while (!runtime.finished()) {
             if (stopping) runtime.request_shutdown();
-            if (control >= 0) {
-                pollfd event{control, POLLIN, 0};
-                if (::poll(&event, 1, 0) > 0) {
-                    try {
-                        const auto command = exsim::ipc::receive_control(control);
-                        if (command == "stop") runtime.request_shutdown();
-                        else if (command != "status") throw std::runtime_error("invalid control command");
-                        exsim::ipc::send_control(control, exsim::api::runtime_snapshot_json(runtime));
-                    } catch (...) {
-                        runtime.request_shutdown();
-                        ::close(control);
-                        control = -1;
-                    }
-                }
-            }
             runtime.poll_once();
         }
     } catch (const std::exception& error) {
