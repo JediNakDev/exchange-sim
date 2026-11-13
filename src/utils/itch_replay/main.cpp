@@ -17,7 +17,6 @@
 #include "synthetic.hpp"
 
 #include <book/order_book.hpp>
-#include "src/utils/itch_replay/itch.hpp"
 
 #include <chrono>
 #include <cstdint>
@@ -99,12 +98,10 @@ int main(int argc, char** argv) {
 
     auto t0 = std::chrono::steady_clock::now();
     while (offset < wire.size()) {
-        int sz = exsim::itch_replay::itch::message_size(wire[offset]);
+        const std::size_t sz = exsim::itch_replay::book_message_size(wire[offset]);
         if (sz == 0) { ++skipped; ++offset; continue; }
-        if (offset + static_cast<std::size_t>(sz) > wire.size()) break;
-        exsim::itch_replay::itch::Message m;
-        if (exsim::itch_replay::itch::parse(&wire[offset], m)) {
-            replayer.apply(m);
+        if (offset + sz > wire.size()) break;
+        if (replayer.apply({&wire[offset], sz})) {
             ++parsed;
             if (validate) {
                 auto d = exsim::itch_replay::diff_books(book, ref, 10);

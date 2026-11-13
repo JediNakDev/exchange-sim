@@ -1,6 +1,6 @@
 // End-to-end ITCH replay validation:
 //   1. Generate a deterministic synthetic ITCH 5.0 stream.
-//   2. Parse byte-by-byte through exsim::itch_replay::itch::parse.
+//   2. Decode each message with protocol::itch50 through ItchReplayer::apply.
 //   3. Drive both the production OrderBook and a ReferenceBook from
 //      the same event sequence.
 //   4. After every K messages diff the top-10 of both books — if they
@@ -20,7 +20,6 @@
 #include "src/utils/itch_replay/synthetic.hpp"
 
 #include <book/order_book.hpp>
-#include "src/utils/itch_replay/itch.hpp"
 
 #include <cassert>
 #include <iostream>
@@ -41,14 +40,13 @@ void replay_matches_reference() {
     std::size_t offset = 0;
     std::size_t parsed = 0;
     while (offset < wire.size()) {
-        int sz = exsim::itch_replay::itch::message_size(wire[offset]);
+        const std::size_t sz = exsim::itch_replay::book_message_size(wire[offset]);
         assert(sz > 0 && "unknown message type in synthetic stream");
-        assert(offset + static_cast<std::size_t>(sz) <= wire.size());
+        assert(offset + sz <= wire.size());
 
-        exsim::itch_replay::itch::Message m;
-        bool ok = exsim::itch_replay::itch::parse(&wire[offset], m);
+        const char type = wire[offset];
+        bool ok = replayer.apply({&wire[offset], sz});
         assert(ok);
-        replayer.apply(m);
         offset += sz;
         ++parsed;
 
@@ -56,7 +54,7 @@ void replay_matches_reference() {
             auto d = exsim::itch_replay::diff_books(book, ref, /*depth=*/10);
             if (!d.ok) {
                 std::cerr << "DIVERGENCE after " << parsed << " msgs (type='"
-                          << static_cast<char>(m.type) << "'): "
+                          << type << "'): "
                           << d.detail << "\n";
                 std::exit(1);
             }

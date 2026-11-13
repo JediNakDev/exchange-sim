@@ -13,8 +13,10 @@
 
 #include "reference_book.hpp"
 #include <book/order_book.hpp>
-#include "src/utils/itch_replay/itch.hpp"
+#include <protocol/itch50.hpp>
+#include <cstddef>
 #include <cstdint>
+#include <span>
 #include <unordered_map>
 
 namespace exsim::itch_replay {
@@ -24,6 +26,21 @@ using book::OrderId;
 using book::Price;
 using book::Quantity;
 using book::Side;
+
+// Wire size of the ITCH 5.0 messages that change the book (A, F, E, X, D,
+// U), or 0 for any other type byte.
+[[nodiscard]] inline std::size_t book_message_size(char type) noexcept {
+    namespace itch50 = protocol::itch50;
+    switch (type) {
+    case itch50::AddOrder::type: return itch50::AddOrder::wire_size;
+    case itch50::AddOrderMPID::type: return itch50::AddOrderMPID::wire_size;
+    case itch50::OrderExecuted::type: return itch50::OrderExecuted::wire_size;
+    case itch50::OrderCancel::type: return itch50::OrderCancel::wire_size;
+    case itch50::OrderDelete::type: return itch50::OrderDelete::wire_size;
+    case itch50::OrderReplace::type: return itch50::OrderReplace::wire_size;
+    default: return 0;
+    }
+}
 
 struct ReplayStats {
     std::uint64_t adds = 0;
@@ -43,36 +60,59 @@ public:
     explicit ItchReplayer(OrderBook& book, ReferenceBook* validate = nullptr)
         : book_(book), reference_(validate) {}
 
-    void apply(const itch::Message& m) {
-        switch (m.type) {
-        case itch::MessageType::AddOrder:
-        case itch::MessageType::AddOrderMPID:
-            do_add(m.add_order.order_ref, m.add_order.side,
-                   m.add_order.price, m.add_order.shares);
+    // Decodes one ITCH 5.0 message (exactly book_message_size(type) bytes)
+    // and applies it. Returns false for a message that does not decode.
+    bool apply(std::span<const char> message) {
+        namespace itch50 = protocol::itch50;
+        switch (message[0]) {
+        case itch50::AddOrder::type: {
+            itch50::AddOrder m;
+            if (itch50::decode(message, m) != protocol::Status::ok) return false;
+            do_add(m.order_reference, m.side, m.price, m.shares);
             ++stats_.adds;
-            break;
-        case itch::MessageType::OrderExecuted:
-            reduce(m.order_executed.order_ref, m.order_executed.executed_shares);
-            ++stats_.executes;
-            break;
-        case itch::MessageType::OrderCancel:
-            reduce(m.order_cancel.order_ref, m.order_cancel.cancelled_shares);
-            ++stats_.cancels;
-            break;
-        case itch::MessageType::OrderDelete:
-            do_delete(m.order_delete.order_ref);
-            ++stats_.deletes;
-            break;
-        case itch::MessageType::OrderReplace: {
-            ++stats_.replaces;
-            auto it = live_.find(m.order_replace.original_order_ref);
-            if (it == live_.end()) { ++stats_.unknown_ref; break; }
-            Side side = it->second.side;
-            do_delete(m.order_replace.original_order_ref);
-            do_add(m.order_replace.new_order_ref, side,
-                   m.order_replace.price, m.order_replace.shares);
-            break;
+            return true;
         }
+        case itch50::AddOrderMPID::type: {
+            itch50::AddOrderMPID m;
+            if (itch50::decode(message, m) != protocol::Status::ok) return false;
+            do_add(m.order_reference, m.side, m.price, m.shares);
+            ++stats_.adds;
+            return true;
+        }
+        case itch50::OrderExecuted::type: {
+            itch50::OrderExecuted m;
+            if (itch50::decode(message, m) != protocol::Status::ok) return false;
+            reduce(m.order_reference, m.shares);
+            ++stats_.executes;
+            return true;
+        }
+        case itch50::OrderCancel::type: {
+            itch50::OrderCancel m;
+            if (itch50::decode(message, m) != protocol::Status::ok) return false;
+            reduce(m.order_reference, m.shares);
+            ++stats_.cancels;
+            return true;
+        }
+        case itch50::OrderDelete::type: {
+            itch50::OrderDelete m;
+            if (itch50::decode(message, m) != protocol::Status::ok) return false;
+            do_delete(m.order_reference);
+            ++stats_.deletes;
+            return true;
+        }
+        case itch50::OrderReplace::type: {
+            itch50::OrderReplace m;
+            if (itch50::decode(message, m) != protocol::Status::ok) return false;
+            ++stats_.replaces;
+            auto it = live_.find(m.original_reference);
+            if (it == live_.end()) { ++stats_.unknown_ref; return true; }
+            Side side = it->second.side;
+            do_delete(m.original_reference);
+            do_add(m.new_reference, side, m.price, m.shares);
+            return true;
+        }
+        default:
+            return false;
         }
     }
 

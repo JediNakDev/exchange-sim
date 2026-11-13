@@ -8,7 +8,6 @@
 // executes, 5% replaces. All adds are non-marketable by construction
 // (buys below current best ask, sells above current best bid).
 
-#include "src/utils/itch_replay/itch.hpp"
 #include <book/types.hpp>
 #include <cstdint>
 #include <cstring>
