@@ -3,8 +3,8 @@
 
 // Outbound events emitted by the matching engine. Gateways turn them into
 // execution reports for the owning sessions; the market-data publisher turns
-// them into ITCH. Event order within one command is normative: see
-// matching engine contract section "Event ordering".
+// them into ITCH. Event order within one command is part of the output:
+// gateways report and the journal replays events in exactly this order.
 
 #include "engine/types.hpp"
 #include <cstddef>

@@ -1,5 +1,5 @@
-// SPEC 7 (MassCancel), 8 (SetPhase and end-of-day expiry), 9 (auction
-// uncross and indicative) and the phase rules of SPEC 12.
+// MassCancel, SetPhase and end-of-day expiry, auction uncross and
+// indicative, and the rules for which commands each phase accepts.
 
 #include <test/exsim/engine/engine_fixture.hpp>
 

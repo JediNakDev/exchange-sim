@@ -1,5 +1,5 @@
-// Outbound mapping (GATEWAYS.md section 2, outbound table): engine events to
-// OUCH sequenced messages, byte for byte, and the order lifecycle scenarios.
+// Outbound mapping: engine events to OUCH 4.2 sequenced messages, byte for
+// byte, and the order lifecycle scenarios.
 
 #include "ouch_test_harness.hpp"
 

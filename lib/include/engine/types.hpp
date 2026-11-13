@@ -3,8 +3,8 @@
 
 // Core vocabulary of the exchange simulator. Every protocol gateway
 // translates its wire format into these types, and every subsystem
-// (engine, market data, journal, tests) speaks only these types.
-// See matching engine contract for the normative semantics.
+// (engine, market data, journal, tests) speaks only these types. The
+// comment on each type states what its values mean.
 
 #include <book/types.hpp>
 #include <cstdint>

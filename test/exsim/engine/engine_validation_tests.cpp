@@ -1,5 +1,5 @@
-// SPEC 1 (identifiers), 2 (instruments), 3 (phase table for new orders),
-// 4.1 (NewOrder validation order) and 12 (configuration bounds).
+// Identifiers, instruments, the phases that accept new orders, the order of
+// NewOrder validation and the engine configuration bounds.
 
 #include <test/exsim/engine/engine_fixture.hpp>
 

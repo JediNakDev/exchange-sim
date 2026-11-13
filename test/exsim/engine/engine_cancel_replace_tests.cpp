@@ -1,4 +1,4 @@
-// SPEC 5 (CancelOrder, including reduce_to_total_qty) and 6 (ReplaceOrder).
+// CancelOrder (including reduce_to_total_qty) and ReplaceOrder.
 
 #include <test/exsim/engine/engine_fixture.hpp>
 
@@ -374,7 +374,7 @@ TEST_CASE(engine_replace, priority_lost_order_matches_as_aggressor_in_continuous
 }
 
 TEST_CASE(engine_replace, amendment_chain_conserves_quantity) {
-    // SPEC 11: executed + current leaves + canceled = initial + replacement deltas.
+    // Quantity conservation: executed + current leaves + canceled = initial + replacement deltas.
     EngineFixture fixture;
     std::uint64_t executed = 0;
     std::uint64_t canceled = 0;

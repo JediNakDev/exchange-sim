@@ -1,4 +1,4 @@
-// Randomized invariant test (SPEC 11): random commands over 2 instruments,
+// Randomized invariant test: random commands over 2 instruments,
 // 3 sessions and every phase, with the book checked after every step.
 //
 // Checked after every command, through the public API only:

@@ -1,4 +1,4 @@
-// SPEC 4.2 - 4.6: acceptance, resting, continuous matching, market/IOC/FOK,
+// NewOrder acceptance, resting, continuous matching, market/IOC/FOK,
 // self-trade prevention and disposition.
 
 #include "engine_harness.hpp"
@@ -245,7 +245,7 @@ TEST_CASE(engine_order_types, fok_market_order_uses_the_whole_opposite_side) {
              (std::vector<EventType>{EventType::Accepted, EventType::Fill, EventType::Fill}));
 }
 
-// SPEC 4.3: CancelResting skips self-matches while counting.
+// FOK pre-check: CancelResting skips self-matches while counting.
 TEST_CASE(engine_order_types, fok_cancel_resting_skips_own_liquidity) {
     Harness h;
     const OrderId own = h.rest(1, 1, Side::SELL, 1000, 50, /*owner=*/7);
@@ -269,7 +269,7 @@ TEST_CASE(engine_order_types, fok_cancel_resting_skips_own_liquidity) {
     CHECK_EQ(h.engine().live_order_count(), std::size_t{0});
 }
 
-// SPEC 4.3: any other STP mode stops the walk at the first self-match.
+// FOK pre-check: any other STP mode stops the walk at the first self-match.
 TEST_CASE(engine_order_types, fok_cancel_aggressor_stops_at_self_match) {
     for (StpMode mode : {StpMode::CancelAggressor, StpMode::CancelBoth}) {
         Harness h;

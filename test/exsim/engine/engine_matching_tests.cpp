@@ -1,5 +1,5 @@
-// SPEC 4.2 acceptance, 4.3 FOK pre-check, 4.4 resting, 4.5 continuous
-// matching with STP, 4.6 disposition and the NewOrder rows of SPEC 10.
+// NewOrder acceptance, the FOK pre-check, resting, continuous matching with
+// STP, disposition of the remainder, and the events each NewOrder emits.
 
 #include <test/exsim/engine/engine_fixture.hpp>
 
@@ -245,7 +245,7 @@ TEST_CASE(engine_matching, fok_fills_completely_or_is_killed_without_touching_th
     CHECK_EQ(fixture.events[2].fill.buy.leaves_qty, Quantity{0});
     CHECK_EQ(*fixture.engine.best_ask(1), Price{130});
 
-    // A market FOK also runs the pre-check (SPEC 4.2 applies to tif == FOK).
+    // A market FOK also runs the pre-check, which applies to every tif == FOK.
     NewOrder market_fok = with_tif(market_order(kAliceSession, 3, Side::BUY, 101), TimeInForce::FOK);
     fixture.apply(market_fok);
     REQUIRE_EQ(fixture.events.size(), std::size_t{2});

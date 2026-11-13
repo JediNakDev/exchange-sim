@@ -2,8 +2,8 @@
 #define EXSIM_MD_FEED_COMMON_HPP
 
 // Shared vocabulary of the ITCH 5.0 / MoldUDP64 market-data feed: wire size
-// limits, the 10-byte MoldUDP64 session name and the ITCH day-timestamp rule
-// from gateway mapping section 4.
+// limits, the 10-byte MoldUDP64 session name and the ITCH rule that
+// timestamps count nanoseconds from the start of the trading day.
 
 #include <protocol/moldudp64.hpp>
 #include <engine/types.hpp>

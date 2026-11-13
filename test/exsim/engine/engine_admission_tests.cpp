@@ -1,10 +1,10 @@
-// SPEC 2 (instruments) and SPEC 4.1 (NewOrder validation, in order).
+// Instrument admission and NewOrder validation, checked in rule order.
 
 #include "engine_harness.hpp"
 
 using namespace engine_harness;
 
-// ---- SPEC 2: add_instrument ------------------------------------------------
+// ---- add_instrument ---------------------------------------------------------
 
 TEST_CASE(engine_instrument, assigns_sequential_ids_and_finds_by_symbol) {
     MatchingEngine engine(small_engine_config());
@@ -67,7 +67,7 @@ TEST_CASE(engine_instrument, initial_phase_is_applied) {
     CHECK_EQ(engine.phase(42), Phase::Closed);  // unknown instrument reports Closed
 }
 
-// ---- SPEC 4.1: each rejection, field by field ---------------------------------
+// ---- NewOrder validation: each rejection, field by field ---------------------
 
 TEST_CASE(engine_admission, unknown_instrument) {
     Harness h;
@@ -340,7 +340,7 @@ TEST_CASE(engine_admission, rejections_do_not_consume_order_ids) {
     CHECK_EQ(second, OrderId{2});
 }
 
-// ---- SPEC 4.1 rule 9 / capacity ------------------------------------------------
+// ---- NewOrder validation: capacity -------------------------------------------
 
 TEST_CASE(engine_capacity, rejects_when_live_orders_reach_max_orders) {
     Harness h(Phase::Continuous, 2);
