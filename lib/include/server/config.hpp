@@ -1,18 +1,25 @@
 #ifndef EXSIM_SERVER_CONFIG_HPP
 #define EXSIM_SERVER_CONFIG_HPP
 
-// Static exchange configuration (exsim.conf). Parsed once at startup, so this
-// is ordinary allocating code; nothing here runs on the hot path.
+// Static exchange configuration. Parsed once at startup, so this is ordinary
+// allocating code; nothing here runs on the hot path.
 //
 // Format: INI-style sections, `key = value`, `#` or `;` comments.
 //
 //   [exchange]                 name, bind_address, ouch_port, fix_port,
-//                              fixp_sbe_port, admin_port, max_connections,
+//                              ilink_port, max_connections,
 //                              heartbeat_interval_ms, soup_session,
 //                              trading_day_start, trading_day_end
-//   [market_data]              address, port, interface, ttl, loopback,
-//                              retransmit_port, max_payload, session,
-//                              retransmit_buffer, noii_interval_ms
+//   [market_data]              protocol (itch50 or mdp3), address, port,
+//                              interface, ttl, loopback, retransmit_port,
+//                              max_payload, market_segment_id
+//                              itch50 only: session, retransmit_buffer,
+//                              noii_interval_ms
+//                              mdp3 only: channel_id, book_depth,
+//                              snapshot_port, instrument_port, backup_port,
+//                              snapshot_interval_ms, instrument_interval_ms,
+//                              replay_buffer_packets, replay_username,
+//                              replay_password
 //   [engine]                   max_instruments, max_orders,
 //                              max_tokens_per_session,
 //                              store_messages_per_session,
@@ -20,13 +27,17 @@
 //   [journal]                  path, on_failure, flush_interval_ms
 //   [instrument <SYMBOL>]      tick_size, lot_size, max_order_qty,
 //                              min_price, max_price, reference_price,
-//                              initial_phase
+//                              initial_phase, cme_security_id,
+//                              cme_contract_size, cme_maturity_date,
+//                              cme_symbol
 //   [user <USERNAME>]          password, protocol, session_id, owner, stp,
-//                              cancel_on_disconnect
-// Prices are decimal dollars ("150.25"), stored with 4 implied decimals.
-// Trading-day times are "HH:MM[:SS[.fraction]]" local time; the end may be
-// "24:00". See test/fixtures/exchange.conf for a complete example and
-// exchange core for the bot and journal semantics.
+//                              cancel_on_disconnect, ilink_access_key,
+//                              ilink_secret_key, ilink_session, ilink_firm,
+//                              ilink_party_id, ilink_account
+// Keys of the other market data protocol are rejected because they would be
+// ignored. Prices are decimal dollars ("150.25"), stored with 4 implied
+// decimals. Trading-day times are "HH:MM[:SS[.fraction]]" local time; the end
+// may be "24:00". See test/fixtures/exchange.conf for a complete example.
 
 #include "instrument.hpp"
 #include "matching_engine.hpp"
@@ -40,15 +51,13 @@
 
 namespace exsim::server {
 
-// Active gateways: OUCH, FIX 4.4 and CME iLink 3. FixpSbe retains the
-// inactive legacy Exsim value for configuration compatibility.
-enum class Protocol : std::uint8_t { Ouch42 = 0, Fix44 = 1, FixpSbe = 2, Ilink3 = 3 };
+// Active gateways: OUCH, FIX 4.4 and CME iLink 3.
+enum class Protocol : std::uint8_t { Ouch42 = 0, Fix44 = 1, Ilink3 = 3 };
 
 constexpr std::string_view to_string(Protocol protocol) noexcept {
     switch (protocol) {
         case Protocol::Ouch42: return "ouch42";
         case Protocol::Fix44: return "fix44";
-        case Protocol::FixpSbe: return "fixp_sbe";
         case Protocol::Ilink3: return "ilink3";
     }
     return "unknown";
@@ -78,8 +87,6 @@ struct ExchangeSection {
     std::uint16_t ouch_port = 0;   // 0 = OS-assigned (logged at startup)
     std::uint16_t fix_port = 0;
     std::uint16_t ilink_port = 0;
-    std::uint16_t fixp_sbe_port = 0;
-    std::uint16_t admin_port = 0;
     std::uint32_t max_connections = 64;
     std::uint32_t heartbeat_interval_ms = 1000;  // SoupBinTCP server heartbeat
     std::string soup_session = "EXSIM";            // SoupBinTCP session (<= 10 chars)

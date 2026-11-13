@@ -89,7 +89,6 @@ bool parse_protocol(std::string_view v, Protocol& out) {
     const std::string s = lower(v);
     if (s == "ouch42" || s == "ouch") out = Protocol::Ouch42;
     else if (s == "fix44" || s == "fix") out = Protocol::Fix44;
-    else if (s == "fixp_sbe" || s == "sbe") out = Protocol::FixpSbe;
     else if (s == "ilink3") out = Protocol::Ilink3;
     else return false;
     return true;
@@ -111,6 +110,7 @@ struct Parser {
     std::string& error;
     int line_no = 0;
     Section section = Section::None;
+    std::set<std::string> market_data_keys{};  // seen in [market_data], checked against the protocol
     bool fail(const std::string& msg) {
         error = std::to_string(line_no) + ": " + msg;
         return false;
@@ -167,8 +167,8 @@ struct Parser {
         if (k == "ouch_port") return parse_uint(v, x.ouch_port) || bad_value(k, v);
         if (k == "fix_port") return parse_uint(v, x.fix_port) || bad_value(k, v);
         if (k == "ilink_port") return parse_uint(v, x.ilink_port) || bad_value(k, v);
-        if (k == "fixp_sbe_port") return parse_uint(v, x.fixp_sbe_port) || bad_value(k, v);
-        if (k == "admin_port") return parse_uint(v, x.admin_port) || bad_value(k, v);
+        if (k == "fixp_sbe_port") return fail("exchange.fixp_sbe_port is not supported: the legacy FIXP/SBE gateway was removed");
+        if (k == "admin_port") return fail("exchange.admin_port is not supported: there is no public admin listener");
         if (k == "max_connections") return (parse_uint(v, x.max_connections) && x.max_connections > 0) || bad_value(k, v);
         if (k == "heartbeat_interval_ms") return (parse_uint(v, x.heartbeat_interval_ms) && x.heartbeat_interval_ms > 0) || bad_value(k, v);
         if (k == "soup_session") { x.soup_session = std::string(v); return true; }
@@ -178,6 +178,7 @@ struct Parser {
     }
 
     bool market_data_key(const std::string& k, std::string_view v) {
+        market_data_keys.insert(k);
         MarketDataSection& m = cfg.market_data;
         if (k == "protocol") {
             if (v == "itch50") m.protocol = MarketDataProtocol::Itch50;
@@ -303,6 +304,15 @@ struct Parser {
 
     bool validate() {
         line_no = 0;
+        const bool mdp = cfg.market_data.protocol == MarketDataProtocol::Mdp3;
+        for (const auto& key : market_data_keys) {
+            const bool itch_only = key == "retransmit_buffer" || key == "noii_interval_ms" || key == "session";
+            const bool mdp_only = key == "channel_id" || key == "book_depth" ||
+                key == "snapshot_port" || key == "instrument_port" || key == "backup_port" ||
+                key == "snapshot_interval_ms" || key == "instrument_interval_ms" ||
+                key == "replay_buffer_packets" || key == "replay_username" || key == "replay_password";
+            if ((mdp && itch_only) || (!mdp && mdp_only)) return fail("market_data." + key + " is ignored by the selected protocol");
+        }
         if (cfg.exchange.soup_session.size() > 10 || !printable_ascii(cfg.exchange.soup_session)) {
             return fail("exchange.soup_session must be at most 10 printable characters");
         }

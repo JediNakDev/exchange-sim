@@ -83,14 +83,6 @@ int main(int argc, char **argv) {
     if (path.empty() ||
         !exsim::server::load_config(path.c_str(), config, error))
       throw std::runtime_error("invalid exchange config: " + error);
-    // Order entry shares one core and public feed across both protocols.
-    for (const auto &user : config.users)
-      if (user.protocol != exsim::server::Protocol::Ouch42 &&
-          user.protocol != exsim::server::Protocol::Fix44 && user.protocol != exsim::server::Protocol::Ilink3)
-        throw std::runtime_error("only ouch42, fix44 and ilink3 users are supported");
-    if (config.exchange.fixp_sbe_port || config.exchange.admin_port)
-      throw std::runtime_error(
-          "legacy fixp_sbe and public admin listeners are not enabled");
     if (control >= 0) {
       (void)exsim::net::set_non_blocking(control);
       (void)exsim::net::set_no_sigpipe(control);

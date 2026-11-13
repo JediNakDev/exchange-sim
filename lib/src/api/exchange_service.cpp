@@ -32,11 +32,6 @@ server::ServerConfig validate(std::string_view text) {
     std::string error;
     if (!server::parse_config(text, config, error)) throw std::invalid_argument(error);
     if (config.users.empty()) throw std::invalid_argument("configure at least one user");
-    for (const auto& user : config.users)
-        if (user.protocol != server::Protocol::Ouch42 && user.protocol != server::Protocol::Fix44 && user.protocol != server::Protocol::Ilink3)
-            throw std::invalid_argument("only ouch42, fix44 and ilink3 users are supported");
-    if (config.exchange.fixp_sbe_port || config.exchange.admin_port)
-        throw std::invalid_argument("legacy fixp_sbe and public admin listeners are not enabled");
     std::uint32_t address = 0;
     if (!net::parse_ipv4_address(config.exchange.bind_address, address) || address == 0 || net::is_ipv4_multicast_address(address))
         throw std::invalid_argument("bind_address must be a specific local unicast IPv4 address");

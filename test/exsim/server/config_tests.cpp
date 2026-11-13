@@ -64,6 +64,23 @@ reference_price = 10
     CHECK(!parse_config(prefix + instrument + "[instrument NQ]\ncme_security_id=800001\n", config, error));
 }
 
+TEST_CASE(server_config_mdp, rejects_keys_of_the_other_market_data_protocol) {
+    const std::string mdp = "[market_data]\nprotocol = mdp3\nport = 19001\nsnapshot_port = 19002\ninstrument_port = 19003\n"
+                            "replay_username = CME\nreplay_password = secret\nmarket_segment_id = 2\n";
+    const std::string instrument = "[instrument ES]\ncme_security_id = 800001\nmin_price = 1\nmax_price = 100\nreference_price = 10\n";
+    ServerConfig config; std::string error;
+    REQUIRE(parse_config(mdp + instrument, config, error));
+    for (const auto itch_key : {"session = EXSIM\n", "retransmit_buffer = 16\n", "noii_interval_ms = 5\n"}) {
+        CHECK(!parse_config(mdp + itch_key + instrument, config, error));
+        CHECK(error.find("ignored by the selected protocol") != std::string::npos);
+    }
+    for (const auto mdp_key : {"channel_id = 7\n", "book_depth = 5\n", "snapshot_port = 19002\n", "replay_password = x\n"}) {
+        CHECK(!parse_config(std::string(kMinimal) + "[market_data]\nport = 19001\n" + mdp_key, config, error));
+        CHECK(error.find("ignored by the selected protocol") != std::string::npos);
+    }
+    CHECK(parse_config(std::string(kMinimal) + "[market_data]\nport = 19001\nsession = ABC\nmarket_segment_id = 2\n", config, error));
+}
+
 TEST_CASE(server_config_ilink, current_schema_fixture_and_missing_credentials) {
     ServerConfig config; std::string error;
     REQUIRE(load_config("test/fixtures/ilink3-mdp.conf", config, error));
@@ -275,25 +292,15 @@ TEST_CASE(server_config, day_times_parse_and_format) {
     CHECK(format_day_time(kNanosecondsPerDay - 1) == "23:59:59.999999999");
 }
 
-TEST_CASE(server_config, fixp_sbe_users_and_port) {
+TEST_CASE(server_config, rejects_legacy_listeners_and_protocols) {
     ServerConfig cfg;
     std::string err;
-    const std::string text = std::string("[exchange]\nfixp_sbe_port = 15003\n") + kMinimal +
-                             "[user SBEUSER1]\nprotocol = fixp_sbe\nsession_id = 7\n"
-                             "[user SBEUSER2]\nprotocol = sbe\nsession_id = 8\n";
-    const bool ok = parse_config(text, cfg, err);
-    if (!ok) testfw::report_failure(__FILE__, __LINE__, err);
-    REQUIRE(ok);
-    CHECK_EQ(cfg.exchange.fixp_sbe_port, 15003);
-    const UserConfig* first = cfg.find_user("SBEUSER1");
-    const UserConfig* second = cfg.find_user("SBEUSER2");
-    REQUIRE(first != nullptr);
-    REQUIRE(second != nullptr);
-    CHECK(first->protocol == Protocol::FixpSbe);
-    CHECK(second->protocol == Protocol::FixpSbe);
-    CHECK(to_string(Protocol::FixpSbe) == "fixp_sbe");
-    CHECK(to_string(Protocol::Fix44) == "fix44");
-    CHECK(to_string(Protocol::Ouch42) == "ouch42");
+    for (const auto key : {"fixp_sbe_port", "admin_port"}) {
+        CHECK(!parse_config(std::string(kMinimal) + "\n[exchange]\n" + key + "=15003\n", cfg, err));
+        CHECK(err.find("not supported") != std::string::npos);
+    }
+    for (const auto protocol : {"fixp_sbe", "sbe"})
+        CHECK(!parse_config(std::string(kMinimal) + "\n[user LEGACY]\nsession_id=7\nprotocol=" + protocol + "\n", cfg, err));
 }
 
 // The publisher needs room for its largest ITCH message in one packet, so the
