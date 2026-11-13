@@ -115,11 +115,6 @@ struct PublisherStats {
     return 'H';
 }
 
-// Cross type of a Cross Trade 'Q' by the phase the instrument is leaving.
-[[nodiscard]] constexpr char itch_cross_type_leaving(Phase phase) noexcept {
-    return phase == Phase::PreOpen ? 'O' : phase == Phase::PreClose ? 'C' : 'H';
-}
-
 [[nodiscard]] constexpr bool is_call_phase(Phase phase) noexcept {
     return phase == Phase::PreOpen || phase == Phase::PreClose;
 }
@@ -536,7 +531,11 @@ private:
                 cross.stock = instrument.symbol;
                 cross.price = event.auction_summary.price;
                 cross.match_number = event.auction_summary.match_id;
-                cross.cross_type = itch_cross_type_leaving(instrument.phase);
+                // Cross type: opening, closing or halt cross, by the phase being left.
+                const Phase phase_being_left = instrument.phase;
+                cross.cross_type = phase_being_left == Phase::PreOpen    ? 'O'
+                                   : phase_being_left == Phase::PreClose ? 'C'
+                                                                         : 'H';
                 return publish(cross);
             }
             default: return true;

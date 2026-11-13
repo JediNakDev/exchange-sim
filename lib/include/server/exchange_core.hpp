@@ -487,26 +487,23 @@ private:
         return result;
     }
 
-    // Records a md::PublishStatus a MarketData hook returned (policies whose
-    // hooks return void report nothing). Returns true on a failure.
-    template <typename Status>
-    bool observe_market_data_status(const Status& status) noexcept {
-        if constexpr (std::same_as<Status, md::PublishStatus>) {
-            if (status != md::PublishStatus::Ok) {
-                counters_.market_data_last_failure = status;
-                return true;
-            }
-        }
-        return false;
-    }
-
+    // Calls a MarketData hook and records the md::PublishStatus it returned
+    // (policies whose hooks return void or another type report nothing).
+    // Returns true on a failure.
     template <typename Call>
     bool call_market_data_hook(Call&& call) noexcept {
         if constexpr (std::is_void_v<decltype(call())>) {
             call();
             return false;
         } else {
-            return observe_market_data_status(call());
+            const auto status = call();
+            if constexpr (std::same_as<std::remove_cvref_t<decltype(status)>, md::PublishStatus>) {
+                if (status != md::PublishStatus::Ok) {
+                    counters_.market_data_last_failure = status;
+                    return true;
+                }
+            }
+            return false;
         }
     }
 
