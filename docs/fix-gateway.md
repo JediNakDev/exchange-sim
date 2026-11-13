@@ -1,10 +1,12 @@
 # FIX 4.4 gateway integration
 
-Include `gateway/fix/fix_gateway.hpp` for the exchange side and
-`gateway/fix/fix_client.hpp` for the client side. All types are in
-`exsim::gateway::fix`; implementations are header-only C++23 templates.
+Include [`gateway/fix/fix_gateway.hpp`](../lib/include/gateway/fix/fix_gateway.hpp)
+for the exchange side. The test client is
+[`fix_client.hpp`](../test/exsim/support/clients/fix_client.hpp) in test support.
+All types are in `exsim::gateway::fix`; implementations are header-only C++23
+templates.
 
-- Output goes to a `gateway::ByteSink` (`gateway/byte_sink.hpp`):
+- Output goes to a `gateway::ByteSink` ([`gateway/byte_sink.hpp`](../lib/include/gateway/byte_sink.hpp)):
   `char* prepare(size_t)` and `void commit(size_t)`, both noexcept.
 - `FixTime{monotonic_ns, realtime_ns}`: injected timer and Unix wire clocks.
 - `FixSessionSettings`: framing/held-message bounds, heartbeat maximum and timeouts.
