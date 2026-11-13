@@ -15,9 +15,9 @@
 // recovery lags behind the engine.
 
 #include <engine/matching_engine.hpp>
-#include <md/book_builder.hpp>
+#include "test/exsim/support/clients/itch_book_builder.hpp"
 #include <md/publisher.hpp>
-#include <md/receiver.hpp>
+#include "test/exsim/support/clients/moldudp64_receiver.hpp"
 #include <md/retransmission_server.hpp>
 #include <server/journal/journal.hpp>
 #include <md/packet_faults.hpp>

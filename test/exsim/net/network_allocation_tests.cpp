@@ -3,7 +3,7 @@
 // which reports nothing under ASan/TSan, so the test is skipped there.
 #include <cerrno>
 #include <net/clocks.hpp>
-#include <net/tcp_client.hpp>
+#include "test/exsim/support/clients/tcp_client.hpp"
 #include <net/tcp_server.hpp>
 #include <net/udp.hpp>
 #include <span>

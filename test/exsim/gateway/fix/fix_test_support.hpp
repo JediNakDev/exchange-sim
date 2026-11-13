@@ -11,7 +11,7 @@
 //     BodyLength and CheckSum, split output into parsed messages
 //   * FixTestConnection: one exchange-side FixConnection fed with raw frames
 
-#include "gateway/fix/fix_client.hpp"
+#include "test/exsim/support/clients/fix_client.hpp"
 #include "gateway/fix/fix_gateway.hpp"
 #include "engine/matching_engine.hpp"
 #include "server/config.hpp"

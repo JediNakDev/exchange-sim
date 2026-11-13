@@ -1,5 +1,5 @@
-#ifndef EXSIM_GATEWAY_FIX_FIX_CLIENT_HPP
-#define EXSIM_GATEWAY_FIX_FIX_CLIENT_HPP
+#ifndef EXSIM_TEST_SUPPORT_FIX_CLIENT_HPP
+#define EXSIM_TEST_SUPPORT_FIX_CLIENT_HPP
 
 // Client side of FIX 4.4 order entry: Logon, MsgSeqNum
 // tracking and gap recovery, heartbeats and TestRequests, answering the

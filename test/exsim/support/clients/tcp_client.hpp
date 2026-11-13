@@ -1,5 +1,5 @@
-#ifndef EXSIM_NET_TCP_CLIENT_HPP
-#define EXSIM_NET_TCP_CLIENT_HPP
+#ifndef EXSIM_TEST_SUPPORT_TCP_CLIENT_HPP
+#define EXSIM_TEST_SUPPORT_TCP_CLIENT_HPP
 #include <net/tcp_connection.hpp>
 namespace exsim::net {
 // Caller registers fd() for write readiness during connect and while output

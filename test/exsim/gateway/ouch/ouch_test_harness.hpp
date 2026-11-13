@@ -12,7 +12,7 @@
 // Hot-path members (submit, dispatch, sinks) do not allocate after setup, so
 // steady-state allocation tests can wrap them.
 
-#include "gateway/ouch/ouch_client.hpp"
+#include "test/exsim/support/clients/ouch_client.hpp"
 #include "gateway/ouch/ouch_server.hpp"
 #include "engine/matching_engine.hpp"
 #include "server/core/session_dispatch_set.hpp"

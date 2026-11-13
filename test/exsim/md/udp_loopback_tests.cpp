@@ -3,9 +3,9 @@
 // before the send so the receiver must recover through a RetransmissionServer
 // that answers requests on its own UDP socket.
 
-#include <md/book_builder.hpp>
+#include "test/exsim/support/clients/itch_book_builder.hpp"
 #include <md/publisher.hpp>
-#include <md/receiver.hpp>
+#include "test/exsim/support/clients/moldudp64_receiver.hpp"
 #include <md/retransmission_server.hpp>
 #include <net/clocks.hpp>
 #include <net/poller.hpp>

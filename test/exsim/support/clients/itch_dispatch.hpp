@@ -1,5 +1,5 @@
-#ifndef EXSIM_MD_ITCH_DISPATCH_HPP
-#define EXSIM_MD_ITCH_DISPATCH_HPP
+#ifndef EXSIM_TEST_SUPPORT_ITCH_DISPATCH_HPP
+#define EXSIM_TEST_SUPPORT_ITCH_DISPATCH_HPP
 
 // Typed ITCH 5.0 delivery: decodes one message by its type byte and calls
 // the matching `handler.on_itch(sequence, const itch50::<Type>&)` overload.

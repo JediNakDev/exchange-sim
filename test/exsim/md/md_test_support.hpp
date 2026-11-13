@@ -5,7 +5,7 @@
 // capture, MoldUDP64 message extraction, and engine/builder book comparison.
 
 #include <engine/matching_engine.hpp>
-#include <md/book_builder.hpp>
+#include "test/exsim/support/clients/itch_book_builder.hpp"
 #include <md/publisher.hpp>
 #include <protocol/moldudp64.hpp>
 

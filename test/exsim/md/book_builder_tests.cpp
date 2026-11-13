@@ -2,7 +2,7 @@
 // crossed books, rejections that leave the book unchanged, capacity limits
 // and instrument metadata.
 
-#include <md/book_builder.hpp>
+#include "test/exsim/support/clients/itch_book_builder.hpp"
 #include <test/exsim/md/md_test_support.hpp>
 #include <test/framework/test.hpp>
 

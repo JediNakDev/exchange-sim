@@ -4,7 +4,7 @@
 // FIX 4.4 order-entry gateway, exchange side.
 //   FixUserDirectory / FixUserState   day lifetime, one state per FIX user
 //   FixConnection                     one TCP connection
-// The client side (FixClient) is gateway/fix/fix_client.hpp.
+// The test client (FixClient) is test/exsim/support/clients/fix_client.hpp.
 
 #include "gateway/fix/fix_common.hpp"
 #include "gateway/fix/fix_connection.hpp"

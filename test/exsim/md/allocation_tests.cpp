@@ -4,9 +4,9 @@
 // the retransmission path runs too. Skipped where allocation counting is
 // unavailable (sanitizer builds).
 
-#include <md/book_builder.hpp>
+#include "test/exsim/support/clients/itch_book_builder.hpp"
 #include <md/publisher.hpp>
-#include <md/receiver.hpp>
+#include "test/exsim/support/clients/moldudp64_receiver.hpp"
 #include <md/retransmission_server.hpp>
 #include <md/packet_faults.hpp>
 #include <test/exsim/md/md_test_support.hpp>

@@ -1,4 +1,4 @@
-#include <net/tcp_client.hpp>
+#include "test/exsim/support/clients/tcp_client.hpp"
 namespace exsim::net {
 ErrorCode TcpClient::connect(Ipv4Endpoint remote) noexcept {
     close();

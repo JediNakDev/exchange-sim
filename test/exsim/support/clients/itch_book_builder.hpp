@@ -1,5 +1,5 @@
-#ifndef EXSIM_MD_BOOK_BUILDER_HPP
-#define EXSIM_MD_BOOK_BUILDER_HPP
+#ifndef EXSIM_TEST_SUPPORT_ITCH_BOOK_BUILDER_HPP
+#define EXSIM_TEST_SUPPORT_ITCH_BOOK_BUILDER_HPP
 
 // ItchBookBuilder: client-side order book rebuilt purely from ITCH 5.0
 // (A/F/E/C/X/D/U add or change orders; Q/P/H/I/R/S are recorded). It never

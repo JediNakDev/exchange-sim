@@ -1,11 +1,11 @@
-#ifndef EXSIM_GATEWAY_OUCH_OUCH_CLIENT_HPP
-#define EXSIM_GATEWAY_OUCH_OUCH_CLIENT_HPP
+#ifndef EXSIM_TEST_SUPPORT_OUCH_CLIENT_HPP
+#define EXSIM_TEST_SUPPORT_OUCH_CLIENT_HPP
 
 // Client side of OUCH 4.2 over SoupBinTCP 3.0: login
 // with a requested sequence number, implicit SoupBinTCP sequencing, client
 // heartbeats, server-silence detection, recovery on reconnect and typed
-// callbacks. Used by tests, client tools and latency measurement, so it does
-// not allocate per message either.
+// callbacks. Test support: the allocation tests drive it too, so it does not
+// allocate per message.
 //
 // Transport: any ByteSink (prepare/commit) the bytes to the server are
 // written to; bytes from the server are passed to on_data().
