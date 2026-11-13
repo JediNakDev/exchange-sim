@@ -1,18 +1,17 @@
 #ifndef EXSIM_SERVER_SERVER_RUNTIME_HPP
 #define EXSIM_SERVER_SERVER_RUNTIME_HPP
 
-// The exsim server: one thread, one reactor loop (server contract 1,
-// server runtime). BasicServerRuntime<Gateways...> owns the poller,
-// the exchange core, the market-data runtime, one order-entry endpoint per
-// gateway:
+// The exsim server: one thread, one reactor loop.
+// BasicServerRuntime<Gateways...> owns the poller, the exchange core, the
+// market-data runtime (ITCH or MDP, chosen from the config) and one
+// order-entry endpoint per gateway:
 //
 //   poll_once():
 //     poller.wait(busy_poll ? 0 : idle timeout)
 //     route events: gateway connections (-> on_data -> core.submit ->
-//                   dispatch to sessions and ITCH),
-//                   MoldUDP64 retransmission requests
-//     core.timer(now): end of day, NOII / MoldUDP64 heartbeat,
-//                      journal flush
+//                   dispatch to sessions and market data),
+//                   market data recovery (MoldUDP64 requests or MDP replay)
+//     core.timer(now): end of day, market data timers, journal flush
 //     endpoints: delayed inbound bytes, gateway timers, requested closes
 //     core disconnect requests (`fault user X disconnect`)
 //     shutdown progress (end-of-day messages, drain, finish)
@@ -283,7 +282,7 @@ private:
     std::uint64_t drain_deadline_ns_ = 0;
 };
 
-// The active exchange server: OUCH 4.2 over SoupBinTCP and FIX 4.4.
+// The active exchange server: OUCH 4.2 over SoupBinTCP, FIX 4.4 and iLink 3.
 using ServerRuntime = BasicServerRuntime<runtime::OuchGateway, runtime::FixGateway, runtime::IlinkGateway>;
 
 }  // namespace exsim::server
