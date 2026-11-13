@@ -1,7 +1,7 @@
 #ifndef EXSIM_SERVER_RUNTIME_JOURNAL_WORKER_HPP
 #define EXSIM_SERVER_RUNTIME_JOURNAL_WORKER_HPP
 
-#include "sim/journal.hpp"
+#include "server/journal/journal.hpp"
 #include "util/spsc_queue.hpp"
 
 #include <atomic>
@@ -19,10 +19,10 @@ namespace exsim::server::runtime {
 // silently: overflow or an I/O error latches failure for the exchange core.
 // A stalled writer retains its own state if shutdown must abandon the wait.
 // The default ring holds 32767 entries.
-template <class Writer = sim::JournalWriter, std::size_t Capacity = 32768>
+template <class Writer = journal::JournalWriter, std::size_t Capacity = 32768>
 class JournalWorker {
 public:
-    JournalWorker(const std::string& path, const sim::JournalSetup& setup)
+    JournalWorker(const std::string& path, const journal::JournalSetup& setup)
         : state_(std::make_shared<State>(path, setup)), worker_([state = state_] { persist(*state); }) {}
 
     ~JournalWorker() {
@@ -72,7 +72,7 @@ private:
         bool flush;
     };
     struct State {
-        State(const std::string& path, const sim::JournalSetup& setup) : writer(std::in_place, path, setup) {}
+        State(const std::string& path, const journal::JournalSetup& setup) : writer(std::in_place, path, setup) {}
         std::optional<Writer> writer;  // closed by the persistence thread
         exsim::util::SPSCQueue<Entry, Capacity> queue;
         std::atomic<bool> stopping{false};

@@ -4,7 +4,7 @@
 // Admin console command language. One command per line;
 // parsing is off the hot path (operator commands), so std::string is fine.
 
-#include "sim/packet_faults.hpp"
+#include "md/packet_faults.hpp"
 #include "engine/types.hpp"
 
 #include <cstdint>
@@ -38,7 +38,7 @@ struct AdminCommand {
     Phase phase = Phase::Closed;
     std::uint32_t count = 0;
     std::uint32_t delay = 0;
-    sim::PacketFaultConfig rate{};
+    md::PacketFaultConfig rate{};
 };
 
 // Parses one line (case-insensitive keywords; symbols and user names are

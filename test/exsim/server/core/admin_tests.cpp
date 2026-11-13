@@ -21,7 +21,7 @@ constexpr InstrumentId kMsft = 2;
 
 // Pushes `packets` one-byte packets through the injector; returns how many
 // reached the sink.
-std::size_t deliver_packets(sim::PacketFaultInjector& injector, std::size_t packets) {
+std::size_t deliver_packets(md::PacketFaultInjector& injector, std::size_t packets) {
     std::size_t delivered = 0;
     const std::array<char, 1> packet{'x'};
     for (std::size_t i = 0; i < packets; ++i) {
@@ -139,7 +139,7 @@ TEST_CASE(server_core_admin, status_without_optional_market_data_hooks) {
 
 TEST_CASE(server_core_admin, md_one_shot_faults_reach_the_injector) {
     RecordingHarness h(parse_test_config());
-    sim::PacketFaultInjector& injector = h.market_data.injector;
+    md::PacketFaultInjector& injector = h.market_data.injector;
 
     std::string reply = h.admin("fault md drop 2");
     CHECK(reply.rfind("md faults drop_ppm=0", 0) == 0);
@@ -166,7 +166,7 @@ TEST_CASE(server_core_admin, md_rate_configures_random_faults) {
     const std::string reply = h.admin("fault md rate drop=1000 dup=20 reorder=300 delay=4 seed=9");
     CHECK(contains(reply, "md faults drop_ppm=1000 dup_ppm=20 reorder_ppm=300 delay=4 seed=9 "));
     CHECK(ends_with_ok(reply));
-    const sim::PacketFaultConfig& configured = h.market_data.injector.config();
+    const md::PacketFaultConfig& configured = h.market_data.injector.config();
     CHECK_EQ(configured.drop_ppm, 1000u);
     CHECK_EQ(configured.duplicate_ppm, 20u);
     CHECK_EQ(configured.reorder_ppm, 300u);

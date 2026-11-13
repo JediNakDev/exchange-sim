@@ -9,7 +9,7 @@
 #include "server/config.hpp"
 #include "server/runtime/market_data_settings.hpp"
 #include "server/runtime/tcp_send_sink.hpp"
-#include "sim/packet_faults.hpp"
+#include "md/packet_faults.hpp"
 
 namespace exsim::server::runtime {
 
@@ -117,7 +117,7 @@ public:
     void close_recovery_now() noexcept { if (replay_) replay_->close(); }
     [[nodiscard]] net::Ipv4Endpoint feed_destination() const noexcept { return incremental_; }
     [[nodiscard]] net::Ipv4Endpoint retransmission_endpoint() const noexcept { return replay_ ? replay_->listen_endpoint() : net::Ipv4Endpoint{}; }
-    [[nodiscard]] sim::PacketFaultInjector& packet_faults() noexcept { return faults_; }
+    [[nodiscard]] md::PacketFaultInjector& packet_faults() noexcept { return faults_; }
     void reset_packet_faults() noexcept {
         faults_.clear_faults();
         faults_.flush([this](std::span<const char> packet) { send_incremental(packet); });
@@ -143,7 +143,7 @@ private:
         }
     }
     MarketDataRuntimeSettings settings_;
-    sim::PacketFaultInjector faults_;
+    md::PacketFaultInjector faults_;
     md::MdpPublisher<PacketSink> publisher_;
     net::UdpSender sender_;
     net::Ipv4Endpoint incremental_{}, backup_{}, snapshot_{}, instrument_{};

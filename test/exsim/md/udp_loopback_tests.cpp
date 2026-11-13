@@ -10,7 +10,7 @@
 #include <net/clocks.hpp>
 #include <net/poller.hpp>
 #include <net/udp.hpp>
-#include <sim/packet_faults.hpp>
+#include <md/packet_faults.hpp>
 #include <test/exsim/md/md_test_support.hpp>
 #include <test/exsim/support/command_gen.hpp>
 #include <test/framework/test.hpp>
@@ -25,7 +25,7 @@ using namespace exsim::mdtest;
 namespace {
 
 struct UdpFeedSink {
-    sim::PacketFaultInjector* injector;
+    md::PacketFaultInjector* injector;
     net::UdpSender* sender;
     net::Ipv4Endpoint destination;
     void operator()(std::span<const char> packet) const {
@@ -59,11 +59,11 @@ TEST_CASE(md_udp, loopback_round_trip_with_retransmission) {
     REQUIRE_EQ(net::local_endpoint(retransmission_socket.fd(), retransmission_endpoint), 0);
     CHECK_NE(feed_endpoint.port, 0u);
 
-    const sim::JournalSetup setup = testsupport::fuzz_setup();
+    const server::journal::JournalSetup setup = testsupport::fuzz_setup();
     MatchingEngine engine(setup.engine);
     for (const auto& instrument : setup.instruments) REQUIRE(engine.add_instrument(instrument) != 0);
     EventBuffer events(required_event_capacity(setup.engine));
-    sim::PacketFaultInjector injector(1400, 8);
+    md::PacketFaultInjector injector(1400, 8);
     md::PublisherConfig publisher_config;
     publisher_config.max_instruments = setup.engine.max_instruments;
     publisher_config.noii_interval_ns = 0;

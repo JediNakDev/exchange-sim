@@ -1,6 +1,6 @@
 #include "md/publisher.hpp"
 #include "server/config.hpp"
-#include "sim/price_text.hpp"
+#include "engine/price_text.hpp"
 #include "../../framework/test.hpp"
 
 #include <algorithm>
@@ -115,11 +115,11 @@ TEST_CASE(server_config, prices) {
     CHECK(!parse_price("1e3", p));
     CHECK(!parse_price("99999999999999999999", p));
     CHECK(!parse_price("922337203685478", p));  // * 10^4 overflows int64
-    CHECK(sim::format_price(1'502'500, 0) == "150.25");
-    CHECK(sim::format_price(70'000, 0) == "7");
-    CHECK(sim::format_price(1, 0) == "0.0001");
-    CHECK(sim::format_price(-15'000, 0) == "-1.5");
-    CHECK(sim::format_price(0, 0) == "0");
+    CHECK(format_price(1'502'500, 0) == "150.25");
+    CHECK(format_price(70'000, 0) == "7");
+    CHECK(format_price(1, 0) == "0.0001");
+    CHECK(format_price(-15'000, 0) == "-1.5");
+    CHECK(format_price(0, 0) == "0");
 }
 
 TEST_CASE(server_config, price_int64_limits_and_transactional_overflow) {
@@ -128,7 +128,7 @@ TEST_CASE(server_config, price_int64_limits_and_transactional_overflow) {
     CHECK_EQ(price, INT64_MAX);
     REQUIRE(parse_price("-922337203685477.5808", price));
     CHECK_EQ(price, INT64_MIN);
-    CHECK_EQ(sim::format_price(price, 0), "-922337203685477.5808");
+    CHECK_EQ(format_price(price, 0), "-922337203685477.5808");
     for (const auto text : {"922337203685477.5808", "-922337203685477.5809",
                             "-922337203685477.587.", "922337203685478", "--1"}) {
         price = 123;

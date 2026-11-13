@@ -17,8 +17,8 @@
 #include "server/core/policies.hpp"
 #include "server/core/user_faults.hpp"
 #include "server/exchange_core.hpp"
-#include "sim/packet_faults.hpp"
-#include "sim/price_text.hpp"
+#include "md/packet_faults.hpp"
+#include "engine/price_text.hpp"
 
 #include <cstddef>
 #include <cstdint>
@@ -143,12 +143,12 @@ private:
 
     void execute_market_data_fault(const AdminCommand& command, std::string& reply) {
         if constexpr (MarketDataPacketFaults<MarketData>) {
-            sim::PacketFaultInjector& injector = core_.market_data_.packet_faults();
+            md::PacketFaultInjector& injector = core_.market_data_.packet_faults();
             switch (command.op) {
                 case AdminOp::FaultMdDrop: injector.drop_next(command.count); break;
                 case AdminOp::FaultMdDup: injector.duplicate_next(command.count); break;
                 case AdminOp::FaultMdReorder: {
-                    sim::PacketFaultConfig with_delay = injector.config();
+                    md::PacketFaultConfig with_delay = injector.config();
                     with_delay.reorder_delay = command.delay;
                     injector.configure(with_delay);
                     injector.reorder_next(command.count);
@@ -159,7 +159,7 @@ private:
                     if constexpr (MarketDataPacketFaultReset<MarketData>) {
                         core_.market_data_.reset_packet_faults();
                     } else {
-                        injector.configure(sim::PacketFaultConfig{});
+                        injector.configure(md::PacketFaultConfig{});
                         if (!injector.idle()) {
                             append_line(reply, "note: pending one-shot faults or held packets remain "
                                                "(market data exposes no reset_packet_faults)");
@@ -243,9 +243,9 @@ private:
             const auto bid = engine.best_bid(instrument_id);
             const auto ask = engine.best_ask(instrument_id);
             const auto last = engine.last_trade_price(instrument_id);
-            line += " bid=" + (bid ? sim::format_price(*bid, 0) : std::string("-"));
-            line += " ask=" + (ask ? sim::format_price(*ask, 0) : std::string("-"));
-            line += " last=" + (last ? sim::format_price(*last, 0) : std::string("-"));
+            line += " bid=" + (bid ? format_price(*bid, 0) : std::string("-"));
+            line += " ask=" + (ask ? format_price(*ask, 0) : std::string("-"));
+            line += " last=" + (last ? format_price(*last, 0) : std::string("-"));
             append_line(reply, line);
         }
         const MarketData& market_data = core_.market_data_;

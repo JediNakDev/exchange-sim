@@ -1,11 +1,11 @@
-#ifndef EXSIM_SIM_PRICE_TEXT_HPP
-#define EXSIM_SIM_PRICE_TEXT_HPP
+#ifndef EXSIM_ENGINE_PRICE_TEXT_HPP
+#define EXSIM_ENGINE_PRICE_TEXT_HPP
 
 // The one fixed-point Price (4 implied decimals) to decimal text formatter.
 // Trailing fraction zeros are trimmed down to `minimum_decimals` (at most 4):
 //
 //   format_price(70'000, 0) == "7"        FIX wire and config display
-//   format_price(70'000, 2) == "7.00"     scenario and tooling output
+//   format_price(70'000, 2) == "7.00"     test diagnostics
 //   format_price(1'002'500, 0) == "100.25"
 
 #include <engine/types.hpp>
@@ -17,7 +17,7 @@
 #include <cstring>
 #include <string>
 
-namespace exsim::sim {
+namespace exsim {
 
 // Writes at most `capacity` bytes and returns the length, or returns zero
 // without writing when the text does not fit. Allocation-free.
@@ -53,5 +53,5 @@ namespace exsim::sim {
     return std::string(text, format_price(price, text, sizeof text, minimum_decimals));
 }
 
-}  // namespace exsim::sim
+}  // namespace exsim
 #endif

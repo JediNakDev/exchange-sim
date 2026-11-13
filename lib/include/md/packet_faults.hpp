@@ -1,5 +1,5 @@
-#ifndef EXSIM_SIM_PACKET_FAULTS_HPP
-#define EXSIM_SIM_PACKET_FAULTS_HPP
+#ifndef EXSIM_MD_PACKET_FAULTS_HPP
+#define EXSIM_MD_PACKET_FAULTS_HPP
 
 // Deterministic fault injection for datagram streams (market-data packets).
 //
@@ -18,7 +18,7 @@
 // This is what lets client feed handlers be tested against gaps,
 // duplicates and out-of-order delivery with the real wire format.
 
-#include "sim/random.hpp"
+#include "md/random.hpp"
 #include "util/compiler.hpp"
 
 #include <cstddef>
@@ -27,7 +27,7 @@
 #include <memory>
 #include <span>
 
-namespace exsim::sim {
+namespace exsim::md {
 
 struct PacketFaultConfig {
     std::uint32_t drop_ppm = 0;       // probability a packet is lost
@@ -208,6 +208,6 @@ private:
     Rng rng_{1};
 };
 
-}  // namespace exsim::sim
+}  // namespace exsim::md
 
 #endif

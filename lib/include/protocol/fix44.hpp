@@ -6,7 +6,7 @@
 // are rejected. Message decoders check required fields and typed values.
 // Builder buffers can be reused after finish(); construct a new Builder per
 // message.
-#include "sim/price_text.hpp"
+#include "engine/price_text.hpp"
 #include "wire.hpp"
 #include <algorithm>
 #include <charconv>
@@ -306,7 +306,7 @@ public:
   }
   bool price_field(unsigned tag, Price v) noexcept {
     char tmp[32];
-    auto n = sim::format_price(v, tmp, sizeof tmp, 0);
+    auto n = format_price(v, tmp, sizeof tmp, 0);
     return field(tag, {tmp, n});
   }
   bool timestamp_field(unsigned tag, std::uint64_t v) noexcept {

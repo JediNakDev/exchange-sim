@@ -18,7 +18,7 @@
 #include "server/runtime/itch_runtime.hpp"
 #include "server/runtime/market_data_settings.hpp"
 #include "server/runtime/mdp_runtime.hpp"
-#include "sim/packet_faults.hpp"
+#include "md/packet_faults.hpp"
 
 #include <cstdint>
 #include <span>
@@ -60,8 +60,8 @@ public:
     [[nodiscard]] std::uint64_t next_sequence() const noexcept {
         return std::visit([](const auto& runtime) { return runtime.next_sequence(); }, runtime_);
     }
-    [[nodiscard]] sim::PacketFaultInjector& packet_faults() noexcept {
-        return std::visit([](auto& runtime) -> sim::PacketFaultInjector& { return runtime.packet_faults(); }, runtime_);
+    [[nodiscard]] md::PacketFaultInjector& packet_faults() noexcept {
+        return std::visit([](auto& runtime) -> md::PacketFaultInjector& { return runtime.packet_faults(); }, runtime_);
     }
     void reset_packet_faults() {
         std::visit([](auto& runtime) { runtime.reset_packet_faults(); }, runtime_);

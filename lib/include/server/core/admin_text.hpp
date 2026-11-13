@@ -7,7 +7,7 @@
 
 #include "engine/matching_engine.hpp"
 #include "server/core/user_faults.hpp"
-#include "sim/packet_faults.hpp"
+#include "md/packet_faults.hpp"
 #include "engine/types.hpp"
 
 #include <cstddef>
@@ -31,7 +31,7 @@ void append_book(std::string& reply, const MatchingEngine& engine, InstrumentId 
 [[nodiscard]] std::string describe_user_faults(const UserFaultState& faults);
 
 // "drop_ppm=0 dup_ppm=0 reorder_ppm=0 delay=1 seed=1 held=0 submitted=0 ..."
-[[nodiscard]] std::string describe_packet_faults(const sim::PacketFaultInjector& injector);
+[[nodiscard]] std::string describe_packet_faults(const md::PacketFaultInjector& injector);
 
 }  // namespace exsim::server
 

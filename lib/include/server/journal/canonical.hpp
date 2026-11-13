@@ -1,11 +1,11 @@
-#ifndef EXSIM_SIM_CANONICAL_HPP
-#define EXSIM_SIM_CANONICAL_HPP
-#include <sim/fields.hpp>
+#ifndef EXSIM_SERVER_JOURNAL_CANONICAL_HPP
+#define EXSIM_SERVER_JOURNAL_CANONICAL_HPP
+#include <server/journal/fields.hpp>
 #include <array>
 #include <bit>
 #include <stdexcept>
 #include <span>
-namespace exsim::sim {
+namespace exsim::server::journal {
 // Schema 1: tag followed by active fields, each an unsigned 64-bit big-endian
 // slot; signed prices use their two's-complement bit pattern.
 inline constexpr std::uint64_t kSchema = 1;
@@ -79,5 +79,5 @@ return Command{x}; }
 default: throw std::runtime_error("invalid journal command tag");
     }
 }
-} // namespace exsim::sim
+} // namespace exsim::server::journal
 #endif

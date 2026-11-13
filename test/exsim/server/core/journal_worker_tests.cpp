@@ -20,7 +20,7 @@ std::atomic<bool> stall_flush{false};
 std::atomic<bool> writer_inside_flush{false};
 
 struct CountingJournalWriter {
-    CountingJournalWriter(const std::string&, const sim::JournalSetup&) {}
+    CountingJournalWriter(const std::string&, const server::journal::JournalSetup&) {}
     bool append(const Command&) noexcept {
         appended_commands.fetch_add(1, std::memory_order_relaxed);
         return true;
@@ -43,7 +43,7 @@ TEST_CASE(journal_worker, destructor_drains_accepted_entries_and_joins) {
     stall_flush = false;
     const auto started = std::chrono::steady_clock::now();
     {
-        TestJournalWorker worker("unused", sim::JournalSetup{});
+        TestJournalWorker worker("unused", server::journal::JournalSetup{});
         for (int index = 0; index < 1000; ++index) REQUIRE(worker.append(Command{}));
         REQUIRE(worker.flush());
     }
@@ -58,7 +58,7 @@ TEST_CASE(journal_worker, ring_holds_capacity_minus_one_entries_then_fails) {
     writer_inside_flush = false;
     stall_flush = true;
     {
-        TestJournalWorker worker("unused", sim::JournalSetup{});
+        TestJournalWorker worker("unused", server::journal::JournalSetup{});
         REQUIRE(worker.flush());
         while (!writer_inside_flush.load(std::memory_order_acquire)) std::this_thread::yield();
         std::size_t accepted = 0;
@@ -75,7 +75,7 @@ TEST_CASE(journal_worker, stalled_writer_is_abandoned_after_the_shutdown_wait) {
     stall_flush = true;
     const auto started = std::chrono::steady_clock::now();
     {
-        TestJournalWorker worker("unused", sim::JournalSetup{});
+        TestJournalWorker worker("unused", server::journal::JournalSetup{});
         REQUIRE(worker.flush());
         while (!writer_inside_flush.load(std::memory_order_acquire)) std::this_thread::yield();
     }

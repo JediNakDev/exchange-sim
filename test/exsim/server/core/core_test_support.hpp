@@ -8,7 +8,7 @@
 #include "server/config.hpp"
 #include "server/core_admin.hpp"
 #include "server/exchange_core.hpp"
-#include "sim/canonical.hpp"
+#include "server/journal/canonical.hpp"
 #include "test/framework/test.hpp"
 
 #include <array>
@@ -166,7 +166,7 @@ struct RecordingSessions {
 // Every optional hook: two-argument timer, sequence, packet faults with reset, shutdown.
 struct RecordingMarketData {
     Recorder& recorder;
-    sim::PacketFaultInjector injector{1500, 8};
+    md::PacketFaultInjector injector{1500, 8};
     std::size_t resets = 0;
 
     void on_events(std::span<const Event> batch) {
@@ -175,9 +175,9 @@ struct RecordingMarketData {
     }
     void flush() { ++recorder.flushes; }
     [[nodiscard]] std::uint64_t next_sequence() const noexcept { return recorder.batch_count() + 1; }
-    sim::PacketFaultInjector& packet_faults() noexcept { return injector; }
+    md::PacketFaultInjector& packet_faults() noexcept { return injector; }
     void reset_packet_faults() {
-        injector = sim::PacketFaultInjector(1500, 8);
+        injector = md::PacketFaultInjector(1500, 8);
         ++resets;
     }
     template <typename Core>
@@ -191,13 +191,13 @@ struct RecordingMarketData {
 // Packet faults but no reset hook, one-argument timer, no sequence, no shutdown.
 struct NoResetMarketData {
     Recorder& recorder;
-    sim::PacketFaultInjector injector{1500, 8};
+    md::PacketFaultInjector injector{1500, 8};
     void on_events(std::span<const Event> batch) {
         recorder.events.insert(recorder.events.end(), batch.begin(), batch.end());
         recorder.batch_ends.push_back(recorder.events.size());
     }
     void flush() { ++recorder.flushes; }
-    sim::PacketFaultInjector& packet_faults() noexcept { return injector; }
+    md::PacketFaultInjector& packet_faults() noexcept { return injector; }
     void on_timer(Timestamp now) {
         ++recorder.market_data_timer_calls;
         recorder.market_data_timer_times.push_back(now);
@@ -261,7 +261,7 @@ struct CountingMarketData {
         for (const Event& event : batch) {
             ++events;
             fills += event.type == EventType::Fill ? 1 : 0;
-            hash = sim::hash_event(event, hash);
+            hash = server::journal::hash_event(event, hash);
         }
     }
     void flush() noexcept { ++flushes; }

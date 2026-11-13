@@ -30,8 +30,8 @@
 #include "server/core/policies.hpp"
 #include "server/core/session_dispatch_set.hpp"
 #include "server/core/user_faults.hpp"
-#include "sim/journal.hpp"
-#include "sim/packet_faults.hpp"
+#include "server/journal/journal.hpp"
+#include "md/packet_faults.hpp"
 
 #include <algorithm>
 #include <concepts>
@@ -95,7 +95,7 @@ inline constexpr std::size_t kDeferredCommandSlack = 64;
 template <class Core>
 class CoreAdmin;
 
-template <typename Sessions, typename MarketData, CoreClock Clock, typename Journal = sim::JournalWriter>
+template <typename Sessions, typename MarketData, CoreClock Clock, typename Journal = journal::JournalWriter>
     requires CoreMarketData<MarketData>
 class ExchangeCore {
 public:
@@ -139,7 +139,7 @@ public:
             user_index_by_session_[user.session_id] = static_cast<std::uint16_t>(users_.size());
         }
         if (!config_.journal_path.empty()) {
-            journal_.emplace(config_.journal_path, sim::JournalSetup{config_.engine.engine, config_.instruments});
+            journal_.emplace(config_.journal_path, journal::JournalSetup{config_.engine.engine, config_.instruments});
         }
     }
 

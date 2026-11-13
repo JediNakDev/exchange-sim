@@ -1,13 +1,12 @@
-#ifndef EXSIM_SIM_RANDOM_HPP
-#define EXSIM_SIM_RANDOM_HPP
+#ifndef EXSIM_MD_RANDOM_HPP
+#define EXSIM_MD_RANDOM_HPP
 
-// Small, fast, fully deterministic PRNG for simulation components (fault
-// injection, liquidity bots). Same seed => same sequence on every platform;
-// never touches global state.
+// Small, fast, fully deterministic PRNG for packet fault injection. Same
+// seed => same sequence on every platform; never touches global state.
 
 #include <cstdint>
 
-namespace exsim::sim {
+namespace exsim::md {
 
 // xoshiro256** seeded through splitmix64.
 class Rng {
@@ -60,6 +59,6 @@ private:
     std::uint64_t s_[4]{};
 };
 
-}  // namespace exsim::sim
+}  // namespace exsim::md
 
 #endif

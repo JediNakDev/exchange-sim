@@ -12,7 +12,7 @@
 //   shutdown:    publisher.end_of_day(now);        // S 'E', S 'C', End of Session
 //
 // `PacketSink` is any callable `sink(std::span<const char> packet)`; the
-// server passes one that forwards to sim::PacketFaultInjector and then the
+// server passes one that forwards to md::PacketFaultInjector and then the
 // UDP sender. The span is valid only during the call. Every sequenced
 // message is also kept in a RetransmissionRing for the RetransmissionServer.
 //

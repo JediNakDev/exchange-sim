@@ -25,12 +25,12 @@ TEST_CASE(proto_fix, decimal_boundaries) {
   for (auto bad : {"", ".", "1.", "+1", "--1", "1.2.3", " 1", "1e2"})
     CHECK(!parse_price(bad, p));
   char b[64];
-  CHECK_EQ(std::string_view(b, exsim::sim::format_price(1502500, b, sizeof b, 0)), "150.25");
-  CHECK_EQ(std::string_view(b, exsim::sim::format_price(0, b, sizeof b, 0)), "0");
+  CHECK_EQ(std::string_view(b, exsim::format_price(1502500, b, sizeof b, 0)), "150.25");
+  CHECK_EQ(std::string_view(b, exsim::format_price(0, b, sizeof b, 0)), "0");
   std::mt19937_64 random(42);
   for (unsigned i = 0; i < 10000; ++i) {
     auto value = static_cast<exsim::Price>(random());
-    auto n = exsim::sim::format_price(value, b, sizeof b, 0);
+    auto n = exsim::format_price(value, b, sizeof b, 0);
     REQUIRE(parse_price({b, n}, p));
     CHECK_EQ(value, p);
   }

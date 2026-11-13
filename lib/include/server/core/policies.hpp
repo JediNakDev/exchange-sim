@@ -21,7 +21,7 @@
 //   md.on_timer(Timestamp, const Core&) or md.on_timer(Timestamp)
 //                                 heartbeat / NOII, called from core.timer()
 //   md.next_sequence()            MoldUDP64 next sequence, shown by `status`
-//   md.packet_faults()            sim::PacketFaultInjector&, target of
+//   md.packet_faults()            md::PacketFaultInjector&, target of
 //                                 `fault md ...`
 //   md.reset_packet_faults()      used by `fault md off` when present
 //   md.on_shutdown(Timestamp)     ITCH end of system hours / end of session
@@ -35,7 +35,7 @@
 #include "engine/event.hpp"
 #include "md/publisher.hpp"
 #include "server/core/session_dispatch_set.hpp"
-#include "sim/packet_faults.hpp"
+#include "md/packet_faults.hpp"
 #include "engine/types.hpp"
 
 #include <concepts>
@@ -105,7 +105,7 @@ concept MarketDataSequence = requires(const MarketData& market_data) {
 
 template <typename MarketData>
 concept MarketDataPacketFaults = requires(MarketData& market_data) {
-    { market_data.packet_faults() } -> std::same_as<sim::PacketFaultInjector&>;
+    { market_data.packet_faults() } -> std::same_as<md::PacketFaultInjector&>;
 };
 
 template <typename MarketData>

@@ -1,7 +1,7 @@
 #include "server/core/admin_text.hpp"
 
 #include "server/config.hpp"
-#include "sim/price_text.hpp"
+#include "engine/price_text.hpp"
 
 #include <algorithm>
 #include <vector>
@@ -25,7 +25,7 @@ namespace {
 void append_level(std::string& reply, std::string_view side, const LevelInfo& level) {
     reply.append(side);
     reply.push_back(' ');
-    reply.append(sim::format_price(level.price, 0));
+    reply.append(format_price(level.price, 0));
     reply.append(" qty=");
     reply.append(std::to_string(level.qty));
     reply.append(" orders=");
@@ -70,9 +70,9 @@ std::string describe_user_faults(const UserFaultState& faults) {
            " disconnect=" + (faults.disconnect_requested ? "requested" : "no");
 }
 
-std::string describe_packet_faults(const sim::PacketFaultInjector& injector) {
-    const sim::PacketFaultConfig& c = injector.config();
-    const sim::PacketFaultStats& s = injector.stats();
+std::string describe_packet_faults(const md::PacketFaultInjector& injector) {
+    const md::PacketFaultConfig& c = injector.config();
+    const md::PacketFaultStats& s = injector.stats();
     return "drop_ppm=" + std::to_string(c.drop_ppm) + " dup_ppm=" + std::to_string(c.duplicate_ppm) +
            " reorder_ppm=" + std::to_string(c.reorder_ppm) + " delay=" + std::to_string(c.reorder_delay) +
            " seed=" + std::to_string(c.seed) + " held=" + std::to_string(injector.held()) +

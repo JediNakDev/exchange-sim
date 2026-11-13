@@ -1,14 +1,14 @@
-#include "sim/packet_faults.hpp"
-#include "sim/random.hpp"
+#include "md/packet_faults.hpp"
+#include "md/random.hpp"
 #include "../../framework/test.hpp"
 
 #include <cstring>
 #include <string>
 #include <vector>
 
-using exsim::sim::PacketFaultConfig;
-using exsim::sim::PacketFaultInjector;
-using exsim::sim::Rng;
+using exsim::md::PacketFaultConfig;
+using exsim::md::PacketFaultInjector;
+using exsim::md::Rng;
 
 namespace {
 
@@ -146,7 +146,7 @@ TEST_CASE(sim_packet_faults, cannot_hold_falls_back_to_delivery) {
 }
 
 TEST_CASE(sim_packet_faults, random_faults_are_reproducible_and_conserve_packets) {
-    auto run = [](std::uint64_t seed, exsim::sim::PacketFaultStats& stats) {
+    auto run = [](std::uint64_t seed, exsim::md::PacketFaultStats& stats) {
         PacketFaultInjector inj(64, 8);
         PacketFaultConfig cfg;
         cfg.drop_ppm = 50'000;
@@ -161,7 +161,7 @@ TEST_CASE(sim_packet_faults, random_faults_are_reproducible_and_conserve_packets
         stats = inj.stats();
         return rec.seen;
     };
-    exsim::sim::PacketFaultStats s1{}, s2{};
+    exsim::md::PacketFaultStats s1{}, s2{};
     const auto a = run(99, s1);
     const auto b = run(99, s2);
     CHECK(a == b);

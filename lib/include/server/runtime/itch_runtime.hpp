@@ -1,7 +1,7 @@
 #ifndef EXSIM_SERVER_RUNTIME_ITCH_RUNTIME_HPP
 #define EXSIM_SERVER_RUNTIME_ITCH_RUNTIME_HPP
 
-// ITCH 5.0 market data policy: MarketDataPublisher -> sim::PacketFaultInjector
+// ITCH 5.0 market data policy: MarketDataPublisher -> md::PacketFaultInjector
 // -> UDP sender, plus the MoldUDP64 retransmission server on its own UDP
 // socket.
 //
@@ -28,7 +28,7 @@
 #include "net/udp.hpp"
 #include "server/config.hpp"
 #include "server/runtime/market_data_settings.hpp"
-#include "sim/packet_faults.hpp"
+#include "md/packet_faults.hpp"
 
 #include <array>
 #include <cerrno>
@@ -118,7 +118,7 @@ public:
     }
 
     [[nodiscard]] std::uint64_t next_sequence() const noexcept { return publisher_.next_sequence(); }
-    [[nodiscard]] sim::PacketFaultInjector& packet_faults() noexcept { return packet_faults_; }
+    [[nodiscard]] md::PacketFaultInjector& packet_faults() noexcept { return packet_faults_; }
     void reset_packet_faults() {
         packet_faults_.clear_faults();
         packet_faults_.flush([this](std::span<const char> packet) { send_datagram(packet); });
@@ -197,7 +197,7 @@ private:
     }
 
     MarketDataRuntimeSettings settings_;
-    sim::PacketFaultInjector packet_faults_;
+    md::PacketFaultInjector packet_faults_;
     md::MarketDataPublisher<FeedPacketSink> publisher_;
     md::RetransmissionServer retransmission_server_;
     net::UdpSender feed_sender_;

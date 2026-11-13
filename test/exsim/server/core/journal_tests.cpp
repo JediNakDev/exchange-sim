@@ -3,7 +3,8 @@
 // `[journal] on_failure`.
 
 #include "test/exsim/server/core/core_test_support.hpp"
-#include "sim/journal.hpp"
+#include "server/journal/journal.hpp"
+#include "test/exsim/support/journal_reader.hpp"
 
 #include <csignal>
 #include <cstdio>
@@ -75,7 +76,7 @@ struct Replay {
 };
 
 Replay replay_journal(const std::string& path) {
-    sim::JournalReader reader(path);
+    testsupport::JournalReader reader(path);
     MatchingEngine engine(reader.setup().engine);
     for (const InstrumentConfig& instrument : reader.setup().instruments) {
         REQUIRE(engine.add_instrument(instrument) != 0);
@@ -95,14 +96,14 @@ Replay replay_journal(const std::string& path) {
 bool same_canonical_events(const std::vector<Event>& left, const std::vector<Event>& right) {
     if (left.size() != right.size()) return false;
     for (std::size_t i = 0; i < left.size(); ++i) {
-        if (sim::encode(left[i]) != sim::encode(right[i])) return false;
+        if (server::journal::encode(left[i]) != server::journal::encode(right[i])) return false;
     }
     return true;
 }
 
 bool journal_is_readable(const std::string& path) {
     try {
-        sim::JournalReader reader(path);
+        testsupport::JournalReader reader(path);
         return true;
     } catch (const std::exception&) {
         return false;

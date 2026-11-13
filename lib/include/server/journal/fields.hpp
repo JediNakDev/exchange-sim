@@ -1,13 +1,13 @@
-#ifndef EXSIM_SIM_FIELDS_HPP
-#define EXSIM_SIM_FIELDS_HPP
+#ifndef EXSIM_SERVER_JOURNAL_FIELDS_HPP
+#define EXSIM_SERVER_JOURNAL_FIELDS_HPP
 
 // Field-by-field reflection over Event, Command and OrderInfo.
 //
 // Events and commands are unions, so their padding bytes (and the bytes of
 // inactive members) are indeterminate: they must never be memcmp'd, hashed
 // or written out as raw struct bytes. Everything that needs to look at
-// "all the fields" - equality, formatting, the canonical event-stream hash,
-// the scenario DSL - goes through these visitors instead, so they can never
+// "all the fields" (equality, test formatting, the canonical journal encoding
+// and event-stream hash) goes through these visitors instead, so they can never
 // disagree about what a field is.
 //
 // visit_fields(x, f) calls f(Field{name, kind, raw}) for every field of the
@@ -26,9 +26,9 @@
 #include <string_view>
 #include <type_traits>
 
-namespace exsim::sim {
+namespace exsim::server::journal {
 
-// What a field means; drives formatting and DSL parsing.
+// What a field means; drives formatting.
 enum class FieldKind : std::uint8_t {
     Instrument,
     Timestamp,
@@ -108,7 +108,7 @@ template <typename T>
     const auto byte = static_cast<std::uint8_t>(raw);
     std::string_view name;
     switch (kind) {
-        case FieldKind::Side: return byte <= 1 ? to_string(static_cast<Side>(byte)) : std::string_view{};
+        case FieldKind::Side: return byte <= 1 ? exsim::to_string(static_cast<Side>(byte)) : std::string_view{};
         case FieldKind::OrdType: name = to_string(static_cast<OrdType>(byte)); break;
         case FieldKind::TimeInForce: name = to_string(static_cast<TimeInForce>(byte)); break;
         case FieldKind::StpMode: name = to_string(static_cast<StpMode>(byte)); break;
@@ -324,6 +324,6 @@ constexpr void visit_fields(const OrderInfo& o, F&& f) {
     f(Field{"cum_qty", FieldKind::Quantity, to_raw(o.cum_qty)});
 }
 
-}  // namespace exsim::sim
+}  // namespace exsim::server::journal
 
 #endif
