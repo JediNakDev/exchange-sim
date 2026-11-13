@@ -31,7 +31,7 @@ inline constexpr std::size_t kMinimumMaxPayload = kMoldHeaderSize + kMoldMessage
 inline constexpr std::size_t kMaximumMaxPayload = 65507;
 
 // ITCH timestamps are nanoseconds since the trading-day origin and must lie
-// in [0, 86,400,000,000,000) (GATEWAYS.md section 4).
+// in [0, 86,400,000,000,000).
 inline constexpr std::uint64_t kNanosecondsPerTradingDay = 86'400ULL * 1'000'000'000ULL;
 
 // ITCH Price(4) is an unsigned 32-bit field.
