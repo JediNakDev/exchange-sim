@@ -39,9 +39,9 @@
 // decimals. Trading-day times are "HH:MM[:SS[.fraction]]" local time; the end
 // may be "24:00". See test/fixtures/exchange.conf for a complete example.
 
-#include "instrument.hpp"
-#include "matching_engine.hpp"
-#include "types.hpp"
+#include "engine/instrument.hpp"
+#include "engine/matching_engine.hpp"
+#include "engine/types.hpp"
 
 #include <cstddef>
 #include <cstdint>

@@ -16,7 +16,7 @@
 // book inconsistent (unknown/duplicate reference, too many shares, capacity)
 // is rejected without changing the book, counted, and returned as a status.
 
-#include <matching_engine.hpp>
+#include <engine/matching_engine.hpp>
 #include <protocol/itch50.hpp>
 #include <exchange/flat_hash_map.hpp>
 

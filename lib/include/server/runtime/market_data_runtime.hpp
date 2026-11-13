@@ -11,7 +11,7 @@
 // one test of an index fixed at startup, which the branch predictor always
 // gets right; the runtimes themselves contain no protocol branches.
 
-#include "event.hpp"
+#include "engine/event.hpp"
 #include "md/publisher.hpp"
 #include "net/poller.hpp"
 #include "server/config.hpp"

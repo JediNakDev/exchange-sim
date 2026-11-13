@@ -32,11 +32,11 @@
 //   md.state(), md.stop_reason()  md::PublisherState and md::PublishStatus,
 //                                 shown by `status`
 
-#include "event.hpp"
+#include "engine/event.hpp"
 #include "md/publisher.hpp"
 #include "server/core/session_dispatch_set.hpp"
 #include "sim/packet_faults.hpp"
-#include "types.hpp"
+#include "engine/types.hpp"
 
 #include <concepts>
 #include <cstdint>

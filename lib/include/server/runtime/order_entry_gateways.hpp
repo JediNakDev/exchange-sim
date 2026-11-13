@@ -30,14 +30,14 @@
 // table (GatewaySessions), the loop, the delay fault, admin disconnects and
 // shutdown handling are shared.
 
-#include "event.hpp"
+#include "engine/event.hpp"
 #include "gateway/fix/fix_gateway.hpp"
 #include "gateway/ouch/ouch_server.hpp"
 #include "gateway/ilink/ilink_connection.hpp"
 #include "server/config.hpp"
 #include "server/core/policies.hpp"
 #include "server/runtime/tcp_send_sink.hpp"
-#include "types.hpp"
+#include "engine/types.hpp"
 
 #include <cstddef>
 #include <algorithm>

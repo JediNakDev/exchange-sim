@@ -5,7 +5,7 @@
 // parsing is off the hot path (operator commands), so std::string is fine.
 
 #include "sim/packet_faults.hpp"
-#include "types.hpp"
+#include "engine/types.hpp"
 
 #include <cstdint>
 #include <string>

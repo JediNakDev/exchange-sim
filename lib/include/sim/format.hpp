@@ -12,9 +12,9 @@
 // Built on exsim::sim::visit_fields, so formatting, equality and the
 // canonical event hash all agree on what "every field" means.
 
-#include <command.hpp>
-#include <event.hpp>
-#include <matching_engine.hpp>
+#include <engine/command.hpp>
+#include <engine/event.hpp>
+#include <engine/matching_engine.hpp>
 #include <sim/fields.hpp>
 #include <sim/price_text.hpp>
 

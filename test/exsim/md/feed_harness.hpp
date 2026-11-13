@@ -14,7 +14,7 @@
 // it, so the feed is checked after all packets of each batch even while
 // recovery lags behind the engine.
 
-#include <matching_engine.hpp>
+#include <engine/matching_engine.hpp>
 #include <md/book_builder.hpp>
 #include <md/publisher.hpp>
 #include <md/receiver.hpp>

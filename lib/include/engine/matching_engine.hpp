@@ -1,5 +1,5 @@
-#ifndef EXSIM_MATCHING_ENGINE_HPP
-#define EXSIM_MATCHING_ENGINE_HPP
+#ifndef EXSIM_ENGINE_MATCHING_ENGINE_HPP
+#define EXSIM_ENGINE_MATCHING_ENGINE_HPP
 
 // Multi-instrument matching engine. Pure and single-threaded: no I/O, no
 // clocks, no threads. Every input is a Command, every output is an Event
@@ -18,10 +18,10 @@
 // add_instrument adds only that instrument's price ladders, which scale with
 // its price band. Size max_orders and price bands for physical memory.
 
-#include "command.hpp"
-#include "event.hpp"
-#include "instrument.hpp"
-#include "types.hpp"
+#include "engine/command.hpp"
+#include "engine/event.hpp"
+#include "engine/instrument.hpp"
+#include "engine/types.hpp"
 #include <cstddef>
 #include <cstdint>
 #include <memory>

@@ -13,7 +13,7 @@
 
 #include "gateway/fix/fix_client.hpp"
 #include "gateway/fix/fix_gateway.hpp"
-#include "matching_engine.hpp"
+#include "engine/matching_engine.hpp"
 #include "server/config.hpp"
 #include "server/core/session_dispatch_set.hpp"
 #include "test/framework/test.hpp"

@@ -6,7 +6,7 @@
 // engine-only metadata (session, STP, cumulative fills, query lists) in
 // preallocated arrays.
 
-#include <matching_engine.hpp>
+#include <engine/matching_engine.hpp>
 
 #include "fixed_array.hpp"
 #include "order_metadata.hpp"

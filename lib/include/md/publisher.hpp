@@ -25,9 +25,9 @@
 // Hot path (on_events, flush, poll): no heap allocation, no exceptions
 // thrown by the publisher itself, no virtual dispatch.
 
-#include <event.hpp>
-#include <instrument.hpp>
-#include <matching_engine.hpp>  // AuctionIndicative
+#include <engine/event.hpp>
+#include <engine/instrument.hpp>
+#include <engine/matching_engine.hpp>  // AuctionIndicative
 #include <md/feed_common.hpp>
 #include <md/retransmission_ring.hpp>
 #include <protocol/itch50.hpp>

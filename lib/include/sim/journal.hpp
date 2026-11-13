@@ -1,7 +1,7 @@
 #ifndef EXSIM_SIM_JOURNAL_HPP
 #define EXSIM_SIM_JOURNAL_HPP
 #include <sim/canonical.hpp>
-#include <instrument.hpp>
+#include <engine/instrument.hpp>
 #include <string>
 #include <vector>
 namespace exsim::sim {

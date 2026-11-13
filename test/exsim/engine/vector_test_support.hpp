@@ -4,7 +4,7 @@
 // Shared helpers for the vector_* engine tests. Public API only.
 
 #include "../../framework/test.hpp"
-#include <matching_engine.hpp>
+#include <engine/matching_engine.hpp>
 
 #include <cstddef>
 #include <cstdint>

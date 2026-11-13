@@ -28,7 +28,7 @@
 #include "gateway/byte_sink.hpp"
 #include "protocol/ouch42.hpp"
 #include "protocol/soupbintcp.hpp"
-#include "types.hpp"
+#include "engine/types.hpp"
 
 #include <array>
 #include <cstddef>

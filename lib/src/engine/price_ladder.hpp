@@ -6,8 +6,8 @@
 // occupancy bitmaps and FIFO links; orders, levels and IDs come from the
 // engine's shared OrderBookStorage.
 
-#include <instrument.hpp>
-#include <types.hpp>
+#include <engine/instrument.hpp>
+#include <engine/types.hpp>
 
 #include <cstdint>
 #include <limits>

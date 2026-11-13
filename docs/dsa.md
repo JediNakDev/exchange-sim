@@ -50,7 +50,7 @@ A hash map finds an instrument by its symbol.
 
 Event buffers are supplied by the caller. Their capacity is checked before commands run. Capacity and price limits bound memory use; they do not make every command constant time. Order storage grows with the order limit only, not with the number of instruments. Each instrument still reserves two price ladders and their bitmaps for its whole price band, so wide bands across many instruments can use substantial RAM.
 
-See [order metadata](../lib/src/engine/order_metadata.hpp) and [engine interface](../lib/include/matching_engine.hpp).
+See [order metadata](../lib/src/engine/order_metadata.hpp) and [engine interface](../lib/include/engine/matching_engine.hpp).
 
 ## Operation time complexity
 

@@ -1,7 +1,7 @@
-#ifndef EXSIM_INSTRUMENT_HPP
-#define EXSIM_INSTRUMENT_HPP
+#ifndef EXSIM_ENGINE_INSTRUMENT_HPP
+#define EXSIM_ENGINE_INSTRUMENT_HPP
 
-#include "types.hpp"
+#include "engine/types.hpp"
 #include <array>
 #include <cstring>
 #include <limits>

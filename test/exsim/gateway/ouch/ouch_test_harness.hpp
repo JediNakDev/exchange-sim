@@ -14,7 +14,7 @@
 
 #include "gateway/ouch/ouch_client.hpp"
 #include "gateway/ouch/ouch_server.hpp"
-#include "matching_engine.hpp"
+#include "engine/matching_engine.hpp"
 #include "server/core/session_dispatch_set.hpp"
 #include "../../../framework/test.hpp"
 

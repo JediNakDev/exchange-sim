@@ -14,12 +14,12 @@
 // user's session, with that session's events; every application message is
 // sequenced and stored, and transmitted when a connection is bound.
 
-#include "command.hpp"
-#include "event.hpp"
+#include "engine/command.hpp"
+#include "engine/event.hpp"
 #include "gateway/fix/fix_common.hpp"
 #include "gateway/fix/fix_session_day_state.hpp"
 #include "gateway/token_table.hpp"
-#include "instrument.hpp"
+#include "engine/instrument.hpp"
 #include "server/config.hpp"
 #include "server/core/policies.hpp"
 

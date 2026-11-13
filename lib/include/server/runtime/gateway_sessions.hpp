@@ -7,10 +7,10 @@
 // session belongs to exactly one protocol). Each per-session dispatch is
 // one table read and one call into that user with its events.
 
-#include "event.hpp"
+#include "engine/event.hpp"
 #include "server/config.hpp"
 #include "server/core/session_dispatch_set.hpp"
-#include "types.hpp"
+#include "engine/types.hpp"
 
 #include <algorithm>
 #include <cstddef>

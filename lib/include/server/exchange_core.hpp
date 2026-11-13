@@ -20,10 +20,10 @@
 // allocation, no exceptions, no std::string. Construction is a setup path
 // and may allocate or throw.
 
-#include "command.hpp"
-#include "event.hpp"
-#include "instrument.hpp"
-#include "matching_engine.hpp"
+#include "engine/command.hpp"
+#include "engine/event.hpp"
+#include "engine/instrument.hpp"
+#include "engine/matching_engine.hpp"
 #include "md/publisher.hpp"
 #include "server/config.hpp"
 #include "server/core/deferred_command_queue.hpp"

@@ -1,12 +1,12 @@
-#ifndef EXSIM_EVENT_HPP
-#define EXSIM_EVENT_HPP
+#ifndef EXSIM_ENGINE_EVENT_HPP
+#define EXSIM_ENGINE_EVENT_HPP
 
 // Outbound events emitted by the matching engine. Gateways turn them into
 // execution reports for the owning sessions; the market-data publisher turns
 // them into ITCH. Event order within one command is normative: see
 // matching engine contract section "Event ordering".
 
-#include "types.hpp"
+#include "engine/types.hpp"
 #include <cstddef>
 #include <type_traits>
 #include <vector>

@@ -1,12 +1,12 @@
-#ifndef EXSIM_COMMAND_HPP
-#define EXSIM_COMMAND_HPP
+#ifndef EXSIM_ENGINE_COMMAND_HPP
+#define EXSIM_ENGINE_COMMAND_HPP
 
 // Inbound commands: the protocol-neutral representation every order-entry
 // gateway (OUCH, FIX, ...) decodes into. All structs are trivially copyable
 // for SPSC queues. Journals require explicit versioned field encoding, never
 // raw object storage (padding, ABI and endianness are not canonical).
 
-#include "types.hpp"
+#include "engine/types.hpp"
 #include <type_traits>
 
 namespace exsim {

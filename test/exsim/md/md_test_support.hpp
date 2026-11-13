@@ -4,7 +4,7 @@
 // Shared helpers for the market-data suites: golden hex bytes, packet
 // capture, MoldUDP64 message extraction, and engine/builder book comparison.
 
-#include <matching_engine.hpp>
+#include <engine/matching_engine.hpp>
 #include <md/book_builder.hpp>
 #include <md/publisher.hpp>
 #include <protocol/moldudp64.hpp>

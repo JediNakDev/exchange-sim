@@ -39,18 +39,18 @@
 //     consume_drop_out, has_pending_drop_out); `fault user X delay` belongs
 //     to the server loop.
 
-#include "command.hpp"
-#include "event.hpp"
+#include "engine/command.hpp"
+#include "engine/event.hpp"
 #include "gateway/byte_sink.hpp"
 #include "gateway/ouch/ouch_mapping.hpp"
 #include "gateway/sequenced_store.hpp"
 #include "gateway/token_table.hpp"
-#include "instrument.hpp"
+#include "engine/instrument.hpp"
 #include "protocol/ouch42.hpp"
 #include "protocol/soupbintcp.hpp"
 #include "server/config.hpp"
 #include "server/core/policies.hpp"
-#include "types.hpp"
+#include "engine/types.hpp"
 #include "exchange/compiler.hpp"
 
 #include <algorithm>

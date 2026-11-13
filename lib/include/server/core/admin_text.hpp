@@ -5,10 +5,10 @@
 // Every reply is one or more '\n'-terminated lines ending with "OK" or
 // "ERR <message>".
 
-#include "matching_engine.hpp"
+#include "engine/matching_engine.hpp"
 #include "server/core/user_faults.hpp"
 #include "sim/packet_faults.hpp"
-#include "types.hpp"
+#include "engine/types.hpp"
 
 #include <cstddef>
 #include <string>

@@ -17,7 +17,7 @@
 // Tokens are compared byte-exactly: OUCH tokens keep their space padding so
 // the gateway can echo the original 14 bytes back.
 
-#include "types.hpp"
+#include "engine/types.hpp"
 #include "exchange/compiler.hpp"
 
 #include <cstddef>

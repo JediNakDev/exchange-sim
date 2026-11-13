@@ -8,7 +8,7 @@
 //   format_price(70'000, 2) == "7.00"     scenario and tooling output
 //   format_price(1'002'500, 0) == "100.25"
 
-#include <types.hpp>
+#include <engine/types.hpp>
 
 #include <algorithm>
 #include <charconv>

@@ -1,7 +1,7 @@
 #ifndef EXSIM_MD_MDP_PUBLISHER_HPP
 #define EXSIM_MD_MDP_PUBLISHER_HPP
 
-#include "matching_engine.hpp"
+#include "engine/matching_engine.hpp"
 #include "md/publisher.hpp"
 #include "protocol/mdp3.hpp"
 #include "server/config.hpp"

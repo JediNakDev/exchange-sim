@@ -5,8 +5,8 @@
 // fixed storage, so the core hands each session only its own events and
 // never allocates or overflows while doing so.
 
-#include "event.hpp"
-#include "types.hpp"
+#include "engine/event.hpp"
+#include "engine/types.hpp"
 
 #include <cstddef>
 #include <cstdint>
