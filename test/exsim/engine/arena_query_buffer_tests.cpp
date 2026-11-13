@@ -331,7 +331,7 @@ TEST_CASE(arena_capacity, instruments_share_one_order_limit_and_id_lookup) {
 
 TEST_CASE(arena_instruments, find_instrument_by_symbol_after_many_instruments) {
     MatchingEngine engine(EngineConfig{41, 8});  // room for one more, so only the symbol can reject
-    char symbol[8] = {};
+    char symbol[16] = {};
     for (int i = 0; i < 40; ++i) {
         std::snprintf(symbol, sizeof(symbol), "S%02d", i);
         REQUIRE_EQ(engine.add_instrument(small_instrument_config(symbol)), static_cast<InstrumentId>(i + 1));
