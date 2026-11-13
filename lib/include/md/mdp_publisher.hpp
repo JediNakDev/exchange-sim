@@ -6,6 +6,7 @@
 #include "protocol/mdp3.hpp"
 #include "server/config.hpp"
 
+#include <algorithm>
 #include <array>
 #include <memory>
 #include <vector>
@@ -60,6 +61,7 @@ public:
             config_.max_payload > 65507 || config_.channel_id == 0 || config_.channel_id > INT16_MAX)
             throw std::invalid_argument("MDP publisher configuration");
         packet_.resize(config_.max_payload);
+        touched_.reserve(instruments_.size());
     }
 
     PublishStatus start(Timestamp now, std::uint64_t epoch_now, const MatchingEngine& engine) {
@@ -92,7 +94,13 @@ public:
 
     PublishStatus on_events(std::span<const Event> events) noexcept {
         if (state_ != PublisherState::Live) return PublishStatus::NotAllowedInState;
-        for (auto& state : states_) { state.touched = false; state.trade_count = 0; state.update_count = 0; }
+        for (const auto id : touched_) {
+            auto& state = states_[id];
+            state.touched = false;
+            state.trade_count = 0;
+            state.update_count = 0;
+        }
+        touched_.clear();
         Timestamp now = last_incremental_;
         std::size_t messages = 0;
         std::size_t trade_messages = 0;
@@ -107,7 +115,10 @@ public:
             }
             if (event.instrument >= states_.size()) return fail(PublishStatus::UnknownInstrument);
             auto& state = states_[event.instrument];
-            state.touched = true;
+            if (!state.touched) {
+                state.touched = true;
+                touched_.push_back(event.instrument);
+            }
             if (event.type == EventType::Fill) {
                 std::int64_t price = 0;
                 if (!protocol::cme::price_to_price9(event.fill.price, price) || event.fill.qty >= INT32_MAX)
@@ -117,9 +128,9 @@ public:
                 ++messages;
             }
         }
-        for (std::size_t i = 1; i < states_.size(); ++i) {
+        std::sort(touched_.begin(), touched_.end());
+        for (const auto i : touched_) {
             auto& state = states_[i];
-            if (!state.touched) continue;
             const auto id = static_cast<InstrumentId>(i);
             state.next_bid_count = engine_->depth(id, Side::BUY, state.next_bids.data(), config_.book_depth);
             state.next_ask_count = engine_->depth(id, Side::SELL, state.next_asks.data(), config_.book_depth);
@@ -151,9 +162,8 @@ public:
                                                        (--trade_messages == 0 ? protocol::mdp3::kLastTrade : 0));
             emit(protocol::mdp3::encode_trades(epoch_origin_ + event.ts, flag, trades, orders, message_), now, MdpStream::Incremental);
         }
-        for (std::size_t i = 1; i < states_.size(); ++i) {
+        for (const auto i : touched_) {
             auto& state = states_[i];
-            if (!state.touched) continue;
             const auto security = instruments_[i - 1].cme_security_id;
             if (state.update_count) {
                 for (std::size_t j = 0; j < state.update_count; ++j) {
@@ -350,6 +360,7 @@ private:
     server::MarketDataSection config_;
     std::vector<InstrumentConfig> instruments_;
     std::vector<State> states_;
+    std::vector<InstrumentId> touched_;
     MdpReplayRing ring_;
     Sink sink_;
     const MatchingEngine* engine_ = nullptr;
