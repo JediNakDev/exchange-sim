@@ -26,7 +26,7 @@ namespace exsim::sim {
 
 [[nodiscard]] inline std::string format_field_value(const sim::Field& field) {
     if (field.kind == sim::FieldKind::Price) {
-        return sim::format_price(static_cast<Price>(field.raw));
+        return sim::format_price(static_cast<Price>(field.raw), 2);
     }
     if (field.kind == sim::FieldKind::Bool) {
         return field.raw == 0 ? "false" : (field.raw == 1 ? "true" : "?" + std::to_string(field.raw));

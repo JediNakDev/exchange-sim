@@ -1,6 +1,7 @@
 #include "server/config.hpp"
 
 #include "md/feed_common.hpp"
+#include "sim/price_text.hpp"
 #include "protocol/cme_sbe.hpp"
 #include "protocol/ilink3.hpp"
 
@@ -455,27 +456,7 @@ bool parse_price(std::string_view text, Price& out) noexcept {
 }
 
 std::string format_price(Price p) {
-    std::string out;
-    std::uint64_t mag = p < 0 ? static_cast<std::uint64_t>(-(p + 1)) + 1 : static_cast<std::uint64_t>(p);
-    if (p < 0) {
-        out.push_back('-');
-    }
-    out += std::to_string(mag / kPriceScale);
-    std::uint64_t frac = mag % kPriceScale;
-    if (frac != 0) {
-        char digits[5] = {'0', '0', '0', '0', '\0'};
-        for (int i = 3; i >= 0; --i) {
-            digits[i] = static_cast<char>('0' + frac % 10);
-            frac /= 10;
-        }
-        int n = 4;
-        while (n > 1 && digits[n - 1] == '0') {
-            --n;
-        }
-        out.push_back('.');
-        out.append(digits, static_cast<std::size_t>(n));
-    }
-    return out;
+    return sim::format_price(p, 0);
 }
 
 bool parse_day_time(std::string_view text, Timestamp& out) noexcept {

@@ -6,6 +6,7 @@
 // are rejected. Message decoders check required fields and typed values.
 // Builder buffers can be reused after finish(); construct a new Builder per
 // message.
+#include "sim/price_text.hpp"
 #include "wire.hpp"
 #include <algorithm>
 #include <charconv>
@@ -70,28 +71,6 @@ inline std::size_t format_uint(std::uint64_t v, char *p,
     return 0;
   std::memcpy(p, tmp, len);
   return len;
-}
-inline std::size_t format_price(Price v, char *p, std::size_t n) noexcept {
-  char tmp[32];
-  std::size_t pos = 0;
-  bool neg = v < 0;
-  std::uint64_t mag =
-      neg ? std::uint64_t(-(v + 1)) + 1 : static_cast<std::uint64_t>(v);
-  if (neg)
-    tmp[pos++] = '-';
-  pos += format_uint(mag / 10000, tmp + pos, sizeof(tmp) - pos);
-  auto fraction = mag % 10000;
-  if (fraction) {
-    tmp[pos++] = '.';
-    for (unsigned div = 1000; div; div /= 10)
-      tmp[pos++] = static_cast<char>('0' + (fraction / div) % 10);
-    while (tmp[pos - 1] == '0')
-      --pos;
-  }
-  if (n < pos)
-    return 0;
-  std::memcpy(p, tmp, pos);
-  return pos;
 }
 // Gregorian calendar conversion, independent of libc timezone and locale.
 inline std::int64_t days_from_civil(int year, unsigned month,
@@ -327,7 +306,7 @@ public:
   }
   bool price_field(unsigned tag, Price v) noexcept {
     char tmp[32];
-    auto n = format_price(v, tmp, sizeof tmp);
+    auto n = sim::format_price(v, tmp, sizeof tmp, 0);
     return field(tag, {tmp, n});
   }
   bool timestamp_field(unsigned tag, std::uint64_t v) noexcept {
