@@ -2,8 +2,7 @@
 #define EXSIM_MD_PUBLISHER_HPP
 
 // MarketDataPublisher: engine event batches -> ITCH 5.0 messages ->
-// MoldUDP64 packets, following the normative mapping in gateway mapping
-// section 4 and the runtime contract in server contract section 3.
+// MoldUDP64 packets.
 //
 //   MarketDataPublisher<Sink> publisher(config, sink);
 //   publisher.add_instruments_from(engine);       // setup: locate = InstrumentId
@@ -104,7 +103,7 @@ struct PublisherStats {
     return valid_instrument_config(config) && config.min_price > 0 && config.max_price <= kMaxItchPrice;
 }
 
-// GATEWAYS.md section 4 phase -> Stock Trading Action state.
+// Engine phase -> Stock Trading Action state.
 [[nodiscard]] constexpr char itch_trading_state(Phase phase) noexcept {
     switch (phase) {
         case Phase::Continuous: return 'T';
@@ -281,7 +280,7 @@ public:
             protocol::itch50::NetOrderImbalance imbalance;
             imbalance.stock_locate = id;
             imbalance.timestamp = itch_time;
-            // Simplified NOII (GATEWAYS.md): paired shares only when crossed;
+            // Simplified NOII: paired shares only when crossed;
             // near = far = indicative price when crossed, else zero.
             imbalance.paired_shares = indicative.crossed ? indicative.paired_qty : 0;
             imbalance.imbalance_shares = indicative.imbalance_qty;
@@ -421,8 +420,9 @@ private:
     }
 
     // True when the event at `index` is a priority-losing Replaced whose new
-    // order's next event in the batch is its Rested (GATEWAYS.md: emit U and
-    // consume that Rested). Returns the Rested event or nullptr.
+    // order's next event in the batch is its Rested (emit U and consume that
+    // Rested). Returns the Rested event or nullptr. The engine emits the new
+    // order's next event right after the Replaced, so the scan stops early.
     static const RestedEvent* rested_replacement(std::span<const Event> batch, std::size_t index) noexcept {
         const OrderId new_order_id = batch[index].replaced.new_order_id;
         for (std::size_t next = index + 1; next < batch.size(); ++next) {

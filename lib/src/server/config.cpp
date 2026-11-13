@@ -1,7 +1,6 @@
 #include "server/config.hpp"
 
 #include "md/feed_common.hpp"
-#include "sim/price_text.hpp"
 #include "protocol/cme_sbe.hpp"
 #include "protocol/ilink3.hpp"
 
@@ -463,10 +462,6 @@ bool parse_price(std::string_view text, Price& out) noexcept {
     out = negative && value == maximum + 1 ? std::numeric_limits<Price>::min()
         : negative ? -static_cast<Price>(value) : static_cast<Price>(value);
     return true;
-}
-
-std::string format_price(Price p) {
-    return sim::format_price(p, 0);
 }
 
 bool parse_day_time(std::string_view text, Timestamp& out) noexcept {

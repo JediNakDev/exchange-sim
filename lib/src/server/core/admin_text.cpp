@@ -1,6 +1,7 @@
 #include "server/core/admin_text.hpp"
 
 #include "server/config.hpp"
+#include "sim/price_text.hpp"
 
 #include <algorithm>
 #include <vector>
@@ -24,7 +25,7 @@ namespace {
 void append_level(std::string& reply, std::string_view side, const LevelInfo& level) {
     reply.append(side);
     reply.push_back(' ');
-    reply.append(format_price(level.price));
+    reply.append(sim::format_price(level.price, 0));
     reply.append(" qty=");
     reply.append(std::to_string(level.qty));
     reply.append(" orders=");

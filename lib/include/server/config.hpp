@@ -164,8 +164,6 @@ struct ServerConfig {
 // decimals; rejects anything else, including overflow.
 [[nodiscard]] bool parse_price(std::string_view text, Price& out) noexcept;
 
-// Inverse of parse_price for display: 1'502'500 -> "150.25".
-[[nodiscard]] std::string format_price(Price p);
 
 // "09:30", "09:30:15", "09:30:15.25" -> ns since midnight. Hours 0..23,
 // except exactly "24:00[:00]" (end of day); at most 9 fraction digits.

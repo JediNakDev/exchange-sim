@@ -18,6 +18,7 @@
 #include "server/core/user_faults.hpp"
 #include "server/exchange_core.hpp"
 #include "sim/packet_faults.hpp"
+#include "sim/price_text.hpp"
 
 #include <cstddef>
 #include <cstdint>
@@ -242,9 +243,9 @@ private:
             const auto bid = engine.best_bid(instrument_id);
             const auto ask = engine.best_ask(instrument_id);
             const auto last = engine.last_trade_price(instrument_id);
-            line += " bid=" + (bid ? format_price(*bid) : std::string("-"));
-            line += " ask=" + (ask ? format_price(*ask) : std::string("-"));
-            line += " last=" + (last ? format_price(*last) : std::string("-"));
+            line += " bid=" + (bid ? sim::format_price(*bid, 0) : std::string("-"));
+            line += " ask=" + (ask ? sim::format_price(*ask, 0) : std::string("-"));
+            line += " last=" + (last ? sim::format_price(*last, 0) : std::string("-"));
             append_line(reply, line);
         }
         const MarketData& market_data = core_.market_data_;
