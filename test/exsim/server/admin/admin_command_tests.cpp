@@ -1,5 +1,5 @@
-#include "server/admin.hpp"
-#include "../../framework/test.hpp"
+#include "server/admin/admin_command.hpp"
+#include "test/framework/test.hpp"
 
 using namespace exsim;
 using namespace exsim::server;

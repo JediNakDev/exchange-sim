@@ -7,7 +7,7 @@
 #include "ouch_test_harness.hpp"
 #include "../../../framework/alloc_counter.hpp"
 #include "server/config.hpp"
-#include "server/core_admin.hpp"
+#include "server/admin/core_admin.hpp"
 #include "server/exchange_core.hpp"
 
 using namespace exsim;

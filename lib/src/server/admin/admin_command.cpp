@@ -1,4 +1,4 @@
-#include "server/admin.hpp"
+#include "server/admin/admin_command.hpp"
 
 #include <array>
 #include <charconv>

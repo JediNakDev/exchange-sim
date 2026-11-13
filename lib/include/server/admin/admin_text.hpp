@@ -1,5 +1,5 @@
-#ifndef EXSIM_SERVER_CORE_ADMIN_TEXT_HPP
-#define EXSIM_SERVER_CORE_ADMIN_TEXT_HPP
+#ifndef EXSIM_SERVER_ADMIN_ADMIN_TEXT_HPP
+#define EXSIM_SERVER_ADMIN_ADMIN_TEXT_HPP
 
 // Text rendering for admin replies (operator path: allocates freely).
 // Every reply is one or more '\n'-terminated lines ending with "OK" or

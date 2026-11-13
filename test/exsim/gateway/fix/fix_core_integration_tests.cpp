@@ -1,5 +1,5 @@
 #include "test/exsim/gateway/fix/fix_test_support.hpp"
-#include "server/core_admin.hpp"
+#include "server/admin/core_admin.hpp"
 #include "server/exchange_core.hpp"
 #include "test/framework/alloc_counter.hpp"
 

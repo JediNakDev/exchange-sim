@@ -1,4 +1,4 @@
-#include "server/core/admin_text.hpp"
+#include "server/admin/admin_text.hpp"
 
 #include "server/config.hpp"
 #include "engine/price_text.hpp"

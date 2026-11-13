@@ -1,7 +1,7 @@
-#ifndef EXSIM_SERVER_CORE_ADMIN_HPP
-#define EXSIM_SERVER_CORE_ADMIN_HPP
+#ifndef EXSIM_SERVER_ADMIN_CORE_ADMIN_HPP
+#define EXSIM_SERVER_ADMIN_CORE_ADMIN_HPP
 
-// Runs admin console commands (admin.hpp) against an ExchangeCore: status
+// Runs admin console commands (admin_command.hpp) against an ExchangeCore: status
 // text, phase changes, book printing, market-data and user fault injection,
 // shutdown. Operator path: allocates freely, never runs during dispatch.
 //
@@ -11,9 +11,9 @@
 // Replies are '\n'-terminated lines ending with "OK" or "ERR <message>".
 
 #include "md/publisher.hpp"
-#include "server/admin.hpp"
+#include "server/admin/admin_command.hpp"
 #include "server/config.hpp"
-#include "server/core/admin_text.hpp"
+#include "server/admin/admin_text.hpp"
 #include "server/core/policies.hpp"
 #include "server/core/user_faults.hpp"
 #include "server/exchange_core.hpp"

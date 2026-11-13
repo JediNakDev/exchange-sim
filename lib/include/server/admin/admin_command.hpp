@@ -1,5 +1,5 @@
-#ifndef EXSIM_SERVER_ADMIN_HPP
-#define EXSIM_SERVER_ADMIN_HPP
+#ifndef EXSIM_SERVER_ADMIN_ADMIN_COMMAND_HPP
+#define EXSIM_SERVER_ADMIN_ADMIN_COMMAND_HPP
 
 // Admin console command language. One command per line;
 // parsing is off the hot path (operator commands), so std::string is fine.

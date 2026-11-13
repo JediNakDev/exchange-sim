@@ -6,7 +6,7 @@
 // (allocation-free, for the steady-state allocation test).
 
 #include "server/config.hpp"
-#include "server/core_admin.hpp"
+#include "server/admin/core_admin.hpp"
 #include "server/exchange_core.hpp"
 #include "server/journal/canonical.hpp"
 #include "test/framework/test.hpp"

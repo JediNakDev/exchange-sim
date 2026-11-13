@@ -13,7 +13,7 @@
 // references to them and calls them without virtual dispatch. `config`
 // must outlive the core: authenticate() returns pointers into it.
 // Admin commands (status, phase, book, faults, shutdown) run through
-// CoreAdmin (server/core_admin.hpp).
+// CoreAdmin (server/admin/core_admin.hpp).
 //
 // Threading: everything here runs on the single server thread.
 // Hot path (submit, dispatch, timer, fault queries, bind/unbind): no heap
