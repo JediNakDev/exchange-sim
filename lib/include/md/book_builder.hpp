@@ -18,7 +18,7 @@
 
 #include <engine/matching_engine.hpp>
 #include <protocol/itch50.hpp>
-#include <exchange/flat_hash_map.hpp>
+#include <util/flat_hash_map.hpp>
 
 #include <cstddef>
 #include <cstdint>
@@ -163,7 +163,7 @@ private:
     std::unique_ptr<OrderSlot[]> orders_;
     std::unique_ptr<Level[]> levels_;
     std::unique_ptr<InstrumentRecord[]> instruments_;
-    exsim::exchange::FlatHashMap<std::uint32_t> order_slots_by_reference_;
+    exsim::util::FlatHashMap<std::uint32_t> order_slots_by_reference_;
     std::uint32_t free_order_slot_ = kNoOrderSlot;
     std::size_t live_orders_ = 0;
     std::uint64_t applied_messages_ = 0;

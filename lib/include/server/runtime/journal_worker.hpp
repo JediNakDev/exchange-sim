@@ -2,7 +2,7 @@
 #define EXSIM_SERVER_RUNTIME_JOURNAL_WORKER_HPP
 
 #include "sim/journal.hpp"
-#include "exchange/spsc_queue.hpp"
+#include "util/spsc_queue.hpp"
 
 #include <atomic>
 #include <chrono>
@@ -74,7 +74,7 @@ private:
     struct State {
         State(const std::string& path, const sim::JournalSetup& setup) : writer(std::in_place, path, setup) {}
         std::optional<Writer> writer;  // closed by the persistence thread
-        exsim::exchange::engine::SPSCQueue<Entry, Capacity> queue;
+        exsim::util::SPSCQueue<Entry, Capacity> queue;
         std::atomic<bool> stopping{false};
         std::atomic<bool> failed{false};
         std::mutex completion_mutex;

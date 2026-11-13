@@ -1,12 +1,12 @@
-// exsim::exchange::engine::SPSCQueue: capacity, wraparound and cross-thread FIFO order.
+// exsim::util::SPSCQueue: capacity, wraparound and cross-thread FIFO order.
 
 #include "test/framework/test.hpp"
-#include <exchange/spsc_queue.hpp>
+#include <util/spsc_queue.hpp>
 
 #include <cstdint>
 #include <thread>
 
-using exsim::exchange::engine::SPSCQueue;
+using exsim::util::SPSCQueue;
 
 TEST_CASE(spsc_queue, holds_capacity_minus_one_and_keeps_fifo_across_wraparound) {
     SPSCQueue<std::uint64_t, 4> queue;

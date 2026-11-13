@@ -1,5 +1,5 @@
-#ifndef EXSIM_EXCHANGE_TOOLS_SYNTHETIC_HPP
-#define EXSIM_EXCHANGE_TOOLS_SYNTHETIC_HPP
+#ifndef EXSIM_ITCH_REPLAY_SYNTHETIC_HPP
+#define EXSIM_ITCH_REPLAY_SYNTHETIC_HPP
 
 // Deterministic ITCH 5.0 stream generator. Emits wire-format bytes for
 // A / E / X / D / U messages so the replayer's parse path is exercised
@@ -9,14 +9,17 @@
 // (buys below current best ask, sells above current best bid).
 
 #include "src/utils/itch_replay/itch.hpp"
-#include <exchange/types.hpp>
+#include <book/types.hpp>
 #include <cstdint>
 #include <cstring>
 #include <random>
 #include <unordered_map>
 #include <vector>
 
-namespace exsim::exchange::tools {
+namespace exsim::itch_replay {
+
+using book::Price;
+using book::Side;
 
 class SyntheticItchStream {
 public:
@@ -191,6 +194,6 @@ private:
     }
 };
 
-}  // namespace exsim::exchange::tools
+}  // namespace exsim::itch_replay
 
 #endif

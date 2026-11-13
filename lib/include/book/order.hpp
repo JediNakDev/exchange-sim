@@ -1,9 +1,9 @@
-#ifndef EXSIM_EXCHANGE_ORDER_HPP
-#define EXSIM_EXCHANGE_ORDER_HPP
+#ifndef EXSIM_BOOK_ORDER_HPP
+#define EXSIM_BOOK_ORDER_HPP
 
 #include "types.hpp"
 
-namespace exsim::exchange {
+namespace exsim::book {
 
 class PriceLevel;
 

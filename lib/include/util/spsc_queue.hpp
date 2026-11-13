@@ -1,11 +1,11 @@
-#ifndef EXSIM_EXCHANGE_ENGINE_SPSC_QUEUE_HPP
-#define EXSIM_EXCHANGE_ENGINE_SPSC_QUEUE_HPP
+#ifndef EXSIM_UTIL_SPSC_QUEUE_HPP
+#define EXSIM_UTIL_SPSC_QUEUE_HPP
 
 #include <array>
 #include <atomic>
 #include <cstddef>
 
-namespace exsim::exchange::engine {
+namespace exsim::util {
 
 // Bounded single-producer single-consumer ring. Each side keeps a private
 // copy of the other side's index and reloads the shared one only when the
@@ -65,6 +65,6 @@ private:
     alignas(128) std::array<T, Capacity> buffer_{};
 };
 
-}  // namespace exsim::exchange::engine
+}  // namespace exsim::util
 
 #endif

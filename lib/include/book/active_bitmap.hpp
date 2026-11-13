@@ -1,5 +1,5 @@
-#ifndef EXSIM_EXCHANGE_ACTIVE_BITMAP_HPP
-#define EXSIM_EXCHANGE_ACTIVE_BITMAP_HPP
+#ifndef EXSIM_BOOK_ACTIVE_BITMAP_HPP
+#define EXSIM_BOOK_ACTIVE_BITMAP_HPP
 
 #include <bit>
 #include <cstddef>
@@ -7,7 +7,7 @@
 #include <optional>
 #include <vector>
 
-namespace exsim::exchange {
+namespace exsim::book {
 
 // Occupancy bitmap with summary layers. Layer 0 holds one bit per index; bit i
 // of layer k + 1 is set while word i of layer k is nonzero. The top layer is a
@@ -95,6 +95,6 @@ private:
     std::size_t count_ = 0;
 };
 
-}  // namespace exsim::exchange
+}  // namespace exsim::book
 
 #endif

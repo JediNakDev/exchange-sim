@@ -1,7 +1,7 @@
 #ifndef EXSIM_ENGINE_PRICE_LADDER_HPP
 #define EXSIM_ENGINE_PRICE_LADDER_HPP
 
-// Per-instrument engine state around one exsim::exchange::OrderBook. The book
+// Per-instrument engine state around one exsim::book::OrderBook. The book
 // stores prices as ticks (0 .. tick_count - 1) and owns price levels,
 // occupancy bitmaps and FIFO links; orders, levels and IDs come from the
 // engine's shared OrderBookStorage.
@@ -14,7 +14,7 @@
 #include <memory>
 #include <utility>
 
-#include <exchange/order_book.hpp>
+#include <book/order_book.hpp>
 
 namespace exsim::engine {
 
@@ -35,20 +35,20 @@ struct InstrumentBook {
     Price last_trade_price = 0;
     std::int32_t best_bid_tick = kNoBidTick;
     std::int32_t best_ask_tick = kNoAskTick;
-    std::unique_ptr<exsim::exchange::OrderBook> order_book;
+    std::unique_ptr<exsim::book::OrderBook> order_book;
 
     InstrumentBook(const InstrumentConfig& instrument_config, InstrumentId instrument_id, std::uint32_t ticks,
-                   std::shared_ptr<exsim::exchange::OrderBookStorage> shared_order_storage)
+                   std::shared_ptr<exsim::book::OrderBookStorage> shared_order_storage)
         : config(instrument_config),
           tick_count(ticks),
           id(instrument_id),
           phase(instrument_config.initial_phase) {
-        exsim::exchange::OrderBookConfig book_config;
+        exsim::book::OrderBookConfig book_config;
         book_config.min_price = 0;
-        book_config.max_price = static_cast<exsim::exchange::Price>(ticks - 1);
+        book_config.max_price = static_cast<exsim::book::Price>(ticks - 1);
         book_config.max_fills_per_add_order = 1;  // the engine never calls add_order
         book_config.allow_growth = false;
-        order_book = std::make_unique<exsim::exchange::OrderBook>(book_config, std::move(shared_order_storage));
+        order_book = std::make_unique<exsim::book::OrderBook>(book_config, std::move(shared_order_storage));
     }
 
     [[nodiscard]] Price price_of(std::int32_t tick) const noexcept {

@@ -1,10 +1,10 @@
 #include "test/framework/test.hpp"
-#include <exchange/flat_hash_map.hpp>
+#include <util/flat_hash_map.hpp>
 
 #include <random>
 #include <unordered_map>
 
-using exsim::exchange::FlatHashMap;
+using exsim::util::FlatHashMap;
 
 TEST_CASE(flat_hash_map, insert_find_erase) {
     FlatHashMap<int> map(8);

@@ -12,7 +12,7 @@ A bitmap marks occupied ticks. Summary layers above it mark nonzero 64-bit words
 
 The tradeoff is memory. Arrays cover the configured price band, including empty ticks. The production engine allows at most 2^24 ticks per instrument side. A narrow band saves memory.
 
-See [price levels](../lib/include/exchange/price_level.hpp), [order book](../lib/include/exchange/order_book.hpp), [occupancy bitmap](../lib/include/exchange/active_bitmap.hpp), and [instrument books](../lib/src/engine/price_ladder.hpp).
+See [price levels](../lib/include/book/price_level.hpp), [order book](../lib/include/book/order_book.hpp), [occupancy bitmap](../lib/include/book/active_bitmap.hpp), and [instrument books](../lib/src/engine/price_ladder.hpp).
 
 ## Order lookup and storage
 
@@ -26,7 +26,7 @@ The engine's instrument books share one order pool, one level pool, and one orde
 
 The standalone order book can allow growth for replay. That mode can allocate pools, rehash the map, and expand ladders while processing orders.
 
-See [hash map](../lib/include/exchange/flat_hash_map.hpp) and [object pool](../lib/include/exchange/object_pool.hpp).
+See [hash map](../lib/include/util/flat_hash_map.hpp) and [object pool](../lib/include/util/object_pool.hpp).
 
 ## Matching
 

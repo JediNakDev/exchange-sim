@@ -1,12 +1,12 @@
 #include "test/framework/test.hpp"
-#include <exchange/active_bitmap.hpp>
+#include <book/active_bitmap.hpp>
 
 #include <cstddef>
 #include <optional>
 #include <random>
 #include <vector>
 
-using exsim::exchange::ActiveBitmap;
+using exsim::book::ActiveBitmap;
 
 namespace {
 

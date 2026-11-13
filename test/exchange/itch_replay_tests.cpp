@@ -1,6 +1,6 @@
 // End-to-end ITCH replay validation:
 //   1. Generate a deterministic synthetic ITCH 5.0 stream.
-//   2. Parse byte-by-byte through exsim::exchange::itch::parse.
+//   2. Parse byte-by-byte through exsim::itch_replay::itch::parse.
 //   3. Drive both the production OrderBook and a ReferenceBook from
 //      the same event sequence.
 //   4. After every K messages diff the top-10 of both books — if they
@@ -19,7 +19,7 @@
 #include "src/utils/itch_replay/reference_book.hpp"
 #include "src/utils/itch_replay/synthetic.hpp"
 
-#include <exchange/order_book.hpp>
+#include <book/order_book.hpp>
 #include "src/utils/itch_replay/itch.hpp"
 
 #include <cassert>
@@ -31,29 +31,29 @@ void replay_matches_reference() {
     constexpr std::size_t kMessages = 100'000;
     constexpr std::size_t kDiffEvery = 1;  // diff after every message
 
-    exsim::exchange::tools::SyntheticItchStream gen(/*seed=*/0xC0FFEE, kMessages, /*mid=*/10000);
+    exsim::itch_replay::SyntheticItchStream gen(/*seed=*/0xC0FFEE, kMessages, /*mid=*/10000);
     auto wire = gen.build();
 
-    exsim::exchange::OrderBook book;
-    exsim::exchange::tools::ReferenceBook ref;
-    exsim::exchange::tools::ItchReplayer replayer(book, &ref);
+    exsim::book::OrderBook book;
+    exsim::itch_replay::ReferenceBook ref;
+    exsim::itch_replay::ItchReplayer replayer(book, &ref);
 
     std::size_t offset = 0;
     std::size_t parsed = 0;
     while (offset < wire.size()) {
-        int sz = exsim::exchange::itch::message_size(wire[offset]);
+        int sz = exsim::itch_replay::itch::message_size(wire[offset]);
         assert(sz > 0 && "unknown message type in synthetic stream");
         assert(offset + static_cast<std::size_t>(sz) <= wire.size());
 
-        exsim::exchange::itch::Message m;
-        bool ok = exsim::exchange::itch::parse(&wire[offset], m);
+        exsim::itch_replay::itch::Message m;
+        bool ok = exsim::itch_replay::itch::parse(&wire[offset], m);
         assert(ok);
         replayer.apply(m);
         offset += sz;
         ++parsed;
 
         if (parsed % kDiffEvery == 0) {
-            auto d = exsim::exchange::tools::diff_books(book, ref, /*depth=*/10);
+            auto d = exsim::itch_replay::diff_books(book, ref, /*depth=*/10);
             if (!d.ok) {
                 std::cerr << "DIVERGENCE after " << parsed << " msgs (type='"
                           << static_cast<char>(m.type) << "'): "
@@ -63,7 +63,7 @@ void replay_matches_reference() {
         }
     }
 
-    auto final_diff = exsim::exchange::tools::diff_books(book, ref, /*depth=*/20);
+    auto final_diff = exsim::itch_replay::diff_books(book, ref, /*depth=*/20);
     if (!final_diff.ok) {
         std::cerr << "FINAL DIVERGENCE: " << final_diff.detail << "\n";
         std::exit(1);

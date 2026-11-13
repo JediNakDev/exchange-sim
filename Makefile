@@ -13,7 +13,7 @@ else ifeq ($(MODE),perf)
 CXXFLAGS += -O3 -march=native -DNDEBUG -flto -fno-omit-frame-pointer
 LDFLAGS += -flto
 else ifeq ($(MODE),bench)
-CXXFLAGS += -O3 -march=native -mtune=native -DNDEBUG -flto -fno-omit-frame-pointer -DEXSIM_EXCHANGE_DETERMINISTIC_POOL
+CXXFLAGS += -O3 -march=native -mtune=native -DNDEBUG -flto -fno-omit-frame-pointer -DEXSIM_BOOK_DETERMINISTIC_POOL
 LDFLAGS += -flto
 else
 $(error MODE must be release, debug, perf or bench)
@@ -58,7 +58,7 @@ clean:
 -include $(shell find $(BUILD)/obj -name '*.d' 2>/dev/null)
 
 # Standalone Exsim tests and benchmarks restored from release 0.1.4.
-BOOK_OBJS := $(call obj,lib/src/exchange/order_book.cpp)
+BOOK_OBJS := $(call obj,lib/src/book/order_book.cpp)
 EXCHANGE_TEST_SRCS := $(sort $(wildcard test/exchange/*.cpp))
 BENCH_SRCS := $(sort $(wildcard benchmark/*.cpp benchmark/cases/*.cpp benchmark/support/*.cpp))
 BENCH_BUILD ?= build/bench

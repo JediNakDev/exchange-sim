@@ -8,7 +8,7 @@
 // lists. Index 0 means no metadata slot.
 
 #include <engine/types.hpp>
-#include <exchange/order.hpp>
+#include <book/order.hpp>
 
 #include <cstdint>
 
@@ -34,7 +34,7 @@ inline constexpr unsigned kSessionTokenShift = 48;
 }
 
 struct OrderHot {
-    exsim::exchange::Order* order;  // the resting book order; its context_index is this slot
+    exsim::book::Order* order;  // the resting book order; its context_index is this slot
     std::uint64_t session_token;    // make_session_token(session, cl_ord_id)
     Quantity cum_qty;
     OwnerId owner;

@@ -6,13 +6,13 @@
 // (engine, market data, journal, tests) speaks only these types.
 // See matching engine contract for the normative semantics.
 
-#include <exchange/types.hpp>
+#include <book/types.hpp>
 #include <cstdint>
 #include <string_view>
 
 namespace exsim {
 
-using exsim::exchange::Side;  // Side::BUY / Side::SELL
+using exsim::book::Side;  // Side::BUY / Side::SELL
 
 // Fixed-point price with 4 implied decimals (ITCH / OUCH convention):
 // $150.25 == 1'502'500.

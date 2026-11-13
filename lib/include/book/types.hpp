@@ -1,9 +1,9 @@
-#ifndef EXSIM_EXCHANGE_TYPES_HPP
-#define EXSIM_EXCHANGE_TYPES_HPP
+#ifndef EXSIM_BOOK_TYPES_HPP
+#define EXSIM_BOOK_TYPES_HPP
 
 #include <cstdint>
 
-namespace exsim::exchange {
+namespace exsim::book {
 
 enum class Side : uint8_t { BUY, SELL };
 

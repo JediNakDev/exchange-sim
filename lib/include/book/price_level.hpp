@@ -1,10 +1,10 @@
-#ifndef EXSIM_EXCHANGE_PRICE_LEVEL_HPP
-#define EXSIM_EXCHANGE_PRICE_LEVEL_HPP
+#ifndef EXSIM_BOOK_PRICE_LEVEL_HPP
+#define EXSIM_BOOK_PRICE_LEVEL_HPP
 
 #include "order.hpp"
 #include <cstddef>
 
-namespace exsim::exchange {
+namespace exsim::book {
 
 /**
  * PriceLevel (Limit) - represents a single limit price in the order book.

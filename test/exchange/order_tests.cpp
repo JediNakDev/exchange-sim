@@ -1,9 +1,9 @@
 #include "order_tests.hpp"
 #include "test_framework.hpp"
-#include <exchange/order_book.hpp>
+#include <book/order_book.hpp>
 #include <cassert>
 
-using namespace exsim::exchange;
+using namespace exsim::book;
 
 void test_add_order_to_empty_book() {
     OrderBook book;

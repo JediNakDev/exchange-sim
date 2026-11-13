@@ -1,12 +1,16 @@
-#ifndef EXSIM_EXCHANGE_PROTOCOL_ITCH_HPP
-#define EXSIM_EXCHANGE_PROTOCOL_ITCH_HPP
+#ifndef EXSIM_ITCH_REPLAY_ITCH_HPP
+#define EXSIM_ITCH_REPLAY_ITCH_HPP
 
-#include <exchange/compiler.hpp>
-#include <exchange/types.hpp>
+#include <util/compiler.hpp>
+#include <book/types.hpp>
 #include <cstdint>
 #include <cstring>
 
-namespace exsim::exchange::itch {
+namespace exsim::itch_replay::itch {
+
+using book::Price;
+using book::Side;
+using book::Timestamp;
 
 // ITCH 5.0 message types (subset relevant to order book management)
 enum class MessageType : char {
@@ -186,6 +190,6 @@ inline bool parse(const char* buf, Message& msg) noexcept {
     }
 }
 
-} // namespace exsim::exchange::itch
+} // namespace exsim::itch_replay::itch
 
 #endif

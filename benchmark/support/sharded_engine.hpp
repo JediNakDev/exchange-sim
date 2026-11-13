@@ -1,8 +1,8 @@
-#ifndef EXSIM_EXCHANGE_ENGINE_SHARDED_ENGINE_HPP
-#define EXSIM_EXCHANGE_ENGINE_SHARDED_ENGINE_HPP
+#ifndef EXSIM_BENCH_SHARDED_ENGINE_HPP
+#define EXSIM_BENCH_SHARDED_ENGINE_HPP
 
-#include <exchange/order_book.hpp>
-#include <exchange/spsc_queue.hpp>
+#include <book/order_book.hpp>
+#include <util/spsc_queue.hpp>
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
@@ -12,7 +12,13 @@
 #include <unordered_map>
 #include <vector>
 
-namespace exsim::exchange::engine {
+namespace bench {
+
+using exsim::book::OrderBook;
+using exsim::book::OrderId;
+using exsim::book::Price;
+using exsim::book::Quantity;
+using exsim::book::Side;
 
 using SymbolId = std::uint32_t;
 
@@ -60,7 +66,7 @@ private:
     };
 
     struct alignas(128) Shard {
-        SPSCQueue<Command, kQueueCapacity> queue;
+        exsim::util::SPSCQueue<Command, kQueueCapacity> queue;
         OrderBook book;
         std::unordered_map<std::uint64_t, OrderId> client_to_book_order;
         std::thread worker;
@@ -80,6 +86,6 @@ private:
     alignas(128) std::atomic<std::uint64_t> next_client_order_id_{1};
 };
 
-}  // namespace exsim::exchange::engine
+}  // namespace bench
 
 #endif

@@ -1,5 +1,5 @@
-#ifndef EXSIM_EXCHANGE_ENGINE_THREAD_PINNING_HPP
-#define EXSIM_EXCHANGE_ENGINE_THREAD_PINNING_HPP
+#ifndef EXSIM_BENCH_THREAD_PINNING_HPP
+#define EXSIM_BENCH_THREAD_PINNING_HPP
 
 #include <cstddef>
 #include <thread>
@@ -13,7 +13,7 @@
 #include <pthread.h>
 #endif
 
-namespace exsim::exchange::engine {
+namespace bench {
 
 inline bool pin_current_thread_to_core(std::size_t core) noexcept {
 #if defined(__linux__)
@@ -40,6 +40,6 @@ inline std::size_t hardware_threads() noexcept {
     return n == 0 ? 1 : n;
 }
 
-}  // namespace exsim::exchange::engine
+}  // namespace bench
 
 #endif

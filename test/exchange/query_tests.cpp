@@ -1,9 +1,9 @@
 #include "query_tests.hpp"
 #include "test_framework.hpp"
-#include <exchange/order_book.hpp>
+#include <book/order_book.hpp>
 #include <cassert>
 
-using namespace exsim::exchange;
+using namespace exsim::book;
 
 void test_best_bid_ask() {
     OrderBook book;

@@ -1,10 +1,10 @@
-#ifndef EXSIM_EXCHANGE_ORDER_BOOK_HPP
-#define EXSIM_EXCHANGE_ORDER_BOOK_HPP
+#ifndef EXSIM_BOOK_ORDER_BOOK_HPP
+#define EXSIM_BOOK_ORDER_BOOK_HPP
 
 #include "active_bitmap.hpp"
 #include "price_level.hpp"
-#include "flat_hash_map.hpp"
-#include "object_pool.hpp"
+#include "util/flat_hash_map.hpp"
+#include "util/object_pool.hpp"
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -12,9 +12,9 @@
 #include <span>
 #include <vector>
 
-namespace exsim::exchange {
+namespace exsim::book {
 
-#ifdef EXSIM_EXCHANGE_DETERMINISTIC_POOL
+#ifdef EXSIM_BOOK_DETERMINISTIC_POOL
 inline constexpr bool kOrderBookGrowsByDefault = false;
 #else
 inline constexpr bool kOrderBookGrowsByDefault = true;
@@ -39,7 +39,7 @@ struct OrderBookConfig {
     // true: the limits are initial sizes. Pools, the id map and the ladder
     // grow on demand (heap allocation inside add_order); a failed growth
     // throws and leaves the book unchanged. Replaying external data relies
-    // on this; EXSIM_EXCHANGE_DETERMINISTIC_POOL builds default to false.
+    // on this; EXSIM_BOOK_DETERMINISTIC_POOL builds default to false.
     bool allow_growth = kOrderBookGrowsByDefault;
 };
 
@@ -48,9 +48,9 @@ struct OrderBookConfig {
 // capacity, so memory is bounded by the total order limit, not by limit x
 // books. Order IDs must then be unique across those books.
 struct OrderBookStorage {
-    FlatHashMap<Order*> orders;
-    ObjectPool<Order> order_pool;
-    ObjectPool<PriceLevel> level_pool;
+    util::FlatHashMap<Order*> orders;
+    util::ObjectPool<Order> order_pool;
+    util::ObjectPool<PriceLevel> level_pool;
 
     OrderBookStorage(std::size_t max_resting_orders, std::size_t max_price_levels, bool allow_growth);
 };
@@ -92,9 +92,9 @@ public:
 private:
     // Pools and the OrderId map, owned or shared (see OrderBookStorage).
     std::shared_ptr<OrderBookStorage> storage_;
-    FlatHashMap<Order*>& orders_;
-    ObjectPool<Order>& order_pool_;
-    ObjectPool<PriceLevel>& level_pool_;
+    util::FlatHashMap<Order*>& orders_;
+    util::ObjectPool<Order>& order_pool_;
+    util::ObjectPool<PriceLevel>& level_pool_;
 
     // Tick-indexed ladders with one occupancy bit per tick.
     std::vector<PriceLevel*> bid_ladder_;

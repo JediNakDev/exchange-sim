@@ -1,5 +1,5 @@
-#ifndef EXSIM_EXCHANGE_TOOLS_ITCH_REPLAYER_HPP
-#define EXSIM_EXCHANGE_TOOLS_ITCH_REPLAYER_HPP
+#ifndef EXSIM_ITCH_REPLAY_ITCH_REPLAYER_HPP
+#define EXSIM_ITCH_REPLAY_ITCH_REPLAYER_HPP
 
 // Drives the production OrderBook from an ITCH 5.0 message stream.
 //
@@ -12,12 +12,18 @@
 // refs.
 
 #include "reference_book.hpp"
-#include <exchange/order_book.hpp>
+#include <book/order_book.hpp>
 #include "src/utils/itch_replay/itch.hpp"
 #include <cstdint>
 #include <unordered_map>
 
-namespace exsim::exchange::tools {
+namespace exsim::itch_replay {
+
+using book::OrderBook;
+using book::OrderId;
+using book::Price;
+using book::Quantity;
+using book::Side;
 
 struct ReplayStats {
     std::uint64_t adds = 0;
@@ -114,6 +120,6 @@ private:
     ReplayStats stats_;
 };
 
-}  // namespace exsim::exchange::tools
+}  // namespace exsim::itch_replay
 
 #endif
