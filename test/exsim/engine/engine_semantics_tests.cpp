@@ -66,7 +66,7 @@ void invariants(const MatchingEngine& e) {
     }
 }
 }
-TEST_CASE(arena_contract, retry_randomized_all_commands) {
+TEST_CASE(engine_contract, retry_randomized_all_commands) {
     Fixture a(Phase::PreOpen),b(Phase::PreOpen); EventBuffer short_out(1);
     const Event marker{EventType::PhaseChanged,0,999,{.phase_changed={Phase::Closed,Phase::Halted}}};
     std::mt19937 rng(9304);
@@ -84,7 +84,7 @@ TEST_CASE(arena_contract, retry_randomized_all_commands) {
         a.run(cmd);b.run(cmd);CHECK_EQ(digest(a.out),digest(b.out));invariants(a.e);
     }
 }
-TEST_CASE(arena_validation, new_validation_order_and_capacity) {
+TEST_CASE(engine_validation, new_validation_order_and_capacity) {
     Fixture f;
     std::array<RejectReason,9> expected{RejectReason::UnknownInstrument,RejectReason::InvalidClOrdId,RejectReason::DuplicateClOrdId,RejectReason::InvalidField,RejectReason::InvalidQuantity,RejectReason::InvalidPrice,RejectReason::MarketClosed,RejectReason::PostOnlyWouldCross,RejectReason::CapacityExceeded};
     for(unsigned i=0;i<9;++i) {
@@ -104,7 +104,7 @@ TEST_CASE(arena_validation, new_validation_order_and_capacity) {
         CHECK_EQ(x.out[0].rejected.cl_ord_id,n.cl_ord_id);CHECK_EQ(x.out[0].rejected.order_id,0u);
     }
 }
-TEST_CASE(arena_matching, fifo_sweep_market_and_fields) {
+TEST_CASE(engine_matching, fifo_sweep_market_and_fields) {
     Fixture f;f.run(order(1,Side::SELL,100,4));f.run(order(2,Side::SELL,100,6));f.run(order(3,Side::SELL,110,9));
     auto n=order(4,Side::BUY,-123,12);n.type=OrdType::Market;n.owner=7;n.tif=TimeInForce::GTC;f.run(n);
     REQUIRE(f.out.size()==4);CHECK_EQ(f.out[0].accepted.price,-123);
@@ -112,7 +112,7 @@ TEST_CASE(arena_matching, fifo_sweep_market_and_fields) {
     CHECK_EQ(f.out[3].fill.buy.cum_qty,12u);CHECK_EQ(f.out[3].fill.sell.leaves_qty,7u);CHECK_EQ(*f.e.last_trade_price(1),110);invariants(f.e);
     n=order(5,Side::BUY,999,20);n.type=OrdType::Market;f.run(n);CHECK_EQ(f.out[2].canceled.reason,CancelReason::ImmediateOrCancel);CHECK_EQ(f.out[2].canceled.price,999);CHECK_EQ(f.out[2].canceled.canceled_qty,13u);
 }
-TEST_CASE(arena_matching, stp_and_fok) {
+TEST_CASE(engine_matching, stp_and_fok) {
     for(auto mode:{StpMode::None,StpMode::CancelResting,StpMode::CancelAggressor,StpMode::CancelBoth}) for(bool fok:{false,true}) {
         Fixture f;auto n=order(1,Side::SELL);n.owner=7;f.run(n);f.run(order(2,Side::SELL,100,10));
         n=order(3);n.owner=7;n.stp=mode;n.tif=fok?TimeInForce::FOK:TimeInForce::IOC;f.run(n);
@@ -125,7 +125,7 @@ TEST_CASE(arena_matching, stp_and_fok) {
     }
     Fixture f;f.run(order(1,Side::SELL,100,4));auto n=order(2);n.tif=TimeInForce::FOK;f.run(n);CHECK_EQ(f.out[1].canceled.reason,CancelReason::FillOrKill);CHECK_EQ(f.e.find_order(1)->leaves_qty,4u);
 }
-TEST_CASE(arena_amend, reductions_all_phases_and_force_loss) {
+TEST_CASE(engine_amend, reductions_all_phases_and_force_loss) {
     for(auto phase:{Phase::Continuous,Phase::PreOpen,Phase::PreClose,Phase::Halted,Phase::Closed}) {
         Fixture f;f.run(order(1,Side::BUY,100,20));f.run(order(2));f.run(order(3,Side::SELL,100,5));
         f.run(SetPhase{0,1,phase});if(phase==Phase::Closed) continue; // DAY expiry tested below
@@ -138,7 +138,7 @@ TEST_CASE(arena_amend, reductions_all_phases_and_force_loss) {
     f.run(ReplaceOrder{9,1,3,0,100,9,true});CHECK(!f.out[0].replaced.priority_kept);CHECK_EQ(f.out[0].replaced.new_order_id,3u);CHECK_EQ(f.out[1].type,EventType::Rested);
     f.run(MassCancel{10,1,0,99,true});REQUIRE(f.out.size()==3);CHECK_EQ(f.out[0].canceled.order_id,2u);CHECK_EQ(f.out[1].canceled.order_id,3u);CHECK_EQ(f.out[2].mass_cancel_done.reason,CancelReason::CancelOnDisconnect);
 }
-TEST_CASE(arena_auction, halted_cross_summary_and_expiry) {
+TEST_CASE(engine_auction, halted_cross_summary_and_expiry) {
     Fixture f(Phase::PreOpen);auto n=order(1,Side::BUY,110,12);n.tif=TimeInForce::GTC;f.run(n);f.run(order(2,Side::SELL,90,7));
     auto ind=f.e.auction_indicative(1);CHECK(ind.crossed);CHECK_EQ(ind.price,90);CHECK_EQ(ind.paired_qty,7u);CHECK_EQ(ind.imbalance_qty,5u);
     f.run(SetPhase{9,1,Phase::Halted});CHECK_EQ(f.out.size(),1u);CHECK_EQ(f.e.live_order_count(),2u);
@@ -147,7 +147,7 @@ TEST_CASE(arena_auction, halted_cross_summary_and_expiry) {
     f.run(SetPhase{11,1,Phase::Continuous});f.run(order(3,Side::SELL,90,1));CHECK_EQ(f.out[1].fill.match_id,3u);
     f.run(order(4,Side::BUY,80));f.run(SetPhase{12,1,Phase::Closed});CHECK_EQ(f.out[0].canceled.reason,CancelReason::EndOfDay);invariants(f.e);
 }
-TEST_CASE(arena_config, invalid_configs_and_wide_aggregates) {
+TEST_CASE(engine_config, invalid_configs_and_wide_aggregates) {
     bool threw=false;try{MatchingEngine e(EngineConfig{0,1});}catch(const std::invalid_argument&){threw=true;}CHECK(threw);
     Fixture f;auto c=*f.e.instrument(1);c.symbol=Symbol("OTHER");c.reference_price=11;CHECK_EQ(f.e.add_instrument(c),0u);c.reference_price=100;c.max_order_qty=std::numeric_limits<Quantity>::max();CHECK_EQ(f.e.add_instrument(c),2u);
     auto n=order(1);n.instrument=2;n.qty=std::numeric_limits<Quantity>::max();f.run(n);n.cl_ord_id=2;f.run(n);LevelInfo l;REQUIRE(f.e.depth(2,Side::BUY,&l,1)==1);CHECK_EQ(l.qty,2ULL*std::numeric_limits<Quantity>::max());

@@ -1,17 +1,17 @@
 // Query API contracts, output preflight (InsufficientOutput leaves
-// engine and output unchanged) and arena slot reuse at full capacity.
+// engine and output unchanged) and order slot reuse at full capacity.
 
-#include <test/exsim/engine/arena_test_support.hpp>
+#include <test/exsim/engine/engine_fixture.hpp>
 #include <test/framework/alloc_counter.hpp>
 
 #include <cstdio>
 #include <limits>
 #include <random>
 
-using namespace arena_test;
+using namespace engine_fixture;
 
-TEST_CASE(arena_queries, depth_and_level_orders_in_priority_order_with_truncation) {
-    ArenaEngineFixture fixture;
+TEST_CASE(engine_queries, depth_and_level_orders_in_priority_order_with_truncation) {
+    EngineFixture fixture;
     fixture.apply(limit_order(kAliceSession, 1, Side::BUY, 90, 5));
     fixture.apply(limit_order(kAliceSession, 2, Side::BUY, 100, 6));
     fixture.apply(limit_order(kAliceSession, 3, Side::BUY, 80, 7));
@@ -54,8 +54,8 @@ TEST_CASE(arena_queries, depth_and_level_orders_in_priority_order_with_truncatio
     CHECK(!fixture.engine.last_trade_price(2).has_value());
 }
 
-TEST_CASE(arena_queries, find_order_and_for_each_order) {
-    ArenaEngineFixture fixture(Phase::Continuous, 2);
+TEST_CASE(engine_queries, find_order_and_for_each_order) {
+    EngineFixture fixture(Phase::Continuous, 2);
     CHECK(all_live_orders(fixture.engine).empty());
     fixture.apply(limit_order(kAliceSession, 1, Side::BUY, 100, 5, 2));   // 1
     fixture.apply(limit_order(kBobSession, 1, Side::SELL, 150, 5, 1));    // 2
@@ -93,8 +93,8 @@ std::vector<OrderInfo> orders_at_level(const MatchingEngine& engine, InstrumentI
 
 }  // namespace
 
-TEST_CASE(arena_queries, for_each_level_order_visits_one_level_in_fifo_order) {
-    ArenaEngineFixture fixture(Phase::Continuous, 2);
+TEST_CASE(engine_queries, for_each_level_order_visits_one_level_in_fifo_order) {
+    EngineFixture fixture(Phase::Continuous, 2);
     fixture.apply(limit_order(kAliceSession, 1, Side::BUY, 100, 5));     // 1
     fixture.apply(limit_order(kBobSession, 1, Side::BUY, 90, 4));        // 2, other level
     fixture.apply(limit_order(kBobSession, 2, Side::BUY, 100, 6));       // 3
@@ -139,8 +139,8 @@ TEST_CASE(arena_queries, for_each_level_order_visits_one_level_in_fifo_order) {
     check_book_invariants(fixture.engine);
 }
 
-TEST_CASE(arena_queries, for_each_level_order_visits_nothing_for_absent_or_invalid_levels) {
-    ArenaEngineFixture fixture;
+TEST_CASE(engine_queries, for_each_level_order_visits_nothing_for_absent_or_invalid_levels) {
+    EngineFixture fixture;
     fixture.apply(limit_order(kAliceSession, 1, Side::BUY, 100, 5));
     fixture.apply(limit_order(kAliceSession, 2, Side::SELL, 120, 5));
 
@@ -156,8 +156,8 @@ TEST_CASE(arena_queries, for_each_level_order_visits_nothing_for_absent_or_inval
     CHECK(orders_at_level(fixture.engine, 1, Side::BUY, std::numeric_limits<Price>::min()).empty());
 }
 
-TEST_CASE(arena_queries, for_each_level_order_allocates_nothing) {
-    ArenaEngineFixture fixture;
+TEST_CASE(engine_queries, for_each_level_order_allocates_nothing) {
+    EngineFixture fixture;
     for (ClOrdId token = 1; token <= 20; ++token) {
         fixture.apply(limit_order(kAliceSession, token, Side::SELL, 150, token));
     }
@@ -178,8 +178,8 @@ TEST_CASE(arena_queries, for_each_level_order_allocates_nothing) {
     CHECK_EQ(allocations, std::size_t{0});
 }
 
-TEST_CASE(arena_buffer, insufficient_output_changes_neither_engine_nor_output) {
-    ArenaEngineFixture fixture(Phase::Continuous, 2);
+TEST_CASE(engine_buffer, insufficient_output_changes_neither_engine_nor_output) {
+    EngineFixture fixture(Phase::Continuous, 2);
     fixture.apply(limit_order(kAliceSession, 1, Side::BUY, 100, 5));
     fixture.apply(limit_order(kBobSession, 1, Side::SELL, 120, 5));
     const Event marker{EventType::PhaseChanged, 0, 31337, {.phase_changed = {Phase::Closed, Phase::Halted}}};
@@ -217,11 +217,11 @@ TEST_CASE(arena_buffer, insufficient_output_changes_neither_engine_nor_output) {
     CHECK_EQ(roomy[2].fill.qty, Quantity{3});
 }
 
-TEST_CASE(arena_buffer, startup_sized_buffer_covers_worst_case_commands) {
+TEST_CASE(engine_buffer, startup_sized_buffer_covers_worst_case_commands) {
     constexpr std::size_t kMaxOrders = 16;
     const EngineConfig config{2, kMaxOrders};
-    ArenaEngineFixture fixture(Phase::PreOpen, 2, config);
-    // Fill the arena with a fully crossed book on both instruments.
+    EngineFixture fixture(Phase::PreOpen, 2, config);
+    // Fill the order pool with a fully crossed book on both instruments.
     ClOrdId token = 1;
     for (InstrumentId instrument = 1; instrument <= 2; ++instrument) {
         for (int i = 0; i < 4; ++i) {
@@ -249,9 +249,9 @@ TEST_CASE(arena_buffer, startup_sized_buffer_covers_worst_case_commands) {
     check_book_invariants(fixture.engine);
 }
 
-TEST_CASE(arena_capacity, slots_are_reused_under_churn_at_full_capacity) {
+TEST_CASE(engine_capacity, slots_are_reused_under_churn_at_full_capacity) {
     constexpr std::size_t kMaxOrders = 4;
-    ArenaEngineFixture fixture(Phase::Continuous, 1, EngineConfig{1, kMaxOrders});
+    EngineFixture fixture(Phase::Continuous, 1, EngineConfig{1, kMaxOrders});
     std::mt19937_64 random(20261103);
     std::vector<ClOrdId> live_tokens;
     ClOrdId next_token = 1;
@@ -285,8 +285,8 @@ TEST_CASE(arena_capacity, slots_are_reused_under_churn_at_full_capacity) {
     check_book_invariants(fixture.engine);
 }
 
-TEST_CASE(arena_capacity, single_slot_engine) {
-    ArenaEngineFixture fixture(Phase::Continuous, 1, EngineConfig{1, 1});
+TEST_CASE(engine_capacity, single_slot_engine) {
+    EngineFixture fixture(Phase::Continuous, 1, EngineConfig{1, 1});
     fixture.apply(limit_order(kAliceSession, 1, Side::SELL, 100, 5));
     fixture.apply(limit_order(kBobSession, 1, Side::BUY, 100, 5));
     CHECK_EQ(fixture.only_event().rejected.reason, RejectReason::CapacityExceeded);
@@ -299,12 +299,12 @@ TEST_CASE(arena_capacity, single_slot_engine) {
     CHECK_EQ(fixture.engine.live_order_count(), std::size_t{0});
 }
 
-TEST_CASE(arena_capacity, instruments_share_one_order_limit_and_id_lookup) {
+TEST_CASE(engine_capacity, instruments_share_one_order_limit_and_id_lookup) {
     // Four instruments draw from one max_orders pool: the limit is global, a
     // slot freed on one instrument is usable on another, and lookup by
     // OrderId finds orders of every instrument.
     constexpr std::size_t kMaxOrders = 6;
-    ArenaEngineFixture fixture(Phase::Continuous, 4, EngineConfig{4, kMaxOrders});
+    EngineFixture fixture(Phase::Continuous, 4, EngineConfig{4, kMaxOrders});
     for (ClOrdId token = 1; token <= kMaxOrders; ++token) {
         const auto instrument = static_cast<InstrumentId>(1 + (token - 1) % 4);
         fixture.apply(limit_order(kAliceSession, token, Side::BUY, 50, 1, instrument));
@@ -329,7 +329,7 @@ TEST_CASE(arena_capacity, instruments_share_one_order_limit_and_id_lookup) {
     check_book_invariants(fixture.engine);
 }
 
-TEST_CASE(arena_instruments, find_instrument_by_symbol_after_many_instruments) {
+TEST_CASE(engine_instruments, find_instrument_by_symbol_after_many_instruments) {
     MatchingEngine engine(EngineConfig{41, 8});  // room for one more, so only the symbol can reject
     char symbol[16] = {};
     for (int i = 0; i < 40; ++i) {

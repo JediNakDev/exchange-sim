@@ -1,10 +1,10 @@
 // SPEC 5 (CancelOrder, including reduce_to_total_qty) and 6 (ReplaceOrder).
 
-#include <test/exsim/engine/arena_test_support.hpp>
+#include <test/exsim/engine/engine_fixture.hpp>
 
 #include <limits>
 
-using namespace arena_test;
+using namespace engine_fixture;
 
 namespace {
 
@@ -18,7 +18,7 @@ ReplaceOrder replace_request(SessionId session, ClOrdId target_token, ClOrdId ne
     return ReplaceOrder{700 + target_token, session, target_token, new_token, price, qty, force_priority_loss};
 }
 
-void check_replace_rejection(const ArenaEngineFixture& fixture, const ReplaceOrder& command, RejectReason reason,
+void check_replace_rejection(const EngineFixture& fixture, const ReplaceOrder& command, RejectReason reason,
                              OrderId target_order_id, InstrumentId target_instrument) {
     const Event& event = fixture.only_event();
     REQUIRE_EQ(event.type, EventType::Rejected);
@@ -34,8 +34,8 @@ void check_replace_rejection(const ArenaEngineFixture& fixture, const ReplaceOrd
 
 }  // namespace
 
-TEST_CASE(arena_cancel, unknown_order_rejection_fields) {
-    ArenaEngineFixture fixture;
+TEST_CASE(engine_cancel, unknown_order_rejection_fields) {
+    EngineFixture fixture;
     fixture.apply(limit_order(kAliceSession, 1, Side::BUY, 100, 10));
     for (const CancelOrder& command : {cancel_request(kAliceSession, 2, 55), cancel_request(kBobSession, 1, 56),
                                        cancel_request(0, 1, 57), cancel_request(kAliceSession, 0, 58),
@@ -55,9 +55,9 @@ TEST_CASE(arena_cancel, unknown_order_rejection_fields) {
     CHECK_EQ(fixture.engine.live_order_count(), std::size_t{1});
 }
 
-TEST_CASE(arena_cancel, full_cancel_in_every_phase_removes_from_the_fifo) {
+TEST_CASE(engine_cancel, full_cancel_in_every_phase_removes_from_the_fifo) {
     for (Phase phase : {Phase::Continuous, Phase::PreOpen, Phase::PreClose, Phase::Halted, Phase::Closed}) {
-        ArenaEngineFixture fixture;
+        EngineFixture fixture;
         NewOrder gtc = with_tif(limit_order(kAliceSession, 1, Side::SELL, 150, 10), TimeInForce::GTC);
         fixture.apply(gtc);
         fixture.apply(with_tif(limit_order(kAliceSession, 2, Side::SELL, 150, 10), TimeInForce::GTC));
@@ -94,9 +94,9 @@ TEST_CASE(arena_cancel, full_cancel_in_every_phase_removes_from_the_fifo) {
     }
 }
 
-TEST_CASE(arena_cancel, reduce_to_total_keeps_id_token_and_fifo_position) {
+TEST_CASE(engine_cancel, reduce_to_total_keeps_id_token_and_fifo_position) {
     for (Phase phase : {Phase::Continuous, Phase::PreOpen, Phase::PreClose, Phase::Halted, Phase::Closed}) {
-        ArenaEngineFixture fixture;
+        EngineFixture fixture;
         fixture.apply(with_tif(limit_order(kAliceSession, 1, Side::BUY, 100, 20), TimeInForce::GTC));
         fixture.apply(with_tif(limit_order(kAliceSession, 2, Side::BUY, 100, 5), TimeInForce::GTC));
         fixture.apply(limit_order(kBobSession, 1, Side::SELL, 100, 6));  // order 1: cum 6, leaves 14
@@ -137,8 +137,8 @@ TEST_CASE(arena_cancel, reduce_to_total_keeps_id_token_and_fifo_position) {
     }
 }
 
-TEST_CASE(arena_cancel, reduction_ignores_lot_size_and_preserves_matching_priority) {
-    ArenaEngineFixture fixture;
+TEST_CASE(engine_cancel, reduction_ignores_lot_size_and_preserves_matching_priority) {
+    EngineFixture fixture;
     InstrumentConfig lots = small_instrument_config("LOTS");
     lots.lot_size = 10;
     REQUIRE_EQ(fixture.engine.add_instrument(lots), InstrumentId{2});
@@ -154,8 +154,8 @@ TEST_CASE(arena_cancel, reduction_ignores_lot_size_and_preserves_matching_priori
     CHECK_EQ(fixture.events[2].fill.qty, Quantity{3});
 }
 
-TEST_CASE(arena_replace, rejections_in_spec_order_echo_the_target) {
-    ArenaEngineFixture fixture;
+TEST_CASE(engine_replace, rejections_in_spec_order_echo_the_target) {
+    EngineFixture fixture;
     fixture.apply(limit_order(kAliceSession, 1, Side::BUY, 100, 10));
     fixture.apply(limit_order(kAliceSession, 2, Side::BUY, 90, 10));
 
@@ -197,8 +197,8 @@ TEST_CASE(arena_replace, rejections_in_spec_order_echo_the_target) {
     check_replace_rejection(fixture, closed, RejectReason::MarketClosed, 3, 1);
 }
 
-TEST_CASE(arena_replace, post_only_replace_cannot_cross_in_continuous) {
-    ArenaEngineFixture fixture;
+TEST_CASE(engine_replace, post_only_replace_cannot_cross_in_continuous) {
+    EngineFixture fixture;
     NewOrder maker = limit_order(kAliceSession, 1, Side::BUY, 100, 10);
     maker.post_only = true;
     fixture.apply(maker);
@@ -217,8 +217,8 @@ TEST_CASE(arena_replace, post_only_replace_cannot_cross_in_continuous) {
     CHECK_EQ(*fixture.engine.best_bid(1), Price{130});
 }
 
-TEST_CASE(arena_replace, quantity_at_or_below_cum_cancels_with_the_old_token) {
-    ArenaEngineFixture fixture;
+TEST_CASE(engine_replace, quantity_at_or_below_cum_cancels_with_the_old_token) {
+    EngineFixture fixture;
     fixture.apply(limit_order(kAliceSession, 1, Side::SELL, 100, 10));
     fixture.apply(limit_order(kBobSession, 1, Side::BUY, 100, 4));
     const ReplaceOrder shrink = replace_request(kAliceSession, 1, 55, 110, 4);
@@ -239,8 +239,8 @@ TEST_CASE(arena_replace, quantity_at_or_below_cum_cancels_with_the_old_token) {
     CHECK_EQ(fixture.engine.live_order_count(), std::size_t{0});
 }
 
-TEST_CASE(arena_replace, priority_kept_updates_in_place_and_rekeys_the_token) {
-    ArenaEngineFixture fixture;
+TEST_CASE(engine_replace, priority_kept_updates_in_place_and_rekeys_the_token) {
+    EngineFixture fixture;
     fixture.apply(limit_order(kAliceSession, 1, Side::BUY, 100, 10));
     fixture.apply(limit_order(kBobSession, 1, Side::BUY, 100, 10));
     fixture.apply(limit_order(kCarolSession, 1, Side::SELL, 100, 3));  // order 1: cum 3, leaves 7
@@ -283,7 +283,7 @@ TEST_CASE(arena_replace, priority_kept_updates_in_place_and_rekeys_the_token) {
     check_book_invariants(fixture.engine);
 }
 
-TEST_CASE(arena_replace, priority_lost_on_price_change_quantity_increase_or_force) {
+TEST_CASE(engine_replace, priority_lost_on_price_change_quantity_increase_or_force) {
     struct LossCase {
         Price new_price;
         Quantity new_qty;
@@ -291,7 +291,7 @@ TEST_CASE(arena_replace, priority_lost_on_price_change_quantity_increase_or_forc
     };
     for (const LossCase& loss : {LossCase{90, 10, false}, LossCase{100, 11, false}, LossCase{100, 10, true},
                                  LossCase{100, 5, true}}) {
-        ArenaEngineFixture fixture;
+        EngineFixture fixture;
         fixture.apply(limit_order(kAliceSession, 1, Side::BUY, 100, 10));
         fixture.apply(limit_order(kBobSession, 1, Side::BUY, 100, 10));
         fixture.apply(limit_order(kBobSession, 2, Side::BUY, 90, 10));
@@ -321,9 +321,9 @@ TEST_CASE(arena_replace, priority_lost_on_price_change_quantity_increase_or_forc
     }
 }
 
-TEST_CASE(arena_replace, priority_lost_order_matches_as_aggressor_in_continuous_only) {
+TEST_CASE(engine_replace, priority_lost_order_matches_as_aggressor_in_continuous_only) {
     {
-        ArenaEngineFixture fixture;
+        EngineFixture fixture;
         fixture.apply(with_owner(limit_order(kAliceSession, 1, Side::BUY, 100, 10), kAliceFirm,
                                  StpMode::CancelResting));
         fixture.apply(with_owner(limit_order(kAliceSession, 2, Side::SELL, 120, 3), kAliceFirm));
@@ -353,7 +353,7 @@ TEST_CASE(arena_replace, priority_lost_order_matches_as_aggressor_in_continuous_
     }
     {
         // Fully filled by the replace: Replaced then Fill, nothing else.
-        ArenaEngineFixture fixture;
+        EngineFixture fixture;
         fixture.apply(limit_order(kAliceSession, 1, Side::BUY, 100, 5));
         fixture.apply(limit_order(kBobSession, 1, Side::SELL, 110, 5));
         fixture.apply(replace_request(kAliceSession, 1, 0, 110, 5));
@@ -362,7 +362,7 @@ TEST_CASE(arena_replace, priority_lost_order_matches_as_aggressor_in_continuous_
         CHECK_EQ(fixture.engine.live_order_count(), std::size_t{0});
     }
     for (Phase call_phase : {Phase::PreOpen, Phase::PreClose}) {
-        ArenaEngineFixture fixture(call_phase);
+        EngineFixture fixture(call_phase);
         fixture.apply(limit_order(kAliceSession, 1, Side::BUY, 100, 5));
         fixture.apply(limit_order(kBobSession, 1, Side::SELL, 110, 5));
         fixture.apply(replace_request(kAliceSession, 1, 0, 120, 5));
@@ -373,9 +373,9 @@ TEST_CASE(arena_replace, priority_lost_order_matches_as_aggressor_in_continuous_
     }
 }
 
-TEST_CASE(arena_replace, amendment_chain_conserves_quantity) {
+TEST_CASE(engine_replace, amendment_chain_conserves_quantity) {
     // SPEC 11: executed + current leaves + canceled = initial + replacement deltas.
-    ArenaEngineFixture fixture;
+    EngineFixture fixture;
     std::uint64_t executed = 0;
     std::uint64_t canceled = 0;
     std::int64_t replacement_deltas = 0;

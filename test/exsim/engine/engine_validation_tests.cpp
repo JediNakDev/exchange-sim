@@ -1,16 +1,16 @@
 // SPEC 1 (identifiers), 2 (instruments), 3 (phase table for new orders),
 // 4.1 (NewOrder validation order) and 12 (configuration bounds).
 
-#include <test/exsim/engine/arena_test_support.hpp>
+#include <test/exsim/engine/engine_fixture.hpp>
 
 #include <limits>
 #include <stdexcept>
 
-using namespace arena_test;
+using namespace engine_fixture;
 
 namespace {
 
-void check_new_order_rejection(const ArenaEngineFixture& fixture, const NewOrder& command, RejectReason reason) {
+void check_new_order_rejection(const EngineFixture& fixture, const NewOrder& command, RejectReason reason) {
     const Event& event = fixture.only_event();
     REQUIRE_EQ(event.type, EventType::Rejected);
     CHECK_EQ(event.instrument, command.instrument);
@@ -23,7 +23,7 @@ void check_new_order_rejection(const ArenaEngineFixture& fixture, const NewOrder
     CHECK_EQ(event.rejected.order_id, OrderId{0});
 }
 
-RejectReason reject_reason_of(ArenaEngineFixture& fixture, const NewOrder& command) {
+RejectReason reject_reason_of(EngineFixture& fixture, const NewOrder& command) {
     fixture.apply(command);
     REQUIRE_EQ(fixture.events.size(), std::size_t{1});
     REQUIRE_EQ(fixture.events[0].type, EventType::Rejected);
@@ -32,8 +32,8 @@ RejectReason reject_reason_of(ArenaEngineFixture& fixture, const NewOrder& comma
 
 }  // namespace
 
-TEST_CASE(arena_validation, unknown_instrument) {
-    ArenaEngineFixture fixture;
+TEST_CASE(engine_validation, unknown_instrument) {
+    EngineFixture fixture;
     for (InstrumentId instrument : {InstrumentId{0}, InstrumentId{2}, InstrumentId{65535}}) {
         NewOrder command = limit_order(kAliceSession, 1, Side::BUY, 100, 10, instrument);
         fixture.apply(command);
@@ -42,8 +42,8 @@ TEST_CASE(arena_validation, unknown_instrument) {
     CHECK_EQ(fixture.engine.live_order_count(), std::size_t{0});
 }
 
-TEST_CASE(arena_validation, invalid_session_and_token) {
-    ArenaEngineFixture fixture;
+TEST_CASE(engine_validation, invalid_session_and_token) {
+    EngineFixture fixture;
     NewOrder zero_session = limit_order(0, 1, Side::BUY, 100, 10);
     fixture.apply(zero_session);
     check_new_order_rejection(fixture, zero_session, RejectReason::InvalidClOrdId);
@@ -68,8 +68,8 @@ TEST_CASE(arena_validation, invalid_session_and_token) {
     CHECK_EQ(fixture.engine.find_order(65535, 7)->session, SessionId{65535});
 }
 
-TEST_CASE(arena_validation, duplicate_token_only_among_live_orders_of_the_session) {
-    ArenaEngineFixture fixture;
+TEST_CASE(engine_validation, duplicate_token_only_among_live_orders_of_the_session) {
+    EngineFixture fixture;
     fixture.apply(limit_order(kAliceSession, 5, Side::BUY, 100, 10));
     NewOrder duplicate = limit_order(kAliceSession, 5, Side::SELL, 150, 3);
     fixture.apply(duplicate);
@@ -92,8 +92,8 @@ TEST_CASE(arena_validation, duplicate_token_only_among_live_orders_of_the_sessio
     CHECK_EQ(fixture.events[1].type, EventType::Rested);
 }
 
-TEST_CASE(arena_validation, invalid_enum_fields_and_post_only_combinations) {
-    ArenaEngineFixture fixture;
+TEST_CASE(engine_validation, invalid_enum_fields_and_post_only_combinations) {
+    EngineFixture fixture;
     NewOrder bad_side = limit_order(kAliceSession, 1, static_cast<Side>(2), 100, 10);
     NewOrder bad_type = limit_order(kAliceSession, 2, Side::BUY, 100, 10);
     bad_type.type = static_cast<OrdType>(2);
@@ -117,8 +117,8 @@ TEST_CASE(arena_validation, invalid_enum_fields_and_post_only_combinations) {
     CHECK(fixture.engine.find_order(kAliceSession, 8)->post_only);
 }
 
-TEST_CASE(arena_validation, quantity_rules_with_lot_size) {
-    ArenaEngineFixture fixture;
+TEST_CASE(engine_validation, quantity_rules_with_lot_size) {
+    EngineFixture fixture;
     InstrumentConfig lots = small_instrument_config("LOTS");
     lots.lot_size = 5;
     lots.max_order_qty = 50;
@@ -137,8 +137,8 @@ TEST_CASE(arena_validation, quantity_rules_with_lot_size) {
     }
 }
 
-TEST_CASE(arena_validation, limit_price_grid_and_ignored_market_price) {
-    ArenaEngineFixture fixture;
+TEST_CASE(engine_validation, limit_price_grid_and_ignored_market_price) {
+    EngineFixture fixture;
     ClOrdId token = 1;
     for (Price invalid_price : {Price{0}, Price{-10}, Price{5}, Price{15}, Price{210}, Price{101},
                                 std::numeric_limits<Price>::min(), std::numeric_limits<Price>::max()}) {
@@ -159,7 +159,7 @@ TEST_CASE(arena_validation, limit_price_grid_and_ignored_market_price) {
     CHECK_EQ(fixture.events[2].fill.price, Price{200});
 }
 
-TEST_CASE(arena_validation, phase_table_for_new_orders) {
+TEST_CASE(engine_validation, phase_table_for_new_orders) {
     struct PhaseCase {
         Phase phase;
         RejectReason limit_day;
@@ -178,7 +178,7 @@ TEST_CASE(arena_validation, phase_table_for_new_orders) {
          RejectReason::NotAllowedInPhase},
     };
     for (const PhaseCase& phase_case : cases) {
-        ArenaEngineFixture fixture(phase_case.phase);
+        EngineFixture fixture(phase_case.phase);
         const NewOrder limit_day = limit_order(kAliceSession, 1, Side::BUY, 100, 10);
         const NewOrder limit_gtc = with_tif(limit_order(kAliceSession, 2, Side::BUY, 100, 10), TimeInForce::GTC);
         const NewOrder market = market_order(kAliceSession, 3, Side::BUY, 10);
@@ -199,8 +199,8 @@ TEST_CASE(arena_validation, phase_table_for_new_orders) {
     }
 }
 
-TEST_CASE(arena_validation, post_only_would_cross_only_in_continuous) {
-    ArenaEngineFixture fixture;
+TEST_CASE(engine_validation, post_only_would_cross_only_in_continuous) {
+    EngineFixture fixture;
     fixture.apply(limit_order(kBobSession, 1, Side::SELL, 120, 10));
     fixture.apply(limit_order(kBobSession, 2, Side::BUY, 80, 10));
 
@@ -229,9 +229,9 @@ TEST_CASE(arena_validation, post_only_would_cross_only_in_continuous) {
     CHECK_EQ(*fixture.engine.best_ask(1), Price{120});
 }
 
-TEST_CASE(arena_validation, check_order_is_the_spec_order) {
+TEST_CASE(engine_validation, check_order_is_the_spec_order) {
     // Each step fixes the earliest failure, exposing the next one.
-    ArenaEngineFixture fixture;
+    EngineFixture fixture;
     fixture.apply(limit_order(kAliceSession, 1, Side::SELL, 100, 10));
     fixture.apply(SetPhase{1, 1, Phase::Halted});
     NewOrder command = limit_order(0, 1, static_cast<Side>(9), 7, 0, 3);
@@ -253,8 +253,8 @@ TEST_CASE(arena_validation, check_order_is_the_spec_order) {
     CHECK_EQ(reject_reason_of(fixture, command), RejectReason::PostOnlyWouldCross);
 }
 
-TEST_CASE(arena_validation, capacity_counts_live_orders_and_needs_a_slot_even_to_fill) {
-    ArenaEngineFixture fixture(Phase::Continuous, 1, EngineConfig{1, 3});
+TEST_CASE(engine_validation, capacity_counts_live_orders_and_needs_a_slot_even_to_fill) {
+    EngineFixture fixture(Phase::Continuous, 1, EngineConfig{1, 3});
     fixture.apply(limit_order(kAliceSession, 1, Side::SELL, 100, 10));
     fixture.apply(limit_order(kAliceSession, 2, Side::SELL, 110, 10));
     fixture.apply(limit_order(kAliceSession, 3, Side::SELL, 120, 10));
@@ -272,8 +272,8 @@ TEST_CASE(arena_validation, capacity_counts_live_orders_and_needs_a_slot_even_to
     CHECK_EQ(fixture.engine.live_order_count(), std::size_t{2});
 }
 
-TEST_CASE(arena_validation, rejections_consume_no_order_or_match_ids) {
-    ArenaEngineFixture fixture;
+TEST_CASE(engine_validation, rejections_consume_no_order_or_match_ids) {
+    EngineFixture fixture;
     fixture.apply(limit_order(kAliceSession, 1, Side::SELL, 100, 10));
     fixture.apply(limit_order(kAliceSession, 1, Side::SELL, 100, 10));       // duplicate
     fixture.apply(limit_order(kAliceSession, 2, Side::SELL, 105, 10));       // off grid
@@ -286,7 +286,7 @@ TEST_CASE(arena_validation, rejections_consume_no_order_or_match_ids) {
     CHECK_EQ(fixture.events[1].fill.match_id, MatchId{1});
 }
 
-TEST_CASE(arena_instruments, add_instrument_rejects_each_invalid_rule) {
+TEST_CASE(engine_instruments, add_instrument_rejects_each_invalid_rule) {
     MatchingEngine engine(EngineConfig{8, 8});
     const InstrumentConfig valid = small_instrument_config("VALID");
     auto variant = [&](auto mutate) {
@@ -311,7 +311,7 @@ TEST_CASE(arena_instruments, add_instrument_rejects_each_invalid_rule) {
         variant([](InstrumentConfig& c) { c.reference_price = 210; }),
         variant([](InstrumentConfig& c) { c.reference_price = 105; }),
         variant([](InstrumentConfig& c) { c.initial_phase = static_cast<Phase>(5); }),
-        // Arena ladders are capped at 2^24 ticks per side.
+        // Price ladders are capped at 2^24 ticks per side.
         variant([](InstrumentConfig& c) { c.tick_size = 1; c.min_price = 1; c.max_price = (1 << 24) + 1;
                                           c.reference_price = 1; }),
     };
@@ -334,7 +334,7 @@ TEST_CASE(arena_instruments, add_instrument_rejects_each_invalid_rule) {
     CHECK(engine.instrument(3) == nullptr);
 }
 
-TEST_CASE(arena_instruments, max_instruments_limit_and_initial_phase) {
+TEST_CASE(engine_instruments, max_instruments_limit_and_initial_phase) {
     MatchingEngine engine(EngineConfig{2, 8});
     CHECK_EQ(engine.add_instrument(small_instrument_config("A", Phase::PreOpen)), InstrumentId{1});
     CHECK_EQ(engine.add_instrument(small_instrument_config("B", Phase::Halted)), InstrumentId{2});
@@ -345,7 +345,7 @@ TEST_CASE(arena_instruments, max_instruments_limit_and_initial_phase) {
     CHECK(!engine.last_trade_price(1).has_value());
 }
 
-TEST_CASE(arena_config, engine_config_bounds_throw) {
+TEST_CASE(engine_config, engine_config_bounds_throw) {
     auto constructor_throws = [](EngineConfig config) {
         try {
             MatchingEngine engine(config);

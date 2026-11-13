@@ -1,12 +1,12 @@
 // SPEC 2 (instruments) and SPEC 4.1 (NewOrder validation, in order).
 
-#include "vector_test_support.hpp"
+#include "engine_harness.hpp"
 
-using namespace vector_engine_test;
+using namespace engine_harness;
 
 // ---- SPEC 2: add_instrument ------------------------------------------------
 
-TEST_CASE(vector_instrument, assigns_sequential_ids_and_finds_by_symbol) {
+TEST_CASE(engine_instrument, assigns_sequential_ids_and_finds_by_symbol) {
     MatchingEngine engine(small_engine_config());
     CHECK_EQ(engine.add_instrument(standard_instrument_config("AAA")), InstrumentId{1});
     CHECK_EQ(engine.add_instrument(standard_instrument_config("BBB")), InstrumentId{2});
@@ -20,7 +20,7 @@ TEST_CASE(vector_instrument, assigns_sequential_ids_and_finds_by_symbol) {
     CHECK_EQ(engine.phase(1), Phase::Continuous);
 }
 
-TEST_CASE(vector_instrument, rejects_invalid_configs) {
+TEST_CASE(engine_instrument, rejects_invalid_configs) {
     MatchingEngine engine(small_engine_config());
     const auto rejected = [&](auto mutate) {
         InstrumentConfig config = standard_instrument_config("BAD");
@@ -49,7 +49,7 @@ TEST_CASE(vector_instrument, rejects_invalid_configs) {
     CHECK_EQ(engine.add_instrument(one_tick), InstrumentId{1});
 }
 
-TEST_CASE(vector_instrument, rejects_duplicate_symbol_and_respects_max_instruments) {
+TEST_CASE(engine_instrument, rejects_duplicate_symbol_and_respects_max_instruments) {
     EngineConfig config = small_engine_config();
     config.max_instruments = 2;
     MatchingEngine engine(config);
@@ -60,7 +60,7 @@ TEST_CASE(vector_instrument, rejects_duplicate_symbol_and_respects_max_instrumen
     CHECK_EQ(engine.instrument_count(), std::size_t{2});
 }
 
-TEST_CASE(vector_instrument, initial_phase_is_applied) {
+TEST_CASE(engine_instrument, initial_phase_is_applied) {
     MatchingEngine engine(small_engine_config());
     const InstrumentId id = engine.add_instrument(standard_instrument_config("PRE", Phase::PreOpen));
     CHECK_EQ(engine.phase(id), Phase::PreOpen);
@@ -69,7 +69,7 @@ TEST_CASE(vector_instrument, initial_phase_is_applied) {
 
 // ---- SPEC 4.1: each rejection, field by field ---------------------------------
 
-TEST_CASE(vector_validation, unknown_instrument) {
+TEST_CASE(engine_admission, unknown_instrument) {
     Harness h;
     for (InstrumentId bad : {InstrumentId{0}, InstrumentId{2}, InstrumentId{999}}) {
         NewOrder cmd = h.limit(1, 1, Side::BUY, 1000, 10);
@@ -79,7 +79,7 @@ TEST_CASE(vector_validation, unknown_instrument) {
     }
 }
 
-TEST_CASE(vector_validation, invalid_cl_ord_id) {
+TEST_CASE(engine_admission, invalid_cl_ord_id) {
     Harness h;
     NewOrder zero_session = h.limit(0, 1, Side::BUY, 1000, 10);
     h.send(zero_session);
@@ -98,7 +98,7 @@ TEST_CASE(vector_validation, invalid_cl_ord_id) {
     CHECK_EQ(h.event(0).type, EventType::Accepted);
 }
 
-TEST_CASE(vector_validation, duplicate_cl_ord_id_only_among_live_orders) {
+TEST_CASE(engine_admission, duplicate_cl_ord_id_only_among_live_orders) {
     Harness h;
     h.rest(1, 7, Side::BUY, 1000, 10);
     NewOrder duplicate = h.limit(1, 7, Side::SELL, 2000, 10);
@@ -123,7 +123,7 @@ TEST_CASE(vector_validation, duplicate_cl_ord_id_only_among_live_orders) {
     CHECK_EQ(h.event(0).type, EventType::Accepted);
 }
 
-TEST_CASE(vector_validation, invalid_enum_fields_and_post_only_combinations) {
+TEST_CASE(engine_admission, invalid_enum_fields_and_post_only_combinations) {
     Harness h;
     const auto expect_invalid_field = [&](NewOrder cmd) {
         h.send(cmd);
@@ -163,7 +163,7 @@ TEST_CASE(vector_validation, invalid_enum_fields_and_post_only_combinations) {
     CHECK_EQ(h.event(0).type, EventType::Accepted);
 }
 
-TEST_CASE(vector_validation, invalid_quantity) {
+TEST_CASE(engine_admission, invalid_quantity) {
     MatchingEngine engine(small_engine_config());
     InstrumentConfig config = standard_instrument_config("LOT");
     config.lot_size = 100;
@@ -193,7 +193,7 @@ TEST_CASE(vector_validation, invalid_quantity) {
     CHECK_EQ(out[0].type, EventType::Accepted);
 }
 
-TEST_CASE(vector_validation, invalid_price_for_limit_but_ignored_for_market) {
+TEST_CASE(engine_admission, invalid_price_for_limit_but_ignored_for_market) {
     Harness h;
     for (Price bad : {Price{0}, Price{50}, Price{1050}, Price{10'000'100}, Price{-100}}) {
         NewOrder cmd = h.limit(1, 1, Side::BUY, bad, 10);
@@ -214,7 +214,7 @@ TEST_CASE(vector_validation, invalid_price_for_limit_but_ignored_for_market) {
     CHECK_EQ(h.event(0).accepted.ord_type, OrdType::Market);
 }
 
-TEST_CASE(vector_validation, phase_rejections) {
+TEST_CASE(engine_admission, phase_rejections) {
     Harness h(Phase::Closed);
     NewOrder closed = h.limit(1, 1, Side::BUY, 1000, 10);
     h.send(closed);
@@ -244,7 +244,7 @@ TEST_CASE(vector_validation, phase_rejections) {
     }
 }
 
-TEST_CASE(vector_validation, post_only_would_cross_only_in_continuous) {
+TEST_CASE(engine_admission, post_only_would_cross_only_in_continuous) {
     Harness h;
     h.rest(1, 1, Side::SELL, 1000, 10);
     h.rest(1, 2, Side::BUY, 900, 10);
@@ -272,7 +272,7 @@ TEST_CASE(vector_validation, post_only_would_cross_only_in_continuous) {
     CHECK_EQ(event_types(h.events()), (std::vector<EventType>{EventType::Accepted, EventType::Rested}));
 }
 
-TEST_CASE(vector_validation, checks_run_in_spec_order) {
+TEST_CASE(engine_admission, checks_run_in_spec_order) {
     Harness h(Phase::Closed);
     // Everything wrong at once: unknown instrument wins.
     NewOrder all_wrong = h.limit(0, 0, static_cast<Side>(9), 1, 0);
@@ -317,7 +317,7 @@ TEST_CASE(vector_validation, checks_run_in_spec_order) {
     check_new_order_rejected(h, valid_closed, RejectReason::MarketClosed);
 }
 
-TEST_CASE(vector_validation, post_only_cross_beats_capacity) {
+TEST_CASE(engine_admission, post_only_cross_beats_capacity) {
     Harness h(Phase::Continuous, 1);
     h.rest(1, 1, Side::SELL, 1000, 10);
     NewOrder crossing = h.limit(2, 1, Side::BUY, 1000, 10);
@@ -329,7 +329,7 @@ TEST_CASE(vector_validation, post_only_cross_beats_capacity) {
     check_new_order_rejected(h, passive, RejectReason::CapacityExceeded);
 }
 
-TEST_CASE(vector_validation, rejections_do_not_consume_order_ids) {
+TEST_CASE(engine_admission, rejections_do_not_consume_order_ids) {
     Harness h;
     const OrderId first = h.rest(1, 1, Side::BUY, 1000, 10);
     NewOrder bad = h.limit(1, 2, Side::BUY, 1050, 10);
@@ -342,7 +342,7 @@ TEST_CASE(vector_validation, rejections_do_not_consume_order_ids) {
 
 // ---- SPEC 4.1 rule 9 / capacity ------------------------------------------------
 
-TEST_CASE(vector_capacity, rejects_when_live_orders_reach_max_orders) {
+TEST_CASE(engine_capacity, rejects_when_live_orders_reach_max_orders) {
     Harness h(Phase::Continuous, 2);
     h.rest(1, 1, Side::BUY, 1000, 10);
     h.rest(1, 2, Side::BUY, 900, 10);
@@ -372,7 +372,7 @@ TEST_CASE(vector_capacity, rejects_when_live_orders_reach_max_orders) {
     }
 }
 
-TEST_CASE(vector_capacity, invalid_engine_configs_throw) {
+TEST_CASE(engine_capacity, invalid_engine_configs_throw) {
     for (auto config : {EngineConfig{1,0}, EngineConfig{0,1}, EngineConfig{65536,1},
                         EngineConfig{1, std::size_t{UINT32_MAX}+1}}) {
         bool threw = false;

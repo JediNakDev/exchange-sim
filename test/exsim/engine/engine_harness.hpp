@@ -1,7 +1,7 @@
-#ifndef TESTS_EXSIM_ENGINE_VECTOR_TEST_SUPPORT_HPP
-#define TESTS_EXSIM_ENGINE_VECTOR_TEST_SUPPORT_HPP
+#ifndef TESTS_EXSIM_ENGINE_ENGINE_HARNESS_HPP
+#define TESTS_EXSIM_ENGINE_ENGINE_HARNESS_HPP
 
-// Shared helpers for the vector_* engine tests. Public API only.
+// Shared helpers for the engine tests built on Harness. Public API only.
 
 #include "../../framework/test.hpp"
 #include <engine/matching_engine.hpp>
@@ -11,7 +11,7 @@
 #include <optional>
 #include <vector>
 
-namespace vector_engine_test {
+namespace engine_harness {
 
 using namespace exsim;
 
@@ -219,6 +219,6 @@ inline std::vector<EventType> event_types(const EventBuffer& events) {
     return types;
 }
 
-}  // namespace vector_engine_test
+}  // namespace engine_harness
 
 #endif

@@ -1,11 +1,11 @@
 // SPEC 4.2 - 4.6: acceptance, resting, continuous matching, market/IOC/FOK,
 // self-trade prevention and disposition.
 
-#include "vector_test_support.hpp"
+#include "engine_harness.hpp"
 
-using namespace vector_engine_test;
+using namespace engine_harness;
 
-TEST_CASE(vector_matching, accepted_and_rested_fields) {
+TEST_CASE(engine_order_types, accepted_and_rested_fields) {
     Harness h;
     NewOrder cmd = h.limit(3, 42, Side::SELL, 123'400, 77);
     cmd.owner = 9;
@@ -47,7 +47,7 @@ TEST_CASE(vector_matching, accepted_and_rested_fields) {
     CHECK_EQ(h.engine().live_order_count(), std::size_t{1});
 }
 
-TEST_CASE(vector_matching, full_fill_event_fields) {
+TEST_CASE(engine_order_types, full_fill_event_fields) {
     Harness h;
     NewOrder resting = h.limit(1, 10, Side::SELL, 1000, 50);
     resting.owner = 11;
@@ -77,7 +77,7 @@ TEST_CASE(vector_matching, full_fill_event_fields) {
     CHECK(!h.engine().find_order(OrderId{1}).has_value());
 }
 
-TEST_CASE(vector_matching, sell_aggressor_trades_at_resting_price) {
+TEST_CASE(engine_order_types, sell_aggressor_trades_at_resting_price) {
     Harness h;
     const OrderId bid = h.rest(1, 1, Side::BUY, 1500, 30);
     h.send(h.limit(2, 1, Side::SELL, 1000, 10));
@@ -90,7 +90,7 @@ TEST_CASE(vector_matching, sell_aggressor_trades_at_resting_price) {
     CHECK_EQ(h.levels(Side::BUY)[0].qty, std::uint64_t{20});
 }
 
-TEST_CASE(vector_matching, price_time_priority) {
+TEST_CASE(engine_order_types, price_time_priority) {
     Harness h;
     const OrderId late_better = h.rest(1, 1, Side::SELL, 1100, 10);
     const OrderId first_at_1000 = h.rest(1, 2, Side::SELL, 1000, 10);
@@ -109,7 +109,7 @@ TEST_CASE(vector_matching, price_time_priority) {
     CHECK_EQ(h.engine().best_ask(h.instrument()), std::optional<Price>(1000));
 }
 
-TEST_CASE(vector_matching, partial_fill_then_rest_remainder) {
+TEST_CASE(engine_order_types, partial_fill_then_rest_remainder) {
     Harness h;
     const OrderId ask = h.rest(1, 1, Side::SELL, 1000, 30);
     h.send(h.limit(2, 1, Side::BUY, 1000, 100));
@@ -128,7 +128,7 @@ TEST_CASE(vector_matching, partial_fill_then_rest_remainder) {
     CHECK_EQ(info->cum_qty, Quantity{30});
 }
 
-TEST_CASE(vector_matching, multi_level_sweep_stops_at_limit) {
+TEST_CASE(engine_order_types, multi_level_sweep_stops_at_limit) {
     Harness h;
     const OrderId a1 = h.rest(1, 1, Side::SELL, 1000, 10);
     const OrderId a2 = h.rest(1, 2, Side::SELL, 1100, 10);
@@ -148,7 +148,7 @@ TEST_CASE(vector_matching, multi_level_sweep_stops_at_limit) {
     CHECK_EQ(h.fifo(Side::SELL, 1300), (std::vector<OrderId>{a4}));
 }
 
-TEST_CASE(vector_matching, market_order_sweeps_and_cancels_remainder) {
+TEST_CASE(engine_order_types, market_order_sweeps_and_cancels_remainder) {
     Harness h;
     h.rest(1, 1, Side::BUY, 1000, 10);
     h.rest(1, 2, Side::BUY, 100, 10);  // far away; market orders ignore price
@@ -166,14 +166,14 @@ TEST_CASE(vector_matching, market_order_sweeps_and_cancels_remainder) {
     CHECK(!h.engine().find_order(2, 9).has_value());
 }
 
-TEST_CASE(vector_matching, market_order_on_empty_book) {
+TEST_CASE(engine_order_types, market_order_on_empty_book) {
     Harness h;
     h.send(h.market(1, 1, Side::BUY, 10));
     REQUIRE_EQ(event_types(h.events()), (std::vector<EventType>{EventType::Accepted, EventType::Canceled}));
     check_canceled(h.event(1), 1, 1, 0, Side::BUY, 0, 10, 0, CancelReason::ImmediateOrCancel, false);
 }
 
-TEST_CASE(vector_matching, ioc_partial_and_no_cross) {
+TEST_CASE(engine_order_types, ioc_partial_and_no_cross) {
     Harness h;
     const OrderId ask = h.rest(1, 1, Side::SELL, 1000, 10);
     NewOrder ioc = h.limit(2, 1, Side::BUY, 1000, 25);
@@ -193,7 +193,7 @@ TEST_CASE(vector_matching, ioc_partial_and_no_cross) {
     CHECK(!h.engine().best_bid(h.instrument()).has_value());
 }
 
-TEST_CASE(vector_matching, ioc_fully_filled_emits_no_cancel) {
+TEST_CASE(engine_order_types, ioc_fully_filled_emits_no_cancel) {
     Harness h;
     h.rest(1, 1, Side::SELL, 1000, 10);
     NewOrder ioc = h.limit(2, 1, Side::BUY, 1000, 10);
@@ -202,7 +202,7 @@ TEST_CASE(vector_matching, ioc_fully_filled_emits_no_cancel) {
     CHECK_EQ(event_types(h.events()), (std::vector<EventType>{EventType::Accepted, EventType::Fill}));
 }
 
-TEST_CASE(vector_matching, fok_insufficient_liquidity_kills_without_fills) {
+TEST_CASE(engine_order_types, fok_insufficient_liquidity_kills_without_fills) {
     Harness h;
     h.rest(1, 1, Side::SELL, 1000, 10);
     h.rest(1, 2, Side::SELL, 1100, 10);
@@ -216,7 +216,7 @@ TEST_CASE(vector_matching, fok_insufficient_liquidity_kills_without_fills) {
     CHECK(!h.engine().last_trade_price(h.instrument()).has_value());
 }
 
-TEST_CASE(vector_matching, fok_exact_liquidity_fills_completely) {
+TEST_CASE(engine_order_types, fok_exact_liquidity_fills_completely) {
     Harness h;
     h.rest(1, 1, Side::SELL, 1000, 10);
     h.rest(1, 2, Side::SELL, 1100, 10);
@@ -228,7 +228,7 @@ TEST_CASE(vector_matching, fok_exact_liquidity_fills_completely) {
     CHECK_EQ(h.engine().live_order_count(), std::size_t{0});
 }
 
-TEST_CASE(vector_matching, fok_market_order_uses_the_whole_opposite_side) {
+TEST_CASE(engine_order_types, fok_market_order_uses_the_whole_opposite_side) {
     Harness h;
     h.rest(1, 1, Side::BUY, 1000, 10);
     h.rest(1, 2, Side::BUY, 100, 10);
@@ -246,7 +246,7 @@ TEST_CASE(vector_matching, fok_market_order_uses_the_whole_opposite_side) {
 }
 
 // SPEC 4.3: CancelResting skips self-matches while counting.
-TEST_CASE(vector_matching, fok_cancel_resting_skips_own_liquidity) {
+TEST_CASE(engine_order_types, fok_cancel_resting_skips_own_liquidity) {
     Harness h;
     const OrderId own = h.rest(1, 1, Side::SELL, 1000, 50, /*owner=*/7);
     const OrderId other = h.rest(2, 1, Side::SELL, 1000, 10, /*owner=*/8);
@@ -270,7 +270,7 @@ TEST_CASE(vector_matching, fok_cancel_resting_skips_own_liquidity) {
 }
 
 // SPEC 4.3: any other STP mode stops the walk at the first self-match.
-TEST_CASE(vector_matching, fok_cancel_aggressor_stops_at_self_match) {
+TEST_CASE(engine_order_types, fok_cancel_aggressor_stops_at_self_match) {
     for (StpMode mode : {StpMode::CancelAggressor, StpMode::CancelBoth}) {
         Harness h;
         h.rest(2, 1, Side::SELL, 1000, 10, /*owner=*/8);
@@ -294,7 +294,7 @@ TEST_CASE(vector_matching, fok_cancel_aggressor_stops_at_self_match) {
     }
 }
 
-TEST_CASE(vector_matching, fok_without_self_match_conditions_counts_everything) {
+TEST_CASE(engine_order_types, fok_without_self_match_conditions_counts_everything) {
     Harness h;
     h.rest(1, 1, Side::SELL, 1000, 10, /*owner=*/7);
     h.rest(2, 1, Side::SELL, 1000, 10, /*owner=*/8);
@@ -315,7 +315,7 @@ TEST_CASE(vector_matching, fok_without_self_match_conditions_counts_everything) 
     CHECK_EQ(event_types(h.events()), (std::vector<EventType>{EventType::Accepted, EventType::Fill}));
 }
 
-TEST_CASE(vector_matching, stp_cancel_resting_continues_matching) {
+TEST_CASE(engine_order_types, stp_cancel_resting_continues_matching) {
     Harness h;
     const OrderId other_first = h.rest(2, 1, Side::SELL, 1000, 5, 8);
     const OrderId own = h.rest(1, 1, Side::SELL, 1000, 10, 7);
@@ -334,7 +334,7 @@ TEST_CASE(vector_matching, stp_cancel_resting_continues_matching) {
     CHECK_EQ(h.engine().live_order_count(), std::size_t{1});
 }
 
-TEST_CASE(vector_matching, stp_cancel_aggressor_keeps_resting) {
+TEST_CASE(engine_order_types, stp_cancel_aggressor_keeps_resting) {
     Harness h;
     const OrderId other = h.rest(2, 1, Side::SELL, 1000, 5, 8);
     const OrderId own = h.rest(1, 1, Side::SELL, 1000, 10, 7);
@@ -351,7 +351,7 @@ TEST_CASE(vector_matching, stp_cancel_aggressor_keeps_resting) {
     CHECK(!h.engine().best_bid(h.instrument()).has_value());
 }
 
-TEST_CASE(vector_matching, stp_cancel_both_cancels_resting_then_aggressor) {
+TEST_CASE(engine_order_types, stp_cancel_both_cancels_resting_then_aggressor) {
     Harness h;
     const OrderId own = h.rest(1, 1, Side::BUY, 1000, 10, 7);
     const OrderId behind = h.rest(2, 1, Side::BUY, 1000, 10, 8);
@@ -367,7 +367,7 @@ TEST_CASE(vector_matching, stp_cancel_both_cancels_resting_then_aggressor) {
     CHECK_EQ(h.levels(Side::BUY)[0].qty, std::uint64_t{10});
 }
 
-TEST_CASE(vector_matching, stp_uses_aggressor_mode_and_owner_only) {
+TEST_CASE(engine_order_types, stp_uses_aggressor_mode_and_owner_only) {
     Harness h;
     // Resting order has an STP mode; the aggressor has none: they trade.
     NewOrder resting = h.limit(1, 1, Side::SELL, 1000, 10);
@@ -395,7 +395,7 @@ TEST_CASE(vector_matching, stp_uses_aggressor_mode_and_owner_only) {
     CHECK_EQ(event_types(h.events()), (std::vector<EventType>{EventType::Accepted, EventType::Fill}));
 }
 
-TEST_CASE(vector_matching, stp_cancel_aggressor_on_market_order) {
+TEST_CASE(engine_order_types, stp_cancel_aggressor_on_market_order) {
     Harness h;
     h.rest(1, 1, Side::SELL, 1000, 10, 7);
     NewOrder market = h.market(2, 1, Side::BUY, 10);
@@ -407,7 +407,7 @@ TEST_CASE(vector_matching, stp_cancel_aggressor_on_market_order) {
     CHECK_EQ(h.event(1).canceled.was_resting, false);
 }
 
-TEST_CASE(vector_matching, stp_cancel_resting_can_empty_the_book_and_rest) {
+TEST_CASE(engine_order_types, stp_cancel_resting_can_empty_the_book_and_rest) {
     Harness h;
     h.rest(1, 1, Side::SELL, 1000, 10, 7);
     h.rest(1, 2, Side::SELL, 1100, 10, 7);
@@ -421,7 +421,7 @@ TEST_CASE(vector_matching, stp_cancel_resting_can_empty_the_book_and_rest) {
     CHECK_EQ(h.engine().best_bid(h.instrument()), std::optional<Price>(1200));
 }
 
-TEST_CASE(vector_matching, match_ids_are_engine_global_across_instruments) {
+TEST_CASE(engine_order_types, match_ids_are_engine_global_across_instruments) {
     MatchingEngine engine(small_engine_config());
     const InstrumentId a = engine.add_instrument(standard_instrument_config("AAA"));
     const InstrumentId b = engine.add_instrument(standard_instrument_config("BBB"));

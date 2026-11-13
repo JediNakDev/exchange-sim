@@ -1,11 +1,11 @@
 // SPEC 7 (MassCancel), 8 (SetPhase and end-of-day expiry), 9 (auction
 // uncross and indicative) and the phase rules of SPEC 12.
 
-#include <test/exsim/engine/arena_test_support.hpp>
+#include <test/exsim/engine/engine_fixture.hpp>
 
 #include <limits>
 
-using namespace arena_test;
+using namespace engine_fixture;
 
 namespace {
 
@@ -15,7 +15,7 @@ struct UncrossOutcome {
 };
 
 // Rests the orders in PreOpen, checks the indicative, then opens.
-UncrossOutcome open_auction(ArenaEngineFixture& fixture) {
+UncrossOutcome open_auction(EngineFixture& fixture) {
     const AuctionIndicative indicative = fixture.engine.auction_indicative(1);
     fixture.apply(SetPhase{500, 1, Phase::Continuous});
     REQUIRE(fixture.events.size() >= 2);
@@ -29,8 +29,8 @@ UncrossOutcome open_auction(ArenaEngineFixture& fixture) {
 
 }  // namespace
 
-TEST_CASE(arena_auction, uncross_price_maximises_volume) {
-    ArenaEngineFixture fixture(Phase::PreOpen);
+TEST_CASE(engine_auction, uncross_price_maximises_volume) {
+    EngineFixture fixture(Phase::PreOpen);
     fixture.apply(limit_order(kAliceSession, 1, Side::BUY, 110, 10));
     fixture.apply(limit_order(kBobSession, 1, Side::SELL, 100, 4));
     fixture.apply(limit_order(kBobSession, 2, Side::SELL, 110, 4));
@@ -42,8 +42,8 @@ TEST_CASE(arena_auction, uncross_price_maximises_volume) {
     CHECK_EQ(outcome.matched_qty, std::uint64_t{8});
 }
 
-TEST_CASE(arena_auction, volume_tie_broken_by_smallest_imbalance_before_distance) {
-    ArenaEngineFixture fixture(Phase::PreOpen);
+TEST_CASE(engine_auction, volume_tie_broken_by_smallest_imbalance_before_distance) {
+    EngineFixture fixture(Phase::PreOpen);
     fixture.apply(limit_order(kAliceSession, 1, Side::BUY, 110, 10));
     fixture.apply(limit_order(kAliceSession, 2, Side::BUY, 100, 5));
     fixture.apply(limit_order(kBobSession, 1, Side::SELL, 100, 10));
@@ -56,16 +56,16 @@ TEST_CASE(arena_auction, volume_tie_broken_by_smallest_imbalance_before_distance
     CHECK_EQ(outcome.matched_qty, std::uint64_t{10});
 }
 
-TEST_CASE(arena_auction, imbalance_tie_broken_by_distance_to_reference_or_last_trade) {
+TEST_CASE(engine_auction, imbalance_tie_broken_by_distance_to_reference_or_last_trade) {
     {
-        ArenaEngineFixture fixture(Phase::PreOpen);
+        EngineFixture fixture(Phase::PreOpen);
         fixture.apply(limit_order(kAliceSession, 1, Side::BUY, 120, 10));
         fixture.apply(limit_order(kBobSession, 1, Side::SELL, 100, 10));
         CHECK_EQ(open_auction(fixture).price, Price{100});  // reference price 100
     }
     {
         // A continuous trade at 120 becomes the auction reference.
-        ArenaEngineFixture fixture;
+        EngineFixture fixture;
         fixture.apply(limit_order(kCarolSession, 1, Side::BUY, 120, 1));
         fixture.apply(limit_order(kCarolSession, 2, Side::SELL, 120, 1));
         REQUIRE_EQ(*fixture.engine.last_trade_price(1), Price{120});
@@ -76,15 +76,15 @@ TEST_CASE(arena_auction, imbalance_tie_broken_by_distance_to_reference_or_last_t
     }
 }
 
-TEST_CASE(arena_auction, equal_distance_picks_the_lower_price) {
-    ArenaEngineFixture fixture(Phase::PreOpen);
+TEST_CASE(engine_auction, equal_distance_picks_the_lower_price) {
+    EngineFixture fixture(Phase::PreOpen);
     fixture.apply(limit_order(kAliceSession, 1, Side::BUY, 110, 10));
     fixture.apply(limit_order(kBobSession, 1, Side::SELL, 90, 10));
     CHECK_EQ(open_auction(fixture).price, Price{90});
 }
 
-TEST_CASE(arena_auction, execution_pairs_by_priority_at_one_price_without_stp) {
-    ArenaEngineFixture fixture(Phase::PreClose);
+TEST_CASE(engine_auction, execution_pairs_by_priority_at_one_price_without_stp) {
+    EngineFixture fixture(Phase::PreClose);
     fixture.apply(with_owner(limit_order(kAliceSession, 1, Side::BUY, 120, 5), kAliceFirm, StpMode::CancelBoth));
     fixture.apply(limit_order(kAliceSession, 2, Side::BUY, 110, 5));
     fixture.apply(limit_order(kAliceSession, 3, Side::BUY, 110, 5));
@@ -149,8 +149,8 @@ TEST_CASE(arena_auction, execution_pairs_by_priority_at_one_price_without_stp) {
     check_book_invariants(fixture.engine);
 }
 
-TEST_CASE(arena_auction, non_crossed_indicative_reports_total_side_imbalance) {
-    ArenaEngineFixture fixture(Phase::PreOpen);
+TEST_CASE(engine_auction, non_crossed_indicative_reports_total_side_imbalance) {
+    EngineFixture fixture(Phase::PreOpen);
     AuctionIndicative empty = fixture.engine.auction_indicative(1);
     CHECK(!empty.crossed);
     CHECK_EQ(empty.imbalance_qty, std::uint64_t{0});
@@ -178,8 +178,8 @@ TEST_CASE(arena_auction, non_crossed_indicative_reports_total_side_imbalance) {
     CHECK_EQ(fixture.events[1].fill.match_id, MatchId{1});
 }
 
-TEST_CASE(arena_auction, wide_aggregates_use_64_bit_sums) {
-    ArenaEngineFixture fixture(Phase::PreOpen);
+TEST_CASE(engine_auction, wide_aggregates_use_64_bit_sums) {
+    EngineFixture fixture(Phase::PreOpen);
     InstrumentConfig wide = small_instrument_config("WIDE", Phase::PreOpen);
     wide.max_order_qty = std::numeric_limits<Quantity>::max();
     REQUIRE_EQ(fixture.engine.add_instrument(wide), InstrumentId{2});
@@ -203,9 +203,9 @@ TEST_CASE(arena_auction, wide_aggregates_use_64_bit_sums) {
     CHECK_EQ(fixture.events[3].auction_summary.price, Price{100});
 }
 
-TEST_CASE(arena_phase, halted_keeps_a_crossed_book_and_leaving_it_uncrosses) {
+TEST_CASE(engine_phase, halted_keeps_a_crossed_book_and_leaving_it_uncrosses) {
     for (Phase exit_phase : {Phase::Continuous, Phase::Closed}) {
-        ArenaEngineFixture fixture(Phase::PreOpen);
+        EngineFixture fixture(Phase::PreOpen);
         fixture.apply(with_tif(limit_order(kAliceSession, 1, Side::BUY, 120, 10), TimeInForce::GTC));
         fixture.apply(limit_order(kAliceSession, 2, Side::BUY, 50, 3));
         fixture.apply(limit_order(kBobSession, 1, Side::SELL, 100, 4));
@@ -237,8 +237,8 @@ TEST_CASE(arena_phase, halted_keeps_a_crossed_book_and_leaving_it_uncrosses) {
     }
 }
 
-TEST_CASE(arena_phase, set_phase_rejections_and_same_phase_no_op) {
-    ArenaEngineFixture fixture;
+TEST_CASE(engine_phase, set_phase_rejections_and_same_phase_no_op) {
+    EngineFixture fixture;
     const SetPhase unknown{17, 9, Phase::Halted};
     fixture.apply(unknown);
     const Event& unknown_event = fixture.only_event();
@@ -267,8 +267,8 @@ TEST_CASE(arena_phase, set_phase_rejections_and_same_phase_no_op) {
     CHECK(fixture.events.empty());
 }
 
-TEST_CASE(arena_phase, all_instruments_in_ascending_id_with_per_instrument_batches) {
-    ArenaEngineFixture fixture(Phase::PreOpen, 3);
+TEST_CASE(engine_phase, all_instruments_in_ascending_id_with_per_instrument_batches) {
+    EngineFixture fixture(Phase::PreOpen, 3);
     fixture.apply(SetPhase{1, 2, Phase::Closed});
     // Instrument 3 is crossed; instrument 1 holds a DAY and a GTC order.
     fixture.apply(limit_order(kAliceSession, 1, Side::BUY, 100, 5, 1));
@@ -300,8 +300,8 @@ TEST_CASE(arena_phase, all_instruments_in_ascending_id_with_per_instrument_batch
     CHECK(fixture.engine.find_order(kAliceSession, 2).has_value());
 }
 
-TEST_CASE(arena_phase, end_of_day_expires_day_orders_in_ascending_order_id) {
-    ArenaEngineFixture fixture;
+TEST_CASE(engine_phase, end_of_day_expires_day_orders_in_ascending_order_id) {
+    EngineFixture fixture;
     fixture.apply(limit_order(kBobSession, 1, Side::SELL, 150, 5));                                   // 1
     fixture.apply(limit_order(kAliceSession, 1, Side::BUY, 90, 5));                                   // 2
     fixture.apply(with_tif(limit_order(kAliceSession, 2, Side::BUY, 90, 5), TimeInForce::GTC));       // 3
@@ -320,8 +320,8 @@ TEST_CASE(arena_phase, end_of_day_expires_day_orders_in_ascending_order_id) {
 // Expiry and the indicative imbalance walk one instrument's orders only, so
 // orders of other instruments interleaved by OrderId must neither expire nor
 // count, including after a priority-losing Replace moves an order to the end.
-TEST_CASE(arena_phase, end_of_day_and_imbalance_see_only_their_instrument) {
-    ArenaEngineFixture fixture(Phase::PreOpen, 3);
+TEST_CASE(engine_phase, end_of_day_and_imbalance_see_only_their_instrument) {
+    EngineFixture fixture(Phase::PreOpen, 3);
     fixture.apply(limit_order(kAliceSession, 1, Side::BUY, 90, 5, 2));                                // 1
     fixture.apply(limit_order(kAliceSession, 2, Side::BUY, 90, 7, 1));                                // 2
     fixture.apply(with_tif(limit_order(kBobSession, 1, Side::SELL, 150, 4, 2), TimeInForce::GTC));    // 3
@@ -353,8 +353,8 @@ TEST_CASE(arena_phase, end_of_day_and_imbalance_see_only_their_instrument) {
     check_book_invariants(fixture.engine);
 }
 
-TEST_CASE(arena_mass_cancel, cancels_one_session_in_ascending_order_id) {
-    ArenaEngineFixture fixture(Phase::Continuous, 2);
+TEST_CASE(engine_mass_cancel, cancels_one_session_in_ascending_order_id) {
+    EngineFixture fixture(Phase::Continuous, 2);
     fixture.apply(limit_order(kAliceSession, 1, Side::BUY, 100, 5, 1));   // 1
     fixture.apply(limit_order(kAliceSession, 2, Side::SELL, 150, 5, 2));  // 2
     fixture.apply(limit_order(kBobSession, 1, Side::BUY, 100, 5, 1));     // 3
@@ -388,9 +388,9 @@ TEST_CASE(arena_mass_cancel, cancels_one_session_in_ascending_order_id) {
     check_book_invariants(fixture.engine);
 }
 
-TEST_CASE(arena_mass_cancel, instrument_filter_disconnect_reason_and_every_phase) {
+TEST_CASE(engine_mass_cancel, instrument_filter_disconnect_reason_and_every_phase) {
     for (Phase phase : {Phase::Continuous, Phase::PreOpen, Phase::Halted, Phase::PreClose, Phase::Closed}) {
-        ArenaEngineFixture fixture(Phase::PreOpen, 2);
+        EngineFixture fixture(Phase::PreOpen, 2);
         fixture.apply(with_tif(limit_order(kAliceSession, 1, Side::BUY, 100, 5, 1), TimeInForce::GTC));
         fixture.apply(with_tif(limit_order(kAliceSession, 2, Side::BUY, 100, 5, 2), TimeInForce::GTC));
         fixture.apply(with_tif(limit_order(kAliceSession, 3, Side::SELL, 110, 5, 2), TimeInForce::GTC));

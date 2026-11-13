@@ -1,9 +1,9 @@
 // SPEC 4.2 acceptance, 4.3 FOK pre-check, 4.4 resting, 4.5 continuous
 // matching with STP, 4.6 disposition and the NewOrder rows of SPEC 10.
 
-#include <test/exsim/engine/arena_test_support.hpp>
+#include <test/exsim/engine/engine_fixture.hpp>
 
-using namespace arena_test;
+using namespace engine_fixture;
 
 namespace {
 
@@ -19,8 +19,8 @@ void check_fill_leg(const FillLeg& leg, OrderId order_id, ClOrdId token, Session
 
 }  // namespace
 
-TEST_CASE(arena_matching, accepted_and_rested_echo_every_field) {
-    ArenaEngineFixture fixture;
+TEST_CASE(engine_matching, accepted_and_rested_echo_every_field) {
+    EngineFixture fixture;
     NewOrder command = with_owner(limit_order(kAliceSession, 42, Side::SELL, 130, 25), kAliceFirm,
                                   StpMode::CancelBoth);
     command.tif = TimeInForce::GTC;
@@ -65,8 +65,8 @@ TEST_CASE(arena_matching, accepted_and_rested_echo_every_field) {
     CHECK_EQ(stored->cum_qty, Quantity{0});
 }
 
-TEST_CASE(arena_matching, buy_sweep_uses_price_then_time_priority) {
-    ArenaEngineFixture fixture;
+TEST_CASE(engine_matching, buy_sweep_uses_price_then_time_priority) {
+    EngineFixture fixture;
     fixture.apply(with_owner(limit_order(kBobSession, 1, Side::SELL, 120, 10), kBobFirm));   // id 1
     fixture.apply(with_owner(limit_order(kBobSession, 2, Side::SELL, 110, 4), kBobFirm));    // id 2
     fixture.apply(with_owner(limit_order(kCarolSession, 3, Side::SELL, 110, 6), 0));         // id 3
@@ -119,8 +119,8 @@ TEST_CASE(arena_matching, buy_sweep_uses_price_then_time_priority) {
     check_book_invariants(fixture.engine);
 }
 
-TEST_CASE(arena_matching, sell_aggressor_hits_highest_bid_first) {
-    ArenaEngineFixture fixture;
+TEST_CASE(engine_matching, sell_aggressor_hits_highest_bid_first) {
+    EngineFixture fixture;
     fixture.apply(limit_order(kBobSession, 1, Side::BUY, 90, 5));
     fixture.apply(limit_order(kBobSession, 2, Side::BUY, 100, 5));
     fixture.apply(limit_order(kBobSession, 3, Side::BUY, 100, 5));
@@ -140,8 +140,8 @@ TEST_CASE(arena_matching, sell_aggressor_hits_highest_bid_first) {
     CHECK_EQ(full_depth(fixture.engine, 1, Side::BUY).front().qty, std::uint64_t{3});
 }
 
-TEST_CASE(arena_matching, partially_filled_resting_order_keeps_the_head) {
-    ArenaEngineFixture fixture;
+TEST_CASE(engine_matching, partially_filled_resting_order_keeps_the_head) {
+    EngineFixture fixture;
     fixture.apply(limit_order(kBobSession, 1, Side::SELL, 100, 10));
     fixture.apply(limit_order(kBobSession, 2, Side::SELL, 100, 10));
     fixture.apply(limit_order(kAliceSession, 1, Side::BUY, 100, 4));
@@ -156,8 +156,8 @@ TEST_CASE(arena_matching, partially_filled_resting_order_keeps_the_head) {
     check_book_invariants(fixture.engine);
 }
 
-TEST_CASE(arena_matching, ioc_remainder_is_canceled) {
-    ArenaEngineFixture fixture;
+TEST_CASE(engine_matching, ioc_remainder_is_canceled) {
+    EngineFixture fixture;
     fixture.apply(limit_order(kBobSession, 1, Side::SELL, 110, 3));
     NewOrder ioc = with_tif(limit_order(kAliceSession, 7, Side::BUY, 120, 10), TimeInForce::IOC);
     fixture.apply(ioc);
@@ -186,8 +186,8 @@ TEST_CASE(arena_matching, ioc_remainder_is_canceled) {
     CHECK_EQ(fixture.events[1].canceled.cum_qty, Quantity{0});
 }
 
-TEST_CASE(arena_matching, market_orders_never_rest_and_echo_their_price) {
-    ArenaEngineFixture fixture;
+TEST_CASE(engine_matching, market_orders_never_rest_and_echo_their_price) {
+    EngineFixture fixture;
     fixture.apply(limit_order(kBobSession, 1, Side::BUY, 50, 3));
     fixture.apply(limit_order(kBobSession, 2, Side::BUY, 200, 2));
     for (TimeInForce tif : {TimeInForce::Day, TimeInForce::GTC}) {
@@ -217,8 +217,8 @@ TEST_CASE(arena_matching, market_orders_never_rest_and_echo_their_price) {
     CHECK_EQ(fixture.engine.live_order_count(), std::size_t{0});
 }
 
-TEST_CASE(arena_matching, fok_fills_completely_or_is_killed_without_touching_the_book) {
-    ArenaEngineFixture fixture;
+TEST_CASE(engine_matching, fok_fills_completely_or_is_killed_without_touching_the_book) {
+    EngineFixture fixture;
     fixture.apply(limit_order(kBobSession, 1, Side::SELL, 100, 4));
     fixture.apply(limit_order(kBobSession, 2, Side::SELL, 110, 4));
     fixture.apply(limit_order(kBobSession, 3, Side::SELL, 130, 100));
@@ -253,16 +253,16 @@ TEST_CASE(arena_matching, fok_fills_completely_or_is_killed_without_touching_the
     CHECK_EQ(fixture.engine.find_order(OrderId{3})->leaves_qty, Quantity{100});
 }
 
-TEST_CASE(arena_matching, fok_precheck_skips_or_stops_at_self_matches) {
+TEST_CASE(engine_matching, fok_precheck_skips_or_stops_at_self_matches) {
     // Book: own 5 @100 (head), other 5 @100, other 5 @110.
-    auto build_book = [](ArenaEngineFixture& fixture) {
+    auto build_book = [](EngineFixture& fixture) {
         fixture.apply(with_owner(limit_order(kAliceSession, 1, Side::SELL, 100, 5), kAliceFirm));
         fixture.apply(with_owner(limit_order(kBobSession, 1, Side::SELL, 100, 5), kBobFirm));
         fixture.apply(with_owner(limit_order(kBobSession, 2, Side::SELL, 110, 5), kBobFirm));
     };
     {
         // CancelResting skips the own order: 10 other shares are available.
-        ArenaEngineFixture fixture;
+        EngineFixture fixture;
         build_book(fixture);
         NewOrder fok = with_tif(with_owner(limit_order(kAliceSession, 9, Side::BUY, 110, 10), kAliceFirm,
                                            StpMode::CancelResting), TimeInForce::FOK);
@@ -278,7 +278,7 @@ TEST_CASE(arena_matching, fok_precheck_skips_or_stops_at_self_matches) {
     }
     for (StpMode stopping_mode : {StpMode::CancelAggressor, StpMode::CancelBoth}) {
         // The walk stops at the own head order: nothing is available.
-        ArenaEngineFixture fixture;
+        EngineFixture fixture;
         build_book(fixture);
         NewOrder fok = with_tif(with_owner(limit_order(kAliceSession, 9, Side::BUY, 110, 1), kAliceFirm,
                                            stopping_mode), TimeInForce::FOK);
@@ -289,7 +289,7 @@ TEST_CASE(arena_matching, fok_precheck_skips_or_stops_at_self_matches) {
     }
     {
         // Liquidity ahead of the self-match is enough: the FOK executes.
-        ArenaEngineFixture fixture;
+        EngineFixture fixture;
         fixture.apply(with_owner(limit_order(kBobSession, 1, Side::SELL, 100, 5), kBobFirm));
         fixture.apply(with_owner(limit_order(kAliceSession, 1, Side::SELL, 100, 5), kAliceFirm));
         NewOrder fok = with_tif(with_owner(limit_order(kAliceSession, 9, Side::BUY, 110, 5), kAliceFirm,
@@ -300,7 +300,7 @@ TEST_CASE(arena_matching, fok_precheck_skips_or_stops_at_self_matches) {
     }
     {
         // Without an owner there is no self-match, whatever the STP mode.
-        ArenaEngineFixture fixture;
+        EngineFixture fixture;
         build_book(fixture);
         NewOrder fok = with_tif(with_owner(limit_order(kAliceSession, 9, Side::BUY, 110, 15), 0,
                                            StpMode::CancelBoth), TimeInForce::FOK);
@@ -310,15 +310,15 @@ TEST_CASE(arena_matching, fok_precheck_skips_or_stops_at_self_matches) {
     }
 }
 
-TEST_CASE(arena_matching, stp_modes_follow_the_aggressor) {
-    auto book_with_own_head = [](ArenaEngineFixture& fixture) {
+TEST_CASE(engine_matching, stp_modes_follow_the_aggressor) {
+    auto book_with_own_head = [](EngineFixture& fixture) {
         // Resting own order carries a different STP mode: it must be ignored.
         fixture.apply(with_owner(limit_order(kBobSession, 1, Side::SELL, 100, 3), kBobFirm));
         fixture.apply(with_owner(limit_order(kAliceSession, 1, Side::SELL, 100, 4), kAliceFirm, StpMode::None));
         fixture.apply(with_owner(limit_order(kBobSession, 2, Side::SELL, 110, 5), kBobFirm));
     };
     {
-        ArenaEngineFixture fixture;
+        EngineFixture fixture;
         book_with_own_head(fixture);
         fixture.apply(with_owner(limit_order(kAliceSession, 9, Side::BUY, 110, 6), kAliceFirm,
                                  StpMode::CancelResting));
@@ -337,7 +337,7 @@ TEST_CASE(arena_matching, stp_modes_follow_the_aggressor) {
         check_book_invariants(fixture.engine);
     }
     {
-        ArenaEngineFixture fixture;
+        EngineFixture fixture;
         book_with_own_head(fixture);
         fixture.apply(with_owner(limit_order(kAliceSession, 9, Side::BUY, 110, 6), kAliceFirm,
                                  StpMode::CancelAggressor));
@@ -352,7 +352,7 @@ TEST_CASE(arena_matching, stp_modes_follow_the_aggressor) {
         CHECK(!fixture.engine.best_bid(1).has_value());
     }
     {
-        ArenaEngineFixture fixture;
+        EngineFixture fixture;
         book_with_own_head(fixture);
         fixture.apply(with_owner(limit_order(kAliceSession, 9, Side::BUY, 110, 6), kAliceFirm,
                                  StpMode::CancelBoth));
@@ -367,7 +367,7 @@ TEST_CASE(arena_matching, stp_modes_follow_the_aggressor) {
     }
     {
         // STP None: same owner trades.
-        ArenaEngineFixture fixture;
+        EngineFixture fixture;
         book_with_own_head(fixture);
         fixture.apply(with_owner(limit_order(kAliceSession, 9, Side::BUY, 100, 7), kAliceFirm, StpMode::None));
         REQUIRE_EQ(fixture.events.size(), std::size_t{3});
@@ -377,8 +377,8 @@ TEST_CASE(arena_matching, stp_modes_follow_the_aggressor) {
     }
 }
 
-TEST_CASE(arena_matching, limit_remainder_rests_behind_existing_orders) {
-    ArenaEngineFixture fixture;
+TEST_CASE(engine_matching, limit_remainder_rests_behind_existing_orders) {
+    EngineFixture fixture;
     fixture.apply(limit_order(kBobSession, 1, Side::BUY, 100, 5));
     fixture.apply(limit_order(kBobSession, 2, Side::SELL, 110, 5));
     fixture.apply(limit_order(kAliceSession, 1, Side::BUY, 110, 8));
@@ -397,8 +397,8 @@ TEST_CASE(arena_matching, limit_remainder_rests_behind_existing_orders) {
     check_book_invariants(fixture.engine);
 }
 
-TEST_CASE(arena_matching, aggressive_order_can_empty_many_levels) {
-    ArenaEngineFixture fixture;
+TEST_CASE(engine_matching, aggressive_order_can_empty_many_levels) {
+    EngineFixture fixture;
     for (ClOrdId token = 1; token <= 20; ++token) {
         fixture.apply(limit_order(kBobSession, token, Side::SELL, static_cast<Price>(10 * token), 2));
     }

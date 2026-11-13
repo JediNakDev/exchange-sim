@@ -15,18 +15,18 @@
 //     InsufficientOutput with output and engine untouched; the retry with a
 //     roomy buffer must then produce exactly the events of the twin engine.
 
-#include <test/exsim/engine/arena_test_support.hpp>
+#include <test/exsim/engine/engine_fixture.hpp>
 
 #include <algorithm>
 #include <map>
 #include <random>
 
-using namespace arena_test;
+using namespace engine_fixture;
 
 namespace {
 
 constexpr std::size_t kInstrumentCount = 2;
-constexpr std::size_t kMaxLiveOrders = 24;  // small so the arena fills and reuses slots
+constexpr std::size_t kMaxLiveOrders = 24;  // small so the order pool fills and reuses slots
 const SessionId kRandomSessions[] = {kAliceSession, kBobSession, kCarolSession};
 const OwnerId kRandomOwners[] = {0, kAliceFirm, kBobFirm};
 
@@ -206,8 +206,8 @@ struct ConservationLedger {
 
 void run_randomized_invariant_sweep(std::uint64_t seed, int step_count) {
     const EngineConfig config{4, kMaxLiveOrders};
-    ArenaEngineFixture fixture(Phase::Continuous, kInstrumentCount, config);
-    ArenaEngineFixture twin(Phase::Continuous, kInstrumentCount, config);
+    EngineFixture fixture(Phase::Continuous, kInstrumentCount, config);
+    EngineFixture twin(Phase::Continuous, kInstrumentCount, config);
     RandomCommandSource source(seed);
     ConservationLedger ledger;
     const Event marker{EventType::PhaseChanged, 0, 777, {.phase_changed = {Phase::Closed, Phase::Closed}}};
@@ -266,14 +266,14 @@ void run_randomized_invariant_sweep(std::uint64_t seed, int step_count) {
 
 }  // namespace
 
-TEST_CASE(arena_randomized, invariants_hold_after_every_command_seed_1) {
+TEST_CASE(engine_randomized, invariants_hold_after_every_command_seed_1) {
     run_randomized_invariant_sweep(1, 6000);
 }
 
-TEST_CASE(arena_randomized, invariants_hold_after_every_command_seed_20261103) {
+TEST_CASE(engine_randomized, invariants_hold_after_every_command_seed_20261103) {
     run_randomized_invariant_sweep(20261103, 6000);
 }
 
-TEST_CASE(arena_randomized, invariants_hold_after_every_command_seed_deadbeef) {
+TEST_CASE(engine_randomized, invariants_hold_after_every_command_seed_deadbeef) {
     run_randomized_invariant_sweep(0xdeadbeefULL, 6000);
 }

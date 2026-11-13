@@ -1,7 +1,7 @@
-#ifndef TESTS_EXSIM_ENGINE_ARENA_TEST_SUPPORT_HPP
-#define TESTS_EXSIM_ENGINE_ARENA_TEST_SUPPORT_HPP
+#ifndef TESTS_EXSIM_ENGINE_ENGINE_FIXTURE_HPP
+#define TESTS_EXSIM_ENGINE_ENGINE_FIXTURE_HPP
 
-// Shared helpers for the arena_* engine tests. Everything here goes through
+// Shared helpers for the engine tests built on EngineFixture. Everything here goes through
 // the public MatchingEngine API only.
 
 #include <test/framework/test.hpp>
@@ -11,7 +11,7 @@
 #include <cstdint>
 #include <vector>
 
-namespace arena_test {
+namespace engine_fixture {
 
 using namespace exsim;
 
@@ -38,12 +38,12 @@ inline InstrumentConfig small_instrument_config(const char* symbol, Phase initia
 
 // One engine plus an output buffer sized by required_event_capacity. Every
 // apply() must be Applied; the events of the last command stay in `events`.
-struct ArenaEngineFixture {
+struct EngineFixture {
     EngineConfig engine_config;
     MatchingEngine engine;
     EventBuffer events;
 
-    explicit ArenaEngineFixture(Phase initial_phase = Phase::Continuous, std::size_t instrument_count = 1,
+    explicit EngineFixture(Phase initial_phase = Phase::Continuous, std::size_t instrument_count = 1,
                                 EngineConfig config = EngineConfig{4, 64})
         : engine_config(config), engine(config), events(required_event_capacity(config)) {
         static const char* const kSymbols[] = {"AAA", "BBB", "CCC", "DDD"};
@@ -305,6 +305,6 @@ inline void check_book_invariants(const MatchingEngine& engine) {
     }
 }
 
-}  // namespace arena_test
+}  // namespace engine_fixture
 
 #endif

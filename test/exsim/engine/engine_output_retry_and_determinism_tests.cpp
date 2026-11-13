@@ -1,6 +1,6 @@
-#include "vector_test_support.hpp"
+#include "engine_harness.hpp"
 #include <random>
-using namespace vector_engine_test;
+using namespace engine_harness;
 
 // Explicit active-field encoding: no union bytes, padding, or object hashing.
 static std::vector<std::uint64_t> fields(const EventBuffer& out) {
@@ -51,7 +51,7 @@ static void invariants(const MatchingEngine& e) {
     CHECK_EQ(depth_count,count);
 }
 
-TEST_CASE(vector_output, nonempty_insufficient_output_retry_all_commands) {
+TEST_CASE(engine_output, nonempty_insufficient_output_retry_all_commands) {
     // Each operation is retried on the same engine, compared against an untouched twin.
     for(unsigned kind=0;kind<6;++kind) {
         MatchingEngine a({2,16}),b({2,16});
@@ -85,7 +85,7 @@ TEST_CASE(vector_output, nonempty_insufficient_output_retry_all_commands) {
     }
 }
 
-TEST_CASE(vector_invariants, randomized_commands_and_deterministic_active_fields) {
+TEST_CASE(engine_invariants, randomized_commands_and_deterministic_active_fields) {
     MatchingEngine a({2,32}),b({2,32});
     for(const char* symbol:{"A","B"}) { auto c=standard_instrument_config(symbol); REQUIRE(a.add_instrument(c)!=0); REQUIRE(b.add_instrument(c)!=0); }
     EventBuffer x(128),y(128); std::mt19937 rng(7319);

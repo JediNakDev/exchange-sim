@@ -1,13 +1,13 @@
-#include "vector_test_support.hpp"
+#include "engine_harness.hpp"
 #include <random>
-using namespace vector_engine_test;
+using namespace engine_harness;
 
 static void apply(MatchingEngine& e, const Command& c, EventBuffer& out) {
     out.clear();
     REQUIRE(e.handle(c, out) == HandleResult::Applied);
 }
 
-TEST_CASE(vector_cancel, reductions_preserve_fifo_every_phase) {
+TEST_CASE(engine_cancel, reductions_preserve_fifo_every_phase) {
     for (Phase phase : {Phase::Continuous, Phase::PreOpen, Phase::PreClose, Phase::Halted, Phase::Closed}) {
         Harness h;
         auto order = h.limit(1,1,Side::BUY,1000,100); order.tif = TimeInForce::GTC;
@@ -33,7 +33,7 @@ TEST_CASE(vector_cancel, reductions_preserve_fifo_every_phase) {
     }
 }
 
-TEST_CASE(vector_replace, retention_loss_tokens_and_cumulative_quantity) {
+TEST_CASE(engine_replace, retention_loss_tokens_and_cumulative_quantity) {
     Harness h;
     h.rest(1,1,Side::BUY,1000,100); h.rest(1,2,Side::BUY,1000,100);
     h.send(h.limit(2,1,Side::SELL,1000,30));
@@ -55,7 +55,7 @@ TEST_CASE(vector_replace, retention_loss_tokens_and_cumulative_quantity) {
     check_canceled(h.event(0),4,4,0,Side::BUY,1000,50,30,CancelReason::UserRequested,true);
 }
 
-TEST_CASE(vector_replace, validation_order_and_crossing) {
+TEST_CASE(engine_replace, validation_order_and_crossing) {
     Harness h;
     h.replace(1,1,kMaxClOrdId+1,3,0);
     check_rejected(h.event(0),CommandType::Replace,RejectReason::UnknownOrder,1,kMaxClOrdId+1,1,0,0);
@@ -74,7 +74,7 @@ TEST_CASE(vector_replace, validation_order_and_crossing) {
     check_rejected(h.event(0),CommandType::Cancel,RejectReason::UnknownOrder,1,77,99,0,0);
 }
 
-TEST_CASE(vector_mass, ordered_after_replacements_and_filtered) {
+TEST_CASE(engine_mass_cancel, ordered_after_replacements_and_filtered) {
     Harness h;
     h.rest(1,1,Side::BUY,1000,1); h.rest(2,1,Side::BUY,1000,1); h.rest(1,2,Side::BUY,900,1);
     h.replace(1,1,3,800,1);
@@ -87,7 +87,7 @@ TEST_CASE(vector_mass, ordered_after_replacements_and_filtered) {
     CHECK_EQ(h.engine().live_order_count(),1u);
 }
 
-TEST_CASE(vector_auction, halted_cross_summary_ids_and_expiration) {
+TEST_CASE(engine_auction, halted_cross_summary_ids_and_expiration) {
     for (Phase target : {Phase::Continuous,Phase::Closed}) {
         Harness h(Phase::PreOpen);
         h.rest(1,1,Side::BUY,1200,15); h.rest(1,2,Side::SELL,1000,10);
@@ -112,7 +112,7 @@ TEST_CASE(vector_auction, halted_cross_summary_ids_and_expiration) {
     }
 }
 
-TEST_CASE(vector_auction, tie_breaks_and_large_volume) {
+TEST_CASE(engine_auction, tie_breaks_and_large_volume) {
     // Symmetric volume and imbalance: nearest reference, then lower price.
     for (Price ref : {Price{1000},Price{1100},Price{1200}}) {
         MatchingEngine e({1,8}); auto cfg=standard_instrument_config("A",Phase::PreClose);
@@ -129,7 +129,7 @@ TEST_CASE(vector_auction, tie_breaks_and_large_volume) {
     }
 }
 
-TEST_CASE(vector_auction, volume_then_imbalance_precede_reference) {
+TEST_CASE(engine_auction, volume_then_imbalance_precede_reference) {
     Harness h(Phase::PreOpen);
     h.rest(1,1,Side::BUY,1300,10); h.rest(1,2,Side::BUY,1100,20);
     h.rest(1,3,Side::SELL,1000,15); h.rest(1,4,Side::SELL,1200,20);
@@ -139,7 +139,7 @@ TEST_CASE(vector_auction, volume_then_imbalance_precede_reference) {
     CHECK(h.engine().best_bid(1).value()<h.engine().best_ask(1).value());
 }
 
-TEST_CASE(vector_queries, one_sided_indicative_and_empty_phase_batches) {
+TEST_CASE(engine_queries, one_sided_indicative_and_empty_phase_batches) {
     Harness h;
     h.rest(1,1,Side::BUY,1000,42);
     auto i=h.engine().auction_indicative(1);
@@ -154,7 +154,7 @@ TEST_CASE(vector_queries, one_sided_indicative_and_empty_phase_batches) {
     REQUIRE_EQ(out.size(),2u); CHECK_EQ(out[0].instrument,1u); CHECK_EQ(out[1].instrument,2u);
 }
 
-TEST_CASE(vector_ladder, deep_search_shifts_and_fifo_deletion) {
+TEST_CASE(engine_ladder, deep_search_shifts_and_fifo_deletion) {
     Harness h(Phase::Continuous,256);
     for(ClOrdId t=1;t<=100;++t) h.rest(1,t,Side::BUY,static_cast<Price>(t*100),1);
     h.rest(1,101,Side::BUY,100,2);
@@ -168,7 +168,7 @@ TEST_CASE(vector_ladder, deep_search_shifts_and_fifo_deletion) {
     h.send(h.market(2,1,Side::SELL,98)); CHECK_EQ(h.engine().live_order_count(),0u);
 }
 
-TEST_CASE(vector_output, bounds_cover_worst_case_sweep_mass_cancel_and_phase) {
+TEST_CASE(engine_output, bounds_cover_worst_case_sweep_mass_cancel_and_phase) {
     for(unsigned kind=0;kind<3;++kind) {
         MatchingEngine e({2,8}); auto cfg=standard_instrument_config("A",Phase::PreOpen);
         REQUIRE_EQ(e.add_instrument(cfg),1u); cfg.symbol=Symbol("B"); REQUIRE_EQ(e.add_instrument(cfg),2u);
@@ -195,7 +195,7 @@ TEST_CASE(vector_output, bounds_cover_worst_case_sweep_mass_cancel_and_phase) {
     }
 }
 
-TEST_CASE(vector_replace, post_only_and_closed_reject_before_cancel) {
+TEST_CASE(engine_replace, post_only_and_closed_reject_before_cancel) {
     Harness h;
     auto n=h.limit(1,1,Side::BUY,1000,10); n.post_only=true; n.tif=TimeInForce::GTC; h.send(n);
     h.rest(2,1,Side::SELL,2000,1);
@@ -206,7 +206,7 @@ TEST_CASE(vector_replace, post_only_and_closed_reject_before_cancel) {
     h.cancel(1,1,99); CHECK_EQ(h.event(0).canceled.request_cl_ord_id,99u);
 }
 
-TEST_CASE(vector_auction, minimum_imbalance_wins_before_reference_distance) {
+TEST_CASE(engine_auction, minimum_imbalance_wins_before_reference_distance) {
     MatchingEngine e({1,8}); auto cfg=standard_instrument_config("A",Phase::PreOpen); cfg.reference_price=1000;
     REQUIRE_EQ(e.add_instrument(cfg),1u); EventBuffer out(32);
     NewOrder c{1,1,1,0,1,Side::BUY,OrdType::Limit,TimeInForce::Day,StpMode::None,false,1000,10};
@@ -219,7 +219,7 @@ TEST_CASE(vector_auction, minimum_imbalance_wins_before_reference_distance) {
     CHECK_EQ(out[2].auction_summary.price,1100);
 }
 
-TEST_CASE(vector_cancel, reductions_ignore_lot_grid_and_do_not_increase) {
+TEST_CASE(engine_cancel, reductions_ignore_lot_grid_and_do_not_increase) {
     MatchingEngine e({1,8}); auto cfg=standard_instrument_config(); cfg.lot_size=10;
     REQUIRE_EQ(e.add_instrument(cfg),1u); EventBuffer out(32);
     NewOrder c{1,1,1,0,1,Side::BUY,OrdType::Limit,TimeInForce::Day,StpMode::None,false,1000,100}; apply(e,c,out);
@@ -229,7 +229,7 @@ TEST_CASE(vector_cancel, reductions_ignore_lot_grid_and_do_not_increase) {
     CHECK_EQ(e.find_order(OrderId{1})->qty,53u);
 }
 
-TEST_CASE(vector_instrument, canonical_config_validation) {
+TEST_CASE(engine_instrument, canonical_config_validation) {
     MatchingEngine e({1,4});
     for(unsigned k=0;k<5;++k) {
         auto c=standard_instrument_config();

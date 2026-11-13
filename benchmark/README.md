@@ -40,7 +40,7 @@ CPU affinity is attempted. Linux can pin a thread to a CPU. macOS uses an affini
 ```sh
 make -j4 itch-replay
 ./build/perf/itch_replay --synth 100000 --validate
-make -j4 exchange-test
+make -j4 unit FILTER=itch_replay
 ```
 
 Replay drives the standalone order book. Validation compares it with a reference book. It does not test TCP gateways or the management API.
