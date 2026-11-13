@@ -9,7 +9,7 @@ namespace bench {
 // Low-overhead cycle counter for tight measurement loops.
 // On x86_64: uses rdtsc (CPU timestamp counter).
 // On ARM64: uses CNTVCT_EL0 (virtual timer count register).
-// Results are in cycles/ticks, not nanoseconds — use calibrate_ticks_per_ns()
+// Results are in cycles/ticks, not nanoseconds; use calibrate_ticks_per_ns()
 // to convert if needed.
 
 inline uint64_t read_cycle_counter() noexcept {

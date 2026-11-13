@@ -9,7 +9,7 @@
 using namespace bench;
 
 // Realistic exchange workload: 93% cancel, 5% add, 2% modify.
-// Real exchange traffic is dominated by cancellations — most orders are
+// Real exchange traffic is dominated by cancellations: most orders are
 // cancelled before execution. This benchmark reflects that pattern.
 static void BM_CancelHeavyWorkload(benchmark::State& state) {
     warmup();
@@ -46,7 +46,7 @@ static void BM_CancelHeavyWorkload(benchmark::State& state) {
                     }
                 }
             } else if (op < 98) {
-                // 5% add — replenish the book
+                // 5% add: replenish the book
                 const auto& order = w.get(idx + i);
                 auto result = book.add_order(order.price, order.quantity, order.side);
                 benchmark::DoNotOptimize(result);

@@ -1,4 +1,4 @@
-// itch_replay — replay a NASDAQ ITCH 5.0 binary file through the
+// itch_replay: replay a NASDAQ ITCH 5.0 binary file through the
 // production OrderBook and report throughput + final book state.
 //
 // Usage:
