@@ -130,7 +130,7 @@ TEST_CASE(server_core_journal, replay_reproduces_every_dispatched_event) {
         }
         if (now == kSecond + 500 * kMillisecond) {
             std::string reply;
-            h.core.execute_line("phase MSFT continuous", reply);
+            CoreAdmin(h.core).execute_line("phase MSFT continuous", reply);
             REQUIRE(ends_with_ok(reply));
         }
         if (now == kSecond + 700 * kMillisecond) {
@@ -230,7 +230,7 @@ TEST_CASE(server_core_journal, failed_flush_with_shutdown_policy_closes_the_exch
     CHECK_EQ(h.recorder.sessions_shutdown_calls, 1u);
     CHECK(!h.core.flush_journal());  // failure is latched
     std::string reply;
-    h.core.execute_line("status", reply);
+    CoreAdmin(h.core).execute_line("status", reply);
     CHECK(contains(reply, "journal state=failed path=" + journal.path + " records=3 failures=1 on_failure=shutdown\n"));
 }
 

@@ -6,7 +6,13 @@
 #include "server/config.hpp"
 #include "server/core/policies.hpp"
 
+#include <cstdint>
+#include <memory>
 #include <optional>
+#include <span>
+#include <string_view>
+#include <unordered_map>
+#include <vector>
 
 namespace exsim::gateway::ilink {
 namespace wire = protocol::ilink3;
@@ -22,22 +28,33 @@ struct OrderMetadata {
     Quantity quantity = 0;
     Side side = Side::BUY;
     std::uint8_t tif = 0, manual = 0, liquidity = UINT8_MAX;
+    // The text before the first NUL of a zero-padded field.
     [[nodiscard]] static std::string_view text(std::span<const char> bytes) noexcept {
-        std::size_t size = 0; while (size < bytes.size() && bytes[size]) ++size;
-        return {bytes.data(), size};
+        const std::string_view padded(bytes.data(), bytes.size());
+        return padded.substr(0, padded.find('\0'));
     }
 };
 
+// CME SecurityID(48) -> engine InstrumentId, built once at startup.
+using InstrumentBySecurityId = std::unordered_map<std::int32_t, InstrumentId>;
+
 template<class Sink> class IlinkUser {
 public:
-    IlinkUser(const server::UserConfig& configuration, const server::EngineSection& limits)
-        : config(configuration), store(limits.store_messages_per_session, limits.store_bytes_per_session),
+    IlinkUser(const server::UserConfig& configuration, const server::EngineSection& limits,
+              const InstrumentBySecurityId& instrument_by_security_id)
+        : config(configuration),
+          store(limits.store_messages_per_session, limits.store_bytes_per_session),
           previous_store(limits.store_messages_per_session, limits.store_bytes_per_session),
-          tokens_(limits.max_tokens_per_session), requests_(limits.max_tokens_per_session),
+          tokens_(limits.max_tokens_per_session),
+          requests_(limits.max_tokens_per_session),
           metadata_(std::make_unique<OrderMetadata[]>(std::size_t{limits.max_tokens_per_session} + 1)),
-          affected_(limits.engine.max_orders) {
-        if (!wire::decode_secret(configuration.ilink_secret_key, key)) throw std::invalid_argument("invalid iLink HMAC key");
+          affected_(limits.engine.max_orders),
+          instrument_by_security_id_(instrument_by_security_id) {
+        if (!wire::decode_secret(configuration.ilink_secret_key, key)) {
+            throw std::invalid_argument("invalid iLink HMAC key");
+        }
     }
+    [[nodiscard]] SessionId session_id() const noexcept { return config.session_id; }
     void negotiate(std::uint64_t next_uuid) noexcept {
         previous_uuid = uuid;
         std::swap(store, previous_store); store.clear();
@@ -53,8 +70,11 @@ public:
             default: business_reject("unsupported application template", 0, core); break;
         }
     }
-    template<class Core> void on_events(std::span<const Event> events, Core& core) noexcept {
-        for (const auto& event : events) {
+    // Reports the events that concern this session, in the order given
+    // (batch order); `events` may be a whole batch or only this session's.
+    template <class Events, class Core>
+    void on_events(const Events& events, Core& core) noexcept {
+        for (const Event& event : events) {
             switch (event.type) {
                 case EventType::Accepted:
                     if (event.accepted.session == config.session_id) {
@@ -272,15 +292,15 @@ private:
         if constexpr (requires { M::LiquidityFlag; }) out.liquidity = wire::get(message, M::LiquidityFlag);
         return true;
     }
-    template<class Core> InstrumentId instrument_id(std::int32_t security, const Core& core) const noexcept {
-        const auto& instruments = core.config().instruments;
-        for (std::size_t i = 0; i < instruments.size(); ++i) if (instruments[i].cme_security_id == security) return static_cast<InstrumentId>(i + 1);
-        return 0;
+    // 0: no instrument has this SecurityID.
+    [[nodiscard]] InstrumentId instrument_id(std::int32_t security) const noexcept {
+        const auto found = instrument_by_security_id_.find(security);
+        return found == instrument_by_security_id_.end() ? InstrumentId{0} : found->second;
     }
     template<class M, class Core> bool order_fields(const protocol::cme::MessageView& message, OrderMetadata& out, Core& core) noexcept {
         const auto client = wire::get(message, M::ClOrdID);
         const auto side = wire::get(message, M::Side), tif = wire::get(message, M::TimeInForce);
-        out.instrument = instrument_id(wire::get(message, M::SecurityID), core);
+        out.instrument = instrument_id(wire::get(message, M::SecurityID));
         const auto optional_qty = [](std::uint32_t value) { return value == 0 || value == UINT32_MAX; };
         bool valid = out.instrument && wire::valid_text(message, M::ClOrdID) && (side == 1 || side == 2) &&
             (tif == 0 || tif == 3) && wire::get(message, M::OrdType) == '2' &&
@@ -338,7 +358,7 @@ private:
         const auto client = wire::get(message, M::ClOrdID);
         pending_.client.fill(0); std::copy(client.begin(), client.end(), pending_.client.begin());
         if (!wire::valid_text(message, M::ClOrdID) || !order || wire::get(message, M::Side) != (order->side == Side::BUY ? 1 : 2) ||
-            instrument_id(wire::get(message, M::SecurityID), core) != order->instrument || !wire::get(message, M::OrigOrderUser).empty()) {
+            instrument_id(wire::get(message, M::SecurityID)) != order->instrument || !wire::get(message, M::OrigOrderUser).empty()) {
             reject_request<schema::OrderCancelReject535>("unknown order or mismatched instrument/side", core.now(), core); return;
         }
         CancelOrder cancel; cancel.session = config.session_id; cancel.orig_cl_ord_id = order->cl_ord_id; cancel.cl_ord_id = order->cl_ord_id;
@@ -378,7 +398,7 @@ private:
             !wire::get(message, M::OrigOrderUser).empty() || !wire::get(message, M::SecurityGroup).empty()) {
             business_reject("unsupported mass cancel scope or filter", value.request, core); return;
         }
-        if (scope == 1) value.instrument = instrument_id(wire::get(message, M::SecurityID), core);
+        if (scope == 1) value.instrument = instrument_id(wire::get(message, M::SecurityID));
         if (scope == 1 && !value.instrument) { business_reject("unknown instrument", value.request, core); return; }
         pending_ = value; pending_scope_ = scope; pending_command_ = CommandType::MassCancel;
         affected_count_ = 0;
@@ -396,24 +416,44 @@ private:
     std::uint8_t pending_scope_ = 7;
     bool request_failed_ = false;
     std::uint16_t last_template_ = 514;
+    const InstrumentBySecurityId& instrument_by_security_id_;
 };
 
-template<class Sink> class IlinkUsers {
+// Every iLink 3 user of the day. The server's session table
+// (GatewaySessions) routes dispatch to them; credentials() serves logins.
+template <class Sink>
+class IlinkUsers {
 public:
     explicit IlinkUsers(const server::ServerConfig& config) {
-        for (const auto& user : config.users) if (user.protocol == server::Protocol::Ilink3)
-            users_.push_back(std::make_unique<IlinkUser<Sink>>(user, config.engine));
+        for (std::size_t index = 0; index < config.instruments.size(); ++index) {
+            const auto instrument = static_cast<InstrumentId>(index + 1);
+            instrument_by_security_id_.try_emplace(config.instruments[index].cme_security_id, instrument);
+        }
+        for (const auto& user : config.users) {
+            if (user.protocol != server::Protocol::Ilink3) continue;
+            users_.push_back(std::make_unique<IlinkUser<Sink>>(user, config.engine, instrument_by_security_id_));
+        }
     }
-    IlinkUser<Sink>* find(SessionId id) noexcept {
-        for (auto& user : users_) if (user->config.session_id == id) return user.get();
-        return nullptr;
-    }
+
+    // Users keep a reference to the SecurityID table: keep the directory in place.
+    IlinkUsers(const IlinkUsers&) = delete;
+    IlinkUsers& operator=(const IlinkUsers&) = delete;
+
+    [[nodiscard]] std::span<const std::unique_ptr<IlinkUser<Sink>>> users() const noexcept { return users_; }
+
+    // Linear in the iLink users: Negotiate/Establish path only.
     IlinkUser<Sink>* credentials(std::string_view access, std::string_view session, std::string_view firm) noexcept {
-        for (auto& user : users_)
-            if (user->config.ilink_access_key == access && user->config.ilink_session == session && user->config.ilink_firm == firm) return user.get();
+        for (const auto& user : users_) {
+            const server::UserConfig& config = user->config;
+            if (config.ilink_access_key == access && config.ilink_session == session && config.ilink_firm == firm) {
+                return user.get();
+            }
+        }
         return nullptr;
     }
+
 private:
+    InstrumentBySecurityId instrument_by_security_id_;
     std::vector<std::unique_ptr<IlinkUser<Sink>>> users_;
 };
 }  // namespace exsim::gateway::ilink

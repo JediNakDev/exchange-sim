@@ -1,31 +1,31 @@
 #ifndef EXSIM_SERVER_EXCHANGE_CORE_HPP
 #define EXSIM_SERVER_EXCHANGE_CORE_HPP
 
-// Protocol-independent exchange core of the exsim server (server contract,
-// exchange core). It owns the matching engine, the startup-sized
-// EventBuffer, the configured users and their session bindings, the
-// optional canonical journal and the admin
-// and fault-injection state, and it is the gateway Context of SERVER.md 2.1.
+// Protocol-independent exchange core of the exsim server. It owns the
+// matching engine, the startup-sized EventBuffer, the configured users and
+// their session bindings and fault state, and the optional canonical
+// journal, and it is the Context every order-entry gateway calls.
 //
 //   ExchangeCore<Sessions, MarketData, Clock> core(config, sessions, md, clock);
 //
 // Sessions, MarketData and Clock are policies supplied by the server
 // integrator (contracts in server/core/policies.hpp); the core holds
-// references to them and calls them without virtual dispatch.
+// references to them and calls them without virtual dispatch. `config`
+// must outlive the core: authenticate() returns pointers into it.
+// Admin commands (status, phase, book, faults, shutdown) run through
+// CoreAdmin (server/core_admin.hpp).
 //
 // Threading: everything here runs on the single server thread.
 // Hot path (submit, dispatch, timer, fault queries, bind/unbind): no heap
-// allocation, no exceptions, no std::string. Construction and admin
-// execution are setup/operator paths and may allocate or throw.
+// allocation, no exceptions, no std::string. Construction is a setup path
+// and may allocate or throw.
 
 #include "command.hpp"
 #include "event.hpp"
 #include "instrument.hpp"
 #include "matching_engine.hpp"
 #include "md/publisher.hpp"
-#include "server/admin.hpp"
 #include "server/config.hpp"
-#include "server/core/admin_text.hpp"
 #include "server/core/deferred_command_queue.hpp"
 #include "server/core/policies.hpp"
 #include "server/core/session_dispatch_set.hpp"
@@ -89,8 +89,11 @@ enum class JournalState : std::uint8_t { Disabled = 0, Healthy = 1, Failed = 2 }
 
 // Deferred-queue slots for ordinary commands are users + kDeferredCommandSlack.
 // A further one slot per user is reserved for the cancel-on-disconnect
-// MassCancel of unbind, so it is never refused (EXCHANGE_CORE.md section 5).
+// MassCancel of unbind, so it is never refused.
 inline constexpr std::size_t kDeferredCommandSlack = 64;
+
+template <class Core>
+class CoreAdmin;
 
 template <typename Sessions, typename MarketData, CoreClock Clock, typename Journal = sim::JournalWriter>
     requires CoreMarketData<MarketData>
@@ -106,12 +109,15 @@ public:
           events_(options.event_buffer_capacity != 0 ? options.event_buffer_capacity
                                                      : required_event_capacity(config.engine.engine)),
           user_index_by_session_(std::make_unique<std::uint16_t[]>(std::size_t{1} << 16)),
+          dispatch_set_(events_.capacity()),
+          phase_change_by_instrument_(
+              std::make_unique<BatchPhaseChange[]>(std::size_t{config.engine.engine.max_instruments} + 1)),
           deferred_(2 * config.users.size() + kDeferredCommandSlack),
           day_start_(config.exchange.trading_day_start_ns),
           day_end_(config.exchange.trading_day_end_ns),
           journal_flush_interval_ns_(Timestamp{config.journal_flush_interval_ms} * 1'000'000) {
         static_assert(CoreSessions<Sessions, ExchangeCore>,
-                      "Sessions needs on_events(SessionId, std::span<const Event>, Core&)");
+                      "Sessions needs on_events(SessionId, const SessionEvents&, Core&)");
         if (day_start_ >= day_end_ || day_end_ > kNanosecondsPerDay) {
             throw std::invalid_argument("trading day range");
         }
@@ -148,7 +154,7 @@ public:
     ExchangeCore(ExchangeCore&&) = delete;
     ExchangeCore& operator=(ExchangeCore&&) = delete;
 
-    // ---- Gateway Context (SERVER.md 2.1) ------------------------------------
+    // ---- Gateway Context ------------------------------------------------------
 
     // nullptr: unknown user, wrong protocol, wrong password (an empty
     // configured password accepts any).
@@ -216,10 +222,10 @@ public:
 
     [[nodiscard]] const InstrumentConfig* instrument(InstrumentId id) const noexcept { return engine_.instrument(id); }
 
-    // SERVER.md section 1, steps 1-5. When it returns Applied, every event of
-    // the command (and of any command deferred meanwhile) has reached the
-    // sessions and market data. Nothing else is applied, journaled or
-    // dispatched.
+    // Stamps, applies, journals and dispatches the command. When it returns
+    // Applied, every event of the command (and of any command deferred
+    // meanwhile) has reached the sessions and market data. Nothing else is
+    // applied, journaled or dispatched.
     SubmitResult submit(const Command& command) noexcept {
         return submit_or_defer(command, deferred_.capacity() - users_.size());
     }
@@ -335,62 +341,6 @@ public:
         return user == nullptr ? nullptr : &user->faults;
     }
 
-    // ---- Admin (operator path, allocates) -------------------------------------
-
-    void execute_line(std::string_view line, std::string& reply) {
-        AdminCommand command;
-        std::string error;
-        if (!parse_admin(line, command, error)) {
-            append_error(reply, error);
-            return;
-        }
-        execute(command, reply);
-    }
-
-    // Appends the reply lines, ending with "OK" or "ERR <message>".
-    void execute(const AdminCommand& command, std::string& reply) {
-        switch (command.op) {
-            case AdminOp::Help:
-                reply.append(admin_help());
-                append_ok(reply);
-                return;
-            case AdminOp::Status: append_status(reply); return;
-            case AdminOp::Phase: execute_phase(command, reply); return;
-            case AdminOp::Book: {
-                const InstrumentId id = admin_instrument(command.symbol);
-                if (id == 0) {
-                    append_error(reply, "unknown instrument " + command.symbol);
-                    return;
-                }
-                append_book(reply, engine_, id, command.count);
-                return;
-            }
-            case AdminOp::FaultMdDrop:
-            case AdminOp::FaultMdDup:
-            case AdminOp::FaultMdReorder:
-            case AdminOp::FaultMdRate:
-            case AdminOp::FaultMdOff: execute_market_data_fault(command, reply); return;
-            case AdminOp::FaultUserReject:
-            case AdminOp::FaultUserDelay:
-            case AdminOp::FaultUserDropOut:
-            case AdminOp::FaultUserDisconnect:
-            case AdminOp::FaultUserOff: execute_user_fault(command, reply); return;
-            case AdminOp::Shutdown:
-                if (shutdown_) {
-                    append_line(reply, "already shut down");
-                } else {
-                    shutdown();
-                    append_line(reply, shutdown_close_result_ == SubmitResult::Applied
-                                           ? "all instruments closed"
-                                           : "SetPhase Closed not applied: " +
-                                                 std::string(to_string(shutdown_close_result_)));
-                }
-                append_ok(reply);
-                return;
-        }
-        append_error(reply, "unsupported admin command");
-    }
-
     // ---- Lifecycle -------------------------------------------------------------
 
     // End of day: SetPhase Closed for every instrument through the normal
@@ -465,7 +415,27 @@ public:
         return runtime->connection;
     }
     [[nodiscard]] std::size_t bound_connection_count() const noexcept { return bound_connection_count_; }
+
+    // During dispatch: the phase the current batch's PhaseChanged for
+    // `instrument` left; Halted when the batch changes no phase of it. An
+    // uncross Fill (aggressor None) precedes that PhaseChanged in the batch,
+    // so this tells a gateway which call phase the cross ended.
+    [[nodiscard]] Phase phase_left_by_batch(InstrumentId instrument) const noexcept {
+        const BatchPhaseChange& change = phase_change_by_instrument_[instrument];
+        return change.batch_number == counters_.batches_dispatched + 1 ? change.old_phase : Phase::Halted;
+    }
+
 private:
+    template <class Core>
+    friend class CoreAdmin;
+
+    // PhaseChanged of batch `batch_number` (counters_.batches_dispatched + 1
+    // while it is dispatched); older entries are stale.
+    struct BatchPhaseChange {
+        std::uint64_t batch_number = 0;
+        Phase old_phase = Phase::Halted;
+    };
+
     struct UserRuntime {
         const UserConfig* config = nullptr;
         ConnectionId connection = 0;
@@ -480,14 +450,6 @@ private:
     [[nodiscard]] const UserRuntime* user_for_session(SessionId session) const noexcept {
         const std::uint16_t index = user_index_by_session_[session];
         return index == 0 ? nullptr : &users_[index - 1];
-    }
-    [[nodiscard]] UserRuntime* user_for_name(std::string_view username) noexcept {
-        for (UserRuntime& user : users_) {
-            if (user.config->username == username) {
-                return &user;
-            }
-        }
-        return nullptr;
     }
 
     // Step 1: strictly increasing day-relative stamp.
@@ -548,7 +510,7 @@ private:
         }
     }
 
-    // Steps 1-5 for one command at `stamp`.
+    // Applies, journals and dispatches one command at `stamp`.
     SubmitResult apply(Command command, Timestamp stamp) noexcept {
         if (shutdown_) {
             // Nothing trades after the closing batch: refuse instead of
@@ -561,8 +523,8 @@ private:
             return SubmitResult::OutsideTradingDay;
         }
         set_command_timestamp(command, stamp);
-        // Step 2: the previous batch has been dispatched, so drain = clear;
-        // the full capacity is now available to this command.
+        // The previous batch has been dispatched, so drain = clear; the full
+        // capacity is now available to this command.
         events_.clear();
         if (engine_.handle(command, events_) != HandleResult::Applied) {
             // Engine and buffer are unchanged and the buffer is already empty:
@@ -598,21 +560,24 @@ private:
         }
     }
 
-    // Steps 4-5: sessions (once each, first appearance), then
-    // market data on_events + flush.
+    // Sessions first (once each, first appearance order, each with only its
+    // own events), then market data on_events + flush.
     void dispatch_batch() noexcept {
         if (events_.empty()) {
             return;
         }
         const std::span<const Event> batch(events_.begin(), events_.size());
         dispatching_ = true;
+        const std::uint64_t batch_number = counters_.batches_dispatched + 1;
         for (const Event& event : batch) {
-            visit_event_sessions(event, [this](SessionId session) {
-                dispatch_set_.add(session);
-            });
+            if (event.type == EventType::PhaseChanged) {
+                phase_change_by_instrument_[event.instrument] = {batch_number, event.phase_changed.old_phase};
+            }
+            dispatch_set_.count_sessions(event);
         }
-        for (const SessionId session : dispatch_set_.sessions()) {
-            sessions_.on_events(session, batch, *this);
+        dispatch_set_.place_events(batch);
+        for (std::size_t order = 0; order < dispatch_set_.session_count(); ++order) {
+            sessions_.on_events(dispatch_set_.session(order), dispatch_set_.events_of(order, batch), *this);
             ++counters_.session_dispatches;
         }
         dispatch_set_.clear();
@@ -675,213 +640,9 @@ private:
         }
     }
 
-    // ---- admin helpers ------------------------------------------------------------
-
-    [[nodiscard]] InstrumentId admin_instrument(std::string_view symbol) const noexcept {
-        if (symbol.empty() || symbol.size() > Symbol{}.chars.size()) {
-            return 0;
-        }
-        return engine_.find_instrument(Symbol(symbol));
-    }
-
-    void execute_phase(const AdminCommand& command, std::string& reply) {
-        if (shutdown_) {
-            append_error(reply, "exchange is shut down");
-            return;
-        }
-        InstrumentId target = 0;
-        if (command.symbol != "*") {
-            target = admin_instrument(command.symbol);
-            if (target == 0) {
-                append_error(reply, "unknown instrument " + command.symbol);
-                return;
-            }
-        }
-        const std::size_t count = engine_.instrument_count();
-        std::vector<Phase> before(count + 1, Phase::Closed);
-        for (std::size_t id = 1; id <= count; ++id) {
-            before[id] = engine_.phase(static_cast<InstrumentId>(id));
-        }
-        SetPhase set_phase{};
-        set_phase.instrument = target;
-        set_phase.phase = command.phase;
-        const SubmitResult result = submit(Command{set_phase});
-        if (result != SubmitResult::Applied) {
-            append_error(reply, std::string("phase not applied: ") + std::string(to_string(result)));
-            return;
-        }
-        for (std::size_t id = 1; id <= count; ++id) {
-            if (target != 0 && id != target) {
-                continue;
-            }
-            const auto instrument_id = static_cast<InstrumentId>(id);
-            std::string line(engine_.instrument(instrument_id)->symbol.view());
-            line += ' ';
-            line += to_string(before[id]);
-            line += " -> ";
-            line += to_string(engine_.phase(instrument_id));
-            append_line(reply, line);
-        }
-        append_ok(reply);
-    }
-
-    void execute_market_data_fault(const AdminCommand& command, std::string& reply) {
-        if constexpr (MarketDataPacketFaults<MarketData>) {
-            sim::PacketFaultInjector& injector = market_data_.packet_faults();
-            switch (command.op) {
-                case AdminOp::FaultMdDrop: injector.drop_next(command.count); break;
-                case AdminOp::FaultMdDup: injector.duplicate_next(command.count); break;
-                case AdminOp::FaultMdReorder: {
-                    sim::PacketFaultConfig with_delay = injector.config();
-                    with_delay.reorder_delay = command.delay;
-                    injector.configure(with_delay);
-                    injector.reorder_next(command.count);
-                    break;
-                }
-                case AdminOp::FaultMdRate: injector.configure(command.rate); break;
-                case AdminOp::FaultMdOff:
-                    if constexpr (MarketDataPacketFaultReset<MarketData>) {
-                        market_data_.reset_packet_faults();
-                    } else {
-                        injector.configure(sim::PacketFaultConfig{});
-                        if (!injector.idle()) {
-                            append_line(reply, "note: pending one-shot faults or held packets remain "
-                                               "(market data exposes no reset_packet_faults)");
-                        }
-                    }
-                    break;
-                default: break;
-            }
-            append_line(reply, "md faults " + describe_packet_faults(market_data_.packet_faults()));
-            append_ok(reply);
-        } else {
-            (void)command;
-            append_error(reply, "market data exposes no packet fault injector");
-        }
-    }
-
-    void execute_user_fault(const AdminCommand& command, std::string& reply) {
-        UserRuntime* user = user_for_name(command.user);
-        if (user == nullptr) {
-            append_error(reply, "unknown user " + command.user);
-            return;
-        }
-        UserFaultState& faults = user->faults;
-        switch (command.op) {
-            case AdminOp::FaultUserReject: faults.reject_next_new_orders = command.count; break;
-            case AdminOp::FaultUserDelay: faults.inbound_delay_ns = std::uint64_t{command.delay} * 1000; break;
-            case AdminOp::FaultUserDropOut: faults.drop_next_outbound = command.count; break;
-            case AdminOp::FaultUserDisconnect:
-                if (!user->bound) {
-                    append_error(reply, "user " + command.user + " is not connected");
-                    return;
-                }
-                if (!faults.disconnect_requested) {
-                    faults.disconnect_requested = true;
-                    ++disconnect_requests_pending_;
-                }
-                break;
-            case AdminOp::FaultUserOff:
-                clear_disconnect_request(*user);
-                faults = UserFaultState{};
-                break;
-            default: break;
-        }
-        append_line(reply, "user " + command.user + " session=" + std::to_string(user->config->session_id) + " " +
-                               describe_user_faults(faults));
-        append_ok(reply);
-    }
-
-    void append_status(std::string& reply) {
-        append_line(reply, "exchange " + config_.exchange.name + " shutdown=" + (shutdown_ ? "yes" : "no"));
-        append_line(reply, "trading_day start=" + format_day_time(day_start_) + " end=" + format_day_time(day_end_) +
-                               " last_command_ts=" + std::to_string(last_command_ts_));
-        append_line(reply, "connections bound=" + std::to_string(bound_connection_count_) +
-                               " users=" + std::to_string(users_.size()));
-        for (const UserRuntime& user : users_) {
-            std::string line = "user " + user.config->username + " session=" + std::to_string(user.config->session_id) +
-                               " protocol=" + std::string(to_string(user.config->protocol));
-            {
-                line += std::string(" bound=") + (user.bound ? "yes connection=" + std::to_string(user.connection) : "no");
-                line += " " + describe_user_faults(user.faults);
-            }
-            append_line(reply, line);
-        }
-        append_line(reply, "orders live=" + std::to_string(engine_.live_order_count()));
-        for (std::size_t id = 1; id <= engine_.instrument_count(); ++id) {
-            const auto instrument_id = static_cast<InstrumentId>(id);
-            std::string line = "instrument " + std::string(engine_.instrument(instrument_id)->symbol.view()) +
-                               " id=" + std::to_string(id) + " phase=" + std::string(to_string(engine_.phase(instrument_id)));
-            const auto bid = engine_.best_bid(instrument_id);
-            const auto ask = engine_.best_ask(instrument_id);
-            const auto last = engine_.last_trade_price(instrument_id);
-            line += " bid=" + (bid ? format_price(*bid) : std::string("-"));
-            line += " ask=" + (ask ? format_price(*ask) : std::string("-"));
-            line += " last=" + (last ? format_price(*last) : std::string("-"));
-            append_line(reply, line);
-        }
-        if constexpr (MarketDataSequence<MarketData>) {
-            append_line(reply, "md next_sequence=" + std::to_string(std::as_const(market_data_).next_sequence()));
-        } else {
-            append_line(reply, "md next_sequence=unavailable");
-        }
-        if constexpr (MarketDataPacketFaults<MarketData>) {
-            append_line(reply, "md faults " + describe_packet_faults(market_data_.packet_faults()));
-        } else {
-            append_line(reply, "md faults unavailable");
-        }
-        std::string market_data_state_line = "md state=";
-        if constexpr (MarketDataPublisherState<MarketData>) {
-            market_data_state_line += std::string(md_state_text(std::as_const(market_data_).state()));
-            market_data_state_line +=
-                " stop_reason=" + std::string(md_status_text(std::as_const(market_data_).stop_reason()));
-        } else {
-            market_data_state_line += "unavailable";
-        }
-        market_data_state_line += " failed_batches=" + std::to_string(counters_.market_data_failed_batches) +
-                                  " last_failure=" + std::string(md_status_text(counters_.market_data_last_failure));
-        append_line(reply, market_data_state_line);
-        append_line(reply, "journal state=" + std::string(to_string(journal_state())) +
-                               (config_.journal_path.empty() ? std::string() : " path=" + config_.journal_path) +
-                               " records=" + std::to_string(counters_.journal_records) +
-                               " failures=" + std::to_string(counters_.journal_failures) +
-                               " on_failure=" + std::string(to_string(config_.journal_failure_policy)));
-        append_line(reply, "commands applied=" + std::to_string(counters_.commands_applied) +
-                               " outside_trading_day=" + std::to_string(counters_.commands_outside_trading_day) +
-                               " after_shutdown=" + std::to_string(counters_.commands_after_shutdown) +
-                               " output_capacity_failures=" + std::to_string(counters_.output_capacity_failures) +
-                               " deferred=" + std::to_string(counters_.commands_deferred) +
-                               " deferred_overflows=" + std::to_string(counters_.deferred_queue_overflows));
-        append_ok(reply);
-    }
-
-    [[nodiscard]] static std::string_view md_state_text(md::PublisherState state) noexcept {
-        switch (state) {
-            case md::PublisherState::Setup: return "setup";
-            case md::PublisherState::Live: return "live";
-            case md::PublisherState::Stopped: return "stopped";
-            case md::PublisherState::Ended: return "ended";
-        }
-        return "?";
-    }
-
-    [[nodiscard]] static std::string_view md_status_text(md::PublishStatus status) noexcept {
-        switch (status) {
-            case md::PublishStatus::Ok: return "none";
-            case md::PublishStatus::InvalidConfig: return "invalid_config";
-            case md::PublishStatus::InvalidInstrument: return "invalid_instrument";
-            case md::PublishStatus::DuplicateInstrument: return "duplicate_instrument";
-            case md::PublishStatus::NotAllowedInState: return "not_allowed_in_state";
-            case md::PublishStatus::TimestampOutsideDay: return "timestamp_outside_day";
-            case md::PublishStatus::UnknownInstrument: return "unknown_instrument";
-            case md::PublishStatus::UnrepresentableField: return "unrepresentable_field";
-        }
-        return "?";
-    }
-
     // ---- state ----------------------------------------------------------------------
 
-    ServerConfig config_;  // own copy: authenticate() returns pointers into it
+    const ServerConfig& config_;
     Sessions& sessions_;
     MarketData& market_data_;
     const Clock& clock_;
@@ -890,6 +651,7 @@ private:
     std::vector<UserRuntime> users_;
     std::unique_ptr<std::uint16_t[]> user_index_by_session_;  // SessionId -> users_ index + 1, 0 = none
     SessionDispatchSet dispatch_set_;
+    std::unique_ptr<BatchPhaseChange[]> phase_change_by_instrument_;  // index = InstrumentId
     DeferredCommandQueue deferred_;
     std::optional<Journal> journal_;
     CoreCounters counters_{};

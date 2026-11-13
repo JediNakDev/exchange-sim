@@ -42,7 +42,7 @@ struct BindingSessions {
     bool attempted = false;
     bool bind_result = true;
     template <typename Core>
-    void on_events(SessionId, std::span<const Event>, Core& core) {
+    void on_events(SessionId, const SessionEvents&, Core& core) {
         if (attempted) return;
         attempted = true;
         bind_result = core.bind(2, 99);

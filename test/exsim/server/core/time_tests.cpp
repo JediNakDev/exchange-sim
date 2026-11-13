@@ -125,7 +125,7 @@ TEST_CASE(server_core_time, admin_phase_outside_the_trading_day_reports_the_reas
     RecordingHarness h(parse_test_config(kTradingDay));
     h.clock.day = kDayStart - kSecond;
     std::string reply;
-    h.core.execute_line("phase AAPL halted", reply);
+    CoreAdmin(h.core).execute_line("phase AAPL halted", reply);
     CHECK_EQ(reply, std::string("ERR phase not applied: outside trading day\n"));
     CHECK(h.core.engine().phase(kAapl) == Phase::Continuous);
 }
@@ -178,8 +178,8 @@ TEST_CASE(server_core_time, timer_value_handed_on_never_goes_backwards) {
     RecordingHarness h(parse_test_config());
     h.clock.day = 9 * kSecond;
     REQUIRE_EQ(h.core.submit(limit_order(1, 1, kAapl, Side::BUY, 1'000'000, 10)), SubmitResult::Applied);
-    // A loop time behind the last stamped command is lifted to it, so bots
-    // and market-data timers never see time run backwards.
+    // A loop time behind the last stamped command is lifted to it, so
+    // market-data timers never see time run backwards.
     h.core.timer(kSecond);
     h.core.timer(12 * kSecond);
     h.core.timer(2 * kSecond);

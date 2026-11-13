@@ -1,11 +1,11 @@
 #ifndef EXSIM_GATEWAY_FIX_FIX_CLIENT_HPP
 #define EXSIM_GATEWAY_FIX_FIX_CLIENT_HPP
 
-// Client side of FIX 4.4 order entry (server contract 2.5): Logon, MsgSeqNum
+// Client side of FIX 4.4 order entry: Logon, MsgSeqNum
 // tracking and gap recovery, heartbeats and TestRequests, answering the
 // exchange's ResendRequests from its own store (orders go out again with
 // PossDupFlag=Y), and typed callbacks. Transport-agnostic: bytes go to a
-// FixByteSink and come back through on_data, so tests wire it to a
+// ByteSink and come back through on_data, so tests wire it to a
 // FixConnection in memory. The clock is passed in on every call. No per
 // message allocation; the session day state (MsgSeqNums and store) survives
 // reconnects of the same object.
@@ -55,7 +55,7 @@ struct FixClientSettings {
     FixSessionSettings session{};
 };
 
-template <FixClientHandler Handler, FixByteSink Sink>
+template <FixClientHandler Handler, ByteSink Sink>
 class FixClient : public FixSessionLayer<FixClient<Handler, Sink>, Sink> {
     using Base = FixSessionLayer<FixClient<Handler, Sink>, Sink>;
     friend Base;

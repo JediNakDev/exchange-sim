@@ -1,7 +1,7 @@
 #ifndef EXSIM_GATEWAY_FIX_FIX_USER_STATE_HPP
 #define EXSIM_GATEWAY_FIX_FIX_USER_STATE_HPP
 
-// Day-lifetime state of one FIX user (server contract 2, gateway mapping 3):
+// Day-lifetime state of one FIX user:
 // the ClOrdID token table, per-order records for OrderQty/AvgPx/OrdStatus
 // through replace chains, the ExecID counter, the session day state (MsgSeqNum
 // counters and resend store) and fault-injection counters.
@@ -11,8 +11,8 @@
 // engine decision (token reuse, unknown symbol, unsupported values, injected
 // rejects) are answered here and never reach the engine.
 // Outbound: the server calls on_events once per batch that mentions this
-// user's session; every application message is sequenced and stored, and
-// transmitted when a connection is bound.
+// user's session, with that session's events; every application message is
+// sequenced and stored, and transmitted when a connection is bound.
 
 #include "command.hpp"
 #include "event.hpp"
@@ -22,13 +22,13 @@
 #include "instrument.hpp"
 #include "server/config.hpp"
 #include "server/core/policies.hpp"
-#include <type_traits>
 
 #include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <span>
 #include <string_view>
+#include <type_traits>
 #include <vector>
 
 namespace exsim::gateway::fix {
@@ -106,7 +106,7 @@ struct FixMassCancelRequest {
     std::string_view symbol{};
 };
 
-// OrdRejReason(103) for an engine NewOrder rejection (gateway mapping 3).
+// OrdRejReason(103) for an engine NewOrder rejection.
 [[nodiscard]] constexpr std::uint64_t order_reject_reason_code(RejectReason reason) noexcept {
     switch (reason) {
         case RejectReason::UnknownInstrument: return 1;
@@ -116,10 +116,7 @@ struct FixMassCancelRequest {
     }
 }
 
-template <FixByteSink Sink>
-class FixUserDirectory;
-
-template <FixByteSink Sink>
+template <ByteSink Sink>
 class FixUserState {
 public:
     FixUserState(const server::UserConfig& user, std::string_view exchange_comp_id, const FixUserLimits& limits)
@@ -150,7 +147,7 @@ public:
         return token_id == 0 ? nullptr : &records_[token_id];
     }
 
-    // Fault injection (server contract 4).
+    // Fault injection without an ExchangeCore (standalone contexts).
     void inject_new_order_rejects(std::uint32_t count) noexcept { injected_new_order_rejects_ = count; }
     void drop_out_transmissions(std::uint32_t count) noexcept { day_.suppress_application_transmissions(count); }
 
@@ -287,12 +284,13 @@ public:
         }
     }
 
-    // Encodes, in batch order, every event of the batch that concerns this
-    // session. For a Fill where both legs are ours, the buy leg goes first.
-    template <class Context>
-    void on_events(std::span<const Event> batch, Context& ctx) noexcept {
+    // Encodes, in the order given (batch order), every event that concerns
+    // this session; `events` may be a whole batch or only this session's
+    // events. For a Fill where both legs are ours, the buy leg goes first.
+    template <class Events, class Context>
+    void on_events(const Events& events, Context& ctx) noexcept {
         const FixTime now{ctx.now(), ctx.realtime_ns()};
-        for (const Event& event : batch) {
+        for (const Event& event : events) {
             switch (event.type) {
                 case EventType::Accepted:
                     if (event.accepted.session == session_id_) {
@@ -357,8 +355,6 @@ private:
             }
         }
     }
-
-    friend class FixUserDirectory<Sink>;
 
     static bool decode_time_in_force(char code, TimeInForce& time_in_force) noexcept {
         switch (code) {
@@ -751,72 +747,42 @@ private:
     FixSessionDayState<Sink> day_;
     std::uint64_t next_execution_id_ = 1;
     std::uint32_t injected_new_order_rejects_ = 0;
-    std::uint64_t dispatch_generation_ = 0;
 };
 
-// All FIX users of the server, built at setup. find() maps a SessionId to its
-// state in O(1). on_events() is the
-// server contract 2.3 dispatch for FIX users: each distinct session of the
-// batch gets exactly one FixUserState::on_events call, in first-seen order.
-template <FixByteSink Sink>
+// All FIX users of the server, built at setup. The server's session table
+// (GatewaySessions) routes dispatch to them; find() serves logons.
+template <ByteSink Sink>
 class FixUserDirectory {
 public:
     FixUserDirectory(std::span<const server::UserConfig> users, std::string_view exchange_comp_id,
-                     const FixUserLimits& limits)
-        : index_by_session_(std::make_unique<std::uint16_t[]>(std::size_t{1} << 16)) {
+                     const FixUserLimits& limits) {
         exchange_comp_id_.assign(exchange_comp_id.substr(0, kMaxCompIdLength));
         for (const server::UserConfig& user : users) {
-            if (user.protocol != server::Protocol::Fix44 || user.session_id == 0 ||
-                index_by_session_[user.session_id] != 0 || users_.size() >= UINT16_MAX) {
+            if (user.protocol != server::Protocol::Fix44 || user.session_id == 0) {
                 continue;
             }
             users_.push_back(std::make_unique<FixUserState<Sink>>(user, exchange_comp_id_.view(), limits));
-            index_by_session_[user.session_id] = static_cast<std::uint16_t>(users_.size());
         }
     }
 
     [[nodiscard]] std::string_view exchange_comp_id() const noexcept { return exchange_comp_id_.view(); }
     [[nodiscard]] std::size_t size() const noexcept { return users_.size(); }
+    [[nodiscard]] std::span<const std::unique_ptr<FixUserState<Sink>>> users() const noexcept { return users_; }
 
+    // nullptr if `session` is not a FIX user's. Linear in the FIX users:
+    // logon path only.
     [[nodiscard]] FixUserState<Sink>* find(SessionId session) noexcept {
-        const std::uint16_t position = index_by_session_[session];
-        return position == 0 ? nullptr : users_[position - 1u].get();
-    }
-
-    template <class Context>
-    void on_events(std::span<const Event> batch, Context& ctx) noexcept {
-        ++dispatch_generation_;
-        for (const Event& event : batch) {
-            switch (event.type) {
-                case EventType::Accepted: dispatch_once(event.accepted.session, batch, ctx); break;
-                case EventType::Rejected: dispatch_once(event.rejected.session, batch, ctx); break;
-                case EventType::Fill:
-                    dispatch_once(event.fill.buy.session, batch, ctx);
-                    dispatch_once(event.fill.sell.session, batch, ctx);
-                    break;
-                case EventType::Canceled: dispatch_once(event.canceled.session, batch, ctx); break;
-                case EventType::Replaced: dispatch_once(event.replaced.session, batch, ctx); break;
-                case EventType::MassCancelDone: dispatch_once(event.mass_cancel_done.session, batch, ctx); break;
-                default: break;
+        for (const std::unique_ptr<FixUserState<Sink>>& user : users_) {
+            if (user->session_id() == session) {
+                return user.get();
             }
         }
+        return nullptr;
     }
 
 private:
-    template <class Context>
-    void dispatch_once(SessionId session, std::span<const Event> batch, Context& ctx) noexcept {
-        FixUserState<Sink>* user = find(session);
-        if (user == nullptr || user->dispatch_generation_ == dispatch_generation_) {
-            return;
-        }
-        user->dispatch_generation_ = dispatch_generation_;
-        user->on_events(batch, ctx);
-    }
-
     FixedText<kMaxCompIdLength> exchange_comp_id_;
     std::vector<std::unique_ptr<FixUserState<Sink>>> users_;
-    std::unique_ptr<std::uint16_t[]> index_by_session_;
-    std::uint64_t dispatch_generation_ = 0;
 };
 
 }  // namespace exsim::gateway::fix

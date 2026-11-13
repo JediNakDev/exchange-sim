@@ -1,13 +1,13 @@
 #ifndef EXSIM_GATEWAY_OUCH_OUCH_CLIENT_HPP
 #define EXSIM_GATEWAY_OUCH_OUCH_CLIENT_HPP
 
-// Client side of OUCH 4.2 over SoupBinTCP 3.0 (server contract 2.5): login
+// Client side of OUCH 4.2 over SoupBinTCP 3.0: login
 // with a requested sequence number, implicit SoupBinTCP sequencing, client
 // heartbeats, server-silence detection, recovery on reconnect and typed
 // callbacks. Used by tests, client tools and latency measurement, so it does
 // not allocate per message either.
 //
-// Transport: any OuchByteSink (prepare/commit) the bytes to the server are
+// Transport: any ByteSink (prepare/commit) the bytes to the server are
 // written to; bytes from the server are passed to on_data().
 //
 // Handler: every callback is optional (detected at compile time):
@@ -25,7 +25,7 @@
 // Recovery: next_expected_sequence() survives on_transport_closed(); pass it
 // to login() on the new connection and the server replays what was missed.
 
-#include "gateway/ouch/byte_sink.hpp"
+#include "gateway/byte_sink.hpp"
 #include "protocol/ouch42.hpp"
 #include "protocol/soupbintcp.hpp"
 #include "types.hpp"
@@ -62,7 +62,7 @@ enum class OuchClientState : std::uint8_t {
     ProtocolError,   // undecodable frame from the server
 };
 
-template <OuchByteSink Transport, class Handler>
+template <ByteSink Transport, class Handler>
 class OuchClient {
 public:
     static constexpr std::size_t kInboundFrameCapacity = 512;

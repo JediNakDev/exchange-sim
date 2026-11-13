@@ -6,10 +6,12 @@
 //
 //   static constexpr std::string_view name;
 //   using UserDirectory = ...;                        // day-lifetime user states
+//   using User = ...;                                 // one user's state:
+//       SessionId session_id() const;
+//       template <class Events, class Core> void on_events(const Events&, Core&);
 //   static std::unique_ptr<UserDirectory> make_user_directory(const ServerConfig&);
+//       directory.users() lists every User as std::unique_ptr<User>
 //   static std::uint16_t configured_port(const ServerConfig&);
-//   template <class Core> static void dispatch(UserDirectory&, SessionId,
-//                                              std::span<const Event>, Core&);
 //   template <class Core> static void on_shutdown(UserDirectory&, Timestamp, Core&);
 //   template <class Core> class Connection {          // one per connection slot
 //       Connection(UserDirectory&);                   // startup: preallocated
@@ -23,9 +25,10 @@
 //   };
 //
 // The server lists its gateways as template arguments of
-// BasicServerRuntime<Gateways...> (server_runtime.hpp). OUCH and FIX are active. A new protocol adds one such type and one entry in
-// that list; the loop, the delay fault, admin disconnects and shutdown
-// handling are shared.
+// BasicServerRuntime<Gateways...> (server_runtime.hpp): OUCH, FIX and iLink 3.
+// A new protocol adds one such type and one entry in that list; the session
+// table (GatewaySessions), the loop, the delay fault, admin disconnects and
+// shutdown handling are shared.
 
 #include "event.hpp"
 #include "gateway/fix/fix_gateway.hpp"
@@ -52,16 +55,13 @@ template<class ByteSink>
 struct BasicOuchGateway {
     static constexpr std::string_view name = "ouch";
     using UserDirectory = gateway::ouch::OuchUserStateDirectory<ByteSink>;
+    using User = gateway::ouch::OuchUserState<ByteSink>;
 
     [[nodiscard]] static std::unique_ptr<UserDirectory> make_user_directory(const ServerConfig& config) {
         return std::make_unique<UserDirectory>(config);
     }
     [[nodiscard]] static std::uint16_t configured_port(const ServerConfig& config) noexcept {
         return config.exchange.ouch_port;
-    }
-    template <class Core>
-    static void dispatch(UserDirectory& users, SessionId session, std::span<const Event> batch, Core& core) noexcept {
-        if (auto* user_state = users.find(session)) user_state->on_events(batch, core);
     }
     // System Event 'E' for every OUCH user, stored for those not logged in.
     template <class Core>
@@ -105,6 +105,7 @@ template<class ByteSink>
 struct BasicFixGateway {
     static constexpr std::string_view name = "fix";
     using UserDirectory = gateway::fix::FixUserDirectory<ByteSink>;
+    using User = gateway::fix::FixUserState<ByteSink>;
 
     [[nodiscard]] static std::unique_ptr<UserDirectory> make_user_directory(const ServerConfig& config) {
         gateway::fix::FixUserLimits limits;
@@ -115,11 +116,6 @@ struct BasicFixGateway {
     }
     [[nodiscard]] static std::uint16_t configured_port(const ServerConfig& config) noexcept {
         return config.exchange.fix_port;
-    }
-    // Only the batch's own session: the core already calls once per session.
-    template <class Core>
-    static void dispatch(UserDirectory& users, SessionId session, std::span<const Event> batch, Core& core) noexcept {
-        if (auto* user = users.find(session)) user->on_events(batch, core);
     }
     // FIX has no end-of-day application message: the loop sends Logout on
     // every live connection (close_for_end_of_day).
@@ -171,6 +167,7 @@ using OuchGateway = BasicOuchGateway<TcpSendSink>;
 template<class ByteSink> struct BasicIlinkGateway {
     static constexpr std::string_view name = "ilink3";
     using UserDirectory = gateway::ilink::IlinkUsers<ByteSink>;
+    using User = gateway::ilink::IlinkUser<ByteSink>;
     static std::unique_ptr<UserDirectory> make_user_directory(const ServerConfig& config) {
         return std::make_unique<UserDirectory>(config);
     }
@@ -178,9 +175,6 @@ template<class ByteSink> struct BasicIlinkGateway {
     static bool enabled(const ServerConfig& config) noexcept {
         return config.exchange.ilink_port != 0 || std::any_of(config.users.begin(), config.users.end(),
             [](const auto& user) { return user.protocol == Protocol::Ilink3; });
-    }
-    template<class Core> static void dispatch(UserDirectory& users, SessionId session, std::span<const Event> events, Core& core) noexcept {
-        if (auto* user = users.find(session)) user->on_events(events, core);
     }
     template<class Core> static void on_shutdown(UserDirectory&, Timestamp, Core&) noexcept {}
     template<class Core> class Connection {

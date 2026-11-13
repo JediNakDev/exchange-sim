@@ -1,12 +1,13 @@
 // The OUCH gateway on the real server::ExchangeCore: the core is the gateway
-// Context and an OuchUserStateDirectory is the core's Sessions policy, as in
-// the exsim server. Covers what the in-memory TestExchange cannot: the
-// core's SubmitResult, its fault state driven by admin commands, unbind with
-// cancel-on-disconnect, the shutdown hook, and bot and FIX users.
+// Context and OuchSessions (an OuchUserStateDirectory routed by session) is
+// the core's Sessions policy. Covers what the in-memory TestExchange cannot:
+// the core's SubmitResult, its fault state driven by admin commands, unbind
+// with cancel-on-disconnect, the shutdown hook, and FIX and unknown users.
 
 #include "ouch_test_harness.hpp"
 #include "../../../framework/alloc_counter.hpp"
 #include "server/config.hpp"
+#include "server/core_admin.hpp"
 #include "server/exchange_core.hpp"
 
 using namespace exsim;
@@ -21,7 +22,7 @@ constexpr Timestamp kFourThirtyPm = 59'400 * kOneSecond;
 constexpr Price kHundredFiftyDollars = 1'500'000;
 
 // Trading day 09:30 to 16:00. ALICE and BOB trade over OUCH, CAROL is a FIX
-// user and MM1 belongs to a (disabled) market-making bot.
+// user and MM1 is not configured.
 const char* const kCoreConfig = R"(
 [exchange]
 soup_session = EXSIM
@@ -73,11 +74,25 @@ struct DiscardingMarketData {
     void flush() noexcept {}
 };
 
-using Core = server::ExchangeCore<TestUserStateDirectory, DiscardingMarketData, SettableClock>;
+// The core's Sessions policy over the OUCH users alone.
+struct OuchSessions {
+    TestUserStateDirectory& user_states;
+
+    template <class Core>
+    void on_events(SessionId session, const server::SessionEvents& events, Core& core) noexcept {
+        if (TestUserState* user = user_states.find(session)) user->on_events(events, core);
+    }
+    template <class Core>
+    void on_shutdown(Timestamp end_of_day, Core& core) noexcept {
+        user_states.on_shutdown(end_of_day, core);
+    }
+};
+
+using Core = server::ExchangeCore<OuchSessions, DiscardingMarketData, SettableClock>;
 
 static_assert(OuchServerContext<Core>);
-static_assert(server::CoreSessions<TestUserStateDirectory, Core>);
-static_assert(server::SessionsShutdown<TestUserStateDirectory, Core>);
+static_assert(server::CoreSessions<OuchSessions, Core>);
+static_assert(server::SessionsShutdown<OuchSessions, Core>);
 
 server::ServerConfig parse_core_config() {
     server::ServerConfig config;
@@ -102,19 +117,21 @@ struct CoreExchange {
     CoreExchange()
         : config(parse_core_config()),
           user_states(config, small_limits()),
+          sessions{user_states},
           session_settings(OuchSessionSettings::from(config.exchange)),
-          core(config, user_states, market_data, clock) {
+          core(config, sessions, market_data, clock) {
 
     }
 
     std::string admin(std::string_view line) {
         std::string reply;
-        core.execute_line(line, reply);
+        server::CoreAdmin(core).execute_line(line, reply);
         return reply;
     }
 
     server::ServerConfig config;
     TestUserStateDirectory user_states;
+    OuchSessions sessions;
     OuchSessionSettings session_settings;
     DiscardingMarketData market_data;
     SettableClock clock;
@@ -174,7 +191,7 @@ TEST_CASE(gateway_ouch_core, directory_holds_only_wire_ouch_users) {
     CHECK(exchange.user_states.find(1) != nullptr);
     CHECK(exchange.user_states.find(2) != nullptr);
     CHECK(exchange.user_states.find(3) == nullptr);    // FIX user
-    CHECK(exchange.user_states.find(100) == nullptr);  // driven by a bot
+    CHECK(exchange.user_states.find(100) == nullptr);  // not configured
     CHECK(exchange.user_states.find(4000) == nullptr);
 
     for (const auto& [username, password] : {std::pair{"CAROL", "carolpw"}, std::pair{"MM1", "mm1"}}) {

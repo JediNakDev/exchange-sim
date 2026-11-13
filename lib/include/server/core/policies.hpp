@@ -2,7 +2,7 @@
 #define EXSIM_SERVER_CORE_POLICIES_HPP
 
 // Compile-time contracts between ExchangeCore and the parts the server
-// integrator plugs into it (exchange core section 2). Templates and
+// integrator plugs into it. Templates and
 // concepts only: no virtual dispatch on the hot path.
 //
 // Required:
@@ -12,9 +12,10 @@
 //               c.realtime_ns()   ns since the Unix epoch (FIX SendingTime)
 //   MarketData  md.on_events(std::span<const Event>)   one call per batch
 //               md.flush()                            emit the open packet
-//   Sessions    s.on_events(SessionId, std::span<const Event>, Core&)
-//                                 once per distinct non-bot session of a
-//                                 batch, first-appearance order
+//   Sessions    s.on_events(SessionId, const SessionEvents&, Core&)
+//                                 once per distinct session of a batch,
+//                                 first-appearance order, with that
+//                                 session's events in batch order
 //
 // Optional (detected with requires-expressions):
 //   md.on_timer(Timestamp, const Core&) or md.on_timer(Timestamp)
@@ -33,6 +34,7 @@
 
 #include "event.hpp"
 #include "md/publisher.hpp"
+#include "server/core/session_dispatch_set.hpp"
 #include "sim/packet_faults.hpp"
 #include "types.hpp"
 
@@ -50,7 +52,7 @@ using ConnectionId = std::uint64_t;
 
 enum class SubmitResult : std::uint8_t {
     Applied = 0,                 // handled by the engine (semantic rejections included), journaled, dispatched
-    Deferred = 1,                // queued for later processing; ExchangeCore drains after dispatch, research at simulated arrival
+    Deferred = 1,                // submitted during dispatch: queued, applied once the current batch is dispatched
     OutsideTradingDay = 2,       // stamped timestamp outside [trading_day_start, trading_day_end): not applied
     OutputCapacityExceeded = 3,  // EventBuffer smaller than the engine's bound (test-only sizing): not applied
     DeferredQueueFull = 4,       // re-entrant submit beyond the deferred queue: not applied
@@ -82,8 +84,8 @@ concept CoreMarketData = requires(MarketData& market_data, std::span<const Event
 };
 
 template <typename Sessions, typename Core>
-concept CoreSessions = requires(Sessions& sessions, SessionId session, std::span<const Event> batch, Core& core) {
-    sessions.on_events(session, batch, core);
+concept CoreSessions = requires(Sessions& sessions, SessionId session, const SessionEvents& events, Core& core) {
+    sessions.on_events(session, events, core);
 };
 
 // ---- optional hooks ------------------------------------------------------

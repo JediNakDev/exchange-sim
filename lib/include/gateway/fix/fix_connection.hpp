@@ -1,7 +1,7 @@
 #ifndef EXSIM_GATEWAY_FIX_FIX_CONNECTION_HPP
 #define EXSIM_GATEWAY_FIX_FIX_CONNECTION_HPP
 
-// Exchange side of one FIX 4.4 TCP connection (server contract 2). The server
+// Exchange side of one FIX 4.4 TCP connection. The server
 // owns the transport and calls:
 //   start(sink, connection_id, ctx)  on accept (the object is reusable)
 //   on_data(bytes, ctx)              returns bytes consumed
@@ -49,7 +49,7 @@ concept FixGatewayContext = requires(Context& context, const Context& const_cont
     { const_context.realtime_ns() } -> std::convertible_to<std::uint64_t>;
 };
 
-template <FixGatewayContext Context, FixByteSink Sink>
+template <FixGatewayContext Context, ByteSink Sink>
 class FixConnection : public FixSessionLayer<FixConnection<Context, Sink>, Sink> {
     using Base = FixSessionLayer<FixConnection<Context, Sink>, Sink>;
     friend Base;

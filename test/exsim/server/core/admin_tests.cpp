@@ -102,7 +102,7 @@ TEST_CASE(server_core_admin, book_prints_a_price_ladder) {
     zero_levels.symbol = "AAPL";
     zero_levels.count = 0;  // not parseable, but execute() is public: shows one level
     std::string reply;
-    h.core.execute(zero_levels, reply);
+    CoreAdmin(h.core).execute(zero_levels, reply);
     CHECK(contains(reply, "ask 150.01 qty=150 orders=2\n"));
     CHECK(!contains(reply, "(empty)"));
 }

@@ -3,7 +3,6 @@
 
 // Shared building blocks of the FIX 4.4 order-entry gateway, used by both the
 // exchange side (FixConnection) and the client side (FixClient):
-//   * FixByteSink: the prepare/commit output contract of server contract 2.4
 //   * FixTime: the injected clock reading every call carries
 //   * FixSessionSettings: session bounds and timer policy
 //   * FixFieldReader: typed inbound field access that remembers the first
@@ -14,6 +13,7 @@
 // Nothing in this header allocates.
 
 #include "protocol/fix44.hpp"
+#include "gateway/byte_sink.hpp"
 #include "types.hpp"
 
 #include <algorithm>
@@ -29,12 +29,6 @@ namespace exsim::gateway::fix {
 
 namespace fix44 = ::exsim::protocol::fix44;
 using ::exsim::protocol::Status;
-
-template <class Sink>
-concept FixByteSink = requires(Sink& sink, std::size_t byte_count) {
-    { sink.prepare(byte_count) } -> std::same_as<char*>;
-    sink.commit(byte_count);
-};
 
 // One reading of the injected clock. monotonic_ns drives timers (the server
 // passes Context::now()); realtime_ns is the Unix epoch time written to

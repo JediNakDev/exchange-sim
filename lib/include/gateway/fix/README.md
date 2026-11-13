@@ -1,19 +1,22 @@
 # FIX 4.4 gateway integration
 
-Include `gateway/fix/fix_gateway.hpp`. All types are in
+Include `gateway/fix/fix_gateway.hpp` for the exchange side and
+`gateway/fix/fix_client.hpp` for the client side. All types are in
 `exsim::gateway::fix`; implementations are header-only C++23 templates.
 
-- `FixByteSink`: `char* prepare(size_t)` and `void commit(size_t)`, both noexcept.
+- Output goes to a `gateway::ByteSink` (`gateway/byte_sink.hpp`):
+  `char* prepare(size_t)` and `void commit(size_t)`, both noexcept.
 - `FixTime{monotonic_ns, realtime_ns}`: injected timer and Unix wire clocks.
 - `FixSessionSettings`: framing/held-message bounds, heartbeat maximum and timeouts.
 - `FixUserLimits`: day token count and resend-store message/byte capacities.
 - `FixUserDirectory<Sink>(users, exchange_comp_id, limits)`: construct once per day.
-- `directory.find(SessionId)` and `find_by_comp_id(text)` return user state pointers.
+- `directory.find(SessionId)` returns a user state pointer (login path, linear);
+  `directory.users()` lists every user state.
 - `FixUserState<Sink>` owns day-used tokens, order records, ExecIDs and sequences.
-- `user.on_events(batch, ctx)` encodes the whole batch for that user.
-- `directory.on_events(batch, ctx)` deduplicates sessions when the caller has not.
-- With `ExchangeCore`, its Sessions policy calls `directory.find(id)->on_events`
-  once for each callback; do not redispatch the whole directory for each callback.
+- `user.on_events(events, ctx)` encodes, in order, the events of the range that
+  concern that user; the range may be the user's events or a whole batch.
+- With `ExchangeCore`, the server's session table (GatewaySessions) calls
+  `user.on_events` once per batch with only that user's events.
 - `FixConnection<Context, Sink>(directory, settings)` owns one transport session.
 - `start(sink, server::ConnectionId, ctx)` begins a freshly accepted connection.
 - `on_data(span<const char>, ctx)` returns consumed bytes; retain incomplete tails.
@@ -26,7 +29,7 @@ Include `gateway/fix/fix_gateway.hpp`. All types are in
 - `begin_logout(text, ctx)` starts the exchange-initiated Logout handshake.
 - Context supplies authenticate, bind/unbind, instrument lookups, submit, now/realtime_ns.
 - Connection IDs use `server::ConnectionId`, with packing from net IDs owned by the server.
-- `submit` may return void (SERVER.md) or `server::SubmitResult` (ExchangeCore).
+- `submit` may return void (standalone contexts) or `server::SubmitResult` (ExchangeCore).
 - Applied/Deferred mean success; other results receive protocol application rejections.
 - Optional Context `consume_injected_reject(session)` and `consume_drop_out(session)`
   connect ExchangeCore admin faults directly to gateway application reports.
