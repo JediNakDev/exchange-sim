@@ -1,7 +1,7 @@
 #ifndef EXSIM_BOOK_PRICE_LEVEL_HPP
 #define EXSIM_BOOK_PRICE_LEVEL_HPP
 
-#include "order.hpp"
+#include "book/order.hpp"
 #include <cstddef>
 
 namespace exsim::book {

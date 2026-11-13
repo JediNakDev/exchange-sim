@@ -1,8 +1,8 @@
 #ifndef EXSIM_BOOK_ORDER_BOOK_HPP
 #define EXSIM_BOOK_ORDER_BOOK_HPP
 
-#include "active_bitmap.hpp"
-#include "price_level.hpp"
+#include "book/active_bitmap.hpp"
+#include "book/price_level.hpp"
 #include "util/flat_hash_map.hpp"
 #include "util/object_pool.hpp"
 #include <cstddef>

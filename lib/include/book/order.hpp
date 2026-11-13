@@ -1,7 +1,7 @@
 #ifndef EXSIM_BOOK_ORDER_HPP
 #define EXSIM_BOOK_ORDER_HPP
 
-#include "types.hpp"
+#include "book/types.hpp"
 
 namespace exsim::book {
 
