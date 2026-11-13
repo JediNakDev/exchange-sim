@@ -3,7 +3,7 @@
 
 // Per-session interning of client order tokens (OUCH 14-byte tokens, FIX
 // ClOrdID strings) into dense engine ClOrdId values 1, 2, 3, ... in
-// first-seen order (gateway mapping §1).
+// first-seen order.
 //
 // * token -> ClOrdId: open-addressing table of (hash tag, id) words, linear
 //   probing; a probe touches the entry bytes only on a 32-bit tag match.
@@ -129,7 +129,9 @@ public:
     }
 
 private:
-    struct Entry {
+    // 24 bytes, 8-byte aligned (21 bytes unaligned before): entries start on
+    // word boundaries.
+    struct alignas(8) Entry {
         char bytes[kMaxTokenLen];
         std::uint8_t len;
 
@@ -141,6 +143,7 @@ private:
             return len == t.size() && std::memcmp(bytes, t.data(), t.size()) == 0;
         }
     };
+    static_assert(sizeof(Entry) == 24);
 
     // Up to 20 bytes: three overlapping-free 8-byte lanes (zero padded),
     // multiply-xorshift mixed, finished with the murmur3 fmix64 avalanche.
