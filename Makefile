@@ -60,7 +60,7 @@ clean:
 # Standalone Exsim tests and benchmarks restored from release 0.1.4.
 BOOK_OBJS := $(call obj,lib/src/book/order_book.cpp)
 EXCHANGE_TEST_SRCS := $(sort $(wildcard test/exchange/*.cpp))
-BENCH_SRCS := $(sort $(wildcard benchmark/*.cpp benchmark/cases/*.cpp benchmark/support/*.cpp))
+BENCH_SRCS := $(sort $(wildcard benchmark/*.cpp benchmark/cases/*.cpp benchmark/utils/*.cpp))
 BENCH_BUILD ?= build/bench
 BENCH_BIN := $(BENCH_BUILD)/exsim_benchmark
 

@@ -1,5 +1,5 @@
-#include "benchmark/support/sharded_engine.hpp"
-#include "benchmark/support/thread_pinning.hpp"
+#include "benchmark/utils/sharded_engine.hpp"
+#include "benchmark/utils/cpu_pinner.hpp"
 
 #include <algorithm>
 #include <cstddef>
@@ -129,8 +129,8 @@ bool ShardedEngine::try_submit(std::size_t shard_idx, const Command& cmd) noexce
 void ShardedEngine::worker_loop(std::size_t shard_idx) {
     Shard& shard = *shards_[shard_idx];
     if (pin_workers_) {
-        const std::size_t core = shard_idx % hardware_threads();
-        (void)pin_current_thread_to_core(core);
+        const std::size_t hardware_threads = std::max<std::size_t>(1, std::thread::hardware_concurrency());
+        (void)CPUPinner::pin(static_cast<int>(shard_idx % hardware_threads));
     }
 
     std::vector<Command> batch;

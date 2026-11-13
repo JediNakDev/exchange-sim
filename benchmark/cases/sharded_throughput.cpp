@@ -3,7 +3,7 @@
 #include "../utils/stats.hpp"
 #include "../utils/workload.hpp"
 #include <benchmark/benchmark.h>
-#include "benchmark/support/sharded_engine.hpp"
+#include "benchmark/utils/sharded_engine.hpp"
 #include <chrono>
 
 using namespace bench;
