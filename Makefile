@@ -32,7 +32,7 @@ TEST_LIB_OBJS := $(call obj,$(TEST_LIB_SRCS))
 UNIT_SRCS := $(shell find test/exchange/core test/framework test/exsim/engine test/exsim/protocol test/exsim/gateway test/exsim/md test/exsim/server/core -name '*.cpp' | sort)
 UNIT_SRCS := $(filter-out %udp_loopback_tests.cpp,$(UNIT_SRCS))
 UNIT_SRCS += test/exsim/api/api_json_tests.cpp test/exsim/server/config_tests.cpp test/exsim/server/config_review_tests.cpp test/exsim/server/admin_tests.cpp test/exsim/sim/packet_faults_tests.cpp test/exsim/foundation/contract_tests.cpp
-INTEGRATION_SRCS := $(shell find test/exsim/net -name '*.cpp' | sort) test/exsim/api/http_tests.cpp test/exsim/md/udp_loopback_tests.cpp test/framework/alloc_counter.cpp
+INTEGRATION_SRCS := $(shell find test/exsim/net -name '*.cpp' | sort) test/exsim/api/http_tests.cpp test/exsim/api/exchange_service_tests.cpp test/exsim/md/udp_loopback_tests.cpp test/framework/alloc_counter.cpp
 .PHONY: all apps test unit integration clean
 all: apps
 apps: $(BUILD)/exsim_api $(BUILD)/exsim_exchanged
