@@ -3,14 +3,14 @@
 #include "constants.hpp"
 #include "workload.hpp"
 #include <benchmark/benchmark.h>
-#include <exchange/order_book.hpp>
+#include <book/order_book.hpp>
 
 #include <atomic>
 
 namespace bench {
 
 inline void warmup() {
-    exsim::exchange::OrderBook book;
+    exsim::book::OrderBook book;
     const auto& w = workload();
 
     for (size_t i = 0; i < WARMUP_ITERATIONS; ++i) {

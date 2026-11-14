@@ -1,0 +1,20 @@
+# Matches the dominant style of lib/, src/ and test/. Reformat a file only
+# when it is being changed anyway or clearly differs from this style.
+BasedOnStyle: Google
+Standard: c++20
+IndentWidth: 4
+ColumnLimit: 120
+AccessModifierOffset: -4
+IndentCaseLabels: true
+PointerAlignment: Left
+DerivePointerAlignment: false
+SpacesBeforeTrailingComments: 2
+AllowShortFunctionsOnASingleLine: All
+AllowShortIfStatementsOnASingleLine: WithoutElse
+AllowShortLoopsOnASingleLine: true
+AllowShortCaseLabelsOnASingleLine: true
+AllowShortBlocksOnASingleLine: Empty
+SpaceAfterTemplateKeyword: true
+FixNamespaceComments: true
+IncludeBlocks: Preserve
+SortIncludes: Never

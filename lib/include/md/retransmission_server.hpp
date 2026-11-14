@@ -6,7 +6,7 @@
 // the requested messages, byte-identical to their original transmission,
 // taken from the publisher's RetransmissionRing.
 //
-// Policy (documented contract, see server contract section 3):
+// Policy:
 //   * a request that is not exactly 20 bytes, or names another session, is
 //     ignored (no response);
 //   * count 0 or sequence 0 is ignored;

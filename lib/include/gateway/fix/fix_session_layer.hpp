@@ -7,7 +7,7 @@
 // recovery, and a bounded queue of early (high MsgSeqNum) messages. The
 // day-lifetime counters and store live in FixSessionDayState.
 //
-// Inbound rules (gateway mapping section 3):
+// Inbound rules:
 //   * Garbled input (bad prefix, BodyLength, CheckSum, missing MsgType, or
 //     MsgType not the third field) is discarded without touching sequence
 //     numbers; the stream resynchronises at the next "8=FIX.4.4<SOH>9=".
@@ -171,7 +171,7 @@ private:
     std::unique_ptr<Slot[]> slots_;
 };
 
-template <class Derived, FixByteSink Sink>
+template <class Derived, ByteSink Sink>
 class FixSessionLayer {
 public:
     [[nodiscard]] FixConnectionPhase phase() const noexcept { return phase_; }

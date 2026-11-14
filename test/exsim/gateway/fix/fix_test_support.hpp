@@ -3,16 +3,19 @@
 
 // In-memory harness for the FIX gateway tests:
 //   * TestByteSink: fixed-capacity prepare/commit sink (no allocation after setup)
-//   * FixTestExchange: a server contract 2.1 Context over a real MatchingEngine
-//     with an EventBuffer of required_event_capacity, a bind registry,
-//     cancel-on-disconnect on unbind and per-batch dispatch (SERVER.md 2.3)
+//   * FixTestExchange: a FixGatewayContext over a real MatchingEngine with an
+//     EventBuffer of required_event_capacity, a bind registry,
+//     cancel-on-disconnect on unbind and per-batch dispatch (each distinct
+//     session of a batch gets on_events once, in first-appearance order)
 //   * wire helpers: build frames from "tag=value|" text with computed
 //     BodyLength and CheckSum, split output into parsed messages
 //   * FixTestConnection: one exchange-side FixConnection fed with raw frames
 
+#include "test/exsim/support/clients/fix_client.hpp"
 #include "gateway/fix/fix_gateway.hpp"
-#include "matching_engine.hpp"
+#include "engine/matching_engine.hpp"
 #include "server/config.hpp"
+#include "server/core/session_dispatch_set.hpp"
 #include "test/framework/test.hpp"
 
 #include <cstddef>
@@ -113,7 +116,8 @@ public:
           users_(std::move(users)),
           directory_(users_, "EXSIM", limits),
           bound_sessions_(std::size_t{1} << 16, false),
-          bound_connection_by_session_(std::size_t{1} << 16, 0) {
+          bound_connection_by_session_(std::size_t{1} << 16, 0),
+          dispatch_generation_by_session_(std::size_t{1} << 16, 0) {
         for (std::string_view symbol : {std::string_view("AAPL"), std::string_view("MSFT")}) {
             exsim::InstrumentConfig instrument;
             instrument.symbol = exsim::Symbol(symbol);
@@ -124,7 +128,7 @@ public:
         dispatched_events.reserve(4096);
     }
 
-    // server contract 2.1 Context.
+    // FixGatewayContext.
     const exsim::server::UserConfig* authenticate(std::string_view user, std::string_view password,
                                                   exsim::server::Protocol protocol) noexcept {
         for (const auto& config : users_) {
@@ -169,7 +173,7 @@ public:
             submitted_commands.push_back(command);
             dispatched_events.insert(dispatched_events.end(), events_.begin(), events_.end());
         }
-        directory_.on_events(std::span<const exsim::Event>(events_.begin(), events_.size()), *this);
+        dispatch(std::span<const exsim::Event>(events_.begin(), events_.size()));
     }
     exsim::Timestamp now() const noexcept { return now_ns_; }
     std::uint64_t realtime_ns() const noexcept { return kMidnightRealtimeNs + now_ns_; }
@@ -223,7 +227,22 @@ private:
     fix::FixUserDirectory<TestByteSink> directory_;
     std::vector<bool> bound_sessions_;
     std::vector<exsim::server::ConnectionId> bound_connection_by_session_;
+    std::vector<std::uint64_t> dispatch_generation_by_session_;  // generation of the last dispatch to the session
+    std::uint64_t dispatch_generation_ = 0;
     exsim::Timestamp now_ns_ = kSessionStartNs;
+
+    // Each distinct session of the batch that has a FIX user gets the whole
+    // batch once, in first-appearance order; the user filters its events.
+    void dispatch(std::span<const exsim::Event> batch) noexcept {
+        const std::uint64_t generation = ++dispatch_generation_;
+        for (const exsim::Event& event : batch) {
+            exsim::server::visit_event_sessions(event, [&](exsim::SessionId session) {
+                if (session == 0 || dispatch_generation_by_session_[session] == generation) return;
+                dispatch_generation_by_session_[session] = generation;
+                if (auto* user = directory_.find(session)) user->on_events(batch, *this);
+            });
+        }
+    }
 };
 
 // "35=A|49=X|...|" (every field terminated by '|') to a framed message with

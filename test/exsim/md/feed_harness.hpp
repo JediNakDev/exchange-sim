@@ -14,13 +14,13 @@
 // it, so the feed is checked after all packets of each batch even while
 // recovery lags behind the engine.
 
-#include <matching_engine.hpp>
-#include <md/book_builder.hpp>
+#include <engine/matching_engine.hpp>
+#include "test/exsim/support/clients/itch_book_builder.hpp"
 #include <md/publisher.hpp>
-#include <md/receiver.hpp>
+#include "test/exsim/support/clients/moldudp64_receiver.hpp"
 #include <md/retransmission_server.hpp>
-#include <sim/journal.hpp>
-#include <sim/packet_faults.hpp>
+#include <server/journal/journal.hpp>
+#include <md/packet_faults.hpp>
 #include <test/exsim/md/md_test_support.hpp>
 #include <test/framework/test.hpp>
 
@@ -37,7 +37,7 @@ struct FeedHarnessOptions {
     std::uint64_t noii_interval_ns = 20'000'000;
     std::uint64_t heartbeat_interval_ns = 1'000'000'000;
     std::uint64_t request_timeout_ns = 5'000'000;
-    sim::PacketFaultConfig feed_faults{};    // all rates 0: clean feed
+    md::PacketFaultConfig feed_faults{};    // all rates 0: clean feed
     std::uint32_t response_drop_ppm = 0;
     std::uint64_t response_fault_seed = 7;
 };
@@ -104,14 +104,14 @@ struct BoundaryCheckingHandler {
 class FeedHarness {
 public:
     struct FeedSink {
-        sim::PacketFaultInjector* injector;
+        md::PacketFaultInjector* injector;
         std::deque<Bytes>* queue;
         void operator()(std::span<const char> packet) const { injector->submit(packet, PacketQueueSink{queue}); }
     };
     using Publisher = md::MarketDataPublisher<FeedSink>;
     using Receiver = md::MoldUdp64Receiver<BoundaryCheckingHandler, PacketQueueSink>;
 
-    FeedHarness(const sim::JournalSetup& setup, const FeedHarnessOptions& options)
+    FeedHarness(const server::journal::JournalSetup& setup, const FeedHarnessOptions& options)
         : engine(setup.engine),
           events(required_event_capacity(setup.engine)),
           feed_injector(options.max_payload, 64),
@@ -128,7 +128,7 @@ public:
           engine_id_buffer_(setup.engine.max_orders + 1) {
         for (const InstrumentConfig& instrument : setup.instruments) REQUIRE(engine.add_instrument(instrument) != 0);
         feed_injector.configure(options.feed_faults);
-        sim::PacketFaultConfig response_faults;
+        md::PacketFaultConfig response_faults;
         response_faults.drop_ppm = options.response_drop_ppm;
         response_faults.seed = options.response_fault_seed;
         response_injector.configure(response_faults);
@@ -238,8 +238,8 @@ public:
     std::deque<Bytes> feed_queue;
     std::deque<Bytes> request_queue;
     std::deque<Bytes> response_queue;
-    sim::PacketFaultInjector feed_injector;
-    sim::PacketFaultInjector response_injector;
+    md::PacketFaultInjector feed_injector;
+    md::PacketFaultInjector response_injector;
     Publisher publisher;
     md::ItchBookBuilder builder;
     std::deque<BatchBoundary> pending_boundaries;
@@ -248,7 +248,7 @@ public:
     md::RetransmissionServer server;
 
 private:
-    static md::PublisherConfig publisher_config(const sim::JournalSetup& setup, const FeedHarnessOptions& options) {
+    static md::PublisherConfig publisher_config(const server::journal::JournalSetup& setup, const FeedHarnessOptions& options) {
         md::PublisherConfig config;
         config.session = "EXSIM";
         config.max_payload = options.max_payload;

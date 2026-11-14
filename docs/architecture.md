@@ -28,7 +28,7 @@ A private UNIX socket carries management commands and status. Start waits for re
 
 ## Trading connections
 
-OUCH 4.2 runs over SoupBinTCP. FIX 4.4 and CME iLink 3 use separate TCP listeners. All use the same matching engine and books. Public events use ITCH 5.0 over MoldUDP64 or CME MDP 3.0. The [CME profile](ilink-and-mdp.md) defines supported messages and limits.
+OUCH 4.2 runs over SoupBinTCP. FIX 4.4 and CME iLink 3 use separate TCP listeners. All use the same matching engine and books. Public events use ITCH 5.0 over MoldUDP64 or CME MDP 3.0. The [CME profile](ilink-and-mdp.md) defines supported messages and limits. The [FIX gateway notes](fix-gateway.md) cover FIX session policy and limits.
 
 Many traders can connect to one order-entry listener. Each has its own authenticated session. More traders do not require more exchange listener ports.
 

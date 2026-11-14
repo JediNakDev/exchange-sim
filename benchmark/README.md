@@ -29,7 +29,7 @@ The binary is `build/bench/exsim_benchmark`. CSV output defaults to `build/bench
 
 ## Coverage
 
-The suite measures add, match, cancel, modify, best bid/ask, spread, snapshot, mixed, and cancel-heavy operations. Sharded cases use a benchmark-only harness under `support/`. They do not measure production exchange threading or API performance.
+The suite measures add, match, cancel, modify, best bid/ask, spread, snapshot, mixed, and cancel-heavy operations. Sharded cases use a benchmark-only harness in `utils/sharded_engine.*`. They do not measure production exchange threading or API performance.
 
 Workloads use fixed seeds and warmup. Latency samples include clock overhead. The custom CSV keeps the first sample batch for each benchmark name; it is not a combined summary of every Google Benchmark iteration.
 
@@ -40,7 +40,7 @@ CPU affinity is attempted. Linux can pin a thread to a CPU. macOS uses an affini
 ```sh
 make -j4 itch-replay
 ./build/perf/itch_replay --synth 100000 --validate
-make -j4 exchange-test
+make -j4 unit FILTER=itch_replay
 ```
 
 Replay drives the standalone order book. Validation compares it with a reference book. It does not test TCP gateways or the management API.

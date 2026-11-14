@@ -1,4 +1,4 @@
-// itch_replay — replay a NASDAQ ITCH 5.0 binary file through the
+// itch_replay: replay a NASDAQ ITCH 5.0 binary file through the
 // production OrderBook and report throughput + final book state.
 //
 // Usage:
@@ -16,8 +16,7 @@
 #include "reference_book.hpp"
 #include "synthetic.hpp"
 
-#include <exchange/order_book.hpp>
-#include "src/utils/itch_replay/itch.hpp"
+#include <book/order_book.hpp>
 
 #include <chrono>
 #include <cstdint>
@@ -81,16 +80,16 @@ int main(int argc, char** argv) {
 
     std::vector<char> wire;
     if (synth) {
-        exsim::exchange::tools::SyntheticItchStream gen(0xC0FFEE, synth_n, /*mid=*/10000);
+        exsim::itch_replay::SyntheticItchStream gen(0xC0FFEE, synth_n, /*mid=*/10000);
         wire = gen.build();
     } else {
         auto raw = read_file(path);
         wire = framed ? unframe(raw) : std::move(raw);
     }
 
-    exsim::exchange::OrderBook book;
-    exsim::exchange::tools::ReferenceBook ref;
-    exsim::exchange::tools::ItchReplayer replayer(book, validate ? &ref : nullptr);
+    exsim::book::OrderBook book;
+    exsim::itch_replay::ReferenceBook ref;
+    exsim::itch_replay::ItchReplayer replayer(book, validate ? &ref : nullptr);
 
     std::size_t offset = 0;
     std::size_t parsed = 0;
@@ -99,15 +98,13 @@ int main(int argc, char** argv) {
 
     auto t0 = std::chrono::steady_clock::now();
     while (offset < wire.size()) {
-        int sz = exsim::exchange::itch::message_size(wire[offset]);
+        const std::size_t sz = exsim::itch_replay::book_message_size(wire[offset]);
         if (sz == 0) { ++skipped; ++offset; continue; }
-        if (offset + static_cast<std::size_t>(sz) > wire.size()) break;
-        exsim::exchange::itch::Message m;
-        if (exsim::exchange::itch::parse(&wire[offset], m)) {
-            replayer.apply(m);
+        if (offset + sz > wire.size()) break;
+        if (replayer.apply({&wire[offset], sz})) {
             ++parsed;
             if (validate) {
-                auto d = exsim::exchange::tools::diff_books(book, ref, 10);
+                auto d = exsim::itch_replay::diff_books(book, ref, 10);
                 if (!d.ok) {
                     if (++mismatches <= 3) {
                         std::cerr << "DIVERGENCE @msg " << parsed << ": " << d.detail << "\n";

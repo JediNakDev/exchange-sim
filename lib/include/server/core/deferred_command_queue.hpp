@@ -7,7 +7,7 @@
 // applies them in order once the current batch has reached every consumer,
 // so a nested submit never overwrites the batch being dispatched.
 
-#include "command.hpp"
+#include "engine/command.hpp"
 
 #include <cstddef>
 #include <memory>

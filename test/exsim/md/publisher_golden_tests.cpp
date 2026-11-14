@@ -1,8 +1,8 @@
-// Golden ITCH 5.0 / MoldUDP64 encodings for every event mapping of
-// gateway mapping section 4, driven through a real exsim::MatchingEngine.
+// Golden ITCH 5.0 / MoldUDP64 encodings for every engine event the
+// publisher maps to ITCH, driven through a real exsim::MatchingEngine.
 // Expected bytes are literal hex, independent of the codec encoders.
 
-#include <matching_engine.hpp>
+#include <engine/matching_engine.hpp>
 #include <md/publisher.hpp>
 #include <test/exsim/md/md_test_support.hpp>
 #include <test/framework/test.hpp>

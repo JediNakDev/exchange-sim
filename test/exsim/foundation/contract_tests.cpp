@@ -1,18 +1,18 @@
 #include <test/framework/test.hpp>
-#include <matching_engine.hpp>
-#include <exchange/flat_hash_map.hpp>
+#include <engine/matching_engine.hpp>
+#include <util/flat_hash_map.hpp>
 #include <limits>
 #include <memory>
 
 TEST_CASE(foundation, zero_and_moved_map) {
-    exsim::exchange::FlatHashMap<int> map(8);
+    exsim::util::FlatHashMap<int> map(8);
     CHECK(!map.contains(0));
     CHECK(map.insert(1, 7));
     CHECK(!map.contains(0));
     map.erase(1);
     CHECK(!map.contains(0));
     CHECK(map.insert(2, 9));
-    exsim::exchange::FlatHashMap<int> moved(std::move(map));
+    exsim::util::FlatHashMap<int> moved(std::move(map));
     CHECK_EQ(moved.size(), 1u);
     CHECK_EQ(map.capacity(), 0u);
     CHECK(!map.find(2));
@@ -27,7 +27,7 @@ TEST_CASE(foundation, zero_and_moved_map) {
     CHECK(!moved.contains(0));
 }
 TEST_CASE(foundation, reserve_overflow_and_constness) {
-    exsim::exchange::FlatHashMap<int> map(8);
+    exsim::util::FlatHashMap<int> map(8);
     CHECK(map.insert(1, 2));
     for (auto n : {std::numeric_limits<std::size_t>::max(), std::size_t{1} << 63}) {
         bool rejected = false;

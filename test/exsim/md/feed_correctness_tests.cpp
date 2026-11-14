@@ -91,7 +91,7 @@ FeedHarnessOptions faulty_options(std::uint64_t seed) {
 // gap every 700 commands, so heartbeats and the NOII timer fire.
 void run_feed(std::uint64_t seed, std::size_t command_count, bool tiny_engine, const FeedHarnessOptions& options,
               bool check_every_batch, FeedRunTotals& totals) {
-    const sim::JournalSetup setup = testsupport::fuzz_setup(tiny_engine);
+    const server::journal::JournalSetup setup = testsupport::fuzz_setup(tiny_engine);
     FeedHarness feed(setup, options);
     testsupport::CommandGenerator generator(seed);
     Timestamp now = 1'000'000;

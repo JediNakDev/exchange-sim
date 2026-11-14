@@ -1,5 +1,5 @@
-#ifndef EXSIM_EXCHANGE_TOOLS_REFERENCE_BOOK_HPP
-#define EXSIM_EXCHANGE_TOOLS_REFERENCE_BOOK_HPP
+#ifndef EXSIM_ITCH_REPLAY_REFERENCE_BOOK_HPP
+#define EXSIM_ITCH_REPLAY_REFERENCE_BOOK_HPP
 
 // Reference implementation of a price-time priority limit order book.
 // Deliberately simple (std::map + std::list) so it's obviously correct.
@@ -7,14 +7,19 @@
 // ITCH 5.0 feed: both books are driven by the same event stream and their
 // snapshots compared after every message.
 
-#include <exchange/types.hpp>
+#include <book/types.hpp>
 #include <cstdint>
 #include <list>
 #include <map>
 #include <unordered_map>
 #include <vector>
 
-namespace exsim::exchange::tools {
+namespace exsim::itch_replay {
+
+using book::OrderId;
+using book::Price;
+using book::Quantity;
+using book::Side;
 
 class ReferenceBook {
 public:
@@ -116,6 +121,6 @@ private:
     std::unordered_map<OrderId, Loc>  orders_;
 };
 
-}  // namespace exsim::exchange::tools
+}  // namespace exsim::itch_replay
 
 #endif

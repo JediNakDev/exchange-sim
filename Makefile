@@ -13,7 +13,7 @@ else ifeq ($(MODE),perf)
 CXXFLAGS += -O3 -march=native -DNDEBUG -flto -fno-omit-frame-pointer
 LDFLAGS += -flto
 else ifeq ($(MODE),bench)
-CXXFLAGS += -O3 -march=native -mtune=native -DNDEBUG -flto -fno-omit-frame-pointer -DEXSIM_EXCHANGE_DETERMINISTIC_POOL
+CXXFLAGS += -O3 -march=native -mtune=native -DNDEBUG -flto -fno-omit-frame-pointer -DEXSIM_BOOK_DETERMINISTIC_POOL
 LDFLAGS += -flto
 else
 $(error MODE must be release, debug, perf or bench)
@@ -23,16 +23,16 @@ LDLIBS := -lpthread
 ifeq ($(shell uname -s),Linux)
 LDLIBS += -lcrypto
 endif
-TEST_LIB_SRCS := lib/src/md/book_builder.cpp lib/src/net/tcp_client.cpp lib/src/server/admin.cpp lib/src/server/core/admin_text.cpp
+TEST_LIB_SRCS := test/exsim/support/clients/itch_book_builder.cpp test/exsim/support/clients/tcp_client.cpp lib/src/server/admin/admin_command.cpp lib/src/server/admin/admin_text.cpp
 LIB_SRCS := $(filter-out $(TEST_LIB_SRCS),$(shell find lib/src -name '*.cpp' | sort))
 obj = $(patsubst %.cpp,$(BUILD)/obj/%.o,$(1))
 LIB_OBJS := $(call obj,$(LIB_SRCS))
 TEST_LIB_OBJS := $(call obj,$(TEST_LIB_SRCS))
 # Unit coverage stays local to codecs, gateways, matching and core policies.
-UNIT_SRCS := $(shell find test/exchange/core test/framework test/exsim/engine test/exsim/protocol test/exsim/gateway test/exsim/md test/exsim/server/core -name '*.cpp' | sort)
+UNIT_SRCS := $(shell find test/exsim/book test/exsim/util test/exsim/itch_replay test/framework test/exsim/engine test/exsim/protocol test/exsim/gateway test/exsim/md test/exsim/server/core test/exsim/server/admin -name '*.cpp' | sort)
 UNIT_SRCS := $(filter-out %udp_loopback_tests.cpp,$(UNIT_SRCS))
-UNIT_SRCS += test/exsim/api/api_json_tests.cpp test/exsim/server/config_tests.cpp test/exsim/server/config_review_tests.cpp test/exsim/server/admin_tests.cpp test/exsim/sim/packet_faults_tests.cpp test/exsim/foundation/contract_tests.cpp
-INTEGRATION_SRCS := $(shell find test/exsim/net -name '*.cpp' | sort) test/exsim/api/http_tests.cpp test/exsim/md/udp_loopback_tests.cpp test/framework/alloc_counter.cpp
+UNIT_SRCS += test/exsim/api/api_json_tests.cpp test/exsim/server/config_tests.cpp test/exsim/server/config_review_tests.cpp test/exsim/foundation/contract_tests.cpp
+INTEGRATION_SRCS := $(shell find test/exsim/net -name '*.cpp' | sort) test/exsim/api/http_tests.cpp test/exsim/api/exchange_service_tests.cpp test/exsim/md/udp_loopback_tests.cpp test/framework/alloc_counter.cpp
 .PHONY: all apps test unit integration clean
 all: apps
 apps: $(BUILD)/exsim_api $(BUILD)/exsim_exchanged
@@ -52,15 +52,14 @@ $(BUILD)/integration_tests: $(call obj,test/main.cpp $(INTEGRATION_SRCS)) $(LIB_
 integration: apps $(BUILD)/integration_tests
 	EXSIM_BUILD=$(BUILD) ./$(BUILD)/integration_tests $(FILTER)
 	EXSIM_BUILD=$(BUILD) python3 -B test/integration/exchange_api_test.py
-test: unit integration exchange-test
+test: unit integration
 clean:
 	rm -rf $(BUILD)
 -include $(shell find $(BUILD)/obj -name '*.d' 2>/dev/null)
 
-# Standalone Exsim tests and benchmarks restored from release 0.1.4.
-BOOK_OBJS := $(call obj,lib/src/exchange/order_book.cpp)
-EXCHANGE_TEST_SRCS := $(sort $(wildcard test/exchange/*.cpp))
-BENCH_SRCS := $(sort $(wildcard benchmark/*.cpp benchmark/cases/*.cpp benchmark/support/*.cpp))
+# The benchmarks and the ITCH replay tool link only the order book.
+BOOK_OBJS := $(call obj,lib/src/book/order_book.cpp)
+BENCH_SRCS := $(sort $(wildcard benchmark/*.cpp benchmark/cases/*.cpp benchmark/utils/*.cpp))
 BENCH_BUILD ?= build/bench
 BENCH_BIN := $(BENCH_BUILD)/exsim_benchmark
 
@@ -70,13 +69,7 @@ BENCH_CPPFLAGS := -I$(BENCHMARK_PREFIX)/include
 BENCH_LDFLAGS := -L$(BENCHMARK_PREFIX)/lib
 endif
 
-.PHONY: exchange-test bench bench-build itch-replay
-$(BUILD)/obj/test/exchange/%.o: CXXFLAGS += -UNDEBUG
-$(BUILD)/exchange_tests: $(call obj,$(EXCHANGE_TEST_SRCS)) $(BOOK_OBJS)
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) $^ -o $@ $(LDLIBS)
-exchange-test: $(BUILD)/exchange_tests
-	./$(BUILD)/exchange_tests
-
+.PHONY: bench bench-build itch-replay
 $(BUILD)/itch_replay: $(call obj,src/utils/itch_replay/main.cpp) $(BOOK_OBJS)
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) $^ -o $@ $(LDLIBS)
 itch-replay:

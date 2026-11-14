@@ -1,23 +1,25 @@
 #ifndef EXSIM_TESTS_GATEWAY_OUCH_OUCH_TEST_HARNESS_HPP
 #define EXSIM_TESTS_GATEWAY_OUCH_OUCH_TEST_HARNESS_HPP
 
-// In-memory server for OUCH gateway tests: a Context (server contract 2.1)
-// that owns a real exsim::MatchingEngine and an EventBuffer sized with
-// required_event_capacity, a session registry, the per-user fault counters of
-// SERVER.md 4, an OuchUserStateDirectory and SERVER.md 2.3 dispatch (each
-// distinct session of a batch gets on_events exactly once). Plus a memory
+// In-memory server for OUCH gateway tests: an OuchServerContext that owns a
+// real exsim::MatchingEngine and an EventBuffer sized with
+// required_event_capacity, a session registry, the per-user reject and
+// drop_out fault counters, an OuchUserStateDirectory and per-batch dispatch
+// (each distinct session of a batch gets on_events exactly once). Plus a memory
 // byte sink, client/server links, frame builders and decoders.
 // (ouch_exchange_core_test.cpp runs the gateway on the real ExchangeCore.)
 //
 // Hot-path members (submit, dispatch, sinks) do not allocate after setup, so
 // steady-state allocation tests can wrap them.
 
-#include "gateway/ouch/ouch_client.hpp"
+#include "test/exsim/support/clients/ouch_client.hpp"
 #include "gateway/ouch/ouch_server.hpp"
-#include "matching_engine.hpp"
+#include "engine/matching_engine.hpp"
+#include "server/core/session_dispatch_set.hpp"
 #include "../../../framework/test.hpp"
 
 #include <cstring>
+#include <limits>
 #include <memory>
 #include <optional>
 #include <string>
@@ -143,14 +145,15 @@ public:
           binding_by_session_(65536),
           injected_rejects_by_session_(65536, 0),
           outbound_drops_by_session_(65536, 0),
-          session_dispatch_mark_(65536, 0) {
+          session_dispatch_mark_(65536, 0),
+          phase_left_by_instrument_(std::size_t{std::numeric_limits<InstrumentId>::max()} + 1) {
         for (const InstrumentConfig& instrument : config_.instruments) {
             REQUIRE(engine_.add_instrument(instrument) != 0);
         }
         dispatch_sessions_.reserve(65536);
     }
 
-    // ---- Context (SERVER.md 2.1) --------------------------------------------
+    // ---- OuchServerContext -------------------------------------------------
 
     const server::UserConfig* authenticate(std::string_view username, std::string_view password,
                                            server::Protocol protocol) noexcept {
@@ -201,7 +204,14 @@ public:
     Timestamp now() const noexcept { return now_; }
     std::uint64_t realtime_ns() const noexcept { return now_; }
 
-    // SERVER.md 4 fault queries: each true consumes one count.
+    // The phase the batch being dispatched moved `instrument` out of;
+    // Halted when it changes no phase of it.
+    Phase phase_left_by_batch(InstrumentId instrument) const noexcept {
+        const BatchPhaseChange& change = phase_left_by_instrument_[instrument];
+        return change.dispatch_generation == dispatch_generation_ ? change.old_phase : Phase::Halted;
+    }
+
+    // Fault queries: each true consumes one count.
     bool consume_injected_reject(SessionId session) noexcept { return consume_one(injected_rejects_by_session_[session]); }
     bool consume_drop_out(SessionId session) noexcept { return consume_one(outbound_drops_by_session_[session]); }
     bool has_pending_drop_out(SessionId session) const noexcept { return outbound_drops_by_session_[session] != 0; }
@@ -261,32 +271,22 @@ private:
         return true;
     }
 
-    void mark_session(SessionId session) noexcept {
-        if (session == 0 || session_dispatch_mark_[session] == dispatch_generation_) return;
-        session_dispatch_mark_[session] = dispatch_generation_;
-        dispatch_sessions_.push_back(session);
-    }
-
     void dispatch(std::span<const Event> batch) noexcept {
         ++dispatch_generation_;
         dispatch_sessions_.clear();
         for (const Event& event : batch) {
-            switch (event.type) {
-                case EventType::Accepted: mark_session(event.accepted.session); break;
-                case EventType::Rejected: mark_session(event.rejected.session); break;
-                case EventType::Rested: mark_session(event.rested.session); break;
-                case EventType::Fill:
-                    mark_session(event.fill.buy.session);
-                    mark_session(event.fill.sell.session);
-                    break;
-                case EventType::Canceled: mark_session(event.canceled.session); break;
-                case EventType::Replaced: mark_session(event.replaced.session); break;
-                case EventType::MassCancelDone: mark_session(event.mass_cancel_done.session); break;
-                case EventType::PhaseChanged:
-                case EventType::AuctionSummary: break;
+            if (event.type == EventType::PhaseChanged) {
+                phase_left_by_instrument_[event.instrument] = {dispatch_generation_, event.phase_changed.old_phase};
             }
+            server::visit_event_sessions(event, [&](SessionId session) {
+                if (session == 0 || session_dispatch_mark_[session] == dispatch_generation_) return;
+                session_dispatch_mark_[session] = dispatch_generation_;
+                dispatch_sessions_.push_back(session);
+            });
         }
-        for (const SessionId session : dispatch_sessions_) user_states_.on_events(session, batch, *this);
+        for (const SessionId session : dispatch_sessions_) {
+            if (TestUserState* user = user_states_.find(session)) user->on_events(batch, *this);
+        }
     }
 
     const server::UserConfig* find_user(SessionId session) const noexcept {
@@ -306,6 +306,11 @@ private:
     std::vector<std::uint64_t> session_dispatch_mark_;
     std::vector<SessionId> dispatch_sessions_;
     std::uint64_t dispatch_generation_ = 0;
+    struct BatchPhaseChange {
+        std::uint64_t dispatch_generation = 0;
+        Phase old_phase = Phase::Halted;
+    };
+    std::vector<BatchPhaseChange> phase_left_by_instrument_;
     Timestamp now_ = kNineThirty;
     std::uint64_t submitted_command_count_ = 0;
     std::uint64_t insufficient_output_count_ = 0;

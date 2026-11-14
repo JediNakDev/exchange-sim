@@ -1,16 +1,18 @@
-#ifndef EXSIM_EXCHANGE_TOOLS_DIFF_HPP
-#define EXSIM_EXCHANGE_TOOLS_DIFF_HPP
+#ifndef EXSIM_ITCH_REPLAY_DIFF_HPP
+#define EXSIM_ITCH_REPLAY_DIFF_HPP
 
 // Snapshot-level diff between the production OrderBook and ReferenceBook.
 // Returns true iff the top-`depth` of both books agree on price, total
 // quantity, and order count at every level.
 
 #include "reference_book.hpp"
-#include <exchange/order_book.hpp>
+#include <book/order_book.hpp>
 #include <sstream>
 #include <string>
 
-namespace exsim::exchange::tools {
+namespace exsim::itch_replay {
+
+using book::OrderBook;
 
 struct DiffResult {
     bool        ok = true;
@@ -55,6 +57,6 @@ inline DiffResult diff_books(const OrderBook& engine,
     return out;
 }
 
-}  // namespace exsim::exchange::tools
+}  // namespace exsim::itch_replay
 
 #endif

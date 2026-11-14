@@ -25,8 +25,8 @@ struct Scenario {
         feed.start(now);
     }
 
-    static sim::JournalSetup setup_for(std::initializer_list<InstrumentConfig> instruments) {
-        sim::JournalSetup setup{EngineConfig{4, 256}, {}};
+    static server::journal::JournalSetup setup_for(std::initializer_list<InstrumentConfig> instruments) {
+        server::journal::JournalSetup setup{EngineConfig{4, 256}, {}};
         for (const auto& instrument : instruments) setup.instruments.push_back(instrument);
         return setup;
     }

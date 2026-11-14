@@ -4,11 +4,11 @@
 // the retransmission path runs too. Skipped where allocation counting is
 // unavailable (sanitizer builds).
 
-#include <md/book_builder.hpp>
+#include "test/exsim/support/clients/itch_book_builder.hpp"
 #include <md/publisher.hpp>
-#include <md/receiver.hpp>
+#include "test/exsim/support/clients/moldudp64_receiver.hpp"
 #include <md/retransmission_server.hpp>
-#include <sim/packet_faults.hpp>
+#include <md/packet_faults.hpp>
 #include <test/exsim/md/md_test_support.hpp>
 #include <test/exsim/support/command_gen.hpp>
 #include <test/framework/alloc_counter.hpp>
@@ -66,7 +66,7 @@ struct FixedQueueSink {
 };
 
 struct FaultyFeedSink {
-    sim::PacketFaultInjector* injector;
+    md::PacketFaultInjector* injector;
     FixedPacketQueue* queue;
     void operator()(std::span<const char> packet) const { injector->submit(packet, FixedQueueSink{queue}); }
 };
@@ -78,7 +78,7 @@ TEST_CASE(md_allocation, steady_state_feed_allocates_nothing) {
         std::printf("allocation counting unavailable, skipped ");
         return;
     }
-    const sim::JournalSetup setup = testsupport::fuzz_setup();
+    const server::journal::JournalSetup setup = testsupport::fuzz_setup();
     MatchingEngine engine(setup.engine);
     for (const auto& instrument : setup.instruments) REQUIRE(engine.add_instrument(instrument) != 0);
     EventBuffer events(required_event_capacity(setup.engine));
@@ -87,8 +87,8 @@ TEST_CASE(md_allocation, steady_state_feed_allocates_nothing) {
     FixedPacketQueue feed_queue(256, kPayload);
     FixedPacketQueue request_queue(64, md::kMoldRequestSize);
     FixedPacketQueue response_queue(64, kPayload);
-    sim::PacketFaultInjector injector(kPayload, 16);
-    sim::PacketFaultConfig faults;
+    md::PacketFaultInjector injector(kPayload, 16);
+    md::PacketFaultConfig faults;
     faults.drop_ppm = 20'000;
     faults.duplicate_ppm = 20'000;
     faults.reorder_ppm = 20'000;

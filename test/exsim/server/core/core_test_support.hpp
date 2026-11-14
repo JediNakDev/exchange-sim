@@ -6,8 +6,9 @@
 // (allocation-free, for the steady-state allocation test).
 
 #include "server/config.hpp"
+#include "server/admin/core_admin.hpp"
 #include "server/exchange_core.hpp"
-#include "sim/canonical.hpp"
+#include "server/journal/canonical.hpp"
 #include "test/framework/test.hpp"
 
 #include <array>
@@ -23,8 +24,9 @@ namespace exsim::server::core_test {
 inline constexpr Timestamp kSecond = 1'000'000'000;
 inline constexpr Timestamp kMillisecond = 1'000'000;
 
-// Two instruments, three wire users (ALICE and CAROL share STP owner 1) and
-// two users reserved for bots. Engine limits are small so the EventBuffer is.
+// Two instruments and five users: ALICE and BOB on OUCH, CAROL on FIX
+// (ALICE and CAROL share STP owner 1), and MM1 and NT1 on OUCH with high
+// session ids. Engine limits are small so the EventBuffer is.
 inline const char* const kBaseConfig = R"(
 [engine]
 max_instruments = 4
@@ -103,8 +105,7 @@ struct FakeClock {
 struct SessionCall {
     SessionId session = 0;
     std::size_t batch_number = 0;  // index of the market-data batch this belongs to
-    std::size_t batch_size = 0;
-    const Event* batch_data = nullptr;
+    std::vector<Event> events;     // the events the session was given
 };
 
 struct Recorder {
@@ -143,8 +144,8 @@ struct RecordingSessions {
     std::vector<SubmitResult> storm_results{};
 
     template <typename Core>
-    void on_events(SessionId session, std::span<const Event> batch, Core& core) {
-        recorder.session_calls.push_back({session, recorder.batch_count(), batch.size(), batch.data()});
+    void on_events(SessionId session, const SessionEvents& events, Core& core) {
+        recorder.session_calls.push_back({session, recorder.batch_count(), {events.begin(), events.end()}});
         if (session == unbind_when_dispatching_to && unbind_target != 0) {
             const SessionId target = unbind_target;
             unbind_target = 0;
@@ -165,7 +166,7 @@ struct RecordingSessions {
 // Every optional hook: two-argument timer, sequence, packet faults with reset, shutdown.
 struct RecordingMarketData {
     Recorder& recorder;
-    sim::PacketFaultInjector injector{1500, 8};
+    md::PacketFaultInjector injector{1500, 8};
     std::size_t resets = 0;
 
     void on_events(std::span<const Event> batch) {
@@ -174,9 +175,9 @@ struct RecordingMarketData {
     }
     void flush() { ++recorder.flushes; }
     [[nodiscard]] std::uint64_t next_sequence() const noexcept { return recorder.batch_count() + 1; }
-    sim::PacketFaultInjector& packet_faults() noexcept { return injector; }
+    md::PacketFaultInjector& packet_faults() noexcept { return injector; }
     void reset_packet_faults() {
-        injector = sim::PacketFaultInjector(1500, 8);
+        injector = md::PacketFaultInjector(1500, 8);
         ++resets;
     }
     template <typename Core>
@@ -190,13 +191,13 @@ struct RecordingMarketData {
 // Packet faults but no reset hook, one-argument timer, no sequence, no shutdown.
 struct NoResetMarketData {
     Recorder& recorder;
-    sim::PacketFaultInjector injector{1500, 8};
+    md::PacketFaultInjector injector{1500, 8};
     void on_events(std::span<const Event> batch) {
         recorder.events.insert(recorder.events.end(), batch.begin(), batch.end());
         recorder.batch_ends.push_back(recorder.events.size());
     }
     void flush() { ++recorder.flushes; }
-    sim::PacketFaultInjector& packet_faults() noexcept { return injector; }
+    md::PacketFaultInjector& packet_faults() noexcept { return injector; }
     void on_timer(Timestamp now) {
         ++recorder.market_data_timer_calls;
         recorder.market_data_timer_times.push_back(now);
@@ -217,8 +218,12 @@ struct MinimalMarketData {
 template <typename MarketData>
 struct HarnessWith {
     explicit HarnessWith(const ServerConfig& config, CoreOptions options = {})
-        : sessions{recorder}, market_data{recorder}, core(config, sessions, market_data, clock, options) {}
+        : server_config(config),
+          sessions{recorder},
+          market_data{recorder},
+          core(server_config, sessions, market_data, clock, options) {}
 
+    ServerConfig server_config;  // the core keeps a reference
     Recorder recorder;
     FakeClock clock;
     RecordingSessions sessions;
@@ -227,7 +232,7 @@ struct HarnessWith {
 
     std::string admin(std::string_view line) {
         std::string reply;
-        core.execute_line(line, reply);
+        CoreAdmin(core).execute_line(line, reply);
         return reply;
     }
 };
@@ -239,9 +244,9 @@ struct CountingSessions {
     std::uint64_t calls = 0;
     std::uint64_t events_seen = 0;
     template <typename Core>
-    void on_events(SessionId, std::span<const Event> batch, Core&) noexcept {
+    void on_events(SessionId, const SessionEvents& events, Core&) noexcept {
         ++calls;
-        events_seen += batch.size();
+        events_seen += events.size();
     }
 };
 
@@ -256,7 +261,7 @@ struct CountingMarketData {
         for (const Event& event : batch) {
             ++events;
             fills += event.type == EventType::Fill ? 1 : 0;
-            hash = sim::hash_event(event, hash);
+            hash = server::journal::hash_event(event, hash);
         }
     }
     void flush() noexcept { ++flushes; }

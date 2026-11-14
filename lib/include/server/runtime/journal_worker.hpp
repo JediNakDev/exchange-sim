@@ -1,12 +1,14 @@
 #ifndef EXSIM_SERVER_RUNTIME_JOURNAL_WORKER_HPP
 #define EXSIM_SERVER_RUNTIME_JOURNAL_WORKER_HPP
 
-#include "sim/journal.hpp"
-#include "exchange/spsc_queue.hpp"
+#include "server/journal/journal.hpp"
+#include "util/spsc_queue.hpp"
 
 #include <atomic>
 #include <chrono>
+#include <condition_variable>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <thread>
 
@@ -16,18 +18,21 @@ namespace exsim::server::runtime {
 // owns all file operations after startup. Accepted entries are never dropped
 // silently: overflow or an I/O error latches failure for the exchange core.
 // A stalled writer retains its own state if shutdown must abandon the wait.
-template <class Writer = sim::JournalWriter, std::size_t Capacity = 16385>
+// The default ring holds 32767 entries.
+template <class Writer = journal::JournalWriter, std::size_t Capacity = 32768>
 class JournalWorker {
 public:
-    JournalWorker(const std::string& path, const sim::JournalSetup& setup)
+    JournalWorker(const std::string& path, const journal::JournalSetup& setup)
         : state_(std::make_shared<State>(path, setup)), worker_([state = state_] { persist(*state); }) {}
 
     ~JournalWorker() {
         state_->stopping.store(true, std::memory_order_release);
-        const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(100);
-        while (!state_->done.load(std::memory_order_acquire) && std::chrono::steady_clock::now() < deadline)
-            std::this_thread::sleep_for(std::chrono::milliseconds(1));
-        if (state_->done.load(std::memory_order_acquire)) worker_.join();
+        // The writer drains, closes and signals completion; wait up to 100 ms.
+        std::unique_lock lock(state_->completion_mutex);
+        const bool writer_done =
+            state_->completion.wait_for(lock, std::chrono::milliseconds(100), [&] { return state_->done; });
+        lock.unlock();
+        if (writer_done) worker_.join();
         else {
             abort();
             // The worker captures the state; it never accesses the runtime.
@@ -67,12 +72,14 @@ private:
         bool flush;
     };
     struct State {
-        State(const std::string& path, const sim::JournalSetup& setup) : writer(std::in_place, path, setup) {}
+        State(const std::string& path, const journal::JournalSetup& setup) : writer(std::in_place, path, setup) {}
         std::optional<Writer> writer;  // closed by the persistence thread
-        exsim::exchange::engine::SPSCQueue<Entry, Capacity> queue;
+        exsim::util::SPSCQueue<Entry, Capacity> queue;
         std::atomic<bool> stopping{false};
         std::atomic<bool> failed{false};
-        std::atomic<bool> done{false};
+        std::mutex completion_mutex;
+        std::condition_variable completion;
+        bool done = false;
         std::atomic<std::uint64_t> flushed_operations{0};
     };
 
@@ -109,7 +116,11 @@ private:
         }
         if (!io_ok) state.failed.store(true, std::memory_order_release);
         state.writer.reset();  // close can block too; keep it off the reactor
-        state.done.store(true, std::memory_order_release);
+        {
+            std::lock_guard lock(state.completion_mutex);
+            state.done = true;
+        }
+        state.completion.notify_one();
     }
 
     std::shared_ptr<State> state_;

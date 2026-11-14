@@ -1,4 +1,5 @@
 #include "test/exsim/gateway/fix/fix_test_support.hpp"
+#include "server/admin/core_admin.hpp"
 #include "server/exchange_core.hpp"
 #include "test/framework/alloc_counter.hpp"
 
@@ -17,8 +18,8 @@ struct MarketData {
 struct Sessions {
     fix::FixUserDirectory<TestByteSink>* directory = nullptr;
     template <class Context>
-    void on_events(exsim::SessionId session, std::span<const exsim::Event> batch, Context& ctx) noexcept {
-        if (auto* user = directory->find(session)) user->on_events(batch, ctx);
+    void on_events(exsim::SessionId session, const exsim::server::SessionEvents& events, Context& ctx) noexcept {
+        if (auto* user = directory->find(session)) user->on_events(events, ctx);
     }
 };
 exsim::server::ServerConfig config() {
@@ -63,7 +64,7 @@ struct Harness {
     }
     void admin(std::string_view text) {
         std::string reply;
-        core.execute_line(text, reply);
+        exsim::server::CoreAdmin(core).execute_line(text, reply);
         CHECK(reply.find("ERR") == std::string::npos);
     }
 };

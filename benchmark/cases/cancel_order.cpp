@@ -1,12 +1,12 @@
 #include "../utils/runner.hpp"
 #include "../utils/workload.hpp"
-#include <exchange/order_book.hpp>
+#include <book/order_book.hpp>
 
 using namespace bench;
 
 static void BM_CancelOrder(benchmark::State& state) {
     std::unique_ptr<PrePopulatedBook> prepop;
-    const std::vector<exsim::exchange::OrderId>* ids = nullptr;
+    const std::vector<exsim::book::OrderId>* ids = nullptr;
 
     BenchmarkRunner runner(state, "CancelOrder");
     runner.run_with_setup(

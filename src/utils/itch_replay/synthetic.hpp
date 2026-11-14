@@ -1,5 +1,5 @@
-#ifndef EXSIM_EXCHANGE_TOOLS_SYNTHETIC_HPP
-#define EXSIM_EXCHANGE_TOOLS_SYNTHETIC_HPP
+#ifndef EXSIM_ITCH_REPLAY_SYNTHETIC_HPP
+#define EXSIM_ITCH_REPLAY_SYNTHETIC_HPP
 
 // Deterministic ITCH 5.0 stream generator. Emits wire-format bytes for
 // A / E / X / D / U messages so the replayer's parse path is exercised
@@ -8,15 +8,17 @@
 // executes, 5% replaces. All adds are non-marketable by construction
 // (buys below current best ask, sells above current best bid).
 
-#include "src/utils/itch_replay/itch.hpp"
-#include <exchange/types.hpp>
+#include <book/types.hpp>
 #include <cstdint>
 #include <cstring>
 #include <random>
 #include <unordered_map>
 #include <vector>
 
-namespace exsim::exchange::tools {
+namespace exsim::itch_replay {
+
+using book::Price;
+using book::Side;
 
 class SyntheticItchStream {
 public:
@@ -74,7 +76,7 @@ private:
     void emit_add(std::vector<char>& out) {
         char buf[36] = {0};
         buf[0] = 'A';
-        // stock_locate / tracking (offsets 1,3) — left zero
+        // stock_locate and tracking (offsets 1, 3) are left zero
         std::uniform_int_distribution<int> side_d(0, 1);
         Side s = side_d(rng_) ? Side::BUY : Side::SELL;
         Price p = random_passive_price(s);
@@ -87,7 +89,7 @@ private:
         write_be64(buf + 11, ref);
         buf[19] = (s == Side::BUY) ? 'B' : 'S';
         write_be32(buf + 20, qty);
-        // stock symbol (offsets 24..31) left as spaces — leave zero, fine.
+        // The stock symbol (offsets 24..31) is left zero rather than spaces.
         write_be32(buf + 32, static_cast<std::uint32_t>(p));
 
         out.insert(out.end(), buf, buf + 36);
@@ -191,6 +193,6 @@ private:
     }
 };
 
-}  // namespace exsim::exchange::tools
+}  // namespace exsim::itch_replay
 
 #endif

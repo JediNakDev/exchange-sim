@@ -3,7 +3,7 @@
 #include "../utils/stats.hpp"
 #include "../utils/workload.hpp"
 #include <benchmark/benchmark.h>
-#include "benchmark/support/sharded_engine.hpp"
+#include "benchmark/utils/sharded_engine.hpp"
 #include <chrono>
 
 using namespace bench;
@@ -15,13 +15,13 @@ static void BM_ShardedThroughput(benchmark::State& state) {
 
     for (auto _ : state) {
         state.PauseTiming();
-        exsim::exchange::engine::ShardedEngine engine(shards, batch, true);
+        bench::ShardedEngine engine(shards, batch, true);
         state.ResumeTiming();
 
         std::size_t submitted = 0;
         for (std::size_t i = 0; i < BENCHMARK_SAMPLES; ++i) {
             const auto& order = w.get(i);
-            const exsim::exchange::engine::SymbolId symbol = static_cast<exsim::exchange::engine::SymbolId>(i % (shards * 8));
+            const bench::SymbolId symbol = static_cast<bench::SymbolId>(i % (shards * 8));
             while (!engine.submit_add(symbol, order.price, order.quantity, order.side).has_value()) {
                 benchmark::ClobberMemory();
             }
@@ -49,13 +49,13 @@ static void BM_ShardedEndToEndLatency(benchmark::State& state) {
 
     for (auto _ : state) {
         state.PauseTiming();
-        exsim::exchange::engine::ShardedEngine engine(shards, batch, true);
+        bench::ShardedEngine engine(shards, batch, true);
         latencies.clear();
         state.ResumeTiming();
 
         for (std::size_t i = 0; i < kLatencySamples; ++i) {
             const auto& order = w.get(i);
-            const exsim::exchange::engine::SymbolId symbol = static_cast<exsim::exchange::engine::SymbolId>(i % (shards * 8));
+            const bench::SymbolId symbol = static_cast<bench::SymbolId>(i % (shards * 8));
             const auto start = std::chrono::high_resolution_clock::now();
             while (!engine.submit_add(symbol, order.price, order.quantity, order.side).has_value()) {
                 benchmark::ClobberMemory();

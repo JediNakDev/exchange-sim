@@ -27,7 +27,7 @@ struct UnbindingSessions {
     SessionId unbind_target = 0;
 
     template <typename Core>
-    void on_events(SessionId session, std::span<const Event>, Core& core) noexcept {
+    void on_events(SessionId session, const SessionEvents&, Core& core) noexcept {
         ++calls;
         if (session == trigger_session && unbind_target != 0) {
             const SessionId target = unbind_target;
@@ -129,11 +129,12 @@ TEST_CASE(server_core_allocation, steady_state_allocates_nothing) {
         // Fault state as the admin console would leave it (admin allocates,
         // so it stays outside the measured scope).
         std::string reply;
-        core.execute_line("fault user ALICE reject 1", reply);
-        core.execute_line("fault user BOB drop_out 1", reply);
-        core.execute_line("fault user CAROL delay 5", reply);
+        CoreAdmin admin(core);
+        admin.execute_line("fault user ALICE reject 1", reply);
+        admin.execute_line("fault user BOB drop_out 1", reply);
+        admin.execute_line("fault user CAROL delay 5", reply);
         (void)core.bind(1, 1001);
-        core.execute_line("fault user ALICE disconnect", reply);
+        admin.execute_line("fault user ALICE disconnect", reply);
 
         std::size_t allocations = 0;
         {

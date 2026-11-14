@@ -1,14 +1,13 @@
 #ifndef EXSIM_GATEWAY_OUCH_OUCH_MAPPING_HPP
 #define EXSIM_GATEWAY_OUCH_OUCH_MAPPING_HPP
 
-// OUCH 4.2 <-> engine vocabulary, exactly as gateway mapping section 2 and
-// its "Supported simulator profile" specify. Pure constexpr functions; the
-// session code in ouch_server.hpp applies them.
+// OUCH 4.2 <-> engine vocabulary for the simulator's supported OUCH profile.
+// Pure constexpr functions; the session code in ouch_server.hpp applies them.
 //
 // Engine-to-wire reason mappings live here; codecs handle wire layouts only.
 
 #include "protocol/ouch42.hpp"
-#include "types.hpp"
+#include "engine/types.hpp"
 
 #include <array>
 #include <cstdint>
@@ -48,7 +47,7 @@ inline constexpr char kOuchLiquidityHaltOrOtherCross = 'H';
 inline constexpr char kSoupLoginRejectNotAuthorized = 'A';
 inline constexpr char kSoupLoginRejectSessionNotAvailable = 'S';
 
-// ---- Reason maps (GATEWAYS.md section 2, outbound table) -------------------
+// ---- Reason maps (engine to wire) ----------------------------------------
 
 [[nodiscard]] constexpr char ouch_reject_reason(RejectReason reason) noexcept {
     switch (reason) {

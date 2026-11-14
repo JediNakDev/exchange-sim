@@ -6,10 +6,15 @@
 #include "net/clocks.hpp"
 #include "net/tcp_server.hpp"
 #include "net/udp.hpp"
+#include "server/config.hpp"
+#include "server/runtime/market_data_settings.hpp"
 #include "server/runtime/tcp_send_sink.hpp"
-#include "sim/packet_faults.hpp"
+#include "md/packet_faults.hpp"
 
 namespace exsim::server::runtime {
+
+// CME MDP 3.0 market data policy: incremental A/B feeds through the packet
+// fault injector, snapshot and instrument definition loops, and TCP replay.
 class MdpRuntime {
     struct PacketSink {
         MdpRuntime* runtime;
@@ -25,30 +30,33 @@ class MdpRuntime {
         bool open = false;
     };
 public:
-    MdpRuntime(const ServerConfig& config, std::size_t held_packets)
-        : config_(config), faults_(config.market_data.max_payload, held_packets), publisher_(config_, PacketSink{this}) {}
+    MdpRuntime(const ServerConfig& config, const MarketDataRuntimeSettings& settings)
+        : settings_(settings), faults_(config.market_data.max_payload, settings.max_held_packets), publisher_(config, PacketSink{this}) {}
 
-    std::string open(net::Poller& poller, std::uint8_t replay_tag, int send_buffer_bytes) {
-        const auto& md = config_.market_data;
+    MdpRuntime(const MdpRuntime&) = delete;
+    MdpRuntime& operator=(const MdpRuntime&) = delete;
+
+    std::string open(const ServerConfig& config, net::Poller& poller, std::uint64_t replay_token) {
+        const auto& md = config.market_data;
         std::uint32_t address = 0, interface_address = 0, bind = 0;
         if (!net::parse_ipv4_address(md.address, address) ||
-            !net::parse_ipv4_address(config_.exchange.bind_address, bind) ||
+            !net::parse_ipv4_address(config.exchange.bind_address, bind) ||
             (!md.interface_address.empty() && !net::parse_ipv4_address(md.interface_address, interface_address)))
             return "invalid MDP IPv4 address";
         incremental_ = {address, md.port}; backup_ = {address, md.backup_port};
         snapshot_ = {address, md.snapshot_port}; instrument_ = {address, md.instrument_port};
         if (const auto error = sender_.open()) return "MDP UDP socket: " + std::string(std::strerror(error));
-        if (send_buffer_bytes > 0) (void)net::set_send_buffer_size(sender_.fd(), send_buffer_bytes);
+        if (settings_.send_buffer_bytes > 0) (void)net::set_send_buffer_size(sender_.fd(), settings_.send_buffer_bytes);
         if (net::is_ipv4_multicast_address(address)) {
             if (const auto error = sender_.multicast_options(md.ttl, md.loopback, interface_address))
                 return "MDP multicast: " + std::string(std::strerror(error));
         }
         net::TcpServerConfig tcp;
         tcp.listen_endpoint = {bind, md.retransmit_port};
-        tcp.max_connections = std::min(config_.exchange.max_connections, std::uint32_t{4});
+        tcp.max_connections = std::min(config.exchange.max_connections, std::uint32_t{4});
         tcp.receive_buffer_capacity = 8192;
         tcp.send_buffer_capacity = 4 * 1024 * 1024;
-        replay_ = std::make_unique<net::TcpServer>(tcp, poller, replay_tag);
+        replay_ = std::make_unique<net::TcpServer>(tcp, poller, net::poll_token_tag(replay_token));
         slots_.reserve(tcp.max_connections);
         for (std::size_t i = 0; i < tcp.max_connections; ++i)
             slots_.push_back(std::make_unique<Slot>(md, publisher_.ring()));
@@ -60,8 +68,9 @@ public:
     }
     void on_events(std::span<const Event> events) noexcept { (void)publisher_.on_events(events); }
     void flush() noexcept { if (replay_) replay_->flush_pending(*this); }
-    void on_timer(Timestamp now, std::uint64_t heartbeat_ns) noexcept {
-        publisher_.poll(now, heartbeat_ns);
+    template <class Core>
+    void on_timer(Timestamp now, const Core&) noexcept {
+        publisher_.poll(now, settings_.heartbeat_interval_ns);
         if (!replay_) return;
         const auto monotonic = net::monotonic_ns(), epoch = net::realtime_ns();
         for (auto& slot : slots_) {
@@ -82,7 +91,7 @@ public:
         }
         replay_->flush_pending(*this);
     }
-    void handle_event(const net::PollEvent& event) noexcept { replay_->handle_event(event, *this); }
+    void handle_recovery_event(const net::PollEvent& event) noexcept { replay_->handle_event(event, *this); }
     void on_connection_opened(net::ConnectionId id, net::Ipv4Endpoint) noexcept {
         auto& slot = *slots_[id.slot];
         slot.id = id; slot.open = true;
@@ -100,14 +109,15 @@ public:
     void on_connection_closed(net::ConnectionId id, net::CloseReason, net::ErrorCode) noexcept {
         if (slots_[id.slot]->id == id) slots_[id.slot]->open = false;
     }
+    [[nodiscard]] bool stopped() const noexcept { return state() == md::PublisherState::Stopped; }
     [[nodiscard]] md::PublisherState state() const noexcept { return publisher_.state(); }
     [[nodiscard]] md::PublishStatus stop_reason() const noexcept { return publisher_.stop_reason(); }
     [[nodiscard]] std::uint64_t next_sequence() const noexcept { return publisher_.next_sequence(); }
-    [[nodiscard]] std::uint32_t connection_count() const noexcept { return replay_ ? replay_->connection_count() : 0; }
-    void close_all_now() noexcept { if (replay_) replay_->close(); }
+    [[nodiscard]] std::uint32_t recovery_connection_count() const noexcept { return replay_ ? replay_->connection_count() : 0; }
+    void close_recovery_now() noexcept { if (replay_) replay_->close(); }
     [[nodiscard]] net::Ipv4Endpoint feed_destination() const noexcept { return incremental_; }
     [[nodiscard]] net::Ipv4Endpoint retransmission_endpoint() const noexcept { return replay_ ? replay_->listen_endpoint() : net::Ipv4Endpoint{}; }
-    [[nodiscard]] sim::PacketFaultInjector& packet_faults() noexcept { return faults_; }
+    [[nodiscard]] md::PacketFaultInjector& packet_faults() noexcept { return faults_; }
     void reset_packet_faults() noexcept {
         faults_.clear_faults();
         faults_.flush([this](std::span<const char> packet) { send_incremental(packet); });
@@ -132,8 +142,8 @@ private:
             if (endpoint.port) (void)sender_.send_to(packet, endpoint);
         }
     }
-    ServerConfig config_;
-    sim::PacketFaultInjector faults_;
+    MarketDataRuntimeSettings settings_;
+    md::PacketFaultInjector faults_;
     md::MdpPublisher<PacketSink> publisher_;
     net::UdpSender sender_;
     net::Ipv4Endpoint incremental_{}, backup_{}, snapshot_{}, instrument_{};

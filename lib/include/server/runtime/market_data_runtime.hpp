@@ -1,229 +1,117 @@
 #ifndef EXSIM_SERVER_RUNTIME_MARKET_DATA_RUNTIME_HPP
 #define EXSIM_SERVER_RUNTIME_MARKET_DATA_RUNTIME_HPP
 
-// The server's MarketData policy (server contract 3, exsim/server/core/
-// policies.hpp): MarketDataPublisher -> sim::PacketFaultInjector -> UDP
-// sender, plus the MoldUDP64 retransmission server on its own UDP socket.
+// The server's MarketData policy: ITCH 5.0 over MoldUDP64 (ItchRuntime) or
+// CME MDP 3.0 (MdpRuntime), chosen once from the configuration. Only the
+// selected runtime is constructed.
 //
-//   on_events / flush        every command batch, from the core's dispatch
-//   on_timer(now, core)      NOII and MoldUDP64 heartbeat
-//   packet_faults()          target of `fault md ...`
-//   reset_packet_faults()    `fault md off`: clears every rate and pending
-//                            one-shot fault and releases held packets
-//   on_shutdown(now)         ITCH S 'E', S 'C', MoldUDP64 End of Session
-//
-// A batch the publisher cannot represent stops the feed (stopped() turns
-// true); the server loop then shuts the exchange down. Fault injection is
-// switched off at end of day so the final messages and the End of Session
-// packet, which cannot be recovered by request, reach every receiver.
-//
-// Hot path (on_events, flush, on_timer, retransmission answers): no heap
-// allocation. Construction and open() allocate.
+// A std::variant rather than a template parameter on the server runtime:
+// ExchangeCore and every gateway endpoint are instantiated once instead of
+// once per protocol, which halves that part of the binary. Each call costs
+// one test of an index fixed at startup, which the branch predictor always
+// gets right; the runtimes themselves contain no protocol branches.
 
-#include "event.hpp"
+#include "engine/event.hpp"
 #include "md/publisher.hpp"
-#include "md/retransmission_server.hpp"
 #include "net/poller.hpp"
-#include "net/socket.hpp"
-#include "net/udp.hpp"
 #include "server/config.hpp"
+#include "server/runtime/itch_runtime.hpp"
+#include "server/runtime/market_data_settings.hpp"
 #include "server/runtime/mdp_runtime.hpp"
-#include "sim/packet_faults.hpp"
+#include "md/packet_faults.hpp"
 
-#include <array>
-#include <cerrno>
-#include <cstddef>
 #include <cstdint>
-#include <cstring>
 #include <span>
 #include <string>
+#include <variant>
 
 namespace exsim::server::runtime {
-
-struct MarketDataRuntimeSettings {
-    std::uint64_t heartbeat_interval_ns = 1'000'000'000;  // MoldUDP64 heartbeat after this much silence
-    std::size_t max_held_packets = 256;                  // reorder fault capacity
-    int send_buffer_bytes = 4 << 20;                     // SO_SNDBUF of the feed socket; 0 = OS default
-};
 
 class MarketDataRuntime {
 public:
     MarketDataRuntime(const ServerConfig& config, const MarketDataRuntimeSettings& settings)
-        : settings_(settings),
-          packet_faults_(config.market_data.max_payload, settings.max_held_packets),
-          publisher_(publisher_config(config, settings), FeedPacketSink{this}),
-          retransmission_server_(publisher_.ring(), md::RetransmissionConfig{config.market_data.session,
-                                                                            config.market_data.max_payload, 1024}) {
-        if (config.market_data.protocol == MarketDataProtocol::Mdp3)
-            mdp_ = std::make_unique<MdpRuntime>(config, settings.max_held_packets);
-    }
+        : runtime_(construct_selected_runtime(config, settings)) {}
 
     MarketDataRuntime(const MarketDataRuntime&) = delete;
     MarketDataRuntime& operator=(const MarketDataRuntime&) = delete;
 
-    // Opens the feed sender and the retransmission socket and registers the
-    // latter with `poller` under `retransmission_token`. Returns "" or an
-    // error message.
-    [[nodiscard]] std::string open(const ServerConfig& config, net::Poller& poller, std::uint64_t retransmission_token) {
-        if (mdp_) return mdp_->open(poller, net::poll_token_tag(retransmission_token), settings_.send_buffer_bytes);
-        const MarketDataSection& section = config.market_data;
-        std::uint32_t feed_address = 0;
-        if (!net::parse_ipv4_address(section.address, feed_address)) {
-            return "market_data.address is not an IPv4 address: " + section.address;
-        }
-        feed_destination_ = net::Ipv4Endpoint{feed_address, section.port};
-        if (net::ErrorCode error = feed_sender_.open(); error != 0) {
-            return "market data socket: " + std::string(std::strerror(error));
-        }
-        if (settings_.send_buffer_bytes > 0) {
-            (void)net::set_send_buffer_size(feed_sender_.fd(), settings_.send_buffer_bytes);
-        }
-        if (net::is_ipv4_multicast_address(feed_address)) {
-            std::uint32_t interface_address = net::kIpv4AnyAddress;
-            if (!section.interface_address.empty() &&
-                !net::parse_ipv4_address(section.interface_address, interface_address)) {
-                return "market_data.interface is not an IPv4 address: " + section.interface_address;
-            }
-            if (net::ErrorCode error = feed_sender_.multicast_options(section.ttl, section.loopback, interface_address);
-                error != 0) {
-                return "market data multicast options: " + std::string(std::strerror(error));
-            }
-        }
-        std::uint32_t bind_address = 0;
-        if (!net::parse_ipv4_address(config.exchange.bind_address, bind_address)) {
-            return "exchange.bind_address is not an IPv4 address: " + config.exchange.bind_address;
-        }
-        if (net::ErrorCode error = retransmission_socket_.open({bind_address, section.retransmit_port}); error != 0) {
-            return "retransmission socket on port " + std::to_string(section.retransmit_port) + ": " +
-                   std::strerror(error);
-        }
-        if (net::ErrorCode error = poller.add(retransmission_socket_.fd(), retransmission_token, net::PollInterest::Read);
-            error != 0) {
-            return "poller: " + std::string(std::strerror(error));
-        }
-        (void)net::local_endpoint(retransmission_socket_.fd(), retransmission_endpoint_);
-        return {};
+    // Opens the feed and recovery sockets and registers the recovery socket
+    // with `poller` under `recovery_token`. Returns "" or an error message.
+    [[nodiscard]] std::string open(const ServerConfig& config, net::Poller& poller, std::uint64_t recovery_token) {
+        return std::visit([&](auto& runtime) { return runtime.open(config, poller, recovery_token); }, runtime_);
     }
-
-    // Registers the engine's instruments and sends the start-of-day messages.
+    // Sends the start-of-day messages for the engine's instruments.
     template <class Engine>
-    [[nodiscard]] md::PublishStatus start(Timestamp now, const Engine& engine, std::uint64_t epoch = net::realtime_ns()) {
-        if (mdp_) return mdp_->start(now, engine, epoch);
-        const md::PublishStatus registered = publisher_.add_instruments_from(engine);
-        if (registered != md::PublishStatus::Ok) return registered;
-        return publisher_.start_session(now);
+    [[nodiscard]] md::PublishStatus start(Timestamp now, const Engine& engine, std::uint64_t epoch) {
+        return std::visit([&](auto& runtime) { return runtime.start(now, engine, epoch); }, runtime_);
     }
 
     // ---- MarketData policy ------------------------------------------------------
     void on_events(std::span<const Event> batch) {
-        if (mdp_) { mdp_->on_events(batch); return; }
-        (void)publisher_.on_events(batch);  // a failure stops the feed: see stopped()
+        std::visit([&](auto& runtime) { runtime.on_events(batch); }, runtime_);
     }
-    void flush() { if (mdp_) mdp_->flush(); else publisher_.flush(); }
-
+    void flush() {
+        std::visit([](auto& runtime) { runtime.flush(); }, runtime_);
+    }
     template <class Core>
     void on_timer(Timestamp now, const Core& core) {
-        if (mdp_) { mdp_->on_timer(now, settings_.heartbeat_interval_ns); return; }
-        if (publisher_.state() == md::PublisherState::Live || publisher_.state() == md::PublisherState::Ended) {
-            (void)publisher_.poll(now, core.engine());
-        }
+        std::visit([&](auto& runtime) { runtime.on_timer(now, core); }, runtime_);
     }
-
-    [[nodiscard]] std::uint64_t next_sequence() const noexcept { return mdp_ ? mdp_->next_sequence() : publisher_.next_sequence(); }
-    [[nodiscard]] sim::PacketFaultInjector& packet_faults() noexcept { return mdp_ ? mdp_->packet_faults() : packet_faults_; }
+    [[nodiscard]] std::uint64_t next_sequence() const noexcept {
+        return std::visit([](const auto& runtime) { return runtime.next_sequence(); }, runtime_);
+    }
+    [[nodiscard]] md::PacketFaultInjector& packet_faults() noexcept {
+        return std::visit([](auto& runtime) -> md::PacketFaultInjector& { return runtime.packet_faults(); }, runtime_);
+    }
     void reset_packet_faults() {
-        if (mdp_) { mdp_->reset_packet_faults(); return; }
-        packet_faults_.clear_faults();
-        packet_faults_.flush([this](std::span<const char> packet) { send_datagram(packet); });
+        std::visit([](auto& runtime) { runtime.reset_packet_faults(); }, runtime_);
     }
-
     void on_shutdown(Timestamp now) {
-        if (mdp_) { mdp_->on_shutdown(now); return; }
-        reset_packet_faults();
-        if (publisher_.state() == md::PublisherState::Live) {
-            (void)publisher_.end_of_day(now);
-        }
-        if (publisher_.state() == md::PublisherState::Stopped) {
-            (void)publisher_.end_session(now);
-        }
+        std::visit([&](auto& runtime) { runtime.on_shutdown(now); }, runtime_);
     }
 
-    // ---- retransmission ----------------------------------------------------------
+    // ---- recovery -----------------------------------------------------------------
     void handle_recovery_event(const net::PollEvent& event) {
-        if (mdp_) mdp_->handle_event(event);
-        else handle_retransmission_requests();
+        std::visit([&](auto& runtime) { runtime.handle_recovery_event(event); }, runtime_);
     }
-    [[nodiscard]] std::uint32_t recovery_connection_count() const noexcept { return mdp_ ? mdp_->connection_count() : 0; }
-    void close_recovery_now() noexcept { if (mdp_) mdp_->close_all_now(); }
-    // Answers every pending request datagram (level-triggered readiness).
-    void handle_retransmission_requests() {
-        // Level-triggered readiness will report remaining packets next time.
-        // Bound every drain, including malformed/oversized traffic, so the
-        // reactor can service order entry, timers and shutdown.
-        for (std::size_t drained = 0; drained < 64; ++drained) {
-            net::Ipv4Endpoint requester{};
-            const ssize_t length = retransmission_socket_.receive_from(request_buffer_, requester);
-            if (length < 0) {
-                if (errno == EINTR || errno == EMSGSIZE) continue;
-                return;  // would block (or a transient error): wait for the next readiness
-            }
-            (void)retransmission_server_.answer(
-                std::span<const char>(request_buffer_.data(), static_cast<std::size_t>(length)),
-                [this, requester](std::span<const char> response) {
-                    (void)retransmission_socket_.send_to(response, requester);
-                });
-        }
+    [[nodiscard]] std::uint32_t recovery_connection_count() const noexcept {
+        return std::visit([](const auto& runtime) { return runtime.recovery_connection_count(); }, runtime_);
+    }
+    void close_recovery_now() noexcept {
+        std::visit([](auto& runtime) { runtime.close_recovery_now(); }, runtime_);
     }
 
     // ---- queries -------------------------------------------------------------------
     // True once the publisher stopped because a batch could not be published.
-    [[nodiscard]] bool stopped() const noexcept { return state() == md::PublisherState::Stopped; }
-    [[nodiscard]] md::PublishStatus stop_reason() const noexcept { return mdp_ ? mdp_->stop_reason() : publisher_.stop_reason(); }
-    [[nodiscard]] md::PublisherState state() const noexcept { return mdp_ ? mdp_->state() : publisher_.state(); }
-    [[nodiscard]] net::Ipv4Endpoint feed_destination() const noexcept { return mdp_ ? mdp_->feed_destination() : feed_destination_; }
-    [[nodiscard]] net::Ipv4Endpoint retransmission_endpoint() const noexcept { return mdp_ ? mdp_->retransmission_endpoint() : retransmission_endpoint_; }
+    [[nodiscard]] bool stopped() const noexcept {
+        return std::visit([](const auto& runtime) { return runtime.stopped(); }, runtime_);
+    }
+    [[nodiscard]] md::PublishStatus stop_reason() const noexcept {
+        return std::visit([](const auto& runtime) { return runtime.stop_reason(); }, runtime_);
+    }
+    [[nodiscard]] md::PublisherState state() const noexcept {
+        return std::visit([](const auto& runtime) { return runtime.state(); }, runtime_);
+    }
+    [[nodiscard]] net::Ipv4Endpoint feed_destination() const noexcept {
+        return std::visit([](const auto& runtime) { return runtime.feed_destination(); }, runtime_);
+    }
+    [[nodiscard]] net::Ipv4Endpoint retransmission_endpoint() const noexcept {
+        return std::visit([](const auto& runtime) { return runtime.retransmission_endpoint(); }, runtime_);
+    }
 
 private:
-    struct FeedPacketSink {
-        MarketDataRuntime* runtime;
-        void operator()(std::span<const char> packet) const { runtime->submit_packet(packet); }
-    };
+    using SelectedRuntime = std::variant<ItchRuntime, MdpRuntime>;
 
-    static md::PublisherConfig publisher_config(const ServerConfig& config, const MarketDataRuntimeSettings& settings) {
-        md::PublisherConfig publisher;
-        publisher.session = config.market_data.session;
-        publisher.max_payload = config.market_data.max_payload;
-        publisher.retransmit_buffer_messages = config.market_data.protocol == MarketDataProtocol::Mdp3 ? 1 : config.market_data.retransmit_buffer;
-        publisher.max_instruments = config.engine.engine.max_instruments;
-        publisher.day_origin = 0;  // core timestamps are already ns since local midnight
-        publisher.heartbeat_interval_ns = settings.heartbeat_interval_ns;
-        publisher.noii_interval_ns = std::uint64_t{config.market_data.noii_interval_ms} * 1'000'000;
-        return publisher;
+    // Returned as a prvalue, so the runtime is built in place: both runtimes
+    // hand their own address to their packet sinks and cannot move.
+    static SelectedRuntime construct_selected_runtime(const ServerConfig& config,
+                                                      const MarketDataRuntimeSettings& settings) {
+        if (config.market_data.protocol == MarketDataProtocol::Mdp3)
+            return SelectedRuntime(std::in_place_type<MdpRuntime>, config, settings);
+        return SelectedRuntime(std::in_place_type<ItchRuntime>, config, settings);
     }
 
-    void submit_packet(std::span<const char> packet) {
-        if (packet_faults_.idle()) {
-            send_datagram(packet);
-            return;
-        }
-        packet_faults_.submit(packet, [this](std::span<const char> released) { send_datagram(released); });
-    }
-
-    void send_datagram(std::span<const char> packet) noexcept {
-        if (feed_destination_.port == 0) return;  // feed disabled (no destination port configured)
-        (void)feed_sender_.send_to(packet, feed_destination_);
-    }
-
-    MarketDataRuntimeSettings settings_;
-    sim::PacketFaultInjector packet_faults_;
-    md::MarketDataPublisher<FeedPacketSink> publisher_;
-    md::RetransmissionServer retransmission_server_;
-    std::unique_ptr<MdpRuntime> mdp_;
-    net::UdpSender feed_sender_;
-    net::UdpReceiver retransmission_socket_;
-    net::Ipv4Endpoint feed_destination_{};
-    net::Ipv4Endpoint retransmission_endpoint_{};
-    std::array<char, 2048> request_buffer_{};
+    SelectedRuntime runtime_;
 };
 
 }  // namespace exsim::server::runtime

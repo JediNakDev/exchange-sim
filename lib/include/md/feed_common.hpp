@@ -2,11 +2,11 @@
 #define EXSIM_MD_FEED_COMMON_HPP
 
 // Shared vocabulary of the ITCH 5.0 / MoldUDP64 market-data feed: wire size
-// limits, the 10-byte MoldUDP64 session name and the ITCH day-timestamp rule
-// from gateway mapping section 4.
+// limits, the 10-byte MoldUDP64 session name and the ITCH rule that
+// timestamps count nanoseconds from the start of the trading day.
 
 #include <protocol/moldudp64.hpp>
-#include <types.hpp>
+#include <engine/types.hpp>
 
 #include <array>
 #include <cstddef>
@@ -31,7 +31,7 @@ inline constexpr std::size_t kMinimumMaxPayload = kMoldHeaderSize + kMoldMessage
 inline constexpr std::size_t kMaximumMaxPayload = 65507;
 
 // ITCH timestamps are nanoseconds since the trading-day origin and must lie
-// in [0, 86,400,000,000,000) (GATEWAYS.md section 4).
+// in [0, 86,400,000,000,000).
 inline constexpr std::uint64_t kNanosecondsPerTradingDay = 86'400ULL * 1'000'000'000ULL;
 
 // ITCH Price(4) is an unsigned 32-bit field.

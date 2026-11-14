@@ -1,7 +1,7 @@
 #pragma once
 
 #include "constants.hpp"
-#include <exchange/order_book.hpp>
+#include <book/order_book.hpp>
 
 #include <algorithm>
 #include <random>
@@ -12,9 +12,9 @@ namespace bench {
 class RandomWorkload {
 public:
     struct OrderData {
-        exsim::exchange::Price price;
+        exsim::book::Price price;
         uint64_t quantity;
-        exsim::exchange::Side side;
+        exsim::book::Side side;
     };
 
     explicit RandomWorkload(size_t count, uint64_t seed = 42)
@@ -26,7 +26,7 @@ public:
         orders_.reserve(count);
         for (size_t i = 0; i < count; ++i) {
             orders_.push_back({price_dist_(rng_), qty_dist_(rng_),
-                               side_dist_(rng_) == 0 ? exsim::exchange::Side::BUY : exsim::exchange::Side::SELL});
+                               side_dist_(rng_) == 0 ? exsim::book::Side::BUY : exsim::book::Side::SELL});
         }
 
         cancel_indices_.reserve(count);
@@ -57,7 +57,7 @@ public:
 
 private:
     std::mt19937_64 rng_;
-    std::uniform_int_distribution<exsim::exchange::Price> price_dist_;
+    std::uniform_int_distribution<exsim::book::Price> price_dist_;
     std::uniform_int_distribution<uint64_t> qty_dist_;
     std::uniform_int_distribution<int> side_dist_;
     std::vector<OrderData> orders_;
@@ -77,21 +77,21 @@ public:
         std::uniform_int_distribution<uint64_t> qty_dist(100, 10000);
 
         for (int i = 1; i <= levels; ++i) {
-            exsim::exchange::Price bid_price = BASE_PRICE - i * TICK_SIZE;
-            exsim::exchange::Price ask_price = BASE_PRICE + i * TICK_SIZE;
+            exsim::book::Price bid_price = BASE_PRICE - i * TICK_SIZE;
+            exsim::book::Price ask_price = BASE_PRICE + i * TICK_SIZE;
             for (int j = 0; j < orders_per_level; ++j) {
-                ids_.push_back(book_.add_order(bid_price, qty_dist(rng), exsim::exchange::Side::BUY).order_id);
-                ids_.push_back(book_.add_order(ask_price, qty_dist(rng), exsim::exchange::Side::SELL).order_id);
+                ids_.push_back(book_.add_order(bid_price, qty_dist(rng), exsim::book::Side::BUY).order_id);
+                ids_.push_back(book_.add_order(ask_price, qty_dist(rng), exsim::book::Side::SELL).order_id);
             }
         }
     }
 
-    exsim::exchange::OrderBook& book() { return book_; }
-    const std::vector<exsim::exchange::OrderId>& ids() const { return ids_; }
+    exsim::book::OrderBook& book() { return book_; }
+    const std::vector<exsim::book::OrderId>& ids() const { return ids_; }
 
 private:
-    exsim::exchange::OrderBook book_;
-    std::vector<exsim::exchange::OrderId> ids_;
+    exsim::book::OrderBook book_;
+    std::vector<exsim::book::OrderId> ids_;
 };
 
 } 

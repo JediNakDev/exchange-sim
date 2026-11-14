@@ -1,5 +1,5 @@
-// Inbound mapping (GATEWAYS.md section 2, inbound table): OUCH request bytes
-// to engine commands, and the requests the gateway answers or ignores itself.
+// Inbound mapping: OUCH 4.2 request bytes to engine commands, and the
+// requests the gateway answers or ignores itself.
 
 #include "ouch_test_harness.hpp"
 

@@ -3,13 +3,13 @@
 #include "../utils/stats.hpp"
 #include "../utils/warmup.hpp"
 #include "../utils/workload.hpp"
-#include <exchange/order_book.hpp>
+#include <book/order_book.hpp>
 #include <chrono>
 
 using namespace bench;
 
 // Realistic exchange workload: 93% cancel, 5% add, 2% modify.
-// Real exchange traffic is dominated by cancellations — most orders are
+// Real exchange traffic is dominated by cancellations: most orders are
 // cancelled before execution. This benchmark reflects that pattern.
 static void BM_CancelHeavyWorkload(benchmark::State& state) {
     warmup();
@@ -22,7 +22,7 @@ static void BM_CancelHeavyWorkload(benchmark::State& state) {
         PrePopulatedBook prepop(50, 10);
         auto& book = prepop.book();
         const auto& ids = prepop.ids();
-        std::vector<exsim::exchange::OrderId> active_ids(ids);
+        std::vector<exsim::book::OrderId> active_ids(ids);
         latencies.clear();
         size_t idx = 0;
         state.ResumeTiming();
@@ -46,7 +46,7 @@ static void BM_CancelHeavyWorkload(benchmark::State& state) {
                     }
                 }
             } else if (op < 98) {
-                // 5% add — replenish the book
+                // 5% add: replenish the book
                 const auto& order = w.get(idx + i);
                 auto result = book.add_order(order.price, order.quantity, order.side);
                 benchmark::DoNotOptimize(result);

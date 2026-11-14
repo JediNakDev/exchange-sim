@@ -1,9 +1,8 @@
 // Independent QA review reproducers for the FIX 4.4 order-entry gateway.
 //
-// Every test here asserts the behaviour required by gateway mapping, the
-// FIX 4.4 session specification or server contract. A failing test is a
-// reproduced finding (see /tmp/exsim-review-fix/REPORT.md). Test names start
-// with the finding id so the report and the test output line up.
+// Every test here asserts behaviour required by the FIX 4.4 session
+// specification or by the gateway rules in docs/fix-gateway.md. Each test
+// reproduces a review finding, and its name starts with the finding id.
 
 #include "test/exsim/gateway/fix/fix_test_support.hpp"
 

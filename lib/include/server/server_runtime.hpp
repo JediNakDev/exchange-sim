@@ -1,18 +1,18 @@
 #ifndef EXSIM_SERVER_SERVER_RUNTIME_HPP
 #define EXSIM_SERVER_SERVER_RUNTIME_HPP
 
-// The exsim server: one thread, one reactor loop (server contract 1,
-// server runtime). BasicServerRuntime<Gateways...> owns the poller,
-// the exchange core, the market-data runtime, one order-entry endpoint per
-// gateway:
+// The exsim server: one thread, one reactor loop.
+// BasicServerRuntime<Gateways...> owns the poller, the exchange core, the
+// market-data runtime (ITCH or MDP, chosen from the config) and one
+// order-entry endpoint per gateway:
 //
 //   poll_once():
 //     poller.wait(busy_poll ? 0 : idle timeout)
 //     route events: gateway connections (-> on_data -> core.submit ->
-//                   dispatch to sessions and ITCH),
-//                   MoldUDP64 retransmission requests
-//     core.timer(now): end of day, NOII / MoldUDP64 heartbeat,
-//                      journal flush
+//                   dispatch to sessions and market data),
+//                   market data recovery (MoldUDP64 requests or MDP replay),
+//                   the owner's watched readable fd (a control socket)
+//     core.timer(now): end of day, market data timers, journal flush
 //     endpoints: delayed inbound bytes, gateway timers, requested closes
 //     core disconnect requests (`fault user X disconnect`)
 //     shutdown progress (end-of-day messages, drain, finish)
@@ -70,6 +70,9 @@ public:
     using Endpoint = runtime::OrderEntryEndpoint<Gateway, Core>;
 
     static constexpr std::uint8_t kRetransmissionPollTag = 0x41;
+    static constexpr std::uint8_t kWatchedReadableFdPollTag = 0x42;
+    // Called from poll_once with the context given to watch_readable_fd.
+    using ReadableFdCallback = void (*)(void* context) noexcept;
 
     // Setup: builds everything. Throws std::runtime_error / invalid_argument
     // on a configuration the components refuse.
@@ -125,6 +128,34 @@ public:
 
     void run() noexcept {
         while (!finished()) poll_once();
+    }
+
+    // After start(): registers one owner fd (the exchange control socket) with
+    // the poller, so a readable fd wakes an idle wait and poll_once calls
+    // on_readable(context) when it is readable or hung up. The callback runs on
+    // the server thread and may call request_shutdown or unwatch_readable_fd.
+    // Replaces a previously watched fd. Returns 0 or an errno value.
+    [[nodiscard]] net::ErrorCode watch_readable_fd(int fd, ReadableFdCallback on_readable, void* context) noexcept {
+        unwatch_readable_fd();
+        if (net::ErrorCode error = poller_.add(fd, net::make_poll_token(kWatchedReadableFdPollTag,
+                                                                       static_cast<std::uint64_t>(fd)),
+                                               net::PollInterest::Read);
+            error != 0) {
+            return error;
+        }
+        watched_readable_fd_ = fd;
+        on_watched_fd_readable_ = on_readable;
+        watched_fd_context_ = context;
+        return 0;
+    }
+    // Unregisters the watched fd; call it before closing that fd. Later events
+    // already returned by the current wait are ignored.
+    void unwatch_readable_fd() noexcept {
+        if (watched_readable_fd_ < 0) return;
+        (void)poller_.remove(watched_readable_fd_);
+        watched_readable_fd_ = -1;
+        on_watched_fd_readable_ = nullptr;
+        watched_fd_context_ = nullptr;
     }
 
     // Any thread (and signal handlers): ends the trading day at the next
@@ -203,6 +234,14 @@ private:
             market_data_.handle_recovery_event(event);
             return;
         }
+        if (tag == kWatchedReadableFdPollTag) {
+            if (watched_readable_fd_ >= 0 &&
+                net::poll_token_value(event.token) == static_cast<std::uint64_t>(watched_readable_fd_) &&
+                (event.readable || event.hangup || event.error)) {
+                on_watched_fd_readable_(watched_fd_context_);
+            }
+            return;
+        }
         (void)((tag == gateway_poll_tag<Gateways>() ? (endpoint<Gateways>().handle_event(event), true) : false) || ...);
     }
 
@@ -277,13 +316,16 @@ private:
     Core core_;
     std::tuple<std::unique_ptr<Endpoint<Gateways>>...> endpoints_;
     std::atomic<bool> external_shutdown_requested_{false};
+    int watched_readable_fd_ = -1;
+    ReadableFdCallback on_watched_fd_readable_ = nullptr;
+    void* watched_fd_context_ = nullptr;
     bool end_of_day_started_ = false;
     bool journal_drain_started_ = false;
     bool finished_ = false;
     std::uint64_t drain_deadline_ns_ = 0;
 };
 
-// The active exchange server: OUCH 4.2 over SoupBinTCP and FIX 4.4.
+// The active exchange server: OUCH 4.2 over SoupBinTCP, FIX 4.4 and iLink 3.
 using ServerRuntime = BasicServerRuntime<runtime::OuchGateway, runtime::FixGateway, runtime::IlinkGateway>;
 
 }  // namespace exsim::server

@@ -57,7 +57,12 @@ struct Exchange {
     Core core;
     std::uint64_t auth_counter = 0;
     explicit Exchange(server::ServerConfig value = config()) : configuration(std::move(value)), sessions(configuration), core(configuration, sessions, md, clock) {}
-    auto& user(SessionId id) { return *sessions.user_directory<Gateway>().find(id); }
+    auto& user(SessionId id) {
+        for (const auto& user : sessions.user_directory<Gateway>().users()) {
+            if (user->session_id() == id) return *user;
+        }
+        FAIL("no iLink user with that session");
+    }
     std::uint64_t auth_time() { return clock.realtime_ns() + ++auth_counter; }
 };
 struct Frame {

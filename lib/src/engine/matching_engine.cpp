@@ -1,24 +1,28 @@
-// Exchange validation, STP, auctions and event generation over the original
-// exsim::exchange::OrderBook. Each instrument owns a bounded order book: pooled orders and
-// levels, the OrderId map, tick ladders, occupancy and intrusive FIFO links.
-// Preallocated arrays retain exchange/session metadata and ordered query
-// lists. The engine retains matching rules and bounded hot-path storage.
+// Exchange validation, STP, auctions and event generation over
+// exsim::book::OrderBook. Each instrument has its own book (tick ladders,
+// occupancy bitmaps, FIFO links); all books share one bounded OrderBookStorage
+// (order pool, level pool, OrderId map) sized by EngineConfig::max_orders. The
+// engine walks and mutates book orders through Order pointers and keeps only
+// engine-only metadata (session, STP, cumulative fills, query lists) in
+// preallocated arrays.
 
-#include <matching_engine.hpp>
+#include <engine/matching_engine.hpp>
 
 #include "fixed_array.hpp"
 #include "order_metadata.hpp"
 #include "price_ladder.hpp"
 
-#include <exchange/compiler.hpp>
-#include <exchange/flat_hash_map.hpp>
+#include <util/compiler.hpp>
+#include <util/flat_hash_map.hpp>
 
 #include <algorithm>
 #include <cassert>
 #include <cstring>
 #include <cstdlib>
 #include <limits>
+#include <memory>
 #include <type_traits>
+#include <unordered_map>
 #include <vector>
 
 namespace exsim {
@@ -32,15 +36,14 @@ using engine::InstrumentListLinks;
 using engine::kNilOrder;
 using engine::kNoAskTick;
 using engine::kNoBidTick;
-using Level = exsim::exchange::PriceLevel;
 using engine::make_session_token;
-using engine::LegacyOccupancy;
 using engine::OrderCold;
 using engine::OrderHot;
 using engine::OrderIndex;
 using engine::OrderListEnds;
-using engine::PriceLadder;
 using engine::session_of;
+using exsim::book::Order;
+using Level = exsim::book::PriceLevel;
 
 constexpr std::size_t kSessionSlots = std::size_t{std::numeric_limits<SessionId>::max()} + 1;
 
@@ -73,13 +76,16 @@ template <typename Enum>
     std::abort();
 }
 
-inline void append_event(EventBuffer& out, const Event& event) noexcept {
-    if (!out.push(event)) std::abort(); // preflight failure is an implementation defect
+// The 8 symbol bytes as one integer, the key of the symbol -> instrument map.
+[[nodiscard]] std::uint64_t symbol_key(const Symbol& symbol) noexcept {
+    std::uint64_t key = 0;
+    static_assert(sizeof(key) == sizeof(symbol.chars));
+    std::memcpy(&key, symbol.chars.data(), sizeof(key));
+    return key;
 }
 
-std::size_t validated_instruments(const EngineConfig& config) {
-    (void)required_event_capacity(config);
-    return config.max_instruments;
+inline void append_event(EventBuffer& out, const Event& event) noexcept {
+    if (!out.push(event)) std::abort(); // preflight failure is an implementation defect
 }
 
 inline void set_fill_leg(FillLeg& leg, OrderId order_id, ClOrdId cl_ord_id, SessionId session, OwnerId owner,
@@ -112,7 +118,7 @@ struct IncomingOrder {
     bool post_only;
 };
 
-// Result of the uncross price search (SPEC 9).
+// Result of the uncross price search.
 struct UncrossPlan {
     bool crossed = false;
     std::int32_t tick = 0;
@@ -131,12 +137,15 @@ struct MatchingEngine::Impl {
     std::uint32_t max_orders;
 
     // ---- state ----------------------------------------------------------
+    // Order pool, level pool and OrderId map shared by every instrument book.
+    std::shared_ptr<exsim::book::OrderBookStorage> shared_order_storage;
     std::vector<InstrumentBook> books;  // books[id - 1]; reserved up front so pointers stay stable
+    std::unordered_map<std::uint64_t, InstrumentId> instrument_by_symbol;  // key: symbol_key(symbol)
     FixedArray<OrderHot> hot;
     FixedArray<OrderCold> cold;
     OrderIndex free_head = kNilOrder;
     std::uint32_t live_count = 0;
-    exsim::exchange::FlatHashMap<std::uint32_t> order_by_session_token;
+    exsim::util::FlatHashMap<std::uint32_t> order_by_session_token;
     FixedArray<OrderListEnds> orders_by_session;         // per SessionId, ascending OrderId
     FixedArray<InstrumentListLinks> instrument_links;    // per order, threads orders_by_instrument
     FixedArray<OrderListEnds> orders_by_instrument;      // per InstrumentId, ascending OrderId
@@ -181,14 +190,8 @@ struct MatchingEngine::Impl {
     void match_and_dispose(InstrumentBook& book, IncomingOrder& order, Timestamp ts, EventBuffer& out);
     void rest(InstrumentBook& book, const IncomingOrder& order, Timestamp ts, EventBuffer& out);
 
-    OrderIndex next_in_level(OrderIndex index) const noexcept {
-        const auto& book = books[cold[index].instrument - 1];
-        const auto* order = book.storage->find_order(hot[index].order_id);
-        return order && order->next_order ? order->next_order->context_index : kNilOrder;
-    }
-    void pop_level_head(InstrumentBook& book, Side side, const Level& level, std::int32_t tick, OrderIndex index);
-    void remove_resting(OrderIndex index);
-    void level_emptied(InstrumentBook& book, Side side, std::int32_t tick) noexcept;
+    void remove_resting(InstrumentBook& book, OrderIndex index);
+    void refresh_best_tick(InstrumentBook& book, Side side) noexcept;
     void retire(OrderIndex index);
 
     void list_append_by_order_id(OrderIndex index) noexcept;
@@ -211,8 +214,10 @@ struct MatchingEngine::Impl {
 // ===========================================================================
 
 MatchingEngine::Impl::Impl(const EngineConfig& config)
-    : max_instruments(validated_instruments(config)),
+    : max_instruments(((void)required_event_capacity(config), config.max_instruments)),
       max_orders(static_cast<std::uint32_t>(config.max_orders)),
+      // Every live level holds at least one live order, so max_orders bounds both pools.
+      shared_order_storage(std::make_shared<exsim::book::OrderBookStorage>(max_orders, max_orders, false)),
       hot(std::size_t{max_orders} + 1),
       cold(std::size_t{max_orders} + 1),
       order_by_session_token(max_orders),
@@ -220,6 +225,7 @@ MatchingEngine::Impl::Impl(const EngineConfig& config)
       instrument_links(std::size_t{max_orders} + 1),
       orders_by_instrument(max_instruments + 1) {
     books.reserve(max_instruments);
+    instrument_by_symbol.reserve(max_instruments);
     // Free-index stack: 1, 2, ..., max_orders (first allocations are sequential).
     for (std::uint32_t i = 1; i < max_orders; ++i) {
         hot[i].next = i + 1;
@@ -288,16 +294,16 @@ void MatchingEngine::Impl::emit_incoming_canceled(const IncomingOrder& order, Ca
 void MatchingEngine::Impl::emit_resting_canceled(const InstrumentBook& book, OrderIndex index, CancelReason reason,
                                                  ClOrdId request_cl_ord_id, Timestamp ts, EventBuffer& out) {
     const OrderHot& order_hot = hot[index];
-    const OrderCold& order_cold = cold[index];
-    Event event = blank_event(EventType::Canceled, order_cold.instrument, ts);
+    const Order& resting = *order_hot.order;
+    Event event = blank_event(EventType::Canceled, book.id, ts);
     CanceledEvent& canceled = event.canceled;
-    canceled.order_id = order_hot.order_id;
+    canceled.order_id = resting.id;
     canceled.cl_ord_id = cl_ord_id_of(order_hot.session_token);
     canceled.request_cl_ord_id = request_cl_ord_id;
     canceled.session = session_of(order_hot.session_token);
-    canceled.side = order_cold.side;
-    canceled.price = book.price_of(static_cast<std::int32_t>(order_cold.tick));
-    canceled.canceled_qty = order_hot.leaves_qty;
+    canceled.side = resting.side;
+    canceled.price = book.price_of(static_cast<std::int32_t>(resting.price));
+    canceled.canceled_qty = static_cast<Quantity>(resting.remaining_quantity);
     canceled.cum_qty = order_hot.cum_qty;
     canceled.reason = reason;
     canceled.was_resting = true;
@@ -394,13 +400,16 @@ void MatchingEngine::Impl::list_unlink_in_instrument(InstrumentId instrument, Or
 // Book maintenance
 // ===========================================================================
 
-// Recomputes the cached best tick after the level at `tick` became empty.
-void MatchingEngine::Impl::level_emptied(InstrumentBook& book, Side side, std::int32_t tick) noexcept {
-    (void)side; (void)tick;
-    const auto bid = book.storage->get_best_bid();
-    const auto ask = book.storage->get_best_ask();
-    book.best_bid_tick = bid ? static_cast<std::int32_t>(*bid) : kNoBidTick;
-    book.best_ask_tick = ask ? static_cast<std::int32_t>(*ask) : kNoAskTick;
+// Copies the book's best price of `side` into the cached tick after an order
+// of that side rested or left the book.
+void MatchingEngine::Impl::refresh_best_tick(InstrumentBook& book, Side side) noexcept {
+    if (side == Side::BUY) {
+        const auto bid = book.order_book->get_best_bid();
+        book.best_bid_tick = bid ? static_cast<std::int32_t>(*bid) : kNoBidTick;
+    } else {
+        const auto ask = book.order_book->get_best_ask();
+        book.best_ask_tick = ask ? static_cast<std::int32_t>(*ask) : kNoAskTick;
+    }
 }
 
 // Releases everything an order holds outside its price level: list links,
@@ -419,25 +428,12 @@ void MatchingEngine::Impl::retire(OrderIndex index) {
     --live_count;
 }
 
-// Removes the head order of `level` (whose total_qty the caller already
-// adjusted) and retires it.
-void MatchingEngine::Impl::pop_level_head(InstrumentBook& book, Side side, const Level& level, std::int32_t tick,
-                                          OrderIndex index) {
-    assert(level.head_order && level.head_order->context_index == index);
-    (void)level;
-    const bool removed = book.storage->cancel_order(hot[index].order_id);
-    assert(removed); (void)removed;
-    level_emptied(book,side,tick);
-    retire(index);
-}
-
-// Removes a resting order from anywhere in its FIFO and retires it.
-void MatchingEngine::Impl::remove_resting(OrderIndex index) {
-    const auto& meta = cold[index];
-    InstrumentBook& book = books[meta.instrument - 1];
-    const bool removed = book.storage->cancel_order(hot[index].order_id);
-    assert(removed); (void)removed;
-    level_emptied(book,meta.side,static_cast<std::int32_t>(meta.tick));
+// Unlinks a resting order from its FIFO (head or anywhere) and retires it.
+void MatchingEngine::Impl::remove_resting(InstrumentBook& book, OrderIndex index) {
+    Order& resting = *hot[index].order;
+    const Side side = resting.side;
+    book.order_book->remove_order(resting);
+    refresh_best_tick(book, side);
     retire(index);
 }
 
@@ -448,25 +444,21 @@ void MatchingEngine::Impl::rest(InstrumentBook& book, const IncomingOrder& order
     free_head = order_hot.next;
 
     order_hot.next = kNilOrder;
-    order_hot.leaves_qty = order.leaves_qty;
     order_hot.cum_qty = order.cum_qty;
     order_hot.owner = order.owner;
-    order_hot.order_id = order.order_id;
     order_hot.session_token = make_session_token(order.session, order.cl_ord_id);
 
     OrderCold& order_cold = cold[index];
-    order_cold.tick = static_cast<std::uint32_t>(order.limit_tick);
     order_cold.instrument = order.instrument;
-    order_cold.side = order.side;
     order_cold.tif = order.tif;
     order_cold.stp = order.stp;
     order_cold.post_only = order.post_only;
 
-    // The order book owns the actual resting order, price level and FIFO.
-    auto* resting = book.storage->rest_order(order.order_id,order.limit_tick,
-        order.leaves_qty + order.cum_qty,order.leaves_qty,static_cast<exsim::exchange::Side>(order.side),index);
-    if (!resting) std::abort(); // setup reserves capacity; admission already checked
-    level_emptied(book,order.side,order.limit_tick);
+    // The order book owns the resting order (ID, tick, leaves), its level and FIFO.
+    order_hot.order = book.order_book->rest_order(order.order_id, order.limit_tick, order.qty, order.leaves_qty,
+                                                  order.side, index);
+    if (order_hot.order == nullptr) std::abort();  // shared storage holds max_orders; admission checked live_count
+    refresh_best_tick(book, order.side);
 
     list_append_by_order_id(index);
     list_append_in_session(order.session, index);
@@ -488,60 +480,53 @@ void MatchingEngine::Impl::rest(InstrumentBook& book, const IncomingOrder& order
 }
 
 // ===========================================================================
-// Matching (SPEC 4.3, 4.5, 4.6)
+// Matching
 // ===========================================================================
 
 bool MatchingEngine::Impl::fill_or_kill_can_fill(const InstrumentBook& book, const IncomingOrder& order) const noexcept {
     const Side resting_side = opposite(order.side);
-    const PriceLadder& ladder = book.ladder(resting_side);
     const bool stp_active = order.stp != StpMode::None && order.owner != 0;
     const std::uint64_t needed = order.leaves_qty;
     std::uint64_t available = 0;
     std::int32_t tick = order.side == Side::BUY ? book.best_ask_tick : book.best_bid_tick;
     while (book.crosses_opposite_best(order.side, order.limit_tick) &&
            (order.side == Side::BUY ? order.limit_tick >= tick : order.limit_tick <= tick)) {
-        const Level& level = ladder.levels[static_cast<std::uint32_t>(tick)];
+        const Level& level = *book.order_book->price_level(resting_side, tick);
         if (!stp_active) {
             available += level.total_volume;
             if (available >= needed) {
                 return true;
             }
         } else {
-            for (OrderIndex index = level.head_order ? level.head_order->context_index : kNilOrder; index != kNilOrder; index = next_in_level(index)) {
-                const OrderHot& resting = hot[index];
-                if (resting.owner == order.owner) {
+            for (const Order* resting = level.head_order; resting != nullptr; resting = resting->next_order) {
+                if (hot[resting->context_index].owner == order.owner) {
                     if (order.stp == StpMode::CancelResting) {
                         continue;
                     }
                     return false;  // walk stops at the self-match with available < needed
                 }
-                available += resting.leaves_qty;
+                available += resting->remaining_quantity;
                 if (available >= needed) {
                     return true;
                 }
             }
         }
-        std::uint32_t next_tick;
-        if (order.side == Side::BUY) {
-            next_tick = ladder.occupied.find_at_or_above(static_cast<std::uint32_t>(tick) + 1);
-        } else {
-            next_tick = tick == 0 ? LegacyOccupancy::kNotFound
-                                  : ladder.occupied.find_at_or_below(static_cast<std::uint32_t>(tick) - 1);
-        }
-        if (next_tick == LegacyOccupancy::kNotFound) {
+        const std::optional<exsim::book::Price> next_tick = order.side == Side::BUY
+            ? book.order_book->next_price(resting_side, tick + 1, true)
+            : book.order_book->next_price(resting_side, tick - 1, false);
+        if (!next_tick) {
             return false;
         }
-        tick = static_cast<std::int32_t>(next_tick);
+        tick = static_cast<std::int32_t>(*next_tick);
     }
     return false;
 }
 
-// Matches `order` against the opposite side (SPEC 4.5). Returns true if the
+// Matches `order` against the opposite side. Returns true if the
 // order was cancelled by self-trade prevention.
 template <Side kAggressorSide>
 bool MatchingEngine::Impl::match(InstrumentBook& book, IncomingOrder& order, Timestamp ts, EventBuffer& out) {
     constexpr Side kRestingSide = opposite(kAggressorSide);
-    PriceLadder& ladder = book.ladder(kRestingSide);
     const bool stp_active = order.stp != StpMode::None && order.owner != 0;
 
     while (order.leaves_qty != 0) {
@@ -549,19 +534,21 @@ bool MatchingEngine::Impl::match(InstrumentBook& book, IncomingOrder& order, Tim
         if (kAggressorSide == Side::BUY ? order.limit_tick < best_tick : order.limit_tick > best_tick) {
             return false;  // opposite side empty or no longer crossing
         }
-        const Level& level = ladder.levels[static_cast<std::uint32_t>(best_tick)];
         const Price level_price = book.price_of(best_tick);
+        // Walk the best level's FIFO by pointer. Removing the last order frees
+        // the level, so the walk ends there and the outer loop rereads the best.
+        Order* resting = book.order_book->price_level(kRestingSide, best_tick)->head_order;
         do {
-            const OrderIndex index = level.head_order ? level.head_order->context_index : kNilOrder;
-            OrderHot& resting = hot[index];
+            Order* const next_resting = resting->next_order;
+            const OrderIndex index = resting->context_index;
+            OrderHot& resting_hot = hot[index];
 
-
-            if (EXSIM_EXCHANGE_UNLIKELY(stp_active && resting.owner == order.owner)) {
+            if (EXSIM_UNLIKELY(stp_active && resting_hot.owner == order.owner)) {
                 const StpMode mode = order.stp;
                 if (mode != StpMode::CancelAggressor) {
                     emit_resting_canceled(book, index, CancelReason::SelfTradePrevention, 0, ts, out);
-
-                    pop_level_head(book, kRestingSide, level, best_tick, index);
+                    remove_resting(book, index);
+                    resting = next_resting;
                 }
                 if (mode != StpMode::CancelResting) {
                     emit_incoming_canceled(order, CancelReason::SelfTradePrevention, ts, out);
@@ -570,12 +557,12 @@ bool MatchingEngine::Impl::match(InstrumentBook& book, IncomingOrder& order, Tim
                 continue;
             }
 
-            const Quantity fill_qty = std::min(order.leaves_qty, resting.leaves_qty);
-            resting.leaves_qty -= fill_qty;
-            resting.cum_qty += fill_qty;
+            const Quantity fill_qty = std::min(order.leaves_qty, static_cast<Quantity>(resting->remaining_quantity));
+            book.order_book->execute_order(*resting, fill_qty);
+            resting_hot.cum_qty += fill_qty;
             order.leaves_qty -= fill_qty;
             order.cum_qty += fill_qty;
-            if (!book.storage->set_leaves(resting.order_id,resting.leaves_qty)) std::abort();
+            const Quantity resting_leaves = static_cast<Quantity>(resting->remaining_quantity);
 
             Event event = blank_event(EventType::Fill, order.instrument, ts);
             FillEvent& fill = event.fill;
@@ -587,17 +574,18 @@ bool MatchingEngine::Impl::match(InstrumentBook& book, IncomingOrder& order, Tim
             FillLeg& resting_leg = kAggressorSide == Side::BUY ? fill.sell : fill.buy;
             set_fill_leg(aggressor_leg, order.order_id, order.cl_ord_id, order.session, order.owner, order.leaves_qty,
                          order.cum_qty);
-            set_fill_leg(resting_leg, resting.order_id, cl_ord_id_of(resting.session_token),
-                         session_of(resting.session_token), resting.owner, resting.leaves_qty, resting.cum_qty);
+            set_fill_leg(resting_leg, resting->id, cl_ord_id_of(resting_hot.session_token),
+                         session_of(resting_hot.session_token), resting_hot.owner, resting_leaves, resting_hot.cum_qty);
             append_event(out, event);
 
             book.last_trade_price = level_price;
             book.has_last_trade_price = true;
 
-            if (resting.leaves_qty == 0) {
-                pop_level_head(book, kRestingSide, level, best_tick, index);
+            if (resting_leaves == 0) {
+                remove_resting(book, index);
+                resting = next_resting;
             }
-        } while (order.leaves_qty != 0 && book.storage->price_level(static_cast<exsim::exchange::Side>(kRestingSide),best_tick) != nullptr);
+        } while (order.leaves_qty != 0 && resting != nullptr);
     }
     return false;
 }
@@ -617,47 +605,47 @@ void MatchingEngine::Impl::match_and_dispose(InstrumentBook& book, IncomingOrder
 }
 
 // ===========================================================================
-// NewOrder (SPEC 4)
+// NewOrder
 // ===========================================================================
 
 void MatchingEngine::Impl::on_new_order(const NewOrder& cmd, EventBuffer& out) {
     InstrumentBook* const book_ptr = find_book(cmd.instrument);
-    if (EXSIM_EXCHANGE_UNLIKELY(book_ptr == nullptr)) {
+    if (EXSIM_UNLIKELY(book_ptr == nullptr)) {
         return reject_new_order(cmd, RejectReason::UnknownInstrument, out);
     }
     InstrumentBook& book = *book_ptr;
-    if (EXSIM_EXCHANGE_UNLIKELY(cmd.session == 0 || cmd.cl_ord_id == 0 || cmd.cl_ord_id > kMaxClOrdId)) {
+    if (EXSIM_UNLIKELY(cmd.session == 0 || cmd.cl_ord_id == 0 || cmd.cl_ord_id > kMaxClOrdId)) {
         return reject_new_order(cmd, RejectReason::InvalidClOrdId, out);
     }
-    if (EXSIM_EXCHANGE_UNLIKELY(order_by_session_token.find(make_session_token(cmd.session, cmd.cl_ord_id)) != nullptr)) {
+    if (EXSIM_UNLIKELY(order_by_session_token.find(make_session_token(cmd.session, cmd.cl_ord_id)) != nullptr)) {
         return reject_new_order(cmd, RejectReason::DuplicateClOrdId, out);
     }
     const bool is_market = cmd.type == OrdType::Market;
     const bool is_immediate = cmd.tif == TimeInForce::IOC || cmd.tif == TimeInForce::FOK;
-    if (EXSIM_EXCHANGE_UNLIKELY(raw_value(cmd.side) > raw_value(Side::SELL) || raw_value(cmd.type) > raw_value(OrdType::Market) ||
+    if (EXSIM_UNLIKELY(raw_value(cmd.side) > raw_value(Side::SELL) || raw_value(cmd.type) > raw_value(OrdType::Market) ||
                      raw_value(cmd.tif) > raw_value(TimeInForce::FOK) ||
                      raw_value(cmd.stp) > raw_value(StpMode::CancelBoth) ||
                      (cmd.post_only && (is_market || is_immediate)))) {
         return reject_new_order(cmd, RejectReason::InvalidField, out);
     }
-    if (EXSIM_EXCHANGE_UNLIKELY(!book.is_valid_quantity(cmd.qty))) {
+    if (EXSIM_UNLIKELY(!book.is_valid_quantity(cmd.qty))) {
         return reject_new_order(cmd, RejectReason::InvalidQuantity, out);
     }
     std::int32_t limit_tick = 0;
     if (is_market) {
         limit_tick = cmd.side == Side::BUY ? static_cast<std::int32_t>(book.tick_count - 1) : 0;
-    } else if (EXSIM_EXCHANGE_UNLIKELY(!book.tick_of(cmd.price, limit_tick))) {
+    } else if (EXSIM_UNLIKELY(!book.tick_of(cmd.price, limit_tick))) {
         return reject_new_order(cmd, RejectReason::InvalidPrice, out);
     }
     switch (book.phase) {
         case Phase::Continuous:
-            if (EXSIM_EXCHANGE_UNLIKELY(cmd.post_only && book.crosses_opposite_best(cmd.side, limit_tick))) {
+            if (EXSIM_UNLIKELY(cmd.post_only && book.crosses_opposite_best(cmd.side, limit_tick))) {
                 return reject_new_order(cmd, RejectReason::PostOnlyWouldCross, out);
             }
             break;
         case Phase::PreOpen:
         case Phase::PreClose:
-            if (EXSIM_EXCHANGE_UNLIKELY(is_market || is_immediate)) {
+            if (EXSIM_UNLIKELY(is_market || is_immediate)) {
                 return reject_new_order(cmd, RejectReason::NotAllowedInPhase, out);
             }
             break;
@@ -666,7 +654,7 @@ void MatchingEngine::Impl::on_new_order(const NewOrder& cmd, EventBuffer& out) {
         case Phase::Halted:
             return reject_new_order(cmd, RejectReason::InstrumentHalted, out);
     }
-    if (EXSIM_EXCHANGE_UNLIKELY(live_count >= max_orders)) {
+    if (EXSIM_UNLIKELY(live_count >= max_orders)) {
         return reject_new_order(cmd, RejectReason::CapacityExceeded, out);
     }
 
@@ -700,12 +688,12 @@ void MatchingEngine::Impl::on_new_order(const NewOrder& cmd, EventBuffer& out) {
 }
 
 // ===========================================================================
-// CancelOrder (SPEC 5)
+// CancelOrder
 // ===========================================================================
 
 void MatchingEngine::Impl::on_cancel(const CancelOrder& cmd, EventBuffer& out) {
     const OrderIndex index = find_live_order(cmd.session, cmd.orig_cl_ord_id);
-    if (EXSIM_EXCHANGE_UNLIKELY(index == kNilOrder)) {
+    if (EXSIM_UNLIKELY(index == kNilOrder)) {
         Event event = blank_event(EventType::Rejected, 0, cmd.ts);
         event.rejected.cmd = CommandType::Cancel;
         event.rejected.reason = RejectReason::UnknownOrder;
@@ -717,73 +705,75 @@ void MatchingEngine::Impl::on_cancel(const CancelOrder& cmd, EventBuffer& out) {
     }
     InstrumentBook& book = books[cold[index].instrument - 1];
     if (cmd.reduce_to_total_qty != 0) {
-        OrderHot& order = hot[index];
-        const Quantity target = cmd.reduce_to_total_qty > order.cum_qty
-            ? cmd.reduce_to_total_qty - order.cum_qty : 0;
-        if (target >= order.leaves_qty) return;
+        OrderHot& order_hot = hot[index];
+        Order& resting = *order_hot.order;
+        const Quantity leaves_qty = static_cast<Quantity>(resting.remaining_quantity);
+        const Quantity target = cmd.reduce_to_total_qty > order_hot.cum_qty
+            ? cmd.reduce_to_total_qty - order_hot.cum_qty : 0;
+        if (target >= leaves_qty) return;
         if (target != 0) {
             Event event = blank_event(EventType::Canceled, book.id, cmd.ts);
             auto& c = event.canceled;
-            c.order_id = order.order_id;
-            c.cl_ord_id = cl_ord_id_of(order.session_token);
+            c.order_id = resting.id;
+            c.cl_ord_id = cl_ord_id_of(order_hot.session_token);
             c.request_cl_ord_id = cmd.cl_ord_id;
             c.session = cmd.session;
-            c.side = cold[index].side;
-            c.price = book.price_of(static_cast<std::int32_t>(cold[index].tick));
-            c.canceled_qty = order.leaves_qty - target;
-            c.cum_qty = order.cum_qty;
+            c.side = resting.side;
+            c.price = book.price_of(static_cast<std::int32_t>(resting.price));
+            c.canceled_qty = leaves_qty - target;
+            c.cum_qty = order_hot.cum_qty;
             c.reason = CancelReason::UserRequested;
             c.was_resting = true;
             c.leaves_qty = target;
-            if (!book.storage->amend_order(order.order_id,order.cum_qty+target,target)) std::abort();
-            order.leaves_qty = target;
+            if (!book.order_book->amend_order(resting, order_hot.cum_qty + target, target)) std::abort();
             append_event(out, event);
             return;
         }
     }
     emit_resting_canceled(book, index, CancelReason::UserRequested, cmd.cl_ord_id, cmd.ts, out);
-    remove_resting(index);
+    remove_resting(book, index);
 }
 
 // ===========================================================================
-// ReplaceOrder (SPEC 6)
+// ReplaceOrder
 // ===========================================================================
 
 void MatchingEngine::Impl::on_replace(const ReplaceOrder& cmd, EventBuffer& out) {
     const OrderIndex index = find_live_order(cmd.session, cmd.orig_cl_ord_id);
-    if (EXSIM_EXCHANGE_UNLIKELY(index == kNilOrder)) {
+    if (EXSIM_UNLIKELY(index == kNilOrder)) {
         return reject_replace(cmd, RejectReason::UnknownOrder, 0, 0, out);
     }
     OrderHot& order_hot = hot[index];
     const OrderCold& order_cold = cold[index];
+    Order& resting = *order_hot.order;
     InstrumentBook& book = books[order_cold.instrument - 1];
-    const OrderId old_order_id = order_hot.order_id;
+    const OrderId old_order_id = resting.id;
     const InstrumentId instrument = order_cold.instrument;
 
-    if (EXSIM_EXCHANGE_UNLIKELY(cmd.cl_ord_id > kMaxClOrdId)) {
+    if (EXSIM_UNLIKELY(cmd.cl_ord_id > kMaxClOrdId)) {
         return reject_replace(cmd, RejectReason::InvalidClOrdId, old_order_id, instrument, out);
     }
     const ClOrdId new_cl_ord_id = cmd.cl_ord_id != 0 ? cmd.cl_ord_id : cmd.orig_cl_ord_id;
     const bool token_changes = new_cl_ord_id != cmd.orig_cl_ord_id;
-    if (EXSIM_EXCHANGE_UNLIKELY(token_changes &&
+    if (EXSIM_UNLIKELY(token_changes &&
                      order_by_session_token.find(make_session_token(cmd.session, new_cl_ord_id)) != nullptr)) {
         return reject_replace(cmd, RejectReason::DuplicateClOrdId, old_order_id, instrument, out);
     }
-    if (EXSIM_EXCHANGE_UNLIKELY(!book.is_valid_quantity(cmd.qty))) {
+    if (EXSIM_UNLIKELY(!book.is_valid_quantity(cmd.qty))) {
         return reject_replace(cmd, RejectReason::InvalidQuantity, old_order_id, instrument, out);
     }
     std::int32_t new_tick = 0;
-    if (EXSIM_EXCHANGE_UNLIKELY(!book.tick_of(cmd.price, new_tick))) {
+    if (EXSIM_UNLIKELY(!book.tick_of(cmd.price, new_tick))) {
         return reject_replace(cmd, RejectReason::InvalidPrice, old_order_id, instrument, out);
     }
-    if (EXSIM_EXCHANGE_UNLIKELY(book.phase == Phase::Closed)) {
+    if (EXSIM_UNLIKELY(book.phase == Phase::Closed)) {
         return reject_replace(cmd, RejectReason::MarketClosed, old_order_id, instrument, out);
     }
-    if (EXSIM_EXCHANGE_UNLIKELY(book.phase == Phase::Halted)) {
+    if (EXSIM_UNLIKELY(book.phase == Phase::Halted)) {
         return reject_replace(cmd, RejectReason::InstrumentHalted, old_order_id, instrument, out);
     }
-    const Side side = order_cold.side;
-    if (EXSIM_EXCHANGE_UNLIKELY(order_cold.post_only && book.phase == Phase::Continuous &&
+    const Side side = resting.side;
+    if (EXSIM_UNLIKELY(order_cold.post_only && book.phase == Phase::Continuous &&
                      book.crosses_opposite_best(side, new_tick))) {
         return reject_replace(cmd, RejectReason::PostOnlyWouldCross, old_order_id, instrument, out);
     }
@@ -791,13 +781,13 @@ void MatchingEngine::Impl::on_replace(const ReplaceOrder& cmd, EventBuffer& out)
     // Quantity reduced to (or below) what already executed: the order is done.
     if (cmd.qty <= order_hot.cum_qty) {
         emit_resting_canceled(book, index, CancelReason::UserRequested, cmd.cl_ord_id, cmd.ts, out);
-        remove_resting(index);
+        remove_resting(book, index);
         return;
     }
 
-    const std::int32_t old_tick = static_cast<std::int32_t>(order_cold.tick);
+    const std::int32_t old_tick = static_cast<std::int32_t>(resting.price);
     const Price old_price = book.price_of(old_tick);
-    const Quantity old_leaves_qty = order_hot.leaves_qty;
+    const Quantity old_leaves_qty = static_cast<Quantity>(resting.remaining_quantity);
     const Quantity cum_qty = order_hot.cum_qty;
     const Quantity new_leaves_qty = cmd.qty - cum_qty;
     const SessionId session = cmd.session;
@@ -818,8 +808,7 @@ void MatchingEngine::Impl::on_replace(const ReplaceOrder& cmd, EventBuffer& out)
 
     if (!cmd.force_priority_loss && new_tick == old_tick && new_leaves_qty <= old_leaves_qty) {
         // Priority kept: update in place, FIFO position unchanged.
-        if (!book.storage->amend_order(order_hot.order_id,cmd.qty,new_leaves_qty)) std::abort();
-        order_hot.leaves_qty = new_leaves_qty;
+        if (!book.order_book->amend_order(resting, cmd.qty, new_leaves_qty)) std::abort();
         if (token_changes) {
             order_by_session_token.erase(order_hot.session_token);
             order_hot.session_token = make_session_token(session, new_cl_ord_id);
@@ -850,7 +839,7 @@ void MatchingEngine::Impl::on_replace(const ReplaceOrder& cmd, EventBuffer& out)
     order.tif = order_cold.tif;
     order.stp = order_cold.stp;
     order.post_only = order_cold.post_only;
-    remove_resting(index);
+    remove_resting(book, index);
 
     replaced.new_order_id = order.order_id;
     replaced.priority_kept = false;
@@ -864,7 +853,7 @@ void MatchingEngine::Impl::on_replace(const ReplaceOrder& cmd, EventBuffer& out)
 }
 
 // ===========================================================================
-// MassCancel (SPEC 7)
+// MassCancel
 // ===========================================================================
 
 void MatchingEngine::Impl::on_mass_cancel(const MassCancel& cmd, EventBuffer& out) {
@@ -875,8 +864,9 @@ void MatchingEngine::Impl::on_mass_cancel(const MassCancel& cmd, EventBuffer& ou
         const OrderIndex next = cold[index].next_in_session;
         const InstrumentId instrument = cold[index].instrument;
         if (cmd.instrument == 0 || instrument == cmd.instrument) {
-            emit_resting_canceled(books[instrument - 1], index, reason, cmd.cl_ord_id, cmd.ts, out);
-            remove_resting(index);
+            InstrumentBook& book = books[instrument - 1];
+            emit_resting_canceled(book, index, reason, cmd.cl_ord_id, cmd.ts, out);
+            remove_resting(book, index);
             ++canceled_count;
         }
         index = next;
@@ -890,7 +880,7 @@ void MatchingEngine::Impl::on_mass_cancel(const MassCancel& cmd, EventBuffer& ou
 }
 
 // ===========================================================================
-// SetPhase, auction uncross, end-of-day expiry (SPEC 8, 9)
+// SetPhase, auction uncross, end-of-day expiry
 // ===========================================================================
 
 UncrossPlan MatchingEngine::Impl::plan_uncross(const InstrumentBook& book) const noexcept {
@@ -900,8 +890,11 @@ UncrossPlan MatchingEngine::Impl::plan_uncross(const InstrumentBook& book) const
     }
     const std::uint32_t low_tick = static_cast<std::uint32_t>(book.best_ask_tick);
     const std::uint32_t high_tick = static_cast<std::uint32_t>(book.best_bid_tick);
-    const PriceLadder& bids = book.ladder(Side::BUY);
-    const PriceLadder& asks = book.ladder(Side::SELL);
+    const exsim::book::OrderBook& order_book = *book.order_book;
+    auto volume_at = [&](Side side, std::size_t tick) -> std::uint64_t {
+        const Level* level = order_book.price_level(side, static_cast<exsim::book::Price>(tick));
+        return level == nullptr ? 0 : level->total_volume;  // empty levels hold 0
+    };
     const std::size_t first_word = low_tick >> 6;
     const std::size_t last_word = high_tick >> 6;
     auto range_mask = [&](std::size_t word_index) {
@@ -918,10 +911,10 @@ UncrossPlan MatchingEngine::Impl::plan_uncross(const InstrumentBook& book) const
     // B(low_tick): every bid at or above the best ask (none rest above the best bid).
     std::uint64_t buy_qty_at_or_above = 0;
     for (std::size_t word_index = first_word; word_index <= last_word; ++word_index) {
-        std::uint64_t bits = bids.occupied.tick_word(word_index) & range_mask(word_index);
+        std::uint64_t bits = order_book.active_word(Side::BUY, word_index) & range_mask(word_index);
         while (bits != 0) {
             const std::size_t tick = (word_index << 6) | static_cast<std::size_t>(__builtin_ctzll(bits));
-            buy_qty_at_or_above += bids.levels[tick].total_volume;
+            buy_qty_at_or_above += volume_at(Side::BUY, tick);
             bits &= bits - 1;
         }
     }
@@ -934,11 +927,12 @@ UncrossPlan MatchingEngine::Impl::plan_uncross(const InstrumentBook& book) const
     bool have_candidate = false;
     for (std::size_t word_index = first_word; word_index <= last_word; ++word_index) {
         std::uint64_t bits =
-            (bids.occupied.tick_word(word_index) | asks.occupied.tick_word(word_index)) & range_mask(word_index);
+            (order_book.active_word(Side::BUY, word_index) | order_book.active_word(Side::SELL, word_index)) &
+            range_mask(word_index);
         while (bits != 0) {
             const std::size_t tick = (word_index << 6) | static_cast<std::size_t>(__builtin_ctzll(bits));
             bits &= bits - 1;
-            sell_qty_at_or_below += asks.levels[tick].total_volume;  // empty levels hold 0
+            sell_qty_at_or_below += volume_at(Side::SELL, tick);
             const std::uint64_t volume = std::min(buy_qty_at_or_above, sell_qty_at_or_below);
             const std::uint64_t imbalance = buy_qty_at_or_above >= sell_qty_at_or_below
                                                 ? buy_qty_at_or_above - sell_qty_at_or_below
@@ -961,7 +955,7 @@ UncrossPlan MatchingEngine::Impl::plan_uncross(const InstrumentBook& book) const
                 plan.buy_qty = buy_qty_at_or_above;
                 plan.sell_qty = sell_qty_at_or_below;
             }
-            buy_qty_at_or_above -= bids.levels[tick].total_volume;
+            buy_qty_at_or_above -= volume_at(Side::BUY, tick);
         }
     }
     plan.crossed = have_candidate;
@@ -975,24 +969,20 @@ void MatchingEngine::Impl::uncross(InstrumentBook& book, Timestamp ts, EventBuff
         return;
     }
     const Price uncross_price = book.price_of(plan.tick);
-    PriceLadder& bids = book.ladder(Side::BUY);
-    PriceLadder& asks = book.ladder(Side::SELL);
     while (book.best_bid_tick >= plan.tick && book.best_ask_tick <= plan.tick) {
-        const std::int32_t bid_tick = book.best_bid_tick;
-        const std::int32_t ask_tick = book.best_ask_tick;
-        const Level& bid_level = bids.levels[static_cast<std::uint32_t>(bid_tick)];
-        const Level& ask_level = asks.levels[static_cast<std::uint32_t>(ask_tick)];
-        const OrderIndex buy_index = bid_level.head_order->context_index;
-        const OrderIndex sell_index = ask_level.head_order->context_index;
-        OrderHot& buy = hot[buy_index];
-        OrderHot& sell = hot[sell_index];
-        const Quantity fill_qty = std::min(buy.leaves_qty, sell.leaves_qty);
-        buy.leaves_qty -= fill_qty;
-        buy.cum_qty += fill_qty;
-        sell.leaves_qty -= fill_qty;
-        sell.cum_qty += fill_qty;
-        if (!book.storage->set_leaves(buy.order_id,buy.leaves_qty) ||
-            !book.storage->set_leaves(sell.order_id,sell.leaves_qty)) std::abort();
+        Order& buy = *book.order_book->price_level(Side::BUY, book.best_bid_tick)->head_order;
+        Order& sell = *book.order_book->price_level(Side::SELL, book.best_ask_tick)->head_order;
+        const OrderIndex buy_index = buy.context_index;
+        const OrderIndex sell_index = sell.context_index;
+        OrderHot& buy_hot = hot[buy_index];
+        OrderHot& sell_hot = hot[sell_index];
+        const Quantity fill_qty = static_cast<Quantity>(std::min(buy.remaining_quantity, sell.remaining_quantity));
+        book.order_book->execute_order(buy, fill_qty);
+        book.order_book->execute_order(sell, fill_qty);
+        buy_hot.cum_qty += fill_qty;
+        sell_hot.cum_qty += fill_qty;
+        const Quantity buy_leaves = static_cast<Quantity>(buy.remaining_quantity);
+        const Quantity sell_leaves = static_cast<Quantity>(sell.remaining_quantity);
 
         Event event = blank_event(EventType::Fill, book.id, ts);
         FillEvent& fill = event.fill;
@@ -1000,17 +990,17 @@ void MatchingEngine::Impl::uncross(InstrumentBook& book, Timestamp ts, EventBuff
         fill.price = uncross_price;
         fill.qty = fill_qty;
         fill.aggressor = Aggressor::None;
-        set_fill_leg(fill.buy, buy.order_id, cl_ord_id_of(buy.session_token), session_of(buy.session_token),
-                     buy.owner, buy.leaves_qty, buy.cum_qty);
-        set_fill_leg(fill.sell, sell.order_id, cl_ord_id_of(sell.session_token), session_of(sell.session_token),
-                     sell.owner, sell.leaves_qty, sell.cum_qty);
+        set_fill_leg(fill.buy, buy.id, cl_ord_id_of(buy_hot.session_token), session_of(buy_hot.session_token),
+                     buy_hot.owner, buy_leaves, buy_hot.cum_qty);
+        set_fill_leg(fill.sell, sell.id, cl_ord_id_of(sell_hot.session_token), session_of(sell_hot.session_token),
+                     sell_hot.owner, sell_leaves, sell_hot.cum_qty);
         append_event(out, event);
 
-        if (buy.leaves_qty == 0) {
-            pop_level_head(book, Side::BUY, bid_level, bid_tick, buy_index);
+        if (buy_leaves == 0) {
+            remove_resting(book, buy_index);
         }
-        if (sell.leaves_qty == 0) {
-            pop_level_head(book, Side::SELL, ask_level, ask_tick, sell_index);
+        if (sell_leaves == 0) {
+            remove_resting(book, sell_index);
         }
     }
     Event event = blank_event(EventType::AuctionSummary, book.id, ts);
@@ -1028,7 +1018,7 @@ void MatchingEngine::Impl::expire_day_orders(InstrumentBook& book, Timestamp ts,
         const OrderIndex next = instrument_links[index].next;
         if (cold[index].tif == TimeInForce::Day) {
             emit_resting_canceled(book, index, CancelReason::EndOfDay, 0, ts, out);
-            remove_resting(index);
+            remove_resting(book, index);
         }
         index = next;
     }
@@ -1060,7 +1050,7 @@ void MatchingEngine::Impl::on_set_phase(const SetPhase& cmd, EventBuffer& out) {
     } else if (raw_value(cmd.phase) > raw_value(Phase::PreClose)) {
         reason = RejectReason::InvalidField;
     }
-    if (EXSIM_EXCHANGE_UNLIKELY(reason != RejectReason::None)) {
+    if (EXSIM_UNLIKELY(reason != RejectReason::None)) {
         Event event = blank_event(EventType::Rejected, cmd.instrument, cmd.ts);
         event.rejected.cmd = CommandType::SetPhase;
         event.rejected.reason = reason;
@@ -1083,21 +1073,22 @@ void MatchingEngine::Impl::on_set_phase(const SetPhase& cmd, EventBuffer& out) {
 OrderInfo MatchingEngine::Impl::order_info(OrderIndex index) const noexcept {
     const OrderHot& order_hot = hot[index];
     const OrderCold& order_cold = cold[index];
+    const Order& resting = *order_hot.order;
     const InstrumentBook& book = books[order_cold.instrument - 1];
     OrderInfo info;
     std::memset(static_cast<void*>(&info), 0, sizeof(info));
-    info.order_id = order_hot.order_id;
+    info.order_id = resting.id;
     info.cl_ord_id = cl_ord_id_of(order_hot.session_token);
     info.instrument = order_cold.instrument;
     info.session = session_of(order_hot.session_token);
     info.owner = order_hot.owner;
-    info.side = order_cold.side;
+    info.side = resting.side;
     info.tif = order_cold.tif;
     info.stp = order_cold.stp;
     info.post_only = order_cold.post_only;
-    info.price = book.price_of(static_cast<std::int32_t>(order_cold.tick));
-    info.qty = order_hot.leaves_qty + order_hot.cum_qty;
-    info.leaves_qty = order_hot.leaves_qty;
+    info.price = book.price_of(static_cast<std::int32_t>(resting.price));
+    info.leaves_qty = static_cast<Quantity>(resting.remaining_quantity);
+    info.qty = info.leaves_qty + order_hot.cum_qty;
     info.cum_qty = order_hot.cum_qty;
     return info;
 }
@@ -1121,11 +1112,16 @@ InstrumentId MatchingEngine::add_instrument(const InstrumentConfig& config) {
     if (tick_count > engine::kMaxLadderTicks) {
         return 0;
     }
-    if (find_instrument(config.symbol) != 0) {
-        return 0;
-    }
     const InstrumentId id = static_cast<InstrumentId>(impl.books.size() + 1);
-    impl.books.emplace_back(config, id, static_cast<std::uint32_t>(tick_count), impl.max_orders);
+    if (!impl.instrument_by_symbol.try_emplace(symbol_key(config.symbol), id).second) {
+        return 0;  // symbol taken
+    }
+    try {
+        impl.books.emplace_back(config, id, static_cast<std::uint32_t>(tick_count), impl.shared_order_storage);
+    } catch (...) {
+        impl.instrument_by_symbol.erase(symbol_key(config.symbol));
+        throw;
+    }
     return id;
 }
 
@@ -1173,12 +1169,8 @@ const InstrumentConfig* MatchingEngine::instrument(InstrumentId id) const noexce
 }
 
 InstrumentId MatchingEngine::find_instrument(const Symbol& symbol) const noexcept {
-    for (const InstrumentBook& book : impl_->books) {
-        if (book.config.symbol == symbol) {
-            return book.id;
-        }
-    }
-    return 0;
+    const auto found = impl_->instrument_by_symbol.find(symbol_key(symbol));
+    return found == impl_->instrument_by_symbol.end() ? InstrumentId{0} : found->second;
 }
 
 Phase MatchingEngine::phase(InstrumentId id) const noexcept {
@@ -1215,29 +1207,24 @@ std::size_t MatchingEngine::depth(InstrumentId id, Side side, LevelInfo* out, st
     if (book == nullptr || out == nullptr || raw_value(side) > raw_value(Side::SELL)) {
         return 0;
     }
-    const PriceLadder& ladder = book->ladder(side);
     std::int32_t tick = side == Side::BUY ? book->best_bid_tick : book->best_ask_tick;
     if (tick == kNoBidTick || tick == kNoAskTick) {
         return 0;
     }
     std::size_t written = 0;
     while (written < max_levels) {
-        const Level& level = ladder.levels[static_cast<std::uint32_t>(tick)];
+        const Level& level = *book->order_book->price_level(side, tick);
         out[written].price = book->price_of(tick);
         out[written].qty = level.total_volume;
-        out[written].order_count = level.order_count_;
+        out[written].order_count = static_cast<std::uint32_t>(level.order_count());
         ++written;
-        std::uint32_t next_tick;
-        if (side == Side::BUY) {
-            next_tick = tick == 0 ? LegacyOccupancy::kNotFound
-                                  : ladder.occupied.find_at_or_below(static_cast<std::uint32_t>(tick) - 1);
-        } else {
-            next_tick = ladder.occupied.find_at_or_above(static_cast<std::uint32_t>(tick) + 1);
-        }
-        if (next_tick == LegacyOccupancy::kNotFound) {
+        const std::optional<exsim::book::Price> next_tick = side == Side::BUY
+            ? book->order_book->next_price(side, tick - 1, false)
+            : book->order_book->next_price(side, tick + 1, true);
+        if (!next_tick) {
             break;
         }
-        tick = static_cast<std::int32_t>(next_tick);
+        tick = static_cast<std::int32_t>(*next_tick);
     }
     return written;
 }
@@ -1249,10 +1236,11 @@ std::size_t MatchingEngine::level_orders(InstrumentId id, Side side, Price price
     if (book == nullptr || out == nullptr || raw_value(side) > raw_value(Side::SELL) || !book->tick_of(price, tick)) {
         return 0;
     }
+    const Level* level = book->order_book->price_level(side, tick);
     std::size_t written = 0;
-    const Level& level = book->ladder(side).levels[static_cast<std::uint32_t>(tick)];
-    for (OrderIndex index = level.head_order ? level.head_order->context_index : kNilOrder; index != kNilOrder && written < max_orders; index = impl_->next_in_level(index)) {
-        out[written++] = impl_->hot[index].order_id;
+    for (const Order* resting = level == nullptr ? nullptr : level->head_order;
+         resting != nullptr && written < max_orders; resting = resting->next_order) {
+        out[written++] = resting->id;
     }
     return written;
 }
@@ -1270,10 +1258,12 @@ std::optional<OrderInfo> MatchingEngine::find_order(OrderId order_id) const noex
     if (order_id == 0 || order_id >= impl.next_order_id) {
         return std::nullopt;
     }
-    for (const auto& book : impl.books) {
-        if (const auto* order = book.storage->find_order(order_id)) return impl.order_info(order->context_index);
+    // One OrderId map serves every instrument book.
+    const Order* const* resting = impl.shared_order_storage->orders.find(order_id);
+    if (resting == nullptr) {
+        return std::nullopt;
     }
-    return std::nullopt;
+    return impl.order_info((*resting)->context_index);
 }
 
 std::size_t MatchingEngine::live_order_count() const noexcept { return impl_->live_count; }
@@ -1286,10 +1276,8 @@ AuctionIndicative MatchingEngine::auction_indicative(InstrumentId id) const noex
     }
     const UncrossPlan plan = impl_->plan_uncross(*book);
     if (!plan.crossed) {
-        std::uint64_t buy = 0, sell = 0;
-        for (OrderIndex i = impl_->orders_by_instrument[id].head; i != kNilOrder; i = impl_->instrument_links[i].next) {
-            (impl_->cold[i].side == Side::BUY ? buy : sell) += impl_->hot[i].leaves_qty;
-        }
+        const std::uint64_t buy = book->order_book->get_total_leaves(Side::BUY);
+        const std::uint64_t sell = book->order_book->get_total_leaves(Side::SELL);
         indicative.imbalance_qty = buy >= sell ? buy - sell : sell - buy;
         indicative.imbalance_side = buy > sell ? Aggressor::Buy : sell > buy ? Aggressor::Sell : Aggressor::None;
         return indicative;
@@ -1322,9 +1310,10 @@ void MatchingEngine::visit_level_orders(InstrumentId id, Side side, Price price,
     if (book == nullptr || raw_value(side) > raw_value(Side::SELL) || !book->tick_of(price, tick)) {
         return;
     }
-    const Level& level = book->ladder(side).levels[static_cast<std::uint32_t>(tick)];
-    for (OrderIndex index = level.head_order ? level.head_order->context_index : kNilOrder; index != kNilOrder; index = impl.next_in_level(index)) {
-        fn(impl.order_info(index), ctx);
+    const Level* level = book->order_book->price_level(side, tick);
+    for (const Order* resting = level == nullptr ? nullptr : level->head_order; resting != nullptr;
+         resting = resting->next_order) {
+        fn(impl.order_info(resting->context_index), ctx);
     }
 }
 

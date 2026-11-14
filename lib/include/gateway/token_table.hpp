@@ -3,7 +3,7 @@
 
 // Per-session interning of client order tokens (OUCH 14-byte tokens, FIX
 // ClOrdID strings) into dense engine ClOrdId values 1, 2, 3, ... in
-// first-seen order (gateway mapping §1).
+// first-seen order.
 //
 // * token -> ClOrdId: open-addressing table of (hash tag, id) words, linear
 //   probing; a probe touches the entry bytes only on a 32-bit tag match.
@@ -17,8 +17,8 @@
 // Tokens are compared byte-exactly: OUCH tokens keep their space padding so
 // the gateway can echo the original 14 bytes back.
 
-#include "types.hpp"
-#include "exchange/compiler.hpp"
+#include "engine/types.hpp"
+#include "util/compiler.hpp"
 
 #include <cstddef>
 #include <cstdint>
@@ -62,7 +62,7 @@ public:
 
     // Returns the id for `token`, assigning the next id if it is new.
     [[nodiscard]] InternResult intern(std::string_view token) noexcept {
-        if (EXSIM_EXCHANGE_UNLIKELY(token.empty() || token.size() > kMaxTokenLen)) {
+        if (EXSIM_UNLIKELY(token.empty() || token.size() > kMaxTokenLen)) {
             return {0, InternStatus::Invalid};
         }
         const std::uint64_t h = hash(token);
@@ -80,7 +80,7 @@ public:
                 }
             }
         }
-        if (EXSIM_EXCHANGE_UNLIKELY(size_ == max_tokens_)) {
+        if (EXSIM_UNLIKELY(size_ == max_tokens_)) {
             return {0, InternStatus::Full};
         }
         const std::uint32_t id = ++size_;
@@ -91,7 +91,7 @@ public:
 
     // Id of a previously interned token, or 0.
     [[nodiscard]] ClOrdId find(std::string_view token) const noexcept {
-        if (EXSIM_EXCHANGE_UNLIKELY(token.empty() || token.size() > kMaxTokenLen)) {
+        if (EXSIM_UNLIKELY(token.empty() || token.size() > kMaxTokenLen)) {
             return 0;
         }
         const std::uint64_t h = hash(token);
@@ -112,7 +112,7 @@ public:
 
     // Original token bytes for an id, or an empty view if the id is unknown.
     [[nodiscard]] std::string_view token(ClOrdId id) const noexcept {
-        if (EXSIM_EXCHANGE_UNLIKELY(id == 0 || id > size_)) {
+        if (EXSIM_UNLIKELY(id == 0 || id > size_)) {
             return {};
         }
         const Entry& e = entries_[id - 1];
@@ -129,7 +129,9 @@ public:
     }
 
 private:
-    struct Entry {
+    // 24 bytes, 8-byte aligned (21 bytes unaligned before): entries start on
+    // word boundaries.
+    struct alignas(8) Entry {
         char bytes[kMaxTokenLen];
         std::uint8_t len;
 
@@ -141,6 +143,7 @@ private:
             return len == t.size() && std::memcmp(bytes, t.data(), t.size()) == 0;
         }
     };
+    static_assert(sizeof(Entry) == 24);
 
     // Up to 20 bytes: three overlapping-free 8-byte lanes (zero padded),
     // multiply-xorshift mixed, finished with the murmur3 fmix64 avalanche.

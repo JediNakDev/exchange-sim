@@ -1,11 +1,11 @@
 #ifndef EXSIM_TESTS_COMMAND_GEN_HPP
 #define EXSIM_TESTS_COMMAND_GEN_HPP
-#include <sim/journal.hpp>
+#include <server/journal/journal.hpp>
 #include <random>
 namespace exsim::testsupport {
 struct CommandWeights { unsigned add=55,cancel=15,replace=18,mass=4,phase=8; };
-inline sim::JournalSetup fuzz_setup(bool tiny=false,std::size_t instruments=3) {
-    sim::JournalSetup s{{3,tiny?8u:128u},{}};
+inline server::journal::JournalSetup fuzz_setup(bool tiny=false,std::size_t instruments=3) {
+    server::journal::JournalSetup s{{3,tiny?8u:128u},{}};
     for(auto name:{"AAA","BBB","CCC"}) {
         InstrumentConfig i;i.symbol=Symbol(name);i.min_price=990000;i.max_price=1010000;
         i.reference_price=1000000;i.max_order_qty=100;

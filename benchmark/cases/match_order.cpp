@@ -3,7 +3,7 @@
 #include "../utils/stats.hpp"
 #include "../utils/warmup.hpp"
 #include "../utils/workload.hpp"
-#include <exchange/order_book.hpp>
+#include <book/order_book.hpp>
 #include <chrono>
 
 using namespace bench;
@@ -28,14 +28,14 @@ static void BM_MatchOrder(benchmark::State& state) {
             auto best_bid = book.get_best_bid();
             auto best_ask = book.get_best_ask();
 
-            exsim::exchange::Price price;
-            exsim::exchange::Side side;
+            exsim::book::Price price;
+            exsim::book::Side side;
             if (i % 2 == 0 && best_ask) {
                 price = *best_ask;
-                side = exsim::exchange::Side::BUY;
+                side = exsim::book::Side::BUY;
             } else if (best_bid) {
                 price = *best_bid;
-                side = exsim::exchange::Side::SELL;
+                side = exsim::book::Side::SELL;
             } else {
                 price = order.price;
                 side = order.side;
@@ -52,7 +52,7 @@ static void BM_MatchOrder(benchmark::State& state) {
             if (book.get_total_orders() < 100) {
                 for (int j = 0; j < 10; ++j) {
                     const auto& refill = w.get(idx++);
-                    exsim::exchange::Price refill_price = refill.side == exsim::exchange::Side::BUY
+                    exsim::book::Price refill_price = refill.side == exsim::book::Side::BUY
                                               ? BASE_PRICE - (j + 1) * TICK_SIZE
                                               : BASE_PRICE + (j + 1) * TICK_SIZE;
                     (void)book.add_order(refill_price, refill.quantity, refill.side);
